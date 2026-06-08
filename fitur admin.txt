@@ -1,0 +1,55 @@
+Dashboard
+│
+├── Master Data
+│   ├── Data Guru
+│   ├── Data Murid
+│   ├── Data Wali Murid
+│   ├── Data Kelas
+│   ├── Data Jurusan
+│   ├── Data Mata Pelajaran
+│   ├── Data Tahun Ajaran
+│   └── Data Ruangan
+│
+├── Akademik
+│   ├── Jadwal Pelajaran
+│   ├── Nilai Harian
+│   ├── Nilai UTS
+│   ├── Nilai UAS
+│   ├── E-Rapor
+│   └── Kenaikan Kelas
+│
+├── Absensi
+│   ├── Absensi Murid
+│   ├── Absensi Guru
+│   ├── Rekap Absensi
+│   └── QR Attendance
+│
+├── Keuangan
+│   ├── SPP
+│   ├── Pembayaran Lain
+│   ├── Tagihan
+│   └── Laporan Keuangan
+│
+├── Komunikasi
+│   ├── Pengumuman
+│   ├── Pesan Internal
+│   ├── Broadcast Orang Tua
+│   └── WhatsApp Gateway
+│
+├── Monitoring
+│   ├── Dashboard Statistik
+│   ├── Grafik Kehadiran
+│   ├── Grafik Nilai
+│   └── Aktivitas User
+│
+├── Pengaturan Sekolah
+│   ├── Profil Sekolah
+│   ├── Domain Sekolah
+│   ├── Logo Sekolah
+│   ├── Tahun Akademik Aktif
+│   └── Pengguna
+│
+└── Subscription
+    ├── Paket Langganan
+    ├── Tagihan
+    └── Riwayat Pembayaran

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "585358866296",
+    "project_id": "sys-mng-sch",
+    "storage_bucket": "sys-mng-sch.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:585358866296:android:6d23273e2e3a33ac983a8d",
+        "android_client_info": {
+          "package_name": "com.sysmngsch.sys_mng_school"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVg8ELe9zzbndS6PoeDJZpK44zQcJKHMU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
