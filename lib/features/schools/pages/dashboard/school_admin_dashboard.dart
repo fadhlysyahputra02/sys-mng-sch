@@ -73,8 +73,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   },
                 ),
 
-                _menuCard(title: 'Murid', icon: Icons.groups, onTap: () {}),
-
+                _menuCard(
+                  title: 'Murid',
+                  icon: Icons.groups,
+                  onTap: () {
+                    Get.toNamed(AppRoutes.studentList);
+                  },
+                ),
                 _menuCard(
                   title: 'Mata Pelajaran',
                   icon: Icons.menu_book,

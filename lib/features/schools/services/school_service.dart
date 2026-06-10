@@ -36,7 +36,13 @@ class SchoolService {
       return null;
     }
 
-    return result.docs.first.data();
+    final doc = result.docs.first;
+
+    final data = doc.data();
+
+    data['docId'] = doc.id;
+
+    return data;
   }
 
   Future<void> updateTeacherRegistration({
@@ -48,6 +54,18 @@ class SchoolService {
     await FirebaseFirestore.instance
         .collection('teachers')
         .doc(teacherId)
+        .update({'uid': uid, 'email': email, 'sudahRegister': true});
+  }
+
+  Future<void> updateStudentRegistration({
+    required String studentId,
+    required String uid,
+    required String email,
+    required String nama,
+  }) async {
+    await FirebaseFirestore.instance
+        .collection('students')
+        .doc(studentId)
         .update({'uid': uid, 'email': email, 'sudahRegister': true});
   }
 

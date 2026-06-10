@@ -349,11 +349,14 @@ class _RegisterPageState extends State<RegisterPage> {
       }
 
       final nis = nipNisController.text.trim();
-      if (nis.isEmpty) throw Exception('NIS wajib diisi');
+
+      if (nis.isEmpty) {
+        throw Exception('NIS wajib diisi');
+      }
 
       final schoolId = _selectedSekolah!['schoolId'] as String;
 
-      // Validasi NIS: harus terdaftar dan aktif di sekolah tersebut
+      // Cari data murid
       final student = await schoolService.getStudentByNis(
         schoolId: schoolId,
         nis: nis,
@@ -376,18 +379,28 @@ class _RegisterPageState extends State<RegisterPage> {
         password: passwordController.text.trim(),
       );
 
+      final uid = credential.user!.uid;
+
       await userService.createUser(
-        uid: credential.user!.uid,
+        uid: uid,
         email: emailController.text.trim(),
         nama: student['nama'],
         role: 'student',
         schoolId: schoolId,
+      );
+      // Update data murid
+      await schoolService.updateStudentRegistration(
+        studentId: student['studentId'],
+        nama: student['nama'],
+        uid: uid,
+        email: emailController.text.trim(),
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Register murid berhasil')),
         );
+
         Navigator.pop(context);
       }
     } catch (e) {

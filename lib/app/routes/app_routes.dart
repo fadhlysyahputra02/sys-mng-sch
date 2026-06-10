@@ -12,4 +12,5 @@ class AppRoutes {
   static const subject = '/subject';
 
   static const student = '/student';
+  static const studentList = '/student-list';
 }

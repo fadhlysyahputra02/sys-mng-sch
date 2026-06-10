@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import '../../core/services/session_service.dart';
 import '../../features/authentication/pages/login_page.dart';
 import '../../features/authentication/pages/register_page.dart';
+import '../../features/schools/pages/students/pages/student_list_page.dart';
 import '../../features/schools/pages/subjects/pages/subject_list_page.dart';
 import '../../features/schools/pages/teachers/pages/teacher_list_page.dart';
 import '../../features/splash/pages/splash_page.dart';
@@ -31,9 +32,10 @@ class AppPages {
           TeacherListPage(schoolId: SessionService.currentUser!.schoolId),
     ),
     GetPage(name: AppRoutes.subjectList, page: () => SubjectListPage()),
-    // GetPage(
-    //   name: AppRoutes.superAdmin,
-    //   page: () => const SuperAdminDashboard(),
-    // ),
+    GetPage(
+      name: AppRoutes.studentList,
+      page: () =>
+          StudentListPage(schoolId: SessionService.currentUser!.schoolId),
+    ),
   ];
 }
