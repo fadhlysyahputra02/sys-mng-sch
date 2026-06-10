@@ -41,7 +41,6 @@ class StudentService {
     return _db
         .collection('students')
         .where('classId', isEqualTo: classId)
-        .orderBy('nama')
         .snapshots();
   }
 

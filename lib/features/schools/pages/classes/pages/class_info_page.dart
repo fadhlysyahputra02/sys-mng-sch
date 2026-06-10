@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/services/session_service.dart';
+import '../../schedule/Page/class_schedule_page.dart';
 import '../../students/data/student_admin_service.dart';
 import '../../teachers/data/teacher_service.dart';
 import '../data/class_service.dart';
@@ -117,6 +118,24 @@ class ClassInfoPage extends StatelessWidget {
                   label: const Text('Wali Kelas'),
                   onPressed: () {
                     _showAddWaliKelasDialog(context);
+                  },
+                ),
+              ),
+
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.schedule),
+                  label: const Text('Jadwal'),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ClassSchedulePage(
+                          classId: classId,
+                          className: className,
+                        ),
+                      ),
+                    );
                   },
                 ),
               ),
