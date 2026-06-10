@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../authentication/pages/login_page.dart';
-import '../../schools/data/school_service.dart';
+import '../../../core/services/app_auth_service.dart';
+import '../../schools/services/school_service.dart';
 
 class RegisterSchoolPage extends StatefulWidget {
   const RegisterSchoolPage({super.key});
@@ -126,13 +126,10 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
             SizedBox(
               height: 50,
               child: OutlinedButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginPage()),
-                  );
+                onPressed: () async {
+                  await AppAuthService.logout();
                 },
-                child: const Text('KEMBALI KE LOGIN'),
+                child: const Text('KELUAR'),
               ),
             ),
 

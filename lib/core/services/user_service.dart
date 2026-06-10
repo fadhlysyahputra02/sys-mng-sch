@@ -16,11 +16,13 @@ class UserService {
   Future<void> createUser({
     required String uid,
     required String email,
+    required String nama,
     required String role,
     required String schoolId,
   }) async {
-    await _firestore.collection('users').doc(uid).set({
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
       'email': email,
+      'nama': nama,
       'role': role,
       'schoolId': schoolId,
       'aktif': true,

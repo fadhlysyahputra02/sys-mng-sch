@@ -1,0 +1,41 @@
+schools
+schools
+ └── {domain}
+      ├── schoolId
+      ├── namaSekolah
+      ├── domain
+      ├── kodeAdmin
+      ├── aktif
+      ├── package
+      └── createdAt
+users
+users
+ └── {uid}
+      ├── email
+      ├── role
+      ├── schoolId
+      ├── aktif
+      └── createdAt
+teachers
+teachers
+ └── {teacherId}
+      ├── teacherId
+      ├── schoolId
+      ├── uid
+      ├── nip
+      ├── nama
+      ├── email
+      ├── aktif
+      ├── sudahRegister
+      └── createdAt
+students
+students
+ └── {studentId}
+      ├── studentId
+      ├── schoolId
+      ├── uid
+      ├── nis
+      ├── nama
+      ├── aktif
+      ├── sudahRegister
+      └── createdAt

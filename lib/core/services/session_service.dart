@@ -5,7 +5,7 @@ class SessionService {
 
   static bool get isLoggedIn => currentUser != null;
 
-  static void clear() {
+  static void logout() {
     currentUser = null;
   }
 }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-
+import 'package:get/get.dart';
+import '../../../../app/routes/app_routes.dart';
+import '../../../../core/services/app_auth_service.dart';
 import '../../../../core/services/session_service.dart';
-import '../teachers/teacher_list_page.dart';
 
 class SchoolAdminDashboard extends StatefulWidget {
   const SchoolAdminDashboard({super.key});
@@ -18,12 +19,12 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard Sekolah')),
+      appBar: AppBar(title: Text('Halo Admin $schoolId 👋')),
 
       drawer: Drawer(
-        child: ListView(
-          children: const [
-            DrawerHeader(
+        child: Column(
+          children: [
+            const DrawerHeader(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -36,21 +37,27 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 ],
               ),
             ),
+
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: Text(nama),
+              subtitle: Text(role),
+            ),
+
+            const Divider(),
+
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: _logout,
+            ),
           ],
         ),
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            const Text(
-              'Halo Admin Sekolah 👋',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 20),
-
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -62,22 +69,32 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   title: 'Guru',
                   icon: Icons.school,
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TeacherListPage(schoolId: 'smaga'),
-                      ),
-                    );
+                    Get.toNamed(AppRoutes.teacherlist);
                   },
                 ),
+
                 _menuCard(title: 'Murid', icon: Icons.groups, onTap: () {}),
+
+                _menuCard(
+                  title: 'Mata Pelajaran',
+                  icon: Icons.menu_book,
+                  onTap: () {
+                    Get.toNamed(AppRoutes.subjectList);
+                  },
+                ),
+
                 _menuCard(title: 'Kelas', icon: Icons.class_, onTap: () {}),
+
                 _menuCard(title: 'Jadwal', icon: Icons.schedule, onTap: () {}),
+
                 _menuCard(
                   title: 'Absensi',
                   icon: Icons.fact_check,
                   onTap: () {},
                 ),
+
+                _menuCard(title: 'Nilai', icon: Icons.grade, onTap: () {}),
+
                 _menuCard(
                   title: 'Langganan',
                   icon: Icons.workspace_premium,
@@ -139,5 +156,35 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         trailing: Chip(label: Text(paket)),
       ),
     );
+  }
+
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Konfirmasi Logout'),
+          content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      try {
+        await AppAuthService.logout();
+      } catch (e) {
+        Get.snackbar('Error', 'Gagal logout: $e');
+      }
+    }
   }
 }

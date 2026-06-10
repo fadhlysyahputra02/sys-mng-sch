@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-
+import 'package:get/get.dart';
+import '../../../app/routes/app_routes.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/user_service.dart';
-import '../../schools/pages/dashboard/school_admin_dashboard.dart';
-import '../../students/pages/student_dashboard.dart';
-import '../../super_admin/pages/super_admin_dashboard.dart';
-import '../../teachers/pages/teacher_dashboard.dart';
-import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -81,45 +77,26 @@ class _LoginPageState extends State<LoginPage> {
 
                     switch (role) {
                       case 'super_admin':
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SuperAdminDashboard(),
-                          ),
-                        );
+                        Get.offAllNamed(AppRoutes.superAdmin);
                         break;
 
                       case 'school_admin':
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SchoolAdminDashboard(),
-                          ),
-                        );
+                        Get.offAllNamed(AppRoutes.schoolAdmin);
                         break;
 
                       case 'teacher':
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const TeacherDashboard(),
-                          ),
-                        );
+                        Get.offAllNamed(AppRoutes.teacher);
                         break;
 
                       case 'student':
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const StudentDashboard(),
-                          ),
-                        );
+                        Get.offAllNamed(AppRoutes.student);
                         break;
 
                       default:
                         throw Exception('Role tidak dikenal');
                     }
                     if (mounted) {
+                      // ignore: use_build_context_synchronously
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Login berhasil')),
                       );
@@ -130,6 +107,7 @@ class _LoginPageState extends State<LoginPage> {
                     debugPrint(passwordController.text.trim());
 
                     if (mounted) {
+                      // ignore: use_build_context_synchronously
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Login gagal')),
                       );
@@ -143,10 +121,7 @@ class _LoginPageState extends State<LoginPage> {
 
             TextButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RegisterPage()),
-                );
+                Get.toNamed(AppRoutes.register);
               },
               child: const Text('Belum punya akun? Register'),
             ),
