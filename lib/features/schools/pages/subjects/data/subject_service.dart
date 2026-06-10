@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class SubjectService {
   final _db = FirebaseFirestore.instance;
 
-  Stream<QuerySnapshot> getSubjects(String schoolId) {
+  Stream<QuerySnapshot<Map<String, dynamic>>> getSubjects(String schoolId) {
     return _db
         .collection('subjects')
         .where('schoolId', isEqualTo: schoolId)

@@ -42,7 +42,7 @@ class SubjectListPage extends StatelessWidget {
           return ListView.builder(
             itemCount: docs.length,
             itemBuilder: (_, i) {
-              final data = docs[i].data() as Map<String, dynamic>;
+              final data = docs[i].data();
 
               return Card(
                 child: ListTile(
