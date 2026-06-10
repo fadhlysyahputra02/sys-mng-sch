@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/services/app_auth_service.dart';
 import '../../../../core/services/session_service.dart';
+import '../classes/pages/class_list_page.dart';
 
 class SchoolAdminDashboard extends StatefulWidget {
   const SchoolAdminDashboard({super.key});
@@ -88,8 +89,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   },
                 ),
 
-                _menuCard(title: 'Kelas', icon: Icons.class_, onTap: () {}),
-
+                _menuCard(
+                  title: 'Kelas',
+                  icon: Icons.class_,
+                  onTap: () {
+                    Get.to(() => ClassListPage());
+                  },
+                ),
                 _menuCard(title: 'Jadwal', icon: Icons.schedule, onTap: () {}),
 
                 _menuCard(

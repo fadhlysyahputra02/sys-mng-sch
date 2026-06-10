@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import 'teacher_subject_page.dart';
+import 'teacher_subject_admin_page.dart';
 
 class TeacherDetailPage extends StatelessWidget {
   final Map<String, dynamic> teacher;

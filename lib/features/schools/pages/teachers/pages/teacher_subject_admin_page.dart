@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/services/session_service.dart';
-import '../services/teacher_subject_service.dart';
+import '../data/teacher_subject_service.dart';
 
 class TeacherSubjectPage extends StatefulWidget {
   final String teacherId;

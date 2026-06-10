@@ -1,5 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../data/student_admin_service.dart';
 
 class AddStudentPage extends StatefulWidget {
   final String schoolId;
@@ -26,25 +27,27 @@ class _AddStudentPageState extends State<AddStudentPage> {
         isLoading = true;
       });
 
-      final doc = FirebaseFirestore.instance.collection('students').doc();
-
-      await doc.set({
-        'studentId': doc.id,
-        'schoolId': widget.schoolId,
-        'uid': '',
-        'email': '',
-        'nis': nisController.text.trim(),
-        'nama': namaController.text.trim(),
-        'aktif': true,
-        'sudahRegister': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await StudentService().createStudent(
+        schoolId: widget.schoolId,
+        nis: nisController.text.trim(),
+        nama: namaController.text.trim(),
+      );
 
       if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Murid berhasil ditambahkan')),
+      );
 
       Navigator.pop(context);
     } catch (e) {
       debugPrint(e.toString());
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } finally {
       if (mounted) {
         setState(() {

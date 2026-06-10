@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'add_teacher_page.dart';
-import 'teacher_detail_page.dart';
+import 'add_teacher_admin_page.dart';
+import 'teacher_detail_admin_page.dart';
 
 class TeacherListPage extends StatelessWidget {
   final String schoolId;
