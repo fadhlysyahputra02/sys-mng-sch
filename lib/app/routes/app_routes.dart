@@ -3,14 +3,19 @@ class AppRoutes {
   static const login = '/login';
   static const register = '/register';
 
+  // Route untuk alur admin utama.
   static const superAdmin = '/super-admin';
   static const schoolAdmin = '/school-admin';
 
+  // Route untuk dashboard tiap peran pengguna.
   static const teacher = '/teacher';
   static const teacherlist = '/teacher-list';
   static const subjectList = '/subject-list';
-  static const subject = '/subject';
 
   static const student = '/student';
   static const studentList = '/student-list';
+
+  // Route untuk fitur lainnya.
+  static const classList = '/class-list';
+  static const schedule = '/schedule';
 }

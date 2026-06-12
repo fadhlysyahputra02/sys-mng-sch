@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -144,13 +145,146 @@ class ClassSchedulePage extends StatelessWidget {
 
   void _showAddScheduleDialog(BuildContext context) {
     String hari = 'Senin';
+    String jenisJadwal = 'pelajaran';
     String? selectedSubjectId;
     String? selectedTeacherId;
     String? selectedSubjectName;
     String? selectedTeacherName;
-    final jamMulaiController = TextEditingController();
+    String jamMulai = '';
+    String jamSelesai = '';
 
-    final jamSelesaiController = TextEditingController();
+    Future<void> pickTime({
+      required bool isStart,
+      required void Function(void Function()) dialogSetState,
+    }) async {
+      final initialValue = isStart ? jamMulai : jamSelesai;
+      final hasInitialValue = initialValue.isNotEmpty;
+      final initialHour = hasInitialValue
+          ? int.tryParse(initialValue.split(':').first) ?? 7
+          : 7;
+      final initialMinute = hasInitialValue
+          ? int.tryParse(initialValue.split(':').last) ?? 0
+          : 0;
+
+      int selectedHour = initialHour;
+      int selectedMinute = initialMinute;
+
+      await showCupertinoModalPopup<void>(
+        context: context,
+        builder: (pickerContext) {
+          return Container(
+            height: 280,
+            color: Colors.white,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isStart ? 'Pilih Jam Mulai' : 'Pilih Jam Selesai',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          final formatted =
+                              '${selectedHour.toString().padLeft(2, '0')}:${selectedMinute.toString().padLeft(2, '0')}';
+
+                          dialogSetState(() {
+                            if (isStart) {
+                              jamMulai = formatted;
+                            } else {
+                              jamSelesai = formatted;
+                            }
+                          });
+
+                          Navigator.pop(pickerContext);
+                        },
+                        child: const Text('Simpan'),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: CupertinoPicker(
+                          scrollController: FixedExtentScrollController(
+                            initialItem: initialHour,
+                          ),
+                          itemExtent: 36,
+                          onSelectedItemChanged: (value) {
+                            selectedHour = value;
+                          },
+                          children: List.generate(
+                            24,
+                            (index) => Center(
+                              child: Text(index.toString().padLeft(2, '0')),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const VerticalDivider(width: 1),
+                      Expanded(
+                        child: CupertinoPicker(
+                          scrollController: FixedExtentScrollController(
+                            initialItem: initialMinute,
+                          ),
+                          itemExtent: 36,
+                          onSelectedItemChanged: (value) {
+                            selectedMinute = value;
+                          },
+                          children: List.generate(
+                            60,
+                            (index) => Center(
+                              child: Text(index.toString().padLeft(2, '0')),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    Widget buildTimeField({
+      required String label,
+      required String? value,
+      required VoidCallback onTap,
+    }) {
+      return InkWell(
+        onTap: onTap,
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(value ?? 'Tap untuk pilih jam'),
+              const Icon(Icons.schedule),
+            ],
+          ),
+        ),
+      );
+    }
+
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -158,129 +292,182 @@ class ClassSchedulePage extends StatelessWidget {
           builder: (context, setState) {
             return AlertDialog(
               title: const Text('Tambah Jadwal'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: hari,
-                    decoration: const InputDecoration(labelText: 'Hari'),
-                    items: const [
-                      DropdownMenuItem(value: 'Senin', child: Text('Senin')),
-                      DropdownMenuItem(value: 'Selasa', child: Text('Selasa')),
-                      DropdownMenuItem(value: 'Rabu', child: Text('Rabu')),
-                      DropdownMenuItem(value: 'Kamis', child: Text('Kamis')),
-                      DropdownMenuItem(value: 'Jumat', child: Text('Jumat')),
-                      DropdownMenuItem(value: 'Sabtu', child: Text('Sabtu')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        hari = value!;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: _subjectService.getSubjects(
-                      SessionService.currentUser!.schoolId,
-                    ),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const CircularProgressIndicator();
-                      }
-
-                      final docs = snapshot.data!.docs;
-
-                      return DropdownButtonFormField<String>(
-                        initialValue: selectedSubjectId,
-                        decoration: const InputDecoration(
-                          labelText: 'Mata Pelajaran',
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: jenisJadwal,
+                      decoration: const InputDecoration(
+                        labelText: 'Jenis Jadwal',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'pelajaran',
+                          child: Text('Jam Pelajaran'),
                         ),
-                        items: docs.map((doc) {
-                          final data = doc.data();
-
-                          return DropdownMenuItem(
-                            value: doc.id,
-                            child: Text(data['namaMapel'] ?? ''),
-                            onTap: () {},
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedSubjectId = value;
-
-                            final selectedDoc = docs.firstWhere(
-                              (e) => e.id == value,
-                            );
-
-                            selectedSubjectName = selectedDoc
-                                .data()['namaMapel'];
-                          });
-                        },
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: _teacherService.getTeachers(
-                      SessionService.currentUser!.schoolId,
-                    ),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const CircularProgressIndicator();
-                      }
-
-                      final docs = snapshot.data!.docs;
-
-                      return DropdownButtonFormField<String>(
-                        initialValue: selectedTeacherId,
-                        decoration: const InputDecoration(
-                          labelText: 'Guru Pengajar',
+                        DropdownMenuItem(
+                          value: 'istirahat',
+                          child: Text('Jam Istirahat'),
                         ),
-                        items: docs.map((doc) {
-                          final teacher = doc.data();
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          jenisJadwal = value!;
 
-                          return DropdownMenuItem<String>(
-                            value: doc.id,
-                            onTap: () {},
-                            child: Text(teacher['nama'] ?? ''),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedTeacherId = value;
-
-                            final selectedDoc = docs.firstWhere(
-                              (e) => e.id == value,
-                            );
-
-                            selectedTeacherName = selectedDoc.data()['nama'];
-                          });
-                        },
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: jamMulaiController,
-                    decoration: const InputDecoration(
-                      labelText: 'Jam Mulai',
-                      hintText: '07:00',
+                          if (jenisJadwal == 'istirahat') {
+                            selectedSubjectId = null;
+                            selectedTeacherId = null;
+                            selectedSubjectName = null;
+                            selectedTeacherName = null;
+                          }
+                        });
+                      },
                     ),
-                  ),
+                    const SizedBox(height: 16),
 
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: jamSelesaiController,
-                    decoration: const InputDecoration(
-                      labelText: 'Jam Selesai',
-                      hintText: '08:30',
+                    DropdownButtonFormField<String>(
+                      initialValue: hari,
+                      decoration: const InputDecoration(labelText: 'Hari'),
+                      items: const [
+                        DropdownMenuItem(value: 'Senin', child: Text('Senin')),
+                        DropdownMenuItem(
+                          value: 'Selasa',
+                          child: Text('Selasa'),
+                        ),
+                        DropdownMenuItem(value: 'Rabu', child: Text('Rabu')),
+                        DropdownMenuItem(value: 'Kamis', child: Text('Kamis')),
+                        DropdownMenuItem(value: 'Jumat', child: Text('Jumat')),
+                        DropdownMenuItem(value: 'Sabtu', child: Text('Sabtu')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          hari = value!;
+                        });
+                      },
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+
+                    AbsorbPointer(
+                      absorbing: jenisJadwal == 'istirahat',
+                      child: Opacity(
+                        opacity: jenisJadwal == 'istirahat' ? 0.45 : 1,
+                        child:
+                            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                              stream: _subjectService.getSubjects(
+                                SessionService.currentUser!.schoolId,
+                              ),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) {
+                                  return const CircularProgressIndicator();
+                                }
+
+                                final docs = snapshot.data!.docs;
+
+                                return DropdownButtonFormField<String>(
+                                  initialValue: selectedSubjectId,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Mata Pelajaran',
+                                  ),
+                                  items: docs.map((doc) {
+                                    final data = doc.data();
+
+                                    return DropdownMenuItem(
+                                      value: doc.id,
+                                      child: Text(data['namaMapel'] ?? ''),
+                                      onTap: () {},
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedSubjectId = value;
+
+                                      final selectedDoc = docs.firstWhere(
+                                        (e) => e.id == value,
+                                      );
+
+                                      selectedSubjectName = selectedDoc
+                                          .data()['namaMapel'];
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    AbsorbPointer(
+                      absorbing: jenisJadwal == 'istirahat',
+                      child: Opacity(
+                        opacity: jenisJadwal == 'istirahat' ? 0.45 : 1,
+                        child:
+                            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                              stream: _teacherService.getTeachers(
+                                SessionService.currentUser!.schoolId,
+                              ),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) {
+                                  return const CircularProgressIndicator();
+                                }
+
+                                final docs = snapshot.data!.docs;
+
+                                return DropdownButtonFormField<String>(
+                                  initialValue: selectedTeacherId,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Guru Pengajar',
+                                  ),
+                                  items: docs.map((doc) {
+                                    final teacher = doc.data();
+
+                                    return DropdownMenuItem<String>(
+                                      value: doc.id,
+                                      onTap: () {},
+                                      child: Text(teacher['nama'] ?? ''),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedTeacherId = value;
+
+                                      final selectedDoc = docs.firstWhere(
+                                        (e) => e.id == value,
+                                      );
+
+                                      selectedTeacherName = selectedDoc
+                                          .data()['nama'];
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    buildTimeField(
+                      label: 'Jam Mulai',
+                      value: jamMulai,
+                      onTap: () async {
+                        await pickTime(isStart: true, dialogSetState: setState);
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    buildTimeField(
+                      label: 'Jam Selesai',
+                      value: jamSelesai,
+                      onTap: () async {
+                        await pickTime(
+                          isStart: false,
+                          dialogSetState: setState,
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
 
               actions: [
@@ -293,10 +480,13 @@ class ClassSchedulePage extends StatelessWidget {
 
                 ElevatedButton(
                   onPressed: () async {
-                    if (selectedSubjectId == null ||
-                        selectedTeacherId == null ||
-                        jamMulaiController.text.isEmpty ||
-                        jamSelesaiController.text.isEmpty) {
+                    if (jamMulai.isEmpty || jamSelesai.isEmpty) {
+                      return;
+                    }
+
+                    if (jenisJadwal == 'pelajaran' &&
+                        (selectedSubjectId == null ||
+                            selectedTeacherId == null)) {
                       return;
                     }
                     try {
@@ -306,17 +496,19 @@ class ClassSchedulePage extends StatelessWidget {
                         classId: classId,
                         className: className,
 
-                        subjectId: selectedSubjectId!,
+                        jenisJadwal: jenisJadwal,
+
+                        subjectId: selectedSubjectId ?? '',
                         subjectName: selectedSubjectName ?? '',
 
-                        teacherId: selectedTeacherId!,
+                        teacherId: selectedTeacherId ?? '',
                         teacherName: selectedTeacherName ?? '',
 
                         hari: hari,
 
-                        jamMulai: jamMulaiController.text,
+                        jamMulai: jamMulai,
 
-                        jamSelesai: jamSelesaiController.text,
+                        jamSelesai: jamSelesai,
                       );
 
                       if (dialogContext.mounted) {

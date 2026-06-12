@@ -76,6 +76,17 @@ class StudentService {
     await _db.collection('students').doc(studentId).update({'classId': null});
   }
 
+  Future<void> updateStudent({
+    required String studentId,
+    required String nama,
+    required String nis,
+  }) async {
+    await _db.collection('students').doc(studentId).update({
+      'nama': nama,
+      'nis': nis,
+    });
+  }
+
   Future<void> deleteStudent(String studentId) async {
     await _db.collection('students').doc(studentId).delete();
   }

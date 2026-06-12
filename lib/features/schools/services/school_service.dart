@@ -74,6 +74,7 @@ class SchoolService {
     required String namaSekolah,
     required String domain,
     required String kodeAdmin,
+    required String plan,
   }) async {
     final docRef = _firestore.collection('schools').doc(domain);
     final doc = await docRef.get();
@@ -87,6 +88,7 @@ class SchoolService {
       'namaSekolah': namaSekolah,
       'domain': domain,
       'kodeAdmin': kodeAdmin,
+      'plan': plan,
       'aktif': true,
       'createdAt': FieldValue.serverTimestamp(),
     });

@@ -34,6 +34,15 @@ class ClassScheduleService {
         .snapshots();
   }
 
+  Stream<QuerySnapshot<Map<String, dynamic>>> getSchedulesBySchool(
+    String schoolId,
+  ) {
+    return _db
+        .collection('class_schedules')
+        .where('schoolId', isEqualTo: schoolId)
+        .snapshots();
+  }
+
   // Hapus jadwal
   Future<void> deleteSchedule(String scheduleId) async {
     await _db.collection('class_schedules').doc(scheduleId).delete();
@@ -44,6 +53,7 @@ class ClassScheduleService {
     required String schoolId,
     required String classId,
     required String className,
+    required String jenisJadwal,
     required String subjectId,
     required String subjectName,
     required String teacherId,
@@ -57,7 +67,7 @@ class ClassScheduleService {
 
     final existingSchedules = await _db
         .collection('class_schedules')
-        .where('classId', isEqualTo: classId)
+        .where('schoolId', isEqualTo: schoolId)
         .get();
 
     for (final doc in existingSchedules.docs) {
@@ -69,14 +79,25 @@ class ClassScheduleService {
 
       final existingStart = _timeToMinutes((data['jamMulai'] ?? '').toString());
       final existingEnd = _timeToMinutes((data['jamSelesai'] ?? '').toString());
-
-      if (_isOverlapping(
+      final isOverlapping = _isOverlapping(
         startA: newStart,
         endA: newEnd,
         startB: existingStart,
         endB: existingEnd,
-      )) {
+      );
+
+      if (!isOverlapping) {
+        continue;
+      }
+
+      if (data['classId'] == classId) {
         throw Exception('jadwal bentrok');
+      }
+
+      if (data['teacherId'] == teacherId) {
+        throw Exception(
+          'Guru sudah mengajar di kelas lain pada hari dan jam yang sama',
+        );
       }
     }
 
@@ -90,11 +111,13 @@ class ClassScheduleService {
       'classId': classId,
       'className': className,
 
+      'jenisJadwal': jenisJadwal,
+
       'subjectId': subjectId,
-      'subjectName': subjectName,
+      'subjectName': jenisJadwal == 'istirahat' ? 'Jam Istirahat' : subjectName,
 
       'teacherId': teacherId,
-      'teacherName': teacherName,
+      'teacherName': jenisJadwal == 'istirahat' ? '-' : teacherName,
 
       'hari': hari,
       'jamMulai': jamMulai,

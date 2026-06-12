@@ -32,4 +32,17 @@ class SubjectService {
   Future<void> deleteSubject(String subjectId) async {
     await _db.collection('subjects').doc(subjectId).delete();
   }
+
+  Future<void> updateSubject({
+    required String subjectId,
+    required String namaMapel,
+    required String kodeMapel,
+    required String kategori,
+  }) async {
+    await _db.collection('subjects').doc(subjectId).update({
+      'namaMapel': namaMapel,
+      'kodeMapel': kodeMapel,
+      'kategori': kategori,
+    });
+  }
 }

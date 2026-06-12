@@ -114,7 +114,7 @@ class _RegisterPageState extends State<RegisterPage> {
               TextField(
                 controller: domainController,
                 decoration: const InputDecoration(
-                  labelText: 'Domain Sekolah',
+                  labelText: 'School ID',
                   border: OutlineInputBorder(),
                 ),
               ),

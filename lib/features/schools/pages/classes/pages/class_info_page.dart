@@ -1,7 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/services/session_service.dart';
-import '../../schedule/Page/class_schedule_page.dart';
 import '../../students/data/student_admin_service.dart';
 import '../../teachers/data/teacher_service.dart';
 import '../data/class_service.dart';
@@ -121,24 +121,6 @@ class ClassInfoPage extends StatelessWidget {
                   },
                 ),
               ),
-
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.schedule),
-                  label: const Text('Jadwal'),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ClassSchedulePage(
-                          classId: classId,
-                          className: className,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
             ],
           ),
         ),
@@ -202,7 +184,30 @@ class ClassInfoPage extends StatelessWidget {
     );
   }
 
-  void _showAddWaliKelasDialog(BuildContext context) {
+  void _showAddWaliKelasDialog(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final schoolId = SessionService.currentUser!.schoolId;
+    final classesSnapshot = await FirebaseFirestore.instance
+        .collection('classes')
+        .where('schoolId', isEqualTo: schoolId)
+        .get();
+
+    final assignedTeacherIds = classesSnapshot.docs
+        .map((doc) => doc.data()['teacherId'] as String?)
+        .where((id) => id != null && id.isNotEmpty)
+        .toSet();
+
+    if (context.mounted) {
+      Navigator.pop(context); // Close loading dialog
+    }
+
+    if (!context.mounted) return;
+
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -221,9 +226,7 @@ class ClassInfoPage extends StatelessWidget {
             width: double.maxFinite,
             height: 450,
             child: StreamBuilder(
-              stream: _teacherService.getTeachers(
-                SessionService.currentUser!.schoolId,
-              ),
+              stream: _teacherService.getTeachers(schoolId),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(
@@ -238,17 +241,23 @@ class ClassInfoPage extends StatelessWidget {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final docs = snapshot.data!.docs;
+                final allDocs = snapshot.data!.docs;
+                final availableDocs = allDocs
+                    .where((doc) => !assignedTeacherIds.contains(doc.id))
+                    .toList();
 
-                if (docs.isEmpty) {
-                  return const Center(child: Text('Belum ada data guru'));
+                if (availableDocs.isEmpty) {
+                  return const Center(
+                    child: Text('Tidak ada guru yang tersedia (semua sudah menjadi wali kelas)'),
+                  );
                 }
 
                 return ListView.separated(
-                  itemCount: docs.length,
+                  itemCount: availableDocs.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (_, index) {
-                    final teacher = docs[index].data();
+                    final doc = availableDocs[index];
+                    final teacher = doc.data();
                     final teacherName = teacher['nama'] ?? '';
 
                     return Card(
@@ -268,9 +277,7 @@ class ClassInfoPage extends StatelessWidget {
                                     : '?',
                               ),
                             ),
-
                             const SizedBox(width: 12),
-
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,14 +292,13 @@ class ClassInfoPage extends StatelessWidget {
                                 ],
                               ),
                             ),
-
                             ElevatedButton.icon(
                               icon: const Icon(Icons.check),
                               label: const Text('Pilih'),
                               onPressed: () async {
                                 await _classService.assignWaliKelas(
                                   classId: classId,
-                                  teacherId: docs[index].id,
+                                  teacherId: doc.id,
                                   teacherName: teacherName,
                                 );
 
