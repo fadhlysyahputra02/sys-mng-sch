@@ -18,4 +18,7 @@ class AppRoutes {
   // Route untuk fitur lainnya.
   static const classList = '/class-list';
   static const schedule = '/schedule';
+  static const notifications = '/notifications';
+  static const premiumFeatures = '/premium-features';
 }
+

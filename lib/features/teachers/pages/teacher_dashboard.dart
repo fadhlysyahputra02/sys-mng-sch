@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
+import '../../../app/routes/app_routes.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 import '../../schools/pages/teachers/data/teacher_service.dart';
 import '../../schools/pages/teachers/data/teacher_subject_service.dart';
+import '../../schools/services/school_service.dart';
+import 'teacher_schedule_page.dart';
+import 'teacher_settings_page.dart';
+import 'teacher_attendance_schedule_page.dart';
+import 'teacher_behavior_records_page.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -24,6 +31,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   Map<String, dynamic>? _teacherData;
   bool _isLoadingTeacher = true;
 
+  String? _schoolName;
+  String _plan = 'FREE';
+  bool _isLoadingSchool = true;
+
   @override
   void initState() {
     super.initState();
@@ -34,13 +45,26 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   /// berdasarkan Firebase Auth UID, lalu simpan teacherId (doc.id)
   Future<void> _resolveTeacherDocId() async {
     final user = SessionService.currentUser!;
-    final doc = await _teacherService.getTeacherByUid(user.schoolId, user.uid);
+
+    // Load school and teacher in parallel
+    final results = await Future.wait([
+      SchoolService().getSchoolByDomain(user.schoolId),
+      _teacherService.getTeacherByUid(user.schoolId, user.uid),
+    ]);
+
+    final schoolData = results[0] as Map<String, dynamic>?;
+    final doc = results[1] as DocumentSnapshot<Map<String, dynamic>>?;
 
     if (mounted) {
       setState(() {
+        if (schoolData != null) {
+          _schoolName = schoolData['namaSekolah'];
+          _plan = (schoolData['plan'] ?? 'FREE').toString().toUpperCase();
+        }
         _teacherDocId = doc?.id;
         _teacherData = doc?.data();
         _isLoadingTeacher = false;
+        _isLoadingSchool = false;
       });
     }
   }
@@ -64,11 +88,19 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     }
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 0 && hour <= 10) return 'Selamat Pagi';
+    if (hour <= 14) return 'Selamat Siang';
+    if (hour <= 18) return 'Selamat Sore';
+    return 'Selamat Malam';
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = SessionService.currentUser!;
 
-    if (_isLoadingTeacher) {
+    if (_isLoadingTeacher || _isLoadingSchool) {
       return Scaffold(
         body: AuthBackground(
           child: const Center(
@@ -158,20 +190,47 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 return CustomScrollView(
                   physics: const BouncingScrollPhysics(),
                   slivers: [
-                    // AppBar
+                    // AppBar (dengan judul ucapan)
                     SliverAppBar(
                       backgroundColor: Colors.transparent,
                       elevation: 0,
                       pinned: true,
-                      expandedHeight: 80,
-                      flexibleSpace: const FlexibleSpaceBar(
-                        titlePadding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        title: Text(
-                          'Dashboard Guru',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                      toolbarHeight: 56,
+                      title: Text(
+                        '${_getGreeting()}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       actions: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.notifications_rounded, color: Colors.white, size: 20),
+                            tooltip: 'Notifikasi',
+                            onPressed: () => Get.toNamed(AppRoutes.notifications),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.settings_rounded, color: Colors.white, size: 20),
+                            tooltip: 'Pengaturan',
+                            onPressed: () => Get.to(() => const TeacherSettingsPage()),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Container(
                           margin: const EdgeInsets.only(right: 16),
                           decoration: BoxDecoration(
@@ -193,8 +252,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // 1. HEADER PROFILE
-                            _buildProfileHeader(teacherNama, user.email, teacherNip),
+                            // 1. HEADER PROFILE + WALI KELAS
+                            _buildProfileHeader(teacherNama, user.email, teacherNip, waliKelasClasses),
 
                             const SizedBox(height: 24),
 
@@ -231,58 +290,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                             const SizedBox(height: 16),
                             _buildTodaySchedule(todaySchedules),
 
-                            // 5. WALI KELAS (jika ada)
-                            if (waliKelasClasses.isNotEmpty) ...[
-                              const SizedBox(height: 28),
-                              _buildSectionTitle('Wali Kelas Saya', Icons.school_rounded),
-                              const SizedBox(height: 16),
-                              ...waliKelasClasses.map((doc) {
-                                final data = doc.data();
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(Icons.class_rounded, color: Color(0xFFF59E0B), size: 24),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          data['namaKelas'] ?? 'Kelas',
-                                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: const Text(
-                                          'Wali Kelas',
-                                          style: TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                            ],
-
                             const SizedBox(height: 28),
 
-                            // 6. MENU UTAMA
+                            // 5. MENU UTAMA
                             _buildSectionTitle('Menu Utama', Icons.dashboard_rounded),
                             const SizedBox(height: 16),
                             _buildMenuGrid(),
@@ -306,7 +316,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   // --- WIDGETS ---
 
-  Widget _buildProfileHeader(String nama, String email, String nip) {
+  Widget _buildProfileHeader(String nama, String email, String nip, List<QueryDocumentSnapshot<Map<String, dynamic>>> waliKelasClasses) {
+    // Ambil nama kelas wali kelas (jika ada)
+    final waliKelasNames = waliKelasClasses.map((doc) => doc.data()['namaKelas'] ?? 'Kelas').toList();
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -321,42 +334,161 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-              border: Border.all(color: const Color(0xFF8B5CF6), width: 2),
-            ),
-            child: const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(nama, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                const SizedBox(height: 4),
-                Text(email, style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7))),
-                const SizedBox(height: 4),
-                Text('NIP: $nip', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.5)),
-                  ),
-                  child: const Text(
-                    'Role: Guru',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
-                  ),
+          Row(
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                  border: Border.all(color: const Color(0xFF8B5CF6), width: 2),
                 ),
-              ],
+                child: const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(nama, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 4),
+                    Text(email, style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7))),
+                    const SizedBox(height: 4),
+                    Text('NIP: $nip', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.school_rounded, color: Colors.white.withValues(alpha: 0.5), size: 14),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _schoolName ?? 'Sekolah',
+                            style: TextStyle(
+                              fontSize: 12, 
+                              color: Colors.white.withValues(alpha: 0.5), 
+                              fontWeight: FontWeight.w500
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.5)),
+                          ),
+                          child: const Text(
+                            'Guru',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildPlanBadge(),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Wali Kelas (di dalam card yang sama)
+          if (waliKelasNames.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.school_rounded, color: Color(0xFFF59E0B), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Wali Kelas: ${waliKelasNames.join(", ")}',
+                      style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanBadge() {
+    Color badgeColor;
+    Gradient badgeGradient;
+    IconData icon;
+    String label = _plan;
+
+    if (label == 'PRO') {
+      badgeColor = const Color(0xFFD97706);
+      badgeGradient = const LinearGradient(
+        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      icon = Icons.workspace_premium_rounded;
+    } else if (label == 'BASIC') {
+      badgeColor = const Color(0xFF2563EB);
+      badgeGradient = const LinearGradient(
+        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      icon = Icons.star_rounded;
+    } else {
+      badgeColor = const Color(0xFF4B5563);
+      badgeGradient = const LinearGradient(
+        colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      icon = Icons.shield_outlined;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: badgeGradient,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: badgeColor.withValues(alpha: 0.3),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 10),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 9,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -536,6 +668,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       {'title': 'Manajemen Tugas', 'icon': Icons.assignment_rounded, 'color': const Color(0xFF3B82F6)},
       {'title': 'Laporan & Rapor', 'icon': Icons.bar_chart_rounded, 'color': const Color(0xFFEC4899)},
       {'title': 'Pengumuman', 'icon': Icons.campaign_rounded, 'color': const Color(0xFFEF4444)},
+      {'title': 'Daftar Siswa', 'icon': Icons.groups_rounded, 'color': const Color(0xFF0EA5E9)},
+      {'title': 'Wali Murid / Chat', 'icon': Icons.chat_rounded, 'color': const Color(0xFFF97316)},
+      {'title': 'Bank Soal', 'icon': Icons.question_answer_rounded, 'color': const Color(0xFF14B8A6)},
+      {'title': 'Catatan Perilaku', 'icon': Icons.note_alt_rounded, 'color': const Color(0xFF84CC16)},
+      {'title': 'Fitur Premium', 'icon': Icons.workspace_premium_rounded, 'color': const Color(0xFFF97316)},
+      {'title': 'Pengaturan Profil', 'icon': Icons.manage_accounts_rounded, 'color': const Color(0xFF64748B)},
     ];
 
     return GridView.builder(
@@ -555,7 +693,23 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           color: Colors.transparent,
           child: InkWell(
             onTap: () {
-              // TODO: Navigasi ke halaman fitur
+              final user = SessionService.currentUser!;
+              if (menu['title'] == 'Fitur Premium') {
+                Get.toNamed(AppRoutes.premiumFeatures, arguments: {
+                  'plan': _plan,
+                  'schoolId': user.schoolId,
+                });
+              } else if (menu['title'] == 'Pengumuman') {
+                Get.toNamed(AppRoutes.notifications);
+              } else if (menu['title'] == 'Pengaturan Profil') {
+                Get.to(() => const TeacherSettingsPage());
+              } else if (menu['title'] == 'Jadwal Mengajar') {
+                Get.to(() => TeacherSchedulePage(teacherId: _teacherDocId!));
+              } else if (menu['title'] == 'Absensi Murid') {
+                Get.to(() => TeacherAttendanceSchedulePage(teacherId: _teacherDocId!));
+              } else if (menu['title'] == 'Catatan Perilaku') {
+                Get.to(() => const TeacherBehaviorRecordsPage());
+              }
             },
             borderRadius: BorderRadius.circular(20),
             child: Container(

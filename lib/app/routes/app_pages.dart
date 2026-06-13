@@ -12,6 +12,8 @@ import '../../features/splash/pages/splash_page.dart';
 import '../../features/schools/pages/dashboard/school_admin_dashboard.dart';
 import '../../features/teachers/pages/teacher_dashboard.dart';
 import '../../features/students/pages/student_dashboard.dart';
+import '../../features/schools/pages/notifications/notifications_page.dart';
+import '../../features/schools/pages/dashboard/premium_features_page.dart';
 
 import 'app_routes.dart';
 
@@ -53,5 +55,15 @@ class AppPages {
       name: AppRoutes.schedule,
       page: () => ClassScheduleOverviewPage(),
     ),
+    // Route untuk notifikasi dan premium.
+    GetPage(
+      name: AppRoutes.notifications,
+      page: () => const NotificationsPage(),
+    ),
+    GetPage(
+      name: AppRoutes.premiumFeatures,
+      page: () => const PremiumFeaturesPage(),
+    ),
   ];
 }
+

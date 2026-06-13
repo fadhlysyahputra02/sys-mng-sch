@@ -1,0 +1,56 @@
+17:24:26: INFO: UID=IYcCRnmIPBXeTjbql7g3vf6Jtnk1 | Role=teacher | TeacherDocId=npv5mujBm6vuqSeFUpjh | TeacherClassIds={0elzbq5a3kjXFRgUuTqV, rWsz3cRMjQM451u7GTQ8} | ScheduleClassIds={0elzbq5a3kjXFRgUuTqV, rWsz3cRMjQM451u7GTQ8} | WaliClassIds={}
+17:24:26: INFO: UID=IYcCRnmIPBXeTjbql7g3vf6Jtnk1 | Role=teacher | TeacherDocId=npv5mujBm6vuqSeFUpjh | TeacherClassIds={0elzbq5a3kjXFRgUuTqV, rWsz3cRMjQM451u7GTQ8} | ScheduleClassIds={0elzbq5a3kjXFRgUuTqV, rWsz3cRMjQM451u7GTQ8} | WaliClassIds={0elzbq5a3kjXFRgUuTqV}
+17:24:26: TOTAL NOTIFICATIONS RETRIEVED: 4
+17:24:26: ALL_DOC: ID=myijtH0e3gDcSrlcn3D1 | title="notif untuk guru 1" | targetType=guru | targetId=npv5mujBm6vuqSeFUpjh | targetClassId=null
+17:24:26: ALL_DOC: ID=S3cagdW9NYjIMPSoHc89 | title="notif untuk guru 2" | targetType=guru | targetId=4lPB7ZWvfLwy9tm2HQMC | targetClassId=null
+17:24:26: ALL_DOC: ID=FasA57r8PuDWlViQFVEy | title="kelas untuk guru 1" | targetType=kelas | targetId=0elzbq5a3kjXFRgUuTqV | targetClassId=null
+17:24:26: ALL_DOC: ID=riZOYXEoLewqOrnpZi64 | title="kelas untuk guru 2" | targetType=kelas | targetId=rWsz3cRMjQM451u7GTQ8 | targetClassId=null
+17:24:26: EVAL: DocId=myijtH0e3gDcSrlcn3D1 | Title="notif untuk guru 1" | TargetType=guru | TargetId=npv5mujBm6vuqSeFUpjh | Keep=true | Reason="guru target npv5mujBm6vuqSeFUpjh matches teacherDocId npv5mujBm6vuqSeFUpjh"
+17:24:26: EVAL: DocId=S3cagdW9NYjIMPSoHc89 | Title="notif untuk guru 2" | TargetType=guru | TargetId=4lPB7ZWvfLwy9tm2HQMC | Keep=false | Reason="skipped: targetType=guru, targetId=4lPB7ZWvfLwy9tm2HQMC, teacherClassIds={0elzbq5a3kjXFRgUuTqV, rWsz3cRMjQM451u7GTQ8}"
+17:24:26: EVAL: DocId=FasA57r8PuDWlViQFVEy | Title="kelas untuk guru 1" | TargetType=kelas | TargetId=0elzbq5a3kjXFRgUuTqV | Keep=true | Reason="kelas target 0elzbq5a3kjXFRgUuTqV matches teacher class list"
+17:24:26: EVAL: DocId=riZOYXEoLewqOrnpZi64 | Title="kelas untuk guru 2" | TargetType=kelas | TargetId=rWsz3cRMjQM451u7GTQ8 | Keep=true | Reason="kelas target rWsz3cRMjQM451u7GTQ8 matches teacher class list"
+17:24:29: TOTAL NOTIFICATIONS RETRIEVED: 4
+17:24:29: ALL_DOC: ID=myijtH0e3gDcSrlcn3D1 | title="notif untuk guru 1" | targetType=guru | targetId=npv5mujBm6vuqSeFUpjh | targetClassId=null
+17:24:29: ALL_DOC: ID=S3cagdW9NYjIMPSoHc89 | title="notif untuk guru 2" | targetType=guru | targetId=4lPB7ZWvfLwy9tm2HQMC | targetClassId=null
+17:24:29: ALL_DOC: ID=FasA57r8PuDWlViQFVEy | title="kelas untuk guru 1" | targetType=kelas | targetId=0elzbq5a3kjXFRgUuTqV | targetClassId=null
+17:24:29: ALL_DOC: ID=riZOYXEoLewqOrnpZi64 | title="kelas untuk guru 2" | targetType=kelas | targetId=rWsz3cRMjQM451u7GTQ8 | targetClassId=null
+17:24:29: EVAL: DocId=myijtH0e3gDcSrlcn3D1 | Title="notif untuk guru 1" | TargetType=guru | TargetId=npv5mujBm6vuqSeFUpjh | Keep=true | Reason="guru target npv5mujBm6vuqSeFUpjh matches teacherDocId npv5mujBm6vuqSeFUpjh"
+17:24:29: EVAL: DocId=S3cagdW9NYjIMPSoHc89 | Title="notif untuk guru 2" | TargetType=guru | TargetId=4lPB7ZWvfLwy9tm2HQMC | Keep=false | Reason="skipped: targetType=guru, targetId=4lPB7ZWvfLwy9tm2HQMC, teacherClassIds={0elzbq5a3kjXFRgUuTqV, rWsz3cRMjQM451u7GTQ8}"
+17:24:29: EVAL: DocId=FasA57r8PuDWlViQFVEy | Title="kelas untuk guru 1" | TargetType=kelas | TargetId=0elzbq5a3kjXFRgUuTqV | Keep=true | Reason="kelas target 0elzbq5a3kjXFRgUuTqV matches teacher class list"
+17:24:29: EVAL: DocId=riZOYXEoLewqOrnpZi64 | Title="kelas untuk guru 2" | TargetType=kelas | TargetId=rWsz3cRMjQM451u7GTQ8 | Keep=true | Reason="kelas target rWsz3cRMjQM451u7GTQ8 matches teacher class list"
+17:24:30: TOTAL NOTIFICATIONS RETRIEVED: 4
+17:24:30: ALL_DOC: ID=myijtH0e3gDcSrlcn3D1 | title="notif untuk guru 1" | targetType=guru | targetId=npv5mujBm6vuqSeFUpjh | targetClassId=null
+17:24:30: ALL_DOC: ID=S3cagdW9NYjIMPSoHc89 | title="notif untuk guru 2" | targetType=guru | targetId=4lPB7ZWvfLwy9tm2HQMC | targetClassId=null
+17:24:30: ALL_DOC: ID=FasA57r8PuDWlViQFVEy | title="kelas untuk guru 1" | targetType=kelas | targetId=0elzbq5a3kjXFRgUuTqV | targetClassId=null
+17:24:30: ALL_DOC: ID=riZOYXEoLewqOrnpZi64 | title="kelas untuk guru 2" | targetType=kelas | targetId=rWsz3cRMjQM451u7GTQ8 | targetClassId=null
+17:24:30: EVAL: DocId=myijtH0e3gDcSrlcn3D1 | Title="notif untuk guru 1" | TargetType=guru | TargetId=npv5mujBm6vuqSeFUpjh | Keep=true | Reason="guru target npv5mujBm6vuqSeFUpjh matches teacherDocId npv5mujBm6vuqSeFUpjh"
+17:24:30: EVAL: DocId=S3cagdW9NYjIMPSoHc89 | Title="notif untuk guru 2" | TargetType=guru | TargetId=4lPB7ZWvfLwy9tm2HQMC | Keep=false | Reason="skipped: targetType=guru, targetId=4lPB7ZWvfLwy9tm2HQMC, teacherClassIds={0elzbq5a3kjXFRgUuTqV, rWsz3cRMjQM451u7GTQ8}"
+17:24:30: EVAL: DocId=FasA57r8PuDWlViQFVEy | Title="kelas untuk guru 1" | TargetType=kelas | TargetId=0elzbq5a3kjXFRgUuTqV | Keep=true | Reason="kelas target 0elzbq5a3kjXFRgUuTqV matches teacher class list"
+17:24:30: EVAL: DocId=riZOYXEoLewqOrnpZi64 | Title="kelas untuk guru 2" | TargetType=kelas | TargetId=rWsz3cRMjQM451u7GTQ8 | Keep=true | Reason="kelas target rWsz3cRMjQM451u7GTQ8 matches teacher class list"
+17:24:34: TOTAL NOTIFICATIONS RETRIEVED: 4
+17:24:34: ALL_DOC: ID=myijtH0e3gDcSrlcn3D1 | title="notif untuk guru 1" | targetType=guru | targetId=npv5mujBm6vuqSeFUpjh | targetClassId=null
+17:24:34: ALL_DOC: ID=S3cagdW9NYjIMPSoHc89 | title="notif untuk guru 2" | targetType=guru | targetId=4lPB7ZWvfLwy9tm2HQMC | targetClassId=null
+17:24:34: ALL_DOC: ID=FasA57r8PuDWlViQFVEy | title="kelas untuk guru 1" | targetType=kelas | targetId=0elzbq5a3kjXFRgUuTqV | targetClassId=null
+17:24:34: ALL_DOC: ID=riZOYXEoLewqOrnpZi64 | title="kelas untuk guru 2" | targetType=kelas | targetId=rWsz3cRMjQM451u7GTQ8 | targetClassId=null
+17:24:34: EVAL: DocId=myijtH0e3gDcSrlcn3D1 | Title="notif untuk guru 1" | TargetType=guru | TargetId=npv5mujBm6vuqSeFUpjh | Keep=true | Reason="guru target npv5mujBm6vuqSeFUpjh matches teacherDocId npv5mujBm6vuqSeFUpjh"
+17:24:34: EVAL: DocId=S3cagdW9NYjIMPSoHc89 | Title="notif untuk guru 2" | TargetType=guru | TargetId=4lPB7ZWvfLwy9tm2HQMC | Keep=false | Reason="skipped: targetType=guru, targetId=4lPB7ZWvfLwy9tm2HQMC, teacherClassIds={0elzbq5a3kjXFRgUuTqV, rWsz3cRMjQM451u7GTQ8}"
+17:24:34: EVAL: DocId=FasA57r8PuDWlViQFVEy | Title="kelas untuk guru 1" | TargetType=kelas | TargetId=0elzbq5a3kjXFRgUuTqV | Keep=true | Reason="kelas target 0elzbq5a3kjXFRgUuTqV matches teacher class list"
+17:24:34: EVAL: DocId=riZOYXEoLewqOrnpZi64 | Title="kelas untuk guru 2" | TargetType=kelas | TargetId=rWsz3cRMjQM451u7GTQ8 | Keep=true | Reason="kelas target rWsz3cRMjQM451u7GTQ8 matches teacher class list"
+17:25:03: TOTAL NOTIFICATIONS RETRIEVED: 4
+17:25:03: ALL_DOC: ID=myijtH0e3gDcSrlcn3D1 | title="notif untuk guru 1" | targetType=guru | targetId=npv5mujBm6vuqSeFUpjh | targetClassId=null
+17:25:03: ALL_DOC: ID=S3cagdW9NYjIMPSoHc89 | title="notif untuk guru 2" | targetType=guru | targetId=4lPB7ZWvfLwy9tm2HQMC | targetClassId=null
+17:25:03: ALL_DOC: ID=FasA57r8PuDWlViQFVEy | title="kelas untuk guru 1" | targetType=kelas | targetId=0elzbq5a3kjXFRgUuTqV | targetClassId=null
+17:25:03: ALL_DOC: ID=riZOYXEoLewqOrnpZi64 | title="kelas untuk guru 2" | targetType=kelas | targetId=rWsz3cRMjQM451u7GTQ8 | targetClassId=null
+17:25:03: EVAL: DocId=myijtH0e3gDcSrlcn3D1 | Title="notif untuk guru 1" | TargetType=guru | TargetId=npv5mujBm6vuqSeFUpjh | Keep=true | Reason="guru target npv5mujBm6vuqSeFUpjh matches teacherDocId npv5mujBm6vuqSeFUpjh"
+17:25:03: EVAL: DocId=S3cagdW9NYjIMPSoHc89 | Title="notif untuk guru 2" | TargetType=guru | TargetId=4lPB7ZWvfLwy9tm2HQMC | Keep=false | Reason="skipped: targetType=guru, targetId=4lPB7ZWvfLwy9tm2HQMC, teacherClassIds={0elzbq5a3kjXFRgUuTqV, rWsz3cRMjQM451u7GTQ8}"
+17:25:03: EVAL: DocId=FasA57r8PuDWlViQFVEy | Title="kelas untuk guru 1" | TargetType=kelas | TargetId=0elzbq5a3kjXFRgUuTqV | Keep=true | Reason="kelas target 0elzbq5a3kjXFRgUuTqV matches teacher class list"
+17:25:03: EVAL: DocId=riZOYXEoLewqOrnpZi64 | Title="kelas untuk guru 2" | TargetType=kelas | TargetId=rWsz3cRMjQM451u7GTQ8 | Keep=true | Reason="kelas target rWsz3cRMjQM451u7GTQ8 matches teacher class list"
+17:25:06: TOTAL NOTIFICATIONS RETRIEVED: 4
+17:25:06: ALL_DOC: ID=myijtH0e3gDcSrlcn3D1 | title="notif untuk guru 1" | targetType=guru | targetId=npv5mujBm6vuqSeFUpjh | targetClassId=null
+17:25:06: ALL_DOC: ID=S3cagdW9NYjIMPSoHc89 | title="notif untuk guru 2" | targetType=guru | targetId=4lPB7ZWvfLwy9tm2HQMC | targetClassId=null
+17:25:06: ALL_DOC: ID=FasA57r8PuDWlViQFVEy | title="kelas untuk guru 1" | targetType=kelas | targetId=0elzbq5a3kjXFRgUuTqV | targetClassId=null
+17:25:06: ALL_DOC: ID=riZOYXEoLewqOrnpZi64 | title="kelas untuk guru 2" | targetType=kelas | targetId=rWsz3cRMjQM451u7GTQ8 | targetClassId=null
+17:25:06: EVAL: DocId=myijtH0e3gDcSrlcn3D1 | Title="notif untuk guru 1" | TargetType=guru | TargetId=npv5mujBm6vuqSeFUpjh | Keep=true | Reason="guru target npv5mujBm6vuqSeFUpjh matches teacherDocId npv5mujBm6vuqSeFUpjh"
+17:25:06: EVAL: DocId=S3cagdW9NYjIMPSoHc89 | Title="notif untuk guru 2" | TargetType=guru | TargetId=4lPB7ZWvfLwy9tm2HQMC | Keep=false | Reason="skipped: targetType=guru, targetId=4lPB7ZWvfLwy9tm2HQMC, teacherClassIds={0elzbq5a3kjXFRgUuTqV, rWsz3cRMjQM451u7GTQ8}"
+17:25:06: EVAL: DocId=FasA57r8PuDWlViQFVEy | Title="kelas untuk guru 1" | TargetType=kelas | TargetId=0elzbq5a3kjXFRgUuTqV | Keep=true | Reason="kelas target 0elzbq5a3kjXFRgUuTqV matches teacher class list"
+17:25:06: EVAL: DocId=riZOYXEoLewqOrnpZi64 | Title="kelas untuk guru 2" | TargetType=kelas | TargetId=rWsz3cRMjQM451u7GTQ8 | Keep=true | Reason="kelas target rWsz3cRMjQM451u7GTQ8 matches teacher class list"

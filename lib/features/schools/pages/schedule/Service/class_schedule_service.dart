@@ -37,6 +37,15 @@ class ClassScheduleService {
         .snapshots();
   }
 
+  Stream<QuerySnapshot<Map<String, dynamic>>> getSchedulesByClassName(
+    String schoolId,
+    String className,
+  ) {
+    return _schedulesRef(schoolId)
+        .where('className', isEqualTo: className)
+        .snapshots();
+  }
+
   Stream<QuerySnapshot<Map<String, dynamic>>> getSchedulesBySchool(
     String schoolId,
   ) {

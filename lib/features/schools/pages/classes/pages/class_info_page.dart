@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/services/session_service.dart';
+import '../../../../authentication/widgets/auth_background.dart';
 import '../../students/data/student_admin_service.dart';
 import '../../teachers/data/teacher_service.dart';
 import '../data/class_service.dart';
@@ -11,340 +12,450 @@ class ClassInfoPage extends StatelessWidget {
   final String className;
   final StudentService _studentService = StudentService();
   final TeacherService _teacherService = TeacherService();
-
   final ClassService _classService = ClassService();
+
   ClassInfoPage({super.key, required this.classId, required this.className});
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF4F46E5);
-    const surfaceColor = Color(0xFFF8F7FF);
-
     return Scaffold(
-      backgroundColor: surfaceColor,
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          className,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      body: AuthBackground(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Wali Kelas Section
-            const Text(
-              'Informasi Kelas',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E1B4B),
-              ),
-            ),
-            const SizedBox(height: 12),
-            StreamBuilder(
-              stream: _classService.getClassById(classId),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+            // AppBar
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                     ),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        className,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  );
-                }
-
-                final data = snapshot.data!.data();
-                final teacherName = data?['teacherName'] ?? 'Belum ditentukan';
-                final teacherId = data?['teacherId'];
-
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.person_rounded, color: Color(0xFFEF4444), size: 28),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Wali Kelas',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              teacherName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Color(0xFF1E1B4B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (teacherId != null)
-                        IconButton(
-                          icon: const Icon(Icons.person_remove_rounded, color: Colors.red),
-                          tooltip: 'Batalkan Wali Kelas',
-                          onPressed: () {
-                            _showRemoveWaliKelasConfirmation(context, teacherName);
-                          },
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 24),
-
-            const Text(
-              'Daftar Siswa',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E1B4B),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 12),
 
+            // Body
             Expanded(
-              child: StreamBuilder(
-                stream: _studentService.getStudentsByClass(classId),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-                      ),
-                    );
-                  }
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Informasi Kelas header
+                    _sectionHeader('Informasi Kelas', Icons.info_outline_rounded),
+                    const SizedBox(height: 12),
 
-                  final docs = snapshot.data!.docs;
-
-                  if (docs.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
+                    // Wali Kelas card
+                    StreamBuilder(
+                      stream: _classService.getClassById(classId),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
+                              color: Colors.white.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                            ),
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF59E0B)),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final data = snapshot.data!.data();
+                        final teacherName = data?['teacherName'] ?? 'Belum ditentukan';
+                        final teacherId = data?['teacherId'];
+                        final hasTeacher = teacherId != null && teacherId.toString().isNotEmpty;
+
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFF59E0B), Color(0xFFFBBF24)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(Icons.person_rounded, color: Colors.white, size: 26),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Wali Kelas',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white.withValues(alpha: 0.5),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      teacherName,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: hasTeacher ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (hasTeacher)
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.person_remove_rounded, color: Colors.red, size: 20),
+                                    tooltip: 'Batalkan Wali Kelas',
+                                    onPressed: () => _showRemoveWaliKelasConfirmation(context, teacherName),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Daftar Siswa header
+                    _sectionHeader('Daftar Siswa', Icons.groups_rounded),
+                    const SizedBox(height: 12),
+
+                    // Student list
+                    Expanded(
+                      child: StreamBuilder(
+                        stream: _studentService.getStudentsByClass(classId),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0EA5E9)),
+                              ),
+                            );
+                          }
+
+                          final docs = snapshot.data!.docs;
+
+                          if (docs.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(24),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.06),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                    ),
+                                    child: Icon(Icons.group_off_rounded, size: 48, color: Colors.white.withValues(alpha: 0.35)),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Belum ada siswa di kelas ini',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.white.withValues(alpha: 0.55),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            itemCount: docs.length,
+                            itemBuilder: (context, index) {
+                              final student = docs[index].data();
+                              final nama = student['nama'] ?? '';
+                              final inisial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.06),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.10),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  child: Row(
+                                    children: [
+                                      // Avatar
+                                      Container(
+                                        width: 42,
+                                        height: 42,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            inisial,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              nama,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'NIS: ${student['nis'] ?? '-'}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.white.withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Remove button
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent, size: 20),
+                                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                          padding: EdgeInsets.zero,
+                                          tooltip: 'Keluarkan dari kelas',
+                                          onPressed: () => _showRemoveStudentConfirmation(context, docs[index].id, nama),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom bar
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+                border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    // Wali Kelas button
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => _showAddWaliKelasDialog(context),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.person_add_alt_1_rounded, size: 18, color: Color(0xFFF59E0B)),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Wali Kelas',
+                                  style: TextStyle(
+                                    color: Color(0xFFF59E0B),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
-                            child: const Icon(Icons.group_off_rounded, size: 48, color: Colors.grey),
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Belum ada siswa di kelas ini',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Color(0xFF64748B),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    itemCount: docs.length,
-                    itemBuilder: (context, index) {
-                      final student = docs[index].data();
-                      final nama = student['nama'] ?? '';
-                      final inisial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
+                    ),
+                    const SizedBox(width: 12),
+                    // Tambah Siswa button
+                    Expanded(
+                      child: Container(
+                        height: 48,
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
+                              color: const Color(0xFF0EA5E9).withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: const Color(0xFFDBEAFE),
-                            foregroundColor: const Color(0xFF1E40AF),
-                            child: Text(inisial, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                          title: Text(
-                            nama,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Color(0xFF1E1B4B),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => _showAddStudentDialog(context),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.group_add_rounded, size: 18, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Tambah Siswa',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          subtitle: Text(
-                            student['nis'] ?? '-',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
-                            tooltip: 'Keluarkan dari kelas',
-                            onPressed: () {
-                              _showRemoveStudentConfirmation(context, docs[index].id, nama);
-                            },
                           ),
                         ),
-                      );
-                    },
-                  );
-                },
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEFF6FF),
-                      foregroundColor: const Color(0xFF2563EB),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
-                    label: const Text('Wali Kelas', style: TextStyle(fontWeight: FontWeight.bold)),
-                    onPressed: () {
-                      _showAddWaliKelasDialog(context);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  height: 48,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: const LinearGradient(
-                      colors: [primaryColor, Color(0xFF6366F1)],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: primaryColor.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.group_add_rounded, size: 20, color: Colors.white),
-                    label: const Text('Tambah Siswa', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                    onPressed: () {
-                      _showAddStudentDialog(context);
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
-  void _showAddStudentDialog(BuildContext context) {
-    const primaryColor = Color(0xFF4F46E5);
+  Widget _sectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 18),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ],
+    );
+  }
 
+  // ─── Dialogs ─────────────────────────────────────────────────────────────────
+
+  void _showAddStudentDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text(
-            'Tambah Siswa ke Kelas',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E1B4B), fontSize: 18),
+          backgroundColor: const Color(0xFF0F0C20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.group_add_rounded, color: Color(0xFF0EA5E9), size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Tambah Siswa ke Kelas',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
+              ),
+            ],
           ),
           content: SizedBox(
             width: double.maxFinite,
-            height: 400,
+            height: 380,
             child: StreamBuilder(
               stream: _studentService.getStudentsWithoutClass(
                 SessionService.currentUser!.schoolId,
@@ -353,7 +464,7 @@ class ClassInfoPage extends StatelessWidget {
                 if (!snapshot.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0EA5E9)),
                     ),
                   );
                 }
@@ -361,13 +472,16 @@ class ClassInfoPage extends StatelessWidget {
                 final docs = snapshot.data!.docs;
 
                 if (docs.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.inbox_rounded, size: 48, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('Tidak ada siswa tersedia', style: TextStyle(color: Color(0xFF64748B))),
+                        Icon(Icons.inbox_rounded, size: 48, color: Colors.white.withValues(alpha: 0.3)),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Tidak ada siswa tersedia',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                        ),
                       ],
                     ),
                   );
@@ -377,50 +491,76 @@ class ClassInfoPage extends StatelessWidget {
                   itemCount: docs.length,
                   itemBuilder: (_, index) {
                     final student = docs[index].data();
-                    final inisial = student['nama'] != null && student['nama'].isNotEmpty ? student['nama'][0].toUpperCase() : '?';
+                    final inisial = student['nama'] != null && student['nama'].isNotEmpty
+                        ? student['nama'][0].toUpperCase()
+                        : '?';
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                       ),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: const Color(0xFFEDE9FE),
-                          foregroundColor: primaryColor,
-                          child: Text(inisial, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        title: Text(
-                          student['nama'] ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        subtitle: Text(student['nis'] ?? '', style: const TextStyle(fontSize: 12)),
-                        trailing: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  inisial,
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                            minimumSize: const Size(60, 32),
-                          ),
-                          onPressed: () async {
-                            await _studentService.assignStudentToClass(
-                              studentId: docs[index].id,
-                              classId: classId,
-                            );
-
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('${student['nama']} berhasil ditambahkan ke kelas')),
-                              );
-                            }
-                          },
-                          child: const Text('Pilih', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    student['nama'] ?? '',
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                  Text(
+                                    student['nis'] ?? '',
+                                    style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0EA5E9),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                                minimumSize: const Size(60, 34),
+                              ),
+                              onPressed: () async {
+                                await _studentService.assignStudentToClass(
+                                  studentId: docs[index].id,
+                                  classId: classId,
+                                );
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('${student['nama']} berhasil ditambahkan ke kelas')),
+                                  );
+                                }
+                              },
+                              child: const Text('Pilih', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -429,12 +569,19 @@ class ClassInfoPage extends StatelessWidget {
               },
             ),
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Tutup', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
             ),
           ],
         );
@@ -443,8 +590,6 @@ class ClassInfoPage extends StatelessWidget {
   }
 
   void _showAddWaliKelasDialog(BuildContext context) async {
-    const primaryColor = Color(0xFF4F46E5);
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -467,32 +612,40 @@ class ClassInfoPage extends StatelessWidget {
         .where((id) => id != null && id.isNotEmpty)
         .toSet();
 
-    if (context.mounted) {
-      Navigator.pop(context); // Close loading dialog
-    }
-
+    if (context.mounted) Navigator.pop(context);
     if (!context.mounted) return;
 
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          backgroundColor: const Color(0xFF0F0C20),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
           ),
-          title: const Row(
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          title: Row(
             children: [
-              Icon(Icons.school_rounded, color: primaryColor),
-              SizedBox(width: 8),
-              Text(
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.school_rounded, color: Color(0xFFF59E0B), size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text(
                 'Pilih Wali Kelas',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E1B4B), fontSize: 18),
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
               ),
             ],
           ),
           content: SizedBox(
             width: double.maxFinite,
-            height: 450,
+            height: 400,
             child: StreamBuilder(
               stream: _teacherService.getTeachers(schoolId),
               builder: (context, snapshot) {
@@ -501,6 +654,7 @@ class ClassInfoPage extends StatelessWidget {
                     child: Text(
                       'Error: ${snapshot.error}',
                       textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                     ),
                   );
                 }
@@ -508,7 +662,7 @@ class ClassInfoPage extends StatelessWidget {
                 if (!snapshot.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF59E0B)),
                     ),
                   );
                 }
@@ -519,16 +673,16 @@ class ClassInfoPage extends StatelessWidget {
                     .toList();
 
                 if (availableDocs.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.person_off_rounded, size: 48, color: Colors.grey),
-                        SizedBox(height: 16),
+                        Icon(Icons.person_off_rounded, size: 48, color: Colors.white.withValues(alpha: 0.3)),
+                        const SizedBox(height: 16),
                         Text(
                           'Tidak ada guru yang tersedia\n(semua sudah menjadi wali kelas)',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Color(0xFF64748B)),
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                         ),
                       ],
                     ),
@@ -541,49 +695,49 @@ class ClassInfoPage extends StatelessWidget {
                     final doc = availableDocs[index];
                     final teacher = doc.data();
                     final teacherName = teacher['nama'] ?? '';
+                    final inisial = teacherName.isNotEmpty ? teacherName[0].toUpperCase() : '?';
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         child: Row(
                           children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: const Color(0xFFFEF2F2),
-                              foregroundColor: const Color(0xFFEF4444),
-                              child: Text(
-                                teacherName.isNotEmpty
-                                    ? teacherName[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  inisial,
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 teacherName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Color(0xFF1E1B4B),
-                                ),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
                               ),
                             ),
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryColor,
+                                backgroundColor: const Color(0xFFF59E0B),
                                 foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                                minimumSize: const Size(60, 32),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                                minimumSize: const Size(60, 34),
                               ),
                               onPressed: () async {
                                 await _classService.assignWaliKelas(
@@ -591,18 +745,10 @@ class ClassInfoPage extends StatelessWidget {
                                   teacherId: doc.id,
                                   teacherName: teacherName,
                                 );
-
-                                if (dialogContext.mounted) {
-                                  Navigator.pop(dialogContext);
-                                }
-
+                                if (dialogContext.mounted) Navigator.pop(dialogContext);
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        '$teacherName berhasil menjadi wali kelas',
-                                      ),
-                                    ),
+                                    SnackBar(content: Text('$teacherName berhasil menjadi wali kelas')),
                                   );
                                 }
                               },
@@ -617,12 +763,19 @@ class ClassInfoPage extends StatelessWidget {
               },
             ),
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Tutup', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
             ),
           ],
         );
@@ -635,36 +788,74 @@ class ClassInfoPage extends StatelessWidget {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text(
-            'Batalkan Wali Kelas',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E1B4B)),
+          backgroundColor: const Color(0xFF0F0C20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
           ),
-          content: Text(
-            'Apakah Anda yakin ingin membatalkan $teacherName sebagai wali kelas untuk kelas ini?',
-            style: const TextStyle(color: Color(0xFF64748B)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Kembali', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person_remove_rounded, color: Colors.red, size: 30),
               ),
-              onPressed: () async {
-                await _classService.removeWaliKelas(classId: classId);
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Wali kelas berhasil dibatalkan')),
-                  );
-                }
-              },
-              child: const Text('Batalkan Wali Kelas', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              const Text(
+                'Batalkan Wali Kelas',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Apakah Anda yakin ingin membatalkan $teacherName sebagai wali kelas?',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, height: 1.5),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Kembali', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      await _classService.removeWaliKelas(classId: classId);
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Wali kelas berhasil dibatalkan')),
+                        );
+                      }
+                    },
+                    child: const Text('Batalkan', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -677,36 +868,74 @@ class ClassInfoPage extends StatelessWidget {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text(
-            'Keluarkan Siswa',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E1B4B)),
+          backgroundColor: const Color(0xFF0F0C20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
           ),
-          content: Text(
-            'Apakah Anda yakin ingin mengeluarkan $studentName dari kelas ini?',
-            style: const TextStyle(color: Color(0xFF64748B)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.remove_circle_outline, color: Colors.orange, size: 30),
               ),
-              onPressed: () async {
-                await _studentService.removeStudentFromClass(studentId);
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('$studentName berhasil dikeluarkan dari kelas')),
-                  );
-                }
-              },
-              child: const Text('Keluarkan', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              const Text(
+                'Keluarkan Siswa',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Apakah Anda yakin ingin mengeluarkan $studentName dari kelas ini?',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, height: 1.5),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      await _studentService.removeStudentFromClass(studentId);
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('$studentName berhasil dikeluarkan dari kelas')),
+                        );
+                      }
+                    },
+                    child: const Text('Keluarkan', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
           ],
         );

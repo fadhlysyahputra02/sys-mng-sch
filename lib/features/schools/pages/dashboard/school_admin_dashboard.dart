@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/services/app_auth_service.dart';
 import '../../../../core/services/session_service.dart';
+import '../../../authentication/widgets/auth_background.dart';
 import '../../services/school_service.dart';
 import '../classes/pages/class_list_page.dart';
 import '../settings/school_settings_page.dart';
@@ -18,16 +19,12 @@ class SchoolAdminDashboard extends StatefulWidget {
 class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   final schoolId = SessionService.currentUser!.schoolId;
   final nama = SessionService.currentUser!.nama;
+  final email = SessionService.currentUser!.email;
 
   String? _schoolName;
   String _plan = 'FREE';
   String? _schoolLogoBase64;
   bool _isLoadingSchool = true;
-
-  // Warna palette
-  static const _primary = Color(0xFF4F46E5);   // indigo
-  static const _surface = Color(0xFFF8F7FF);
-  static const _cardBg = Colors.white;
 
   @override
   void initState() {
@@ -61,23 +58,17 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     }
   }
 
-  final List<_MenuData> _menus = [
-    _MenuData('Guru', Icons.person_outline_rounded, Color(0xFF6366F1), Color(0xFFEDE9FE)),
-    _MenuData('Murid', Icons.groups_outlined, Color(0xFF0EA5E9), Color(0xFFE0F2FE)),
-    _MenuData('Mata Pelajaran', Icons.menu_book_outlined, Color(0xFF10B981), Color(0xFFD1FAE5)),
-    _MenuData('Kelas', Icons.class_outlined, Color(0xFFF59E0B), Color(0xFFFEF3C7)),
-    _MenuData('Jadwal', Icons.calendar_month_outlined, Color(0xFFEC4899), Color(0xFFFCE7F3)),
-    _MenuData('Absensi', Icons.fact_check_outlined, Color(0xFF8B5CF6), Color(0xFFEDE9FE)),
-    _MenuData('Nilai', Icons.grade_outlined, Color(0xFFEF4444), Color(0xFFFEE2E2)),
-    _MenuData('Pengaturan', Icons.settings_outlined, Color(0xFF64748B), Color(0xFFF1F5F9)),
-  ];
-
-  final List<_PremiumData> _premiums = [
-    _PremiumData('Wali Murid', Icons.family_restroom, 'PRO', Color(0xFFF97316)),
-    _PremiumData('E-Rapor', Icons.description_outlined, 'PRO', Color(0xFFF97316)),
-    _PremiumData('WhatsApp Gateway', Icons.chat_bubble_outline, 'PRO', Color(0xFFF97316)),
-    _PremiumData('Keuangan', Icons.account_balance_wallet_outlined, 'PRO', Color(0xFFF97316)),
-    _PremiumData('Jurusan', Icons.account_tree_outlined, 'BASIC', Color(0xFF0EA5E9)),
+  final List<_MenuData> _menus = const [
+    _MenuData('Guru', Icons.person_rounded, Color(0xFF6366F1)),
+    _MenuData('Murid', Icons.groups_rounded, Color(0xFF0EA5E9)),
+    _MenuData('Mata Pelajaran', Icons.menu_book_rounded, Color(0xFF10B981)),
+    _MenuData('Kelas', Icons.class_rounded, Color(0xFFF59E0B)),
+    _MenuData('Jadwal', Icons.calendar_month_rounded, Color(0xFFEC4899)),
+    _MenuData('Absensi', Icons.fact_check_rounded, Color(0xFF8B5CF6)),
+    _MenuData('Nilai', Icons.grade_rounded, Color(0xFFEF4444)),
+    _MenuData('Notifikasi', Icons.notifications_rounded, Color(0xFF06B6D4)),
+    _MenuData('Fitur Premium', Icons.workspace_premium_rounded, Color(0xFFF97316)),
+    _MenuData('Pengaturan', Icons.settings_rounded, Color(0xFF64748B)),
   ];
 
   void _onMenuTap(String title) async {
@@ -96,6 +87,15 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         break;
       case 'Jadwal':
         Get.toNamed(AppRoutes.schedule);
+        break;
+      case 'Notifikasi':
+        Get.toNamed(AppRoutes.notifications);
+        break;
+      case 'Fitur Premium':
+        Get.toNamed(AppRoutes.premiumFeatures, arguments: {
+          'plan': _plan,
+          'schoolId': schoolId,
+        });
         break;
       case 'Pengaturan':
         final updated = await Get.to(() => SchoolSettingsPage(schoolId: schoolId));
@@ -129,317 +129,256 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _surface,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF312E81), // matching top of linear gradient
-        foregroundColor: Colors.white,
-        elevation: 0,
-        toolbarHeight: 0,
-      ),
-      body: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          // ── Header Stack ──
-          _buildHeaderStack(),
-
-          const SizedBox(height: 16),
-
-          // ── Menu Grid ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Menu Utama',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E1B4B),
+      body: AuthBackground(
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // SliverAppBar
+            SliverAppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              pinned: true,
+              toolbarHeight: 56,
+              title: Text(
+                '${_getGreeting()}, $nama',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              actions: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.settings_rounded, color: Colors.white, size: 20),
+                    tooltip: 'Pengaturan',
+                    onPressed: () async {
+                      final updated = await Get.to(() => SchoolSettingsPage(schoolId: schoolId));
+                      if (updated == true) {
+                        _loadSchoolData();
+                      }
+                    },
                   ),
                 ),
-                const SizedBox(height: 12),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.85,
+                const SizedBox(width: 8),
+                Container(
+                  margin: const EdgeInsets.only(right: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
                   ),
-                  itemCount: _menus.length,
-                  itemBuilder: (_, i) => _buildMenuCard(_menus[i]),
+                  child: IconButton(
+                    icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
+                    tooltip: 'Keluar',
+                    onPressed: _logout,
+                  ),
                 ),
               ],
             ),
-          ),
 
-          const SizedBox(height: 24),
-
-          // ── Premium Section ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.workspace_premium, color: Color(0xFFF97316), size: 20),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Fitur Premium',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E1B4B),
+                    // Merged Header Card (Profile & School Info)
+                    _buildMergedHeaderCard(nama, email),
+
+                    const SizedBox(height: 28),
+
+                    // 3. MENU UTAMA
+                    _buildSectionTitle('Menu Utama', Icons.dashboard_rounded),
+                    const SizedBox(height: 16),
+
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 1.15,
                       ),
+                      itemCount: _menus.length,
+                      itemBuilder: (_, i) => _buildMenuCard(_menus[i]),
                     ),
+
+                    const SizedBox(height: 40),
                   ],
                 ),
-                const SizedBox(height: 12),
-                ..._premiums.map((p) => _buildPremiumTile(p)),
-              ],
+              ),
             ),
-          ),
-
-          const SizedBox(height: 32),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeaderStack() {
-    return SizedBox(
-      height: 235,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Background Gradient Banner
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 175,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF312E81), // deep indigo
-                    Color(0xFF4F46E5), // primary indigo
-                    Color(0xFF4338CA), // indigo-700
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(32),
-                  bottomRight: Radius.circular(32),
-                ),
-              ),
-              child: Stack(
-                children: [
-                  // Decorative abstract circle 1
-                  Positioned(
-                    top: -40,
-                    right: -40,
-                    child: CircleAvatar(
-                      radius: 80,
-                      backgroundColor: Colors.white.withOpacity(0.06),
-                    ),
-                  ),
-                  // Decorative abstract circle 2
-                  Positioned(
-                    bottom: -30,
-                    left: -20,
-                    child: CircleAvatar(
-                      radius: 60,
-                      backgroundColor: Colors.white.withOpacity(0.04),
-                    ),
-                  ),
-                  // Header Content Row
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: SafeArea(
-                      bottom: false,
-                      child: Row(
-                        children: [
-                          // Greeting Text
-                          Expanded(
-                            child: Text(
-                              '${_getGreeting()}, $nama',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          // Logout Button
-                          Material(
-                            color: Colors.white.withOpacity(0.15),
-                            shape: const CircleBorder(),
-                            clipBehavior: Clip.antiAlias,
-                            child: IconButton(
-                              icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
-                              tooltip: 'Logout',
-                              onPressed: _logout,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+  Widget _buildMergedHeaderCard(String adminNama, String adminEmail) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-          // Overlapping School Info Card
-          Positioned(
-            top: 110,
-            left: 16,
-            right: 16,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFEEF2F6), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1E1B4B).withOpacity(0.08),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // School Logo / Avatar
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  gradient: _schoolLogoBase64 != null
+                      ? null
+                      : const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: _schoolLogoBase64 != null
+                      ? Image.memory(
+                          base64Decode(_schoolLogoBase64!),
+                          fit: BoxFit.cover,
+                          width: 70,
+                          height: 70,
+                        )
+                      : const Icon(
+                          Icons.school_rounded,
+                          color: Colors.white,
+                          size: 36,
+                        ),
+                ),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              const SizedBox(width: 16),
+              // School and Admin Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _isLoadingSchool
+                        ? const SizedBox(
+                            height: 18,
+                            width: 140,
+                            child: LinearProgressIndicator(
+                              backgroundColor: Colors.white12,
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                            ),
+                          )
+                        : Text(
+                            _schoolName ?? 'Sekolah Baru',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'School ID: $schoolId',
+                      style: TextStyle(
+                        fontSize: 13, 
+                        color: Colors.white.withValues(alpha: 0.5), 
+                        fontWeight: FontWeight.w500
+                      ),
+                    ),
+                    Text(
+                      adminEmail,
+                      style: TextStyle(
+                        fontSize: 11, 
+                        color: Colors.white.withValues(alpha: 0.4)
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Row for Badges
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.5)),
+                ),
+                child: const Text(
+                  'Admin Sekolah',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildPlanBadge(),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+          const SizedBox(height: 16),
+          // Footer: Date and System Status
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      // School Building Icon Container / Dynamic School Logo
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          gradient: _schoolLogoBase64 != null
-                              ? null
-                              : const LinearGradient(
-                                  colors: [Color(0xFFEEF2F6), Color(0xFFE2E8F0)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFEEF2F6), width: 1),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(13),
-                          child: _schoolLogoBase64 != null
-                              ? Image.memory(
-                                  base64Decode(_schoolLogoBase64!),
-                                  fit: BoxFit.cover,
-                                  width: 52,
-                                  height: 52,
-                                )
-                              : const Icon(
-                                  Icons.school_rounded,
-                                  color: Color(0xFF4F46E5),
-                                  size: 28,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      // School Info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _isLoadingSchool
-                                ? const SizedBox(
-                                    height: 16,
-                                    width: 120,
-                                    child: LinearProgressIndicator(
-                                      backgroundColor: Color(0xFFEEF2F6),
-                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
-                                    ),
-                                  )
-                                : Text(
-                                    _schoolName ?? 'Sekolah Baru',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1E1B4B),
-                                    ),
-                                  ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'School ID: $schoolId',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Plan Badge
-                      _buildPlanBadge(),
-                    ],
-                  ),
-                  const Divider(color: Color(0xFFF1F5F9), height: 16),
-                  // Footer info of card (Date & System Status)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
-                          const SizedBox(width: 6),
-                          Text(
-                            _getFormattedDate(),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF10B981),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            'Sistem Aktif',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF10B981),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  Icon(Icons.calendar_today_rounded, size: 14, color: Colors.white.withValues(alpha: 0.5)),
+                  const SizedBox(width: 6),
+                  Text(
+                    _getFormattedDate(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
                   ),
                 ],
               ),
-            ),
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF10B981),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Sistem Aktif',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
@@ -464,7 +403,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       badgeColor = const Color(0xFF2563EB);
       badgeGradient = const LinearGradient(
         colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-    begin: Alignment.topLeft,
+        begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
       icon = Icons.star_rounded;
@@ -485,7 +424,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: badgeColor.withOpacity(0.3),
+            color: badgeColor.withValues(alpha: 0.3),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -510,96 +449,88 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildMenuCard(_MenuData menu) {
-    final bool isActive = ['Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Pengaturan'].contains(menu.title);
-
-    return GestureDetector(
-      onTap: isActive ? () => _onMenuTap(menu.title) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        decoration: BoxDecoration(
-          color: _cardBg,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: menu.color.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 20),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 0.5,
+          ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: menu.bgColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(menu.icon, color: menu.color, size: 24),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              menu.title,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: isActive ? const Color(0xFF1E1B4B) : Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 
-  Widget _buildPremiumTile(_PremiumData p) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
+  Widget _buildMenuCard(_MenuData menu) {
+    final bool isActive = ['Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi', 'Fitur Premium', 'Pengaturan'].contains(menu.title);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isActive ? () => _onMenuTap(menu.title) : null,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
           decoration: BoxDecoration(
-            color: p.color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(p.icon, color: p.color, size: 20),
-        ),
-        title: Text(
-          p.title,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: p.color.withOpacity(0.1),
+            color: isActive ? Colors.white.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.015),
             borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            p.badge,
-            style: TextStyle(
-              color: p.color,
-              fontWeight: FontWeight.bold,
-              fontSize: 11,
+            border: Border.all(
+              color: isActive 
+                  ? Colors.white.withValues(alpha: 0.08) 
+                  : Colors.white.withValues(alpha: 0.03),
             ),
           ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isActive ? menu.color.withValues(alpha: 0.15) : Colors.grey.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  menu.icon, 
+                  color: isActive ? menu.color : Colors.white24, 
+                  size: 28
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                menu.title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isActive ? Colors.white : Colors.white30, 
+                  fontSize: 13, 
+                  fontWeight: FontWeight.w600
+                ),
+              ),
+              if (!isActive) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Segera Hadir',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
-        onTap: () {},
       ),
     );
   }
@@ -609,84 +540,88 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       context: context,
       builder: (context) {
         return AlertDialog(
-  shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(20),
-  ),
-  contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-  content: Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(
-        width: 70,
-        height: 70,
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.logout_rounded,
-          color: Colors.red,
-          size: 36,
-        ),
-      ),
-      const SizedBox(height: 20),
-      const Text(
-        'Konfirmasi Logout',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      const SizedBox(height: 12),
-      Text(
-        'Apakah Anda yakin ingin keluar dari aplikasi?',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 14,
-          color: Colors.grey.shade700,
-          height: 1.5,
-        ),
-      ),
-    ],
-  ),
-  actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-  actions: [
-    Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: () => Get.back(result: false),
-            child: const Text('Batal'),
+          backgroundColor: const Color(0xFF0F0C20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: Colors.red,
+                  size: 36,
+                ),
               ),
-            ),
-            onPressed: () => Get.back(result: true),
-            icon: const Icon(Icons.logout_rounded, size: 18),
-            label: const Text('Logout'),
+              const SizedBox(height: 20),
+              const Text(
+                'Konfirmasi Logout',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Apakah Anda yakin ingin keluar dari aplikasi?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withValues(alpha: 0.6),
+                  height: 1.5,
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
-    ),
-  ],
-);
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Get.back(result: false),
+                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Get.back(result: true),
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
       },
     );
 
@@ -704,14 +639,5 @@ class _MenuData {
   final String title;
   final IconData icon;
   final Color color;
-  final Color bgColor;
-  const _MenuData(this.title, this.icon, this.color, this.bgColor);
-}
-
-class _PremiumData {
-  final String title;
-  final IconData icon;
-  final String badge;
-  final Color color;
-  const _PremiumData(this.title, this.icon, this.badge, this.color);
+  const _MenuData(this.title, this.icon, this.color);
 }

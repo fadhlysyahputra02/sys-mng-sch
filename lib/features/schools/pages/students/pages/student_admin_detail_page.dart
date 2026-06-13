@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../authentication/widgets/auth_background.dart';
 import '../data/student_admin_service.dart';
 
 class StudentDetailPage extends StatefulWidget {
@@ -24,94 +25,103 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
   void _showEditDialog() {
     final namaController = TextEditingController(text: student['nama']);
     final nisController = TextEditingController(text: student['nis']);
-    const primaryColor = Color(0xFF4F46E5);
 
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text(
-            'Edit Data Murid',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E1B4B)),
+          backgroundColor: const Color(0xFF0F0C20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
           ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: namaController,
-                decoration: InputDecoration(
-                  labelText: 'Nama Murid',
-                  prefixIcon: const Icon(Icons.person_outline_rounded, color: primaryColor),
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: primaryColor, width: 2),
-                  ),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                textCapitalization: TextCapitalization.words,
+                child: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Edit Data Murid',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 20),
+              _buildDialogField(
+                controller: namaController,
+                label: 'Nama Murid',
+                icon: Icons.person_outline_rounded,
+                capitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 12),
-              TextField(
+              _buildDialogField(
                 controller: nisController,
-                decoration: InputDecoration(
-                  labelText: 'NIS',
-                  prefixIcon: const Icon(Icons.badge_outlined, color: primaryColor),
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: primaryColor, width: 2),
-                  ),
-                ),
+                label: 'NIS',
+                icon: Icons.badge_outlined,
                 keyboardType: TextInputType.number,
               ),
             ],
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () async {
-                final newNama = namaController.text.trim();
-                final newNis = nisController.text.trim();
-                if (newNama.isEmpty || newNis.isEmpty) return;
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0EA5E9),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      final newNama = namaController.text.trim();
+                      final newNis = nisController.text.trim();
+                      if (newNama.isEmpty || newNis.isEmpty) return;
 
-                await _studentService.updateStudent(
-                  studentId: student['studentId'],
-                  nama: newNama,
-                  nis: newNis,
-                );
+                      await _studentService.updateStudent(
+                        studentId: student['studentId'],
+                        nama: newNama,
+                        nis: newNis,
+                      );
 
-                setState(() {
-                  student['nama'] = newNama;
-                  student['nis'] = newNis;
-                });
+                      setState(() {
+                        student['nama'] = newNama;
+                        student['nis'] = newNis;
+                      });
 
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Data murid berhasil diperbarui')),
-                  );
-                }
-              },
-              child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Data murid berhasil diperbarui')),
+                        );
+                      }
+                    },
+                    child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -124,38 +134,75 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text(
-            'Hapus Murid',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E1B4B)),
+          backgroundColor: const Color(0xFF0F0C20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
           ),
-          content: Text(
-            'Apakah Anda yakin ingin menghapus "${student['nama']}"? Data ini tidak dapat dikembalikan.',
-            style: const TextStyle(color: Color(0xFF64748B)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 30),
               ),
-              onPressed: () async {
-                await _studentService.deleteStudent(student['studentId']);
-
-                if (ctx.mounted) {
-                  Navigator.pop(ctx); // Tutup dialog
-                  Navigator.pop(context); // Kembali ke daftar murid
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Murid berhasil dihapus')),
-                  );
-                }
-              },
-              child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              const Text(
+                'Hapus Murid',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Apakah Anda yakin ingin menghapus "${student['nama']}"? Data ini tidak dapat dikembalikan.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, height: 1.5),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      await _studentService.deleteStudent(student['studentId']);
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Murid berhasil dihapus')),
+                        );
+                      }
+                    },
+                    child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -163,218 +210,373 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     );
   }
 
+  Widget _buildDialogField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextCapitalization capitalization = TextCapitalization.none,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: TextField(
+        controller: controller,
+        style: const TextStyle(color: Colors.white),
+        textCapitalization: capitalization,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+          prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.45), size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF4F46E5);
-    const surfaceColor = Color(0xFFF8F7FF);
     final bool isRegistered = student['sudahRegister'] == true;
+    final bool isAktif = student['aktif'] == true;
+    final String nama = student['nama'] ?? '-';
+    final String inisial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
+    final String? className = student['className'];
+    final bool hasClass = className != null && className.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: surfaceColor,
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Detail Murid',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: _showEditDialog,
-            tooltip: 'Edit Murid',
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
-            onPressed: _showDeleteDialog,
-            tooltip: 'Hapus Murid',
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: AuthBackground(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Summary Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              margin: const EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEDE9FE),
-                      borderRadius: BorderRadius.circular(16),
+            // ── AppBar ─────────────────────────────────────────────────────
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                     ),
-                    child: const Icon(Icons.school, color: primaryColor, size: 36),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          student['nama'] ?? '-',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Color(0xFF1E1B4B),
-                          ),
+                    const SizedBox(width: 4),
+                    const Expanded(
+                      child: Text(
+                        'Detail Murid',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                    // Edit button
+                    Container(
+                      margin: const EdgeInsets.only(right: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 20),
+                        tooltip: 'Edit Murid',
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        padding: EdgeInsets.zero,
+                        onPressed: _showEditDialog,
+                      ),
+                    ),
+                    // Delete button
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                        tooltip: 'Hapus Murid',
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        padding: EdgeInsets.zero,
+                        onPressed: _showDeleteDialog,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Body ────────────────────────────────────────────────────────
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Profile Card ────────────────────────────────────────
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            const Icon(Icons.badge_outlined, size: 14, color: Color(0xFF64748B)),
-                            const SizedBox(width: 6),
-                            Text(
-                              'NIS: ${student['nis'] ?? '-'}',
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0EA5E9).withValues(alpha: 0.35),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Avatar
+                          Container(
+                            width: 66,
+                            height: 66,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                            ),
+                            child: Center(
+                              child: Text(
+                                inisial,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        // Status badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isRegistered ? const Color(0xFFD1FAE5) : const Color(0xFFFFEDD5),
-                            borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(
-                            isRegistered ? 'Terdaftar' : 'Belum Registrasi',
-                            style: TextStyle(
-                              color: isRegistered ? const Color(0xFF065F46) : const Color(0xFF9A3412),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                          const SizedBox(width: 18),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  nama,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                    color: Colors.white,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Icon(Icons.badge_outlined, size: 14, color: Colors.white.withValues(alpha: 0.7)),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'NIS: ${student['nis'] ?? '-'}',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                // Badges row
+                                Wrap(
+                                  spacing: 6,
+                                  children: [
+                                    // Status registrasi
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isRegistered
+                                            ? Colors.white.withValues(alpha: 0.25)
+                                            : Colors.orange.withValues(alpha: 0.3),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: isRegistered
+                                              ? Colors.white.withValues(alpha: 0.4)
+                                              : Colors.orange.withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isRegistered ? Icons.verified_rounded : Icons.pending_rounded,
+                                            size: 11,
+                                            color: Colors.white,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            isRegistered ? 'Terdaftar' : 'Belum Registrasi',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // ── Section Header ───────────────────────────────────────
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.3)),
+                          ),
+                          child: const Icon(Icons.info_outline_rounded, color: Color(0xFF0EA5E9), size: 18),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Informasi Akademik',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.3,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
 
-            // Section Header
-            Row(
-              children: [
-                const Icon(Icons.info_outline_rounded, color: primaryColor, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  'Informasi Akademik',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E1B4B),
-                  ),
+                    const SizedBox(height: 14),
+
+                    // ── Info Cards ───────────────────────────────────────────
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          // Kelas
+                          _infoTile(
+                            icon: Icons.class_outlined,
+                            iconColor: const Color(0xFF6366F1),
+                            label: 'Kelas',
+                            value: hasClass ? className : 'Belum ditentukan',
+                            valueColor: hasClass ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                            showDivider: true,
+                          ),
+                          // Email
+                          _infoTile(
+                            icon: Icons.email_outlined,
+                            iconColor: const Color(0xFF0EA5E9),
+                            label: 'Email',
+                            value: (student['email'] ?? '').toString().isEmpty ? '-' : student['email'],
+                            showDivider: true,
+                          ),
+                          // Status Keaktifan
+                          _infoTile(
+                            icon: isAktif ? Icons.check_circle_outline_rounded : Icons.cancel_outlined,
+                            iconColor: isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            label: 'Status Keaktifan',
+                            value: isAktif ? 'Aktif' : 'Tidak Aktif',
+                            valueColor: isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            showDivider: false,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Academic Info Details
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEDE9FE),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.class_outlined, color: primaryColor, size: 20),
-                    ),
-                    title: const Text(
-                      'Kelas',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF64748B)),
-                    ),
-                    subtitle: Text(
-                      student['className'] ?? 'Belum ditentukan',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E1B4B)),
-                    ),
-                  ),
-                  const Divider(height: 1, indent: 60),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEDE9FE),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.email_outlined, color: primaryColor, size: 20),
-                    ),
-                    title: const Text(
-                      'Email',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF64748B)),
-                    ),
-                    subtitle: Text(
-                      (student['email'] ?? '').toString().isEmpty
-                          ? '-'
-                          : student['email'],
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E1B4B)),
-                    ),
-                  ),
-                  const Divider(height: 1, indent: 60),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEDE9FE),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.verified_user_outlined, color: primaryColor, size: 20),
-                    ),
-                    title: const Text(
-                      'Status Keaktifan',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF64748B)),
-                    ),
-                    subtitle: Text(
-                      student['aktif'] == true ? 'Aktif' : 'Tidak Aktif',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E1B4B)),
-                    ),
-                  ),
-                ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _infoTile({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    Color valueColor = Colors.white,
+    required bool showDivider,
+  }) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: iconColor.withValues(alpha: 0.25)),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: valueColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (showDivider)
+          Divider(
+            height: 1,
+            indent: 70,
+            endIndent: 16,
+            color: Colors.white.withValues(alpha: 0.07),
+          ),
+      ],
     );
   }
 }

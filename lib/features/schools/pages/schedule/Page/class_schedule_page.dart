@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/services/session_service.dart';
+import '../../../../authentication/widgets/auth_background.dart';
 import '../../subjects/data/subject_service.dart';
 import '../../teachers/data/teacher_service.dart';
 import '../Service/class_schedule_service.dart';
@@ -18,6 +19,7 @@ class ClassSchedulePage extends StatelessWidget {
     'Rabu',
     'Kamis',
     'Jumat',
+    'Sabtu',
   ];
 
   ClassSchedulePage({
@@ -38,41 +40,89 @@ class ClassSchedulePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF4F46E5);
-    const surfaceColor = Color(0xFFF8F7FF);
+    const primaryColor = Color(0xFFEC4899);
 
     return Scaffold(
-      backgroundColor: surfaceColor,
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          'Jadwal $className',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Tambah Jadwal', style: TextStyle(fontWeight: FontWeight.bold)),
-        onPressed: () => _showAddScheduleDialog(context),
-      ),
-      body: StreamBuilder(
+      body: AuthBackground(
+        child: Column(
+          children: [
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'Jadwal $className',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFEC4899).withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _showAddScheduleDialog(context),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                                SizedBox(width: 6),
+                                Text('Tambah', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: StreamBuilder(
         stream: _service.getSchedulesByClass(
           SessionService.currentUser!.schoolId,
           classId,
         ),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
-                  SizedBox(height: 12),
-                  Text('Terjadi kesalahan memuat jadwal.', style: TextStyle(color: Color(0xFF64748B))),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Terjadi kesalahan memuat jadwal.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ],
               ),
             );
@@ -81,7 +131,7 @@ class ClassSchedulePage extends StatelessWidget {
           if (!snapshot.hasData) {
             return const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
               ),
             );
           }
@@ -96,30 +146,25 @@ class ClassSchedulePage extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Colors.white.withValues(alpha: 0.06),
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
-                          blurRadius: 16,
-                        ),
-                      ],
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                     ),
-                    child: const Icon(Icons.calendar_today_rounded, size: 52, color: primaryColor),
+                    child: Icon(Icons.calendar_today_rounded, size: 52, color: Colors.white.withValues(alpha: 0.4)),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'Belum ada jadwal',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E1B4B),
+                      color: Colors.white.withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Tap tombol "Tambah Jadwal" untuk mulai mengisi.',
-                    style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                  Text(
+                    'Tap tombol "Tambah" untuk mulai mengisi.',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
                   ),
                 ],
               ),
@@ -127,7 +172,7 @@ class ClassSchedulePage extends StatelessWidget {
           }
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
             children: _weekdays.map((day) {
               final dayDocs = docs
                   .where((doc) => (doc.data()['hari'] ?? '') == day)
@@ -149,9 +194,14 @@ class ClassSchedulePage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         color: dayDocs.isEmpty
-                            ? const Color(0xFFF1F5F9)
-                            : const Color(0xFFEDE9FE),
-                        borderRadius: BorderRadius.circular(10),
+                            ? Colors.white.withValues(alpha: 0.04)
+                            : primaryColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: dayDocs.isEmpty
+                              ? Colors.white.withValues(alpha: 0.07)
+                              : primaryColor.withValues(alpha: 0.4),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -159,7 +209,7 @@ class ClassSchedulePage extends StatelessWidget {
                           Icon(
                             dayDocs.isEmpty ? Icons.remove_circle_outline : Icons.check_circle_rounded,
                             size: 16,
-                            color: dayDocs.isEmpty ? const Color(0xFF94A3B8) : primaryColor,
+                            color: dayDocs.isEmpty ? Colors.white.withValues(alpha: 0.3) : primaryColor,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -167,7 +217,7 @@ class ClassSchedulePage extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: dayDocs.isEmpty ? const Color(0xFF94A3B8) : primaryColor,
+                              color: dayDocs.isEmpty ? Colors.white.withValues(alpha: 0.35) : Colors.white,
                             ),
                           ),
                           if (dayDocs.isNotEmpty) ...[
@@ -200,7 +250,7 @@ class ClassSchedulePage extends StatelessWidget {
                           'Tidak ada jadwal pada hari ini',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade400,
+                            color: Colors.white.withValues(alpha: 0.3),
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -209,14 +259,14 @@ class ClassSchedulePage extends StatelessWidget {
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
                             ),
                           ],
                         ),
@@ -224,10 +274,10 @@ class ClassSchedulePage extends StatelessWidget {
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: DataTable(
-                            headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
-                            headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E1B4B)),
-                            dataTextStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                            dividerThickness: 1,
+                            headingRowColor: WidgetStateProperty.all(Colors.white.withValues(alpha: 0.04)),
+                            headingTextStyle: TextStyle(fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.8)),
+                            dataTextStyle: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 13),
+                            dividerThickness: 0.5,
                             horizontalMargin: 16,
                             columnSpacing: 24,
                             columns: const [
@@ -240,9 +290,13 @@ class ClassSchedulePage extends StatelessWidget {
                               final data = doc.data();
                               final isIstirahat = data['jenisJadwal'] == 'istirahat';
                               final scheduleId = doc.id;
-                              
+
                               return DataRow(
-                                color: WidgetStateProperty.all(isIstirahat ? const Color(0xFFFFFBEB) : Colors.white),
+                                color: WidgetStateProperty.all(
+                                  isIstirahat
+                                      ? const Color(0xFFF59E0B).withValues(alpha: 0.08)
+                                      : Colors.transparent,
+                                ),
                                 cells: [
                                   DataCell(
                                     Text(
@@ -254,13 +308,17 @@ class ClassSchedulePage extends StatelessWidget {
                                     ),
                                   ),
                                   DataCell(
-                                    isIstirahat 
-                                      ? Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(8)),
-                                          child: const Text('Istirahat', style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 11)),
-                                        )
-                                      : Text(data['subjectName'] ?? '-', style: const TextStyle(color: Color(0xFF1E1B4B), fontWeight: FontWeight.w600)),
+                                    isIstirahat
+                                        ? Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                                            ),
+                                            child: const Text('Istirahat', style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 11)),
+                                          )
+                                        : Text(data['subjectName'] ?? '-', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                                   ),
                                   DataCell(Text(isIstirahat ? '-' : (data['teacherName'] ?? '-'))),
                                   DataCell(
@@ -283,6 +341,10 @@ class ClassSchedulePage extends StatelessWidget {
           );
         },
       ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -290,28 +352,66 @@ class ClassSchedulePage extends StatelessWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Hapus Jadwal',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E1B4B)),
+        backgroundColor: const Color(0xFF0F0C20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
         ),
-        content: const Text(
-          'Apakah Anda yakin ingin menghapus jadwal ini?',
-          style: TextStyle(color: Color(0xFF64748B)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 30),
             ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            const Text(
+              'Hapus Jadwal',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Apakah Anda yakin ingin menghapus jadwal ini?',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, height: 1.5),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
