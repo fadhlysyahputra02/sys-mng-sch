@@ -30,8 +30,9 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
 
       // Cek apakah NIP sudah ada di sekolah ini
       final existingTeacher = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
           .collection('teachers')
-          .where('schoolId', isEqualTo: widget.schoolId)
           .where('nip', isEqualTo: nip)
           .get();
 
@@ -44,7 +45,11 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
         return;
       }
 
-      final doc = FirebaseFirestore.instance.collection('teachers').doc();
+      final doc = FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('teachers')
+          .doc();
 
       await doc.set({
         'teacherId': doc.id,

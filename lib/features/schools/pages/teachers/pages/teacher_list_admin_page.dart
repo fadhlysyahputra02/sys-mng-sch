@@ -40,8 +40,9 @@ class TeacherListPage extends StatelessWidget {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
             .collection('teachers')
-            .where('schoolId', isEqualTo: schoolId)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {

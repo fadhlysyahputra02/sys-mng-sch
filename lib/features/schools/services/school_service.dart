@@ -7,9 +7,10 @@ class SchoolService {
     required String schoolId,
     required String nip,
   }) async {
-    final result = await FirebaseFirestore.instance
+    final result = await _firestore
+        .collection('schools')
+        .doc(schoolId)
         .collection('teachers')
-        .where('schoolId', isEqualTo: schoolId)
         .where('nip', isEqualTo: nip)
         .limit(1)
         .get();
@@ -18,16 +19,20 @@ class SchoolService {
       return null;
     }
 
-    return result.docs.first.data();
+    final doc = result.docs.first;
+    final data = doc.data();
+    data['teacherId'] = doc.id;
+    return data;
   }
 
   Future<Map<String, dynamic>?> getStudentByNis({
     required String schoolId,
     required String nis,
   }) async {
-    final result = await FirebaseFirestore.instance
+    final result = await _firestore
+        .collection('schools')
+        .doc(schoolId)
         .collection('students')
-        .where('schoolId', isEqualTo: schoolId)
         .where('nis', isEqualTo: nis)
         .limit(1)
         .get();
@@ -37,33 +42,37 @@ class SchoolService {
     }
 
     final doc = result.docs.first;
-
     final data = doc.data();
-
+    data['studentId'] = doc.id;
     data['docId'] = doc.id;
-
     return data;
   }
 
   Future<void> updateTeacherRegistration({
+    required String schoolId,
     required String teacherId,
     required String uid,
     required String email,
     required String nama,
   }) async {
-    await FirebaseFirestore.instance
+    await _firestore
+        .collection('schools')
+        .doc(schoolId)
         .collection('teachers')
         .doc(teacherId)
         .update({'uid': uid, 'email': email, 'sudahRegister': true});
   }
 
   Future<void> updateStudentRegistration({
+    required String schoolId,
     required String studentId,
     required String uid,
     required String email,
     required String nama,
   }) async {
-    await FirebaseFirestore.instance
+    await _firestore
+        .collection('schools')
+        .doc(schoolId)
         .collection('students')
         .doc(studentId)
         .update({'uid': uid, 'email': email, 'sudahRegister': true});

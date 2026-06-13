@@ -67,6 +67,8 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                 final newName = controller.text.trim();
                 if (newName.isNotEmpty) {
                   await FirebaseFirestore.instance
+                      .collection('schools')
+                      .doc(teacher['schoolId'])
                       .collection('teachers')
                       .doc(teacher['teacherId'])
                       .update({'nama': newName});
@@ -119,12 +121,16 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
               onPressed: () async {
                 // Hapus data guru
                 await FirebaseFirestore.instance
+                    .collection('schools')
+                    .doc(teacher['schoolId'])
                     .collection('teachers')
                     .doc(teacher['teacherId'])
                     .delete();
 
                 // Hapus juga relasi mata pelajaran guru ini
                 final subjectsSnapshot = await FirebaseFirestore.instance
+                    .collection('schools')
+                    .doc(teacher['schoolId'])
                     .collection('teacher_subjects')
                     .where('teacherId', isEqualTo: teacher['teacherId'])
                     .get();
@@ -283,6 +289,8 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
+                    .collection('schools')
+                    .doc(teacher['schoolId'])
                     .collection('teacher_subjects')
                     .where('teacherId', isEqualTo: teacher['teacherId'])
                     .snapshots(),

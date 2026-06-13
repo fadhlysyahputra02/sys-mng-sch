@@ -464,7 +464,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       badgeColor = const Color(0xFF2563EB);
       badgeGradient = const LinearGradient(
         colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-        begin: Alignment.topLeft,
+    begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
       icon = Icons.star_rounded;
@@ -609,21 +609,84 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Konfirmasi Logout'),
-          content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(result: false),
-              child: const Text('Batal'),
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(20),
+  ),
+  contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+  content: Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 70,
+        height: 70,
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.logout_rounded,
+          color: Colors.red,
+          size: 36,
+        ),
+      ),
+      const SizedBox(height: 20),
+      const Text(
+        'Konfirmasi Logout',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+      Text(
+        'Apakah Anda yakin ingin keluar dari aplikasi?',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 14,
+          color: Colors.grey.shade700,
+          height: 1.5,
+        ),
+      ),
+    ],
+  ),
+  actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+  actions: [
+    Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-              onPressed: () => Get.back(result: true),
-              child: const Text('Logout'),
+            onPressed: () => Get.back(result: false),
+            child: const Text('Batal'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-          ],
-        );
+            onPressed: () => Get.back(result: true),
+            icon: const Icon(Icons.logout_rounded, size: 18),
+            label: const Text('Logout'),
+          ),
+        ),
+      ],
+    ),
+  ],
+);
       },
     );
 

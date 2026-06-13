@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ClassScheduleService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  CollectionReference<Map<String, dynamic>> _schedulesRef(String schoolId) =>
+      _db.collection('schools').doc(schoolId).collection('class_schedules');
+
   int _timeToMinutes(String value) {
     final parts = value.split(':');
 
@@ -26,10 +29,10 @@ class ClassScheduleService {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getSchedulesByClass(
+    String schoolId,
     String classId,
   ) {
-    return _db
-        .collection('class_schedules')
+    return _schedulesRef(schoolId)
         .where('classId', isEqualTo: classId)
         .snapshots();
   }
@@ -37,15 +40,24 @@ class ClassScheduleService {
   Stream<QuerySnapshot<Map<String, dynamic>>> getSchedulesBySchool(
     String schoolId,
   ) {
-    return _db
-        .collection('class_schedules')
-        .where('schoolId', isEqualTo: schoolId)
+    return _schedulesRef(schoolId).snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> getSchedulesByTeacher(
+    String schoolId,
+    String teacherId,
+  ) {
+    return _schedulesRef(schoolId)
+        .where('teacherId', isEqualTo: teacherId)
         .snapshots();
   }
 
   // Hapus jadwal
-  Future<void> deleteSchedule(String scheduleId) async {
-    await _db.collection('class_schedules').doc(scheduleId).delete();
+  Future<void> deleteSchedule({
+    required String schoolId,
+    required String scheduleId,
+  }) async {
+    await _schedulesRef(schoolId).doc(scheduleId).delete();
   }
 
   // Tambahkan jadwal baru
@@ -65,10 +77,7 @@ class ClassScheduleService {
     final newStart = _timeToMinutes(jamMulai);
     final newEnd = _timeToMinutes(jamSelesai);
 
-    final existingSchedules = await _db
-        .collection('class_schedules')
-        .where('schoolId', isEqualTo: schoolId)
-        .get();
+    final existingSchedules = await _schedulesRef(schoolId).get();
 
     for (final doc in existingSchedules.docs) {
       final data = doc.data();
@@ -101,7 +110,7 @@ class ClassScheduleService {
       }
     }
 
-    final doc = _db.collection('class_schedules').doc();
+    final doc = _schedulesRef(schoolId).doc();
 
     await doc.set({
       'scheduleId': doc.id,

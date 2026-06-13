@@ -49,8 +49,9 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
           ? const Center(child: CircularProgressIndicator())
           : StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
+                  .collection('schools')
+                  .doc(schoolId)
                   .collection('subjects')
-                  .where('schoolId', isEqualTo: schoolId)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
