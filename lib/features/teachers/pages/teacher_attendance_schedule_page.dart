@@ -141,28 +141,23 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
 
 
 
-  Widget _buildDatePickerTheme(BuildContext context, Widget? child) {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF8B5CF6),
-          onPrimary: Colors.white,
-          surface: Color(0xFF0F0C20),
-          onSurface: Colors.white,
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFF8B5CF6),
-          ),
-        ),
-      ),
-      child: child!,
-    );
+  String _getMonthNameIndonesian(int month) {
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return months[month - 1];
   }
 
   Future<void> _showDateRangeDialog(BuildContext context, List<Map<String, dynamic>> allSchedules) async {
-    DateTime startDate = DateTime.now().subtract(const Duration(days: 7));
-    DateTime endDate = DateTime.now();
+    final now = DateTime.now();
+    final List<DateTime> monthOptions = [];
+    // Generate options for the last 12 months
+    for (int i = 0; i < 12; i++) {
+      monthOptions.add(DateTime(now.year, now.month - i, 1));
+    }
+
+    DateTime selectedMonth = monthOptions.first;
 
     await showDialog(
       context: context,
@@ -190,99 +185,50 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                       ),
                       textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Pilih bulan rekapitulasi kehadiran murid',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: startDate,
-                                firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                                lastDate: DateTime.now().add(const Duration(days: 7)),
-                                builder: _buildDatePickerTheme,
-                              );
-                              if (picked != null) {
-                                setDialogState(() {
-                                  startDate = picked;
-                                  if (startDate.isAfter(endDate)) {
-                                    endDate = startDate;
-                                  }
-                                });
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Dari Tanggal',
-                                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _getFormattedDateFor(startDate),
-                                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<DateTime>(
+                          value: selectedMonth,
+                          dropdownColor: const Color(0xFF0F0C20),
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white54),
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                          items: monthOptions.map((date) {
+                            final monthName = _getMonthNameIndonesian(date.month);
+                            final year = date.year;
+                            return DropdownMenuItem<DateTime>(
+                              value: date,
+                              child: Text('$monthName $year'),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() {
+                                selectedMonth = val;
+                              });
+                            }
+                          },
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: endDate,
-                                firstDate: startDate,
-                                lastDate: DateTime.now().add(const Duration(days: 7)),
-                                builder: _buildDatePickerTheme,
-                              );
-                              if (picked != null) {
-                                setDialogState(() {
-                                  endDate = picked;
-                                });
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Sampai Tanggal',
-                                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _getFormattedDateFor(endDate),
-                                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
+                        final startDate = DateTime(selectedMonth.year, selectedMonth.month, 1);
+                        final endDate = DateTime(selectedMonth.year, selectedMonth.month + 1, 0);
                         _exportAllRecapPdfWithRange(context, allSchedules, startDate, endDate);
                       },
                       style: ElevatedButton.styleFrom(
@@ -382,6 +328,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
         startDate: start,
         endDate: end,
         records: filteredRecords,
+        schedules: allSchedules,
       );
 
     } catch (e) {
