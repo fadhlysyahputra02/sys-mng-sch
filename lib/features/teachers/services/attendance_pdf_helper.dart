@@ -192,6 +192,25 @@ class AttendancePdfHelper {
                     itemBuilder: (context, index) {
                       final subjectName = sortedSubjects[index];
 
+                      // Find what weekdays this subject is scheduled for this class
+                      final Set<int> scheduledWeekdays = {};
+                      final cleanClassName = className.trim().toLowerCase();
+                      final cleanSubjectName = subjectName.trim().toLowerCase();
+                      for (var s in schedules) {
+                        final sClassName = s['className']?.toString().trim().toLowerCase();
+                        final sSubjectName = s['subjectName']?.toString().trim().toLowerCase();
+                        if (sClassName == cleanClassName && sSubjectName == cleanSubjectName) {
+                          final sHari = s['hari']?.toString().trim().toLowerCase();
+                          if (sHari == 'senin') scheduledWeekdays.add(1);
+                          if (sHari == 'selasa') scheduledWeekdays.add(2);
+                          if (sHari == 'rabu') scheduledWeekdays.add(3);
+                          if (sHari == 'kamis') scheduledWeekdays.add(4);
+                          if (sHari == 'jumat') scheduledWeekdays.add(5);
+                          if (sHari == 'sabtu') scheduledWeekdays.add(6);
+                          if (sHari == 'minggu') scheduledWeekdays.add(7);
+                        }
+                      }
+
                       // Header cells for table
                       final List<pw.Widget> headerCells = [
                         pw.Container(
@@ -287,12 +306,19 @@ class AttendancePdfHelper {
                               ),
                             );
                           } else {
+                            final isScheduled = scheduledWeekdays.contains(date.weekday);
+                            final cellBgColor = scheduledWeekdays.isEmpty
+                                ? (mIdx % 2 == 0 ? PdfColors.white : PdfColor.fromInt(0xFFF8FAFC))
+                                : (isScheduled ? PdfColor.fromInt(0xFFDBEAFE) : PdfColor.fromInt(0xFFF1F5F9));
+
                             final hasCheckedIn = sRecords.any((r) =>
-                                r['subjectName'] == subjectName && r['date'] == dateStr);
+                                r['subjectName']?.toString().trim().toLowerCase() == cleanSubjectName &&
+                                r['date'] == dateStr);
 
                             if (hasCheckedIn) {
                               rowCells.add(
                                 pw.Container(
+                                  color: cellBgColor,
                                   alignment: pw.Alignment.center,
                                   child: pw.Text('V', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF10B981))),
                                 ),
@@ -301,8 +327,9 @@ class AttendancePdfHelper {
                             } else {
                               rowCells.add(
                                 pw.Container(
+                                  color: cellBgColor,
                                   alignment: pw.Alignment.center,
-                                  child: pw.Text('-', style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFF94A3B8))),
+                                  child: pw.Text('-', style: pw.TextStyle(fontSize: 8, color: isScheduled ? PdfColor.fromInt(0xFF1E40AF) : PdfColor.fromInt(0xFF94A3B8))),
                                 ),
                               );
                             }

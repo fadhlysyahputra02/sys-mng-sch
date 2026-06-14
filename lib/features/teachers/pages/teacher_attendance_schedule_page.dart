@@ -296,15 +296,24 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
 
       final allRecords = querySnapshot.docs.map((doc) => doc.data()).toList();
 
-      // Filter berdasarkan scheduleId yang diampu guru ini
-      final teacherScheduleIds = allSchedules
-          .map((s) => s['scheduleId'] as String?)
+      // Dapatkan semua kelas yang diajar oleh guru ini
+      final teacherClassNames = allSchedules
+          .map((s) => s['className'] as String?)
           .whereType<String>()
           .toSet();
 
+      // Filter data absensi untuk murid yang berada di kelas yang diampu guru ini
       final filteredRecords = allRecords
-          .where((r) => teacherScheduleIds.contains(r['scheduleId'] as String?))
+          .where((r) => teacherClassNames.contains(r['className'] as String?))
           .toList();
+
+      // Query semua jadwal pelajaran di sekolah untuk mendapatkan semua mapel per kelas
+      final schedulesSnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(user.schoolId)
+          .collection('class_schedules')
+          .get();
+      final schoolSchedules = schedulesSnapshot.docs.map((doc) => doc.data()).toList();
 
       // Tutup loading dialog
       Get.back();
@@ -322,13 +331,13 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
         return;
       }
 
-      // Panggil PDF Helper untuk generate rekap gabungan
+      // Panggil PDF Helper untuk generate rekap gabungan dengan semua jadwal sekolah
       await AttendancePdfHelper.generateAndShowAllPdf(
         teacherName: teacherName,
         startDate: start,
         endDate: end,
         records: filteredRecords,
-        schedules: allSchedules,
+        schedules: schoolSchedules,
       );
 
     } catch (e) {
