@@ -3,18 +3,13 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class AttendancePdfHelper {
-  /// Mengonversi format tanggal YYYY-MM-DD ke tampilan pendek, misal "06 Jun"
-  static String _shortDate(String dateStr) {
+
+  /// Mengonversi format tanggal YYYY-MM-DD ke nomor hari saja, misal "14"
+  static String _dayNumber(String dateStr) {
     try {
       final parts = dateStr.split('-');
       if (parts.length == 3) {
-        final day = parts[2];
-        final monthNum = int.parse(parts[1]);
-        const months = [
-          'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-          'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'
-        ];
-        return '$day ${months[monthNum - 1]}';
+        return int.parse(parts[2]).toString();
       }
     } catch (_) {}
     return dateStr;
@@ -40,15 +35,16 @@ class AttendancePdfHelper {
   }) async {
     final pdf = pw.Document();
 
-    final Set<String> uniqueDatesSet = {};
-    for (var r in records) {
-      final date = r['date'] as String?;
-      if (date != null) {
-        uniqueDatesSet.add(date);
+    final List<String> sortedDates = [];
+    DateTime tempDate = DateTime(startDate.year, startDate.month, startDate.day);
+    final finalEndDate = DateTime(endDate.year, endDate.month, endDate.day);
+    while (tempDate.isBefore(finalEndDate) || tempDate.isAtSameMomentAs(finalEndDate)) {
+      if (tempDate.weekday != DateTime.sunday) {
+        final dateStr = "${tempDate.year}-${tempDate.month.toString().padLeft(2, '0')}-${tempDate.day.toString().padLeft(2, '0')}";
+        sortedDates.add(dateStr);
       }
+      tempDate = tempDate.add(const Duration(days: 1));
     }
-    final List<String> sortedDates = uniqueDatesSet.toList()
-      ..sort((a, b) => a.compareTo(b));
 
     final Set<String> uniqueStudentsSet = {};
     for (var r in records) {
@@ -67,12 +63,12 @@ class AttendancePdfHelper {
     // Build manual table columns
     final Map<int, pw.TableColumnWidth> columnWidths = {
       0: const pw.FixedColumnWidth(25), // No
-      1: const pw.FlexColumnWidth(3),   // Nama Siswa
+      1: const pw.FixedColumnWidth(140),  // Nama Siswa
     };
     for (int dIdx = 0; dIdx < sortedDates.length; dIdx++) {
       columnWidths[dIdx + 2] = const pw.FlexColumnWidth(1);
     }
-    columnWidths[sortedDates.length + 2] = const pw.FixedColumnWidth(60);
+    columnWidths[sortedDates.length + 2] = const pw.FixedColumnWidth(55);
 
     // Header cells
     final List<pw.Widget> headerCells = [
@@ -90,9 +86,9 @@ class AttendancePdfHelper {
     for (var d in sortedDates) {
       headerCells.add(
         pw.Container(
-          padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 2),
           alignment: pw.Alignment.center,
-          child: pw.Text(_shortDate(d), style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8)),
+          child: pw.Text(_dayNumber(d), style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8)),
         ),
       );
     }
@@ -140,7 +136,7 @@ class AttendancePdfHelper {
         if (hasCheckedIn) {
           rowCells.add(
             pw.Container(
-              padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 2),
               alignment: pw.Alignment.center,
               child: pw.Text('V', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF10B981))),
             ),
@@ -149,7 +145,7 @@ class AttendancePdfHelper {
         } else {
           rowCells.add(
             pw.Container(
-              padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 2),
               alignment: pw.Alignment.center,
               child: pw.Text('-', style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFF94A3B8))),
             ),
@@ -347,16 +343,17 @@ class AttendancePdfHelper {
       final subjectName = parts[1];
       final groupRecords = groupedRecords[key]!;
 
-      // Unique dates
-      final Set<String> uniqueDatesSet = {};
-      for (var r in groupRecords) {
-        final date = r['date'] as String?;
-        if (date != null) {
-          uniqueDatesSet.add(date);
+      // Generate all dates in the range (excluding Sundays)
+      final List<String> sortedDates = [];
+      DateTime tempDate = DateTime(startDate.year, startDate.month, startDate.day);
+      final finalEndDate = DateTime(endDate.year, endDate.month, endDate.day);
+      while (tempDate.isBefore(finalEndDate) || tempDate.isAtSameMomentAs(finalEndDate)) {
+        if (tempDate.weekday != DateTime.sunday) {
+          final dateStr = "${tempDate.year}-${tempDate.month.toString().padLeft(2, '0')}-${tempDate.day.toString().padLeft(2, '0')}";
+          sortedDates.add(dateStr);
         }
+        tempDate = tempDate.add(const Duration(days: 1));
       }
-      final List<String> sortedDates = uniqueDatesSet.toList()
-        ..sort((a, b) => a.compareTo(b));
 
       // Unique students
       final Set<String> uniqueStudentsSet = {};
@@ -376,12 +373,12 @@ class AttendancePdfHelper {
       // Build manual table columns
       final Map<int, pw.TableColumnWidth> columnWidths = {
         0: const pw.FixedColumnWidth(25), // No
-        1: const pw.FlexColumnWidth(3),   // Nama Siswa
+        1: const pw.FixedColumnWidth(140),  // Nama Siswa
       };
       for (int dIdx = 0; dIdx < sortedDates.length; dIdx++) {
         columnWidths[dIdx + 2] = const pw.FlexColumnWidth(1);
       }
-      columnWidths[sortedDates.length + 2] = const pw.FixedColumnWidth(60);
+      columnWidths[sortedDates.length + 2] = const pw.FixedColumnWidth(55);
 
       // Header cells
       final List<pw.Widget> headerCells = [
@@ -399,9 +396,9 @@ class AttendancePdfHelper {
       for (var d in sortedDates) {
         headerCells.add(
           pw.Container(
-            padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 2),
             alignment: pw.Alignment.center,
-            child: pw.Text(_shortDate(d), style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8)),
+            child: pw.Text(_dayNumber(d), style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8)),
           ),
         );
       }
@@ -449,7 +446,7 @@ class AttendancePdfHelper {
           if (hasCheckedIn) {
             rowCells.add(
               pw.Container(
-                padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 2),
                 alignment: pw.Alignment.center,
                 child: pw.Text('V', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF10B981))),
               ),
@@ -458,7 +455,7 @@ class AttendancePdfHelper {
           } else {
             rowCells.add(
               pw.Container(
-                padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 2),
                 alignment: pw.Alignment.center,
                 child: pw.Text('-', style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFF94A3B8))),
               ),

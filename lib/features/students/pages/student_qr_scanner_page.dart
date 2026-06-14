@@ -210,9 +210,9 @@ class _OverlayPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.black.withValues(alpha: 0.62);
 
-    // Center frame rect (aligned -0.15 vertically)
+    // Center frame rect (aligned -0.15 vertically with Align layout)
     final cx = size.width / 2;
-    final cy = size.height * 0.5 * (1 - 0.15);
+    final cy = size.height / 2 + (-0.15) * (size.height - frameSize) / 2;
     final half = frameSize / 2;
 
     final frameRect = Rect.fromLTWH(cx - half, cy - half, frameSize, frameSize);
