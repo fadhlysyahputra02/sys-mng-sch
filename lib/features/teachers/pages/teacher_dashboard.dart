@@ -44,6 +44,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   /// Langkah paling penting: cari dokumen guru di subcollection teachers
   /// berdasarkan Firebase Auth UID, lalu simpan teacherId (doc.id)
   Future<void> _resolveTeacherDocId() async {
+    if (SessionService.currentUser == null) return;
     final user = SessionService.currentUser!;
 
     // Load school and teacher in parallel
@@ -147,6 +148,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    if (SessionService.currentUser == null) {
+      Future.microtask(() => Get.offAllNamed(AppRoutes.login));
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     final user = SessionService.currentUser!;
 
     if (_isLoadingTeacher || _isLoadingSchool) {
@@ -205,7 +214,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
     return Scaffold(
       body: AuthBackground(
-        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           // Ambil SEMUA jadwal guru ini berdasarkan teacherId (doc ID di subcollection)
           stream: _scheduleService.getSchedulesByTeacher(user.schoolId, teacherId),
           builder: (context, scheduleSnapshot) {
@@ -360,6 +372,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           },
         ),
       ),
+    ),
+    ),
     );
   }
 
@@ -725,14 +739,26 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       {'title': 'Pengaturan Profil', 'icon': Icons.manage_accounts_rounded, 'color': const Color(0xFF64748B)},
     ];
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    int crossAxisCount = 2;
+    double childAspectRatio = 1.1;
+
+    if (screenWidth >= 900) {
+      crossAxisCount = 4;
+      childAspectRatio = 1.4;
+    } else if (screenWidth >= 600) {
+      crossAxisCount = 3;
+      childAspectRatio = 1.25;
+    }
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 1.1,
+        childAspectRatio: childAspectRatio,
       ),
       itemCount: menus.length,
       itemBuilder: (context, index) {

@@ -3,7 +3,8 @@ import 'package:get/get.dart';
 import '../../../authentication/widgets/auth_background.dart';
 
 class PremiumFeaturesPage extends StatelessWidget {
-  const PremiumFeaturesPage({super.key});
+  final bool hideBackButton;
+  const PremiumFeaturesPage({super.key, this.hideBackButton = false});
 
   @override
   Widget build(BuildContext context) {
@@ -67,17 +68,19 @@ class PremiumFeaturesPage extends StatelessWidget {
               backgroundColor: Colors.transparent,
               elevation: 0,
               pinned: true,
-              leading: Container(
-                margin: const EdgeInsets.only(left: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
+              leading: hideBackButton
+                  ? null
+                  : Container(
+                      margin: const EdgeInsets.only(left: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
               title: const Text(
                 'Fitur Premium',
                 style: TextStyle(

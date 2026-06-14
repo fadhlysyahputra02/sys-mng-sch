@@ -5,7 +5,8 @@ import '../data/subject_service.dart';
 import 'add_subject_page.dart';
 
 class SubjectListPage extends StatelessWidget {
-  SubjectListPage({super.key});
+  final bool hideBackButton;
+  SubjectListPage({super.key, this.hideBackButton = false});
 
   final service = SubjectService();
 
@@ -24,10 +25,11 @@ class SubjectListPage extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                    ),
+                    if (!hideBackButton)
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      ),
                     const SizedBox(width: 4),
                     const Expanded(
                       child: Text(

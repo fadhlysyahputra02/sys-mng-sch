@@ -9,7 +9,8 @@ import '../Service/class_schedule_service.dart';
 import 'class_schedule_page.dart';
 
 class ClassScheduleOverviewPage extends StatelessWidget {
-  ClassScheduleOverviewPage({super.key});
+  final bool hideBackButton;
+  ClassScheduleOverviewPage({super.key, this.hideBackButton = false});
 
   final ClassService _classService = ClassService();
   final ClassScheduleService _scheduleService = ClassScheduleService();
@@ -29,10 +30,11 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                    ),
+                    if (!hideBackButton)
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      ),
                     const SizedBox(width: 4),
                     const Expanded(
                       child: Text(

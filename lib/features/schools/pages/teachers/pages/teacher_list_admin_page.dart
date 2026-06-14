@@ -7,8 +7,13 @@ import 'teacher_detail_admin_page.dart';
 
 class TeacherListPage extends StatelessWidget {
   final String schoolId;
+  final bool hideBackButton;
 
-  const TeacherListPage({super.key, required this.schoolId});
+  const TeacherListPage({
+    super.key,
+    required this.schoolId,
+    this.hideBackButton = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,10 +28,11 @@ class TeacherListPage extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                    ),
+                    if (!hideBackButton)
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      ),
                     const SizedBox(width: 4),
                     const Expanded(
                       child: Text(
@@ -381,7 +387,7 @@ class TeacherListPage extends StatelessWidget {
         }
       } else {
         if (context.mounted) {
-          _startImporting(context);
+          _showImportGuide(context);
         }
       }
     } catch (e) {
@@ -392,6 +398,166 @@ class TeacherListPage extends StatelessWidget {
         );
       }
     }
+  }
+
+  void _showImportGuide(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0F0C20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.description_rounded, color: Color(0xFF10B981), size: 36),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Center(
+                child: Text(
+                  'Panduan Import Excel',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Pastikan file Excel Anda memenuhi syarat berikut:',
+                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              _buildGuideItem('Format file harus berupa .xlsx atau .xls'),
+              _buildGuideItem('Baris pertama (index 0) adalah header kolom (akan diabaikan)'),
+              _buildGuideItem('Kolom A: Nama Lengkap'),
+              _buildGuideItem('Kolom B: NIP (Nomor Induk Pegawai)'),
+              _buildGuideItem('Pastikan NIP belum terdaftar di sistem'),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: Color(0xFF10B981)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(dialogContext); // Tutup guide dialog
+
+                    if (!context.mounted) return;
+
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (loadingContext) => const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                        ),
+                      ),
+                    );
+
+                    final success = await ExcelImportService().downloadTemplate('guru');
+                    
+                    if (context.mounted) {
+                      Navigator.pop(context); // Tutup loading dialog
+                    }
+
+                    if (success == true) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Template Excel berhasil disimpan!')),
+                        );
+                        _showImportGuide(context); // Buka kembali guide agar user bisa pilih file
+                      }
+                    } else if (success == false) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Gagal menyimpan template Excel.')),
+                        );
+                        _showImportGuide(context);
+                      }
+                    } else {
+                      // null = batal
+                      if (context.mounted) {
+                        _showImportGuide(context);
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.download_rounded, color: Color(0xFF10B981), size: 18),
+                  label: const Text('Unduh Template Excel', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          _startImporting(context);
+                        },
+                        child: const Text('Pilih File', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildGuideItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(color: Color(0xFF10B981), fontSize: 14, fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showPremiumDialog(BuildContext context) {
@@ -481,30 +647,73 @@ class TeacherListPage extends StatelessWidget {
   }
 
   Future<void> _startImporting(BuildContext context) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Sedang mengimport data...',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-          ],
-        ),
-      ),
-    );
+    final progressNotifier = ValueNotifier<double>(0.0);
+    final statusNotifier = ValueNotifier<String>('Memproses file...');
 
-    final result = await ExcelImportService().importTeachers(schoolId);
+    final result = await ExcelImportService().importTeachers(
+      schoolId,
+      onFileSelected: () {
+        if (!context.mounted) return;
+        // Tampilkan progress dialog hanya setelah file berhasil dipilih
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (progressContext) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF0F0C20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+              ),
+              content: ValueListenableBuilder<double>(
+                valueListenable: progressNotifier,
+                builder: (context, progress, child) {
+                  return ValueListenableBuilder<String>(
+                    valueListenable: statusNotifier,
+                    builder: (context, statusText, child) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 8),
+                          CircularProgressIndicator(
+                            value: progress > 0.0 ? progress : null,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                            backgroundColor: Colors.white.withValues(alpha: 0.1),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            statusText,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          if (progress > 0.0) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              '${(progress * 100).toInt()}%',
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+      onProgress: (current, total) {
+        statusNotifier.value = 'Mengimport $current dari $total data...';
+        progressNotifier.value = total > 0 ? current / total : 0.0;
+      },
+    );
     
-    if (context.mounted) {
-      Navigator.pop(context); // Tutup loading dialog import
+    // Jika progress dialog sempat terbuka, tutup dialog tersebut
+    if (progressNotifier.value > 0.0 || statusNotifier.value != 'Memproses file...') {
+      if (context.mounted) {
+        Navigator.pop(context); 
+      }
     }
 
     if (result == null) return; // Batal memilih file
@@ -513,7 +722,7 @@ class TeacherListPage extends StatelessWidget {
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (resultDialogContext) {
         return AlertDialog(
           backgroundColor: const Color(0xFF0F0C20),
           shape: RoundedRectangleBorder(
@@ -565,7 +774,7 @@ class TeacherListPage extends StatelessWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(resultDialogContext),
               child: const Text('OK', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold)),
             ),
           ],

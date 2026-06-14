@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:flutter/foundation.dart';
+import 'file_helper.dart';
 
 class ExcelImportResult {
   final int successCount;
@@ -30,25 +30,53 @@ class ExcelImportService {
     return str;
   }
 
-  Future<ExcelImportResult?> importTeachers(String schoolId) async {
+  Future<ExcelImportResult?> importTeachers(
+    String schoolId, {
+    void Function()? onFileSelected,
+    void Function(int current, int total)? onProgress,
+  }) async {
     try {
       fp.FilePickerResult? result = await fp.FilePicker.pickFiles(
         type: fp.FileType.custom,
         allowedExtensions: ['xlsx', 'xls'],
+        withData: true,
       );
 
-      if (result == null || result.files.single.path == null) {
+      if (result == null) {
         return null;
       }
 
-      final file = File(result.files.single.path!);
-      final bytes = file.readAsBytesSync();
+      final file = result.files.single;
+      Uint8List bytes;
+      if (kIsWeb) {
+        if (file.bytes == null) return null;
+        bytes = file.bytes!;
+      } else {
+        if (file.bytes != null) {
+          bytes = file.bytes!;
+        } else if (file.path != null) {
+          bytes = FileHelper.readBytes(file.path!);
+        } else {
+          return null;
+        }
+      }
+
+      onFileSelected?.call();
       final excel = Excel.decodeBytes(bytes);
+
+      int totalRows = 0;
+      for (var table in excel.tables.keys) {
+        var sheet = excel.tables[table];
+        if (sheet != null) {
+          totalRows += (sheet.maxRows > 1) ? (sheet.maxRows - 1) : 0;
+        }
+      }
 
       int success = 0;
       int duplicate = 0;
       int failed = 0;
       List<String> errors = [];
+      int processed = 0;
 
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
@@ -57,17 +85,17 @@ class ExcelImportService {
         // Skip header row at index 0, start at index 1
         for (int i = 1; i < sheet.maxRows; i++) {
           var row = sheet.rows[i];
+          processed++;
+          onProgress?.call(processed, totalRows);
           if (row.isEmpty) continue;
 
-          // We expect Column 0: Nama, Column 1: NIP
-          if (row.length < 2) {
-            failed++;
-            errors.add('Baris ${i + 1}: Data tidak lengkap (kurang kolom).');
+          final nama = row.isNotEmpty ? _cleanValue(row[0]?.value) : '';
+          final nip = row.length > 1 ? _cleanValue(row[1]?.value) : '';
+
+          // Skip completely empty rows silently (don't treat as failure)
+          if (nama.isEmpty && nip.isEmpty) {
             continue;
           }
-
-          final nama = _cleanValue(row[0]?.value);
-          final nip = _cleanValue(row[1]?.value);
 
           if (nama.isEmpty || nip.isEmpty) {
             failed++;
@@ -128,25 +156,53 @@ class ExcelImportService {
     }
   }
 
-  Future<ExcelImportResult?> importStudents(String schoolId) async {
+  Future<ExcelImportResult?> importStudents(
+    String schoolId, {
+    void Function()? onFileSelected,
+    void Function(int current, int total)? onProgress,
+  }) async {
     try {
       fp.FilePickerResult? result = await fp.FilePicker.pickFiles(
         type: fp.FileType.custom,
         allowedExtensions: ['xlsx', 'xls'],
+        withData: true,
       );
 
-      if (result == null || result.files.single.path == null) {
+      if (result == null) {
         return null;
       }
 
-      final file = File(result.files.single.path!);
-      final bytes = file.readAsBytesSync();
+      final file = result.files.single;
+      Uint8List bytes;
+      if (kIsWeb) {
+        if (file.bytes == null) return null;
+        bytes = file.bytes!;
+      } else {
+        if (file.bytes != null) {
+          bytes = file.bytes!;
+        } else if (file.path != null) {
+          bytes = FileHelper.readBytes(file.path!);
+        } else {
+          return null;
+        }
+      }
+
+      onFileSelected?.call();
       final excel = Excel.decodeBytes(bytes);
+
+      int totalRows = 0;
+      for (var table in excel.tables.keys) {
+        var sheet = excel.tables[table];
+        if (sheet != null) {
+          totalRows += (sheet.maxRows > 1) ? (sheet.maxRows - 1) : 0;
+        }
+      }
 
       int success = 0;
       int duplicate = 0;
       int failed = 0;
       List<String> errors = [];
+      int processed = 0;
 
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
@@ -155,17 +211,17 @@ class ExcelImportService {
         // Skip header row at index 0, start at index 1
         for (int i = 1; i < sheet.maxRows; i++) {
           var row = sheet.rows[i];
+          processed++;
+          onProgress?.call(processed, totalRows);
           if (row.isEmpty) continue;
 
-          // We expect Column 0: Nama, Column 1: NIS
-          if (row.length < 2) {
-            failed++;
-            errors.add('Baris ${i + 1}: Data tidak lengkap (kurang kolom).');
+          final nama = row.isNotEmpty ? _cleanValue(row[0]?.value) : '';
+          final nis = row.length > 1 ? _cleanValue(row[1]?.value) : '';
+
+          // Skip completely empty rows silently (don't treat as failure)
+          if (nama.isEmpty && nis.isEmpty) {
             continue;
           }
-
-          final nama = _cleanValue(row[0]?.value);
-          final nis = _cleanValue(row[1]?.value);
 
           if (nama.isEmpty || nis.isEmpty) {
             failed++;
@@ -224,6 +280,62 @@ class ExcelImportService {
         failedCount: 0,
         errors: ['Terjadi kesalahan saat memproses file: $e'],
       );
+    }
+  }
+
+  Future<bool?> downloadTemplate(String type) async {
+    try {
+      final String defaultName = type == 'guru' ? 'template_guru.xlsx' : 'template_siswa.xlsx';
+      final String title = type == 'guru' ? 'Simpan Template Data Guru' : 'Simpan Template Data Siswa';
+      
+      var excel = Excel.createExcel();
+      Sheet sheetObject = excel['Sheet1'];
+      
+      // Tambahkan Kolom header dan dummy data
+      if (type == 'guru') {
+        sheetObject.appendRow([
+          TextCellValue('Nama'),
+          TextCellValue('NIP'),
+        ]);
+        sheetObject.appendRow([
+          TextCellValue('Budi Santoso'),
+          TextCellValue('199012345678901'),
+        ]);
+      } else {
+        sheetObject.appendRow([
+          TextCellValue('Nama'),
+          TextCellValue('NIS'),
+        ]);
+        sheetObject.appendRow([
+          TextCellValue('Adi Pratama'),
+          TextCellValue('12345'),
+        ]);
+      }
+
+      final bytes = excel.encode();
+      if (bytes == null) {
+        return false;
+      }
+
+      final uint8ListBytes = Uint8List.fromList(bytes);
+
+      String? outputFile = await fp.FilePicker.saveFile(
+        dialogTitle: title,
+        fileName: defaultName,
+        bytes: uint8ListBytes,
+      );
+
+      if (outputFile == null) return null; // Batal memilih lokasi
+
+      // For safety on desktop platforms where saveFile might just return path without writing bytes.
+      // On mobile (Android & iOS), the plugin already writes the bytes, and manual write will fail due to sandbox/storage restrictions.
+      if (!kIsWeb && !FileHelper.isMobile()) {
+        await FileHelper.writeBytes(outputFile, bytes);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error generating template: $e');
+      return false;
     }
   }
 }

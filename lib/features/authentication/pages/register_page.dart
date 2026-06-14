@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../app/routes/app_routes.dart';
@@ -276,6 +277,11 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _onRegister() async {
+    if (kIsWeb && selectedRole != 'school_admin') {
+      _showError('Akses pendaftaran website hanya untuk Admin Sekolah.');
+      return;
+    }
+
     // Validasi form dasar
     if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
       _showError('Email dan password wajib diisi.');
@@ -657,45 +663,46 @@ class _RegisterPageState extends State<RegisterPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Pilihan Role Kustom
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 4, bottom: 12),
-                            child: Text(
-                              'Daftar Sebagai',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                      if (!kIsWeb) ...[
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4, bottom: 12),
+                              child: Text(
+                                'Daftar Sebagai',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ),
-                          Row(
-                            children: [
-                              _buildRoleCard(
-                                title: 'Admin',
-                                icon: Icons.admin_panel_settings_rounded,
-                                value: 'school_admin',
-                              ),
-                              const SizedBox(width: 12),
-                              _buildRoleCard(
-                                title: 'Guru',
-                                icon: Icons.school_rounded,
-                                value: 'teacher',
-                              ),
-                              const SizedBox(width: 12),
-                              _buildRoleCard(
-                                title: 'Murid',
-                                icon: Icons.face_rounded,
-                                value: 'student',
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                _buildRoleCard(
+                                  title: 'Admin',
+                                  icon: Icons.admin_panel_settings_rounded,
+                                  value: 'school_admin',
+                                ),
+                                const SizedBox(width: 12),
+                                _buildRoleCard(
+                                  title: 'Guru',
+                                  icon: Icons.school_rounded,
+                                  value: 'teacher',
+                                ),
+                                const SizedBox(width: 12),
+                                _buildRoleCard(
+                                  title: 'Murid',
+                                  icon: Icons.face_rounded,
+                                  value: 'student',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                      ],
 
                       // Pilihan Sekolah (InkWell Selector dengan BottomSheet Pencarian)
                       _loadingSekolah

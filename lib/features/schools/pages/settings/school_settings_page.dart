@@ -8,8 +8,13 @@ import '../../../authentication/widgets/auth_background.dart';
 
 class SchoolSettingsPage extends StatefulWidget {
   final String schoolId;
+  final bool hideBackButton;
 
-  const SchoolSettingsPage({super.key, required this.schoolId});
+  const SchoolSettingsPage({
+    super.key,
+    required this.schoolId,
+    this.hideBackButton = false,
+  });
 
   @override
   State<SchoolSettingsPage> createState() => _SchoolSettingsPageState();
@@ -136,7 +141,11 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Pengaturan berhasil disimpan')),
         );
-        Navigator.pop(context, true);
+        if (widget.hideBackButton) {
+          _loadSchoolData();
+        } else {
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -170,10 +179,11 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage> {
                 padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                    ),
+                    if (!widget.hideBackButton)
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      ),
                     const SizedBox(width: 4),
                     const Expanded(
                       child: Text(

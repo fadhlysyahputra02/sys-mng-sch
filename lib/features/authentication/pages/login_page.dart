@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -152,6 +153,11 @@ class _LoginPageState extends State<LoginPage> {
 
       debugPrint('USER DATA: $userData');
       final role = userData['role'];
+
+      if (kIsWeb && role != 'super_admin' && role != 'school_admin' && role != 'teacher') {
+        await FirebaseAuth.instance.signOut();
+        throw Exception('Akses website hanya diperbolehkan untuk Admin dan Guru.');
+      }
 
       if (!mounted) return;
 

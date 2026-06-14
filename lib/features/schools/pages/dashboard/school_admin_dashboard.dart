@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../app/routes/app_routes.dart';
@@ -8,6 +9,12 @@ import '../../../authentication/widgets/auth_background.dart';
 import '../../services/school_service.dart';
 import '../classes/pages/class_list_page.dart';
 import '../settings/school_settings_page.dart';
+import '../teachers/pages/teacher_list_admin_page.dart';
+import '../students/pages/student_admin_list_page.dart';
+import '../subjects/pages/subject_list_page.dart';
+import '../schedule/Page/class_schedule_overview_page.dart';
+import '../notifications/notifications_page.dart';
+import 'premium_features_page.dart';
 
 class SchoolAdminDashboard extends StatefulWidget {
   const SchoolAdminDashboard({super.key});
@@ -17,14 +24,15 @@ class SchoolAdminDashboard extends StatefulWidget {
 }
 
 class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
-  final schoolId = SessionService.currentUser!.schoolId;
-  final nama = SessionService.currentUser!.nama;
-  final email = SessionService.currentUser!.email;
+  String get schoolId => SessionService.currentUser?.schoolId ?? '';
+  String get nama => SessionService.currentUser?.nama ?? '';
+  String get email => SessionService.currentUser?.email ?? '';
 
   String? _schoolName;
   String _plan = 'FREE';
   String? _schoolLogoBase64;
   bool _isLoadingSchool = true;
+  int _selectedMenuIndex = 0;
 
   @override
   void initState() {
@@ -128,6 +136,26 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    if (SessionService.currentUser == null) {
+      Future.microtask(() => Get.offAllNamed(AppRoutes.login));
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 850) {
+          return _buildMobileLayout();
+        } else {
+          return _buildDesktopLayout();
+        }
+      },
+    );
+  }
+
+  Widget _buildMobileLayout() {
     return Scaffold(
       body: AuthBackground(
         child: CustomScrollView(
@@ -531,6 +559,695 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return Scaffold(
+      body: Row(
+        children: [
+          // Sidebar
+          _buildSidebar(),
+          // Main Panel Content
+          Expanded(
+            child: Container(
+              color: const Color(0xFF0B081B), // Dark premium background
+              child: _buildDesktopContent(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebar() {
+    return Container(
+      width: 260,
+      decoration: BoxDecoration(
+        color: const Color(0xFF110E24),
+        border: Border(
+          right: BorderSide(
+            color: Colors.white.withValues(alpha: 0.08),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Sidebar Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Row(
+              children: [
+                // Mini Logo
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: _schoolLogoBase64 != null
+                        ? null
+                        : const LinearGradient(
+                            colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      width: 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: _schoolLogoBase64 != null
+                        ? Image.memory(
+                            base64Decode(_schoolLogoBase64!),
+                            fit: BoxFit.cover,
+                          )
+                        : const Icon(
+                            Icons.school_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _isLoadingSchool
+                          ? const SizedBox(
+                              height: 12,
+                              width: 80,
+                              child: LinearProgressIndicator(
+                                backgroundColor: Colors.white12,
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                              ),
+                            )
+                          : Text(
+                              _schoolName ?? 'Sekolah Baru',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                      const SizedBox(height: 4),
+                      _buildPlanBadgeSidebar(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            color: Colors.white.withValues(alpha: 0.08),
+            height: 1,
+          ),
+          // Sidebar Navigation Items
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              children: [
+                _buildSidebarItem('Dashboard', Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6)),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Guru', Icons.person_rounded, 1, const Color(0xFF6366F1)),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Murid', Icons.groups_rounded, 2, const Color(0xFF0EA5E9)),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Mata Pelajaran', Icons.menu_book_rounded, 3, const Color(0xFF10B981)),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Kelas', Icons.class_rounded, 4, const Color(0xFFF59E0B)),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Jadwal', Icons.calendar_month_rounded, 5, const Color(0xFFEC4899)),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 6, const Color(0xFF06B6D4)),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Fitur Premium', Icons.workspace_premium_rounded, 7, const Color(0xFFF97316)),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B)),
+              ],
+            ),
+          ),
+          Divider(
+            color: Colors.white.withValues(alpha: 0.08),
+            height: 1,
+          ),
+          // Logout Item at the bottom
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: _buildSidebarLogoutItem(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanBadgeSidebar() {
+    Color badgeColor;
+    Gradient badgeGradient;
+    String label = _plan;
+
+    if (label == 'PRO') {
+      badgeColor = const Color(0xFFD97706);
+      badgeGradient = const LinearGradient(
+        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    } else if (label == 'BASIC') {
+      badgeColor = const Color(0xFF2563EB);
+      badgeGradient = const LinearGradient(
+        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    } else {
+      badgeColor = const Color(0xFF4B5563);
+      badgeGradient = const LinearGradient(
+        colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        gradient: badgeGradient,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 8,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarItem(String title, IconData icon, int index, Color color) {
+    final bool isSelected = _selectedMenuIndex == index;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedMenuIndex = index;
+          });
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? color.withValues(alpha: 0.3) : Colors.transparent,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? color : Colors.white.withValues(alpha: 0.5),
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.7),
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarLogoutItem() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _logout,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                color: Colors.red.shade400,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Keluar',
+                style: TextStyle(
+                  color: Colors.red.shade400,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopContent() {
+    switch (_selectedMenuIndex) {
+      case 0:
+        return _buildDesktopDashboardHome();
+      case 1:
+        return TeacherListPage(schoolId: schoolId, hideBackButton: true);
+      case 2:
+        return StudentListPage(schoolId: schoolId, hideBackButton: true);
+      case 3:
+        return SubjectListPage(hideBackButton: true);
+      case 4:
+        return ClassListPage(hideBackButton: true);
+      case 5:
+        return ClassScheduleOverviewPage(hideBackButton: true);
+      case 6:
+        return NotificationsPage(hideBackButton: true);
+      case 7:
+        return PremiumFeaturesPage(hideBackButton: true);
+      case 8:
+        return SchoolSettingsPage(schoolId: schoolId, hideBackButton: true);
+      default:
+        return _buildDesktopDashboardHome();
+    }
+  }
+
+  Widget _buildDesktopDashboardHome() {
+    return AuthBackground(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_getGreeting()}, $nama',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Selamat datang kembali di panel administrasi ${_schoolName ?? "sekolah"}.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+                // Date Display
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today_rounded, size: 16, color: Colors.white.withValues(alpha: 0.6)),
+                      const SizedBox(width: 8),
+                      Text(
+                        _getFormattedDate(),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // Merged Header Card (Horizontal layout on desktop!)
+            _buildMergedHeaderCardDesktop(),
+
+            const SizedBox(height: 36),
+
+            // Live counters statistics
+            _buildSectionTitle('Statistik Sekolah', Icons.analytics_rounded),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('teachers').snapshots(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                      return _buildStatCardDesktop('Total Guru', '$count', Icons.person_rounded, const Color(0xFF6366F1));
+                    },
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('students').snapshots(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                      return _buildStatCardDesktop('Total Murid', '$count', Icons.groups_rounded, const Color(0xFF0EA5E9));
+                    },
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('classes').snapshots(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                      return _buildStatCardDesktop('Total Kelas', '$count', Icons.class_rounded, const Color(0xFFF59E0B));
+                    },
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('subjects').snapshots(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                      return _buildStatCardDesktop('Mata Pelajaran', '$count', Icons.menu_book_rounded, const Color(0xFF10B981));
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 40),
+
+            // Fitur Lainnya (Segera Hadir)
+            _buildSectionTitle('Fitur Lainnya (Segera Hadir)', Icons.extension_rounded),
+            const SizedBox(height: 16),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 4,
+              crossAxisSpacing: 20,
+              mainAxisSpacing: 20,
+              childAspectRatio: 1.6,
+              children: [
+                _buildUpcomingFeatureCard('Absensi & QR', Icons.fact_check_rounded, const Color(0xFF8B5CF6)),
+                _buildUpcomingFeatureCard('Manajemen Nilai', Icons.grade_rounded, const Color(0xFFEF4444)),
+                _buildUpcomingFeatureCard('Keuangan & SPP', Icons.account_balance_wallet_rounded, const Color(0xFFEC4899)),
+                _buildUpcomingFeatureCard('WhatsApp Gateway', Icons.chat_bubble_rounded, const Color(0xFF10B981)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMergedHeaderCardDesktop() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // School Logo / Avatar
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: _schoolLogoBase64 != null
+                  ? null
+                  : const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: _schoolLogoBase64 != null
+                  ? Image.memory(
+                      base64Decode(_schoolLogoBase64!),
+                      fit: BoxFit.cover,
+                      width: 80,
+                      height: 80,
+                    )
+                  : const Icon(
+                      Icons.school_rounded,
+                      color: Colors.white,
+                      size: 44,
+                    ),
+            ),
+          ),
+          const SizedBox(width: 24),
+          // School and Admin Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _isLoadingSchool
+                    ? const SizedBox(
+                        height: 24,
+                        width: 200,
+                        child: LinearProgressIndicator(
+                          backgroundColor: Colors.white12,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                        ),
+                      )
+                    : Text(
+                        _schoolName ?? 'Sekolah Baru',
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Text(
+                      'School ID: $schoolId',
+                      style: TextStyle(
+                        fontSize: 13, 
+                        color: Colors.white.withValues(alpha: 0.5), 
+                        fontWeight: FontWeight.w500
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.3), shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      email,
+                      style: TextStyle(
+                        fontSize: 13, 
+                        color: Colors.white.withValues(alpha: 0.4)
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 24),
+          // Badges and System Status
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.5)),
+                    ),
+                    child: const Text(
+                      'Admin Sekolah',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _buildPlanBadge(),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF10B981),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Sistem Aktif',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCardDesktop(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpcomingFeatureCard(String title, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.02),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.04),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: Colors.white.withValues(alpha: 0.2),
+            size: 24,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Segera Hadir',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

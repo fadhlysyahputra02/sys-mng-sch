@@ -5,7 +5,8 @@ import '../data/class_service.dart';
 import 'class_info_page.dart';
 
 class ClassListPage extends StatelessWidget {
-  ClassListPage({super.key});
+  final bool hideBackButton;
+  ClassListPage({super.key, this.hideBackButton = false});
 
   final ClassService _service = ClassService();
 
@@ -24,10 +25,11 @@ class ClassListPage extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                    ),
+                    if (!hideBackButton)
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      ),
                     const SizedBox(width: 4),
                     const Expanded(
                       child: Text(

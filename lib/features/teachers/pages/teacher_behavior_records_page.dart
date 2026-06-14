@@ -78,6 +78,25 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
 
   Future<void> _runCleanup(String schoolId) async {
     try {
+      // 1. Get teacher's schedules
+      final schedulesSnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('class_schedules')
+          .where('teacherId', isEqualTo: widget.teacherId)
+          .get();
+
+      final teacherSchedules = schedulesSnapshot.docs.map((doc) => doc.data()).toList();
+      final todayHari = _getTodayHariIndonesian();
+
+      // Find currently active schedules
+      final activeSchedules = teacherSchedules
+          .where((s) => s['hari'] == todayHari && s['jenisJadwal'] != 'istirahat' && _isActiveNow(s))
+          .toList();
+      final activeScheduleIds = activeSchedules.map((s) => s['scheduleId'] as String).toList();
+      final allTeacherScheduleIds = teacherSchedules.map((s) => s['scheduleId'] as String).toList();
+
+      // 2. Fetch all behavior records
       final snapshot = await FirebaseFirestore.instance
           .collection('schools')
           .doc(schoolId)
@@ -85,7 +104,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
           .get();
 
       final now = DateTime.now();
-      // 24 hours for auto-cleanup.
+      // 24 hours for fallback auto-cleanup
       const ttlDuration = Duration(hours: 24);
 
       final batch = FirebaseFirestore.instance.batch();
@@ -93,14 +112,31 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
+        final scheduleId = data['scheduleId'] as String?;
         final timestamp = data['timestamp'] as Timestamp?;
-        if (timestamp != null) {
+
+        bool shouldDelete = false;
+
+        // Cleanup inactive schedules: if record belongs to this teacher's schedule but is not active now
+        if (scheduleId != null && allTeacherScheduleIds.contains(scheduleId)) {
+          if (!activeScheduleIds.contains(scheduleId)) {
+            shouldDelete = true;
+            debugPrint('Auto-cleanup: Queued deletion for record ${doc.id} because schedule $scheduleId is inactive.');
+          }
+        }
+
+        // Fallback TTL: older than 24 hours
+        if (!shouldDelete && timestamp != null) {
           final timeDiff = now.difference(timestamp.toDate());
           if (timeDiff > ttlDuration) {
-            batch.delete(doc.reference);
-            hasDeletions = true;
-            debugPrint('Auto-cleanup: Queued deletion for record ${doc.id} (age: ${timeDiff.inSeconds}s)');
+            shouldDelete = true;
+            debugPrint('Auto-cleanup: Queued deletion for record ${doc.id} due to 24h TTL (age: ${timeDiff.inSeconds}s)');
           }
+        }
+
+        if (shouldDelete) {
+          batch.delete(doc.reference);
+          hasDeletions = true;
         }
       }
 
@@ -307,9 +343,9 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                           builder: (context, snapshot) {
                             final records = snapshot.data?.docs.map((doc) => doc.data()).toList() ?? [];
                             
-                            // Extract unique class names only for teacher's today's schedules
+                            // Extract unique class names only for teacher's active schedules
                             final classNames = records
-                                .where((r) => todayScheduleIds.contains(r['scheduleId']))
+                                .where((r) => activeScheduleIds.contains(r['scheduleId']))
                                 .map((r) => r['className'] as String?)
                                 .whereType<String>()
                                 .toSet()
@@ -416,8 +452,8 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
 
                         final behaviorDocs = behaviorSnapshot.data?.docs ?? [];
 
-                        // Filter attendance by Class, Search query, and active schedules (or today's schedules if none active)
-                        final targetScheduleIds = activeScheduleIds.isNotEmpty ? activeScheduleIds : todayScheduleIds;
+                        // Filter attendance by Class, Search query, and active schedules only
+                        final targetScheduleIds = activeScheduleIds;
                         final filteredAttendance = attendanceDocs.where((doc) {
                           final data = doc.data();
                           final studentName = (data['studentName'] ?? '').toString().toLowerCase();
@@ -456,7 +492,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                                   Text(
                                     activeScheduleIds.isNotEmpty
                                         ? 'Belum ada murid yang absen pada pelajaran yang berlangsung'
-                                        : 'Belum ada murid yang melakukan absensi hari ini',
+                                        : 'Tidak ada pelajaran yang sedang aktif sekarang',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 14,

@@ -9,7 +9,8 @@ import 'package:sys_mng_school/features/authentication/widgets/auth_background.d
 import 'create_notification_page.dart';
 
 class NotificationsPage extends StatefulWidget {
-  const NotificationsPage({super.key});
+  final bool hideBackButton;
+  const NotificationsPage({super.key, this.hideBackButton = false});
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
@@ -252,6 +253,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
+              automaticallyImplyLeading: !widget.hideBackButton,
               iconTheme: const IconThemeData(color: Colors.white),
               title: const Text(
                 'Notifikasi',
