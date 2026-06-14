@@ -9,6 +9,8 @@ import '../../../core/services/app_auth_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
 import '../../teachers/pages/teacher_settings_page.dart';
+import 'package:is_lock_screen2/is_lock_screen2.dart';
+
 import '../data/student_service.dart';
 import 'student_schedule_page.dart';
 import 'student_attendance_page.dart';
@@ -58,11 +60,20 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   static String? _lastReportedState; // 'paused' or 'resumed'
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
     debugPrint('=== AppLifecycleState changed to: $state ===');
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       debugPrint('App minimized/paused - triggering behavior check');
-      _checkAndReportBehaviorViolation();
+      bool isLocked = false;
+      try {
+        final locked = await isLockScreen();
+        if (locked == true) {
+          isLocked = true;
+        }
+      } catch (e) {
+        debugPrint('Error checking lock screen status: $e');
+      }
+      _checkAndReportBehaviorViolation(isLocked: isLocked);
     } else if (state == AppLifecycleState.resumed) {
       debugPrint('App resumed - refreshing behavior cache and checking return');
       final user = SessionService.currentUser;
@@ -90,7 +101,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
     return days[now.weekday % 7];
   }
 
-  Future<void> _checkAndReportBehaviorViolation() async {
+  Future<void> _checkAndReportBehaviorViolation({bool isLocked = false}) async {
     final user = SessionService.currentUser;
     debugPrint('Behavior violation check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className');
     if (user == null || _studentDocId == null || _className == null) {
@@ -160,10 +171,14 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         className: _className!,
         scheduleId: scheduleId,
         subjectName: subjectName,
-        type: 'Meninggalkan Layar Absensi',
-        description: activeSchedule != null
-            ? 'Murid terdeteksi meninggalkan aplikasi absensi saat jam pelajaran $subjectName sedang berlangsung.'
-            : 'Murid terdeteksi meninggalkan aplikasi absensi setelah melakukan absensi pelajaran $subjectName hari ini.',
+        type: isLocked ? 'Layar Mati / Device Terkunci' : 'Meninggalkan Layar Absensi',
+        description: isLocked
+            ? (activeSchedule != null
+                ? 'Device murid mati atau layar terkunci saat jam pelajaran $subjectName sedang berlangsung.'
+                : 'Device murid mati atau layar terkunci setelah melakukan absensi pelajaran $subjectName hari ini.')
+            : (activeSchedule != null
+                ? 'Murid terdeteksi meninggalkan aplikasi absensi saat jam pelajaran $subjectName sedang berlangsung.'
+                : 'Murid terdeteksi meninggalkan aplikasi absensi setelah melakukan absensi pelajaran $subjectName hari ini.'),
       );
       debugPrint('Successfully reported behavior violation to Firestore.');
     } catch (e) {
@@ -293,6 +308,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
           _todayAttendanceDocs = snapshot.docs;
         });
         debugPrint('Behavior Cache: Updated hasCheckedInToday = $_hasCheckedInToday (${snapshot.docs.length} attendance records)');
+        _checkAndReportBehaviorReturn();
       }
     }, onError: (e) {
       debugPrint('Behavior Cache attendance stream error: $e');

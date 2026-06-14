@@ -126,6 +126,9 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage> {
           );
           await user.reauthenticateWithCredential(credential);
           await user.updatePassword(password);
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+            'password': password,
+          });
         }
       }
 

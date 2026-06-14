@@ -96,6 +96,55 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     return 'Selamat Malam';
   }
 
+  Future<void> _confirmLogout(BuildContext context) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0F0C20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 10),
+            Text(
+              'Konfirmasi Keluar',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin keluar dari akun guru Anda?',
+          style: TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Batal',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Keluar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await AppAuthService.logout();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = SessionService.currentUser!;
@@ -134,7 +183,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   ),
                   const SizedBox(height: 24),
                   OutlinedButton.icon(
-                    onPressed: () async => await AppAuthService.logout(),
+                    onPressed: () => _confirmLogout(context),
                     icon: const Icon(Icons.logout_rounded, color: Colors.white),
                     label: const Text('Keluar', style: TextStyle(color: Colors.white)),
                     style: OutlinedButton.styleFrom(
@@ -240,7 +289,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                           child: IconButton(
                             icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
                             tooltip: 'Keluar',
-                            onPressed: () async => await AppAuthService.logout(),
+                            onPressed: () => _confirmLogout(context),
                           ),
                         ),
                       ],
@@ -671,7 +720,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       {'title': 'Daftar Siswa', 'icon': Icons.groups_rounded, 'color': const Color(0xFF0EA5E9)},
       {'title': 'Wali Murid / Chat', 'icon': Icons.chat_rounded, 'color': const Color(0xFFF97316)},
       {'title': 'Bank Soal', 'icon': Icons.question_answer_rounded, 'color': const Color(0xFF14B8A6)},
-      {'title': 'Catatan Perilaku', 'icon': Icons.note_alt_rounded, 'color': const Color(0xFF84CC16)},
+      {'title': 'Realtime Control', 'icon': Icons.settings_remote_rounded, 'color': const Color(0xFF84CC16)},
       {'title': 'Fitur Premium', 'icon': Icons.workspace_premium_rounded, 'color': const Color(0xFFF97316)},
       {'title': 'Pengaturan Profil', 'icon': Icons.manage_accounts_rounded, 'color': const Color(0xFF64748B)},
     ];
@@ -707,8 +756,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 Get.to(() => TeacherSchedulePage(teacherId: _teacherDocId!));
               } else if (menu['title'] == 'Absensi Murid') {
                 Get.to(() => TeacherAttendanceSchedulePage(teacherId: _teacherDocId!));
-              } else if (menu['title'] == 'Catatan Perilaku') {
-                Get.to(() => const TeacherBehaviorRecordsPage());
+              } else if (menu['title'] == 'Realtime Control') {
+                Get.to(() => TeacherBehaviorRecordsPage(teacherId: _teacherDocId!));
               }
             },
             borderRadius: BorderRadius.circular(20),

@@ -251,6 +251,19 @@ class StudentService {
         .snapshots();
   }
 
+  /// Stream of today's attendance records for the school
+  Stream<QuerySnapshot<Map<String, dynamic>>> getTodayAttendanceListStream({
+    required String schoolId,
+    required String dateStr,
+  }) {
+    return _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('attendance')
+        .where('date', isEqualTo: dateStr)
+        .snapshots();
+  }
+
   /// Delete a single behavioral violation record
   Future<void> deleteBehaviorRecord(String schoolId, String recordId) async {
     await _firestore

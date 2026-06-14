@@ -21,6 +21,7 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
     'Kamis',
     'Jumat',
     'Sabtu',
+    'Minggu',
   ];
 
   int _timeToMinutes(String time) {

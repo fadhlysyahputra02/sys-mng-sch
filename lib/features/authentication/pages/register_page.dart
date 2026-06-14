@@ -346,6 +346,7 @@ class _RegisterPageState extends State<RegisterPage> {
         nama: namaController.text.trim(),
         role: 'super_admin', // Identitas khusus agar tidak error jika dicek null
         schoolId: 'SYS_ADMIN',
+        password: passwordController.text.trim(),
       );
 
       if (mounted) {
@@ -382,6 +383,7 @@ class _RegisterPageState extends State<RegisterPage> {
         nama: namaController.text.trim(),
         role: 'school_admin',
         schoolId: school['schoolId'],
+        password: passwordController.text.trim(),
       );
 
       if (mounted) {
@@ -435,6 +437,7 @@ class _RegisterPageState extends State<RegisterPage> {
         nama: teacher['nama'],
         role: 'teacher',
         schoolId: schoolId,
+        password: passwordController.text.trim(),
       );
 
       // Update data guru
@@ -497,6 +500,7 @@ class _RegisterPageState extends State<RegisterPage> {
         nama: student['nama'],
         role: 'student',
         schoolId: schoolId,
+        password: passwordController.text.trim(),
       );
 
       // Update data murid

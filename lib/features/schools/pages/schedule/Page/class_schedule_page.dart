@@ -20,6 +20,7 @@ class ClassSchedulePage extends StatelessWidget {
     'Kamis',
     'Jumat',
     'Sabtu',
+    'Minggu',
   ];
 
   ClassSchedulePage({
@@ -431,7 +432,7 @@ class ClassSchedulePage extends StatelessWidget {
   }
 
   void _showAddScheduleDialog(BuildContext context) {
-    String hari = 'Senin';
+    String? hari;
     String jenisJadwal = 'pelajaran';
     String? selectedSubjectId;
     String? selectedTeacherId;
@@ -699,8 +700,9 @@ class ClassSchedulePage extends StatelessWidget {
                         DropdownMenuItem(value: 'Kamis', child: Text('Kamis')),
                         DropdownMenuItem(value: 'Jumat', child: Text('Jumat')),
                         DropdownMenuItem(value: 'Sabtu', child: Text('Sabtu')),
+                        DropdownMenuItem(value: 'Minggu', child: Text('Minggu')),
                       ],
-                      onChanged: (value) => setState(() => hari = value!),
+                      onChanged: (value) => setState(() => hari = value),
                     ),
 
                     const SizedBox(height: 16),
@@ -852,6 +854,13 @@ class ClassSchedulePage extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () async {
+                      final selectedHari = hari;
+                      if (selectedHari == null || selectedHari.isEmpty) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          const SnackBar(content: Text('Silakan pilih hari terlebih dahulu')),
+                        );
+                        return;
+                      }
                       if (jamMulai.isEmpty || jamSelesai.isEmpty) return;
                       if (jenisJadwal == 'pelajaran' &&
                           (selectedSubjectId == null || selectedTeacherId == null)) {
@@ -867,7 +876,7 @@ class ClassSchedulePage extends StatelessWidget {
                           subjectName: selectedSubjectName ?? '',
                           teacherId: selectedTeacherId ?? '',
                           teacherName: selectedTeacherName ?? '',
-                          hari: hari,
+                          hari: selectedHari,
                           jamMulai: jamMulai,
                           jamSelesai: jamSelesai,
                         );

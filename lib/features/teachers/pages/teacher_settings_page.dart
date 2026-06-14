@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
@@ -96,6 +97,11 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
 
       // Update password
       await user.updatePassword(newPassword);
+
+      // Update password di Firestore agar sinkron
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'password': newPassword,
+      });
 
       _currentPasswordController.clear();
       _newPasswordController.clear();

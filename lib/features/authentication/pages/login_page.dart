@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../app/routes/app_routes.dart';
@@ -84,10 +86,55 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      final credential = await authService.login(
-        email: email,
-        password: password,
-      );
+      // 1. Ambil data user dari Firestore berdasarkan email
+      final userQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      UserCredential credential;
+
+      if (userQuery.docs.isNotEmpty) {
+        final doc = userQuery.docs.first;
+        final userData = doc.data();
+        final firestorePassword = userData['password'] as String?;
+        final tempPassword = userData['tempPassword'] as String?;
+
+        if (tempPassword != null && tempPassword == password) {
+          // Admin telah mereset password, login menggunakan password lama
+          credential = await authService.login(
+            email: email,
+            password: firestorePassword ?? '',
+          );
+
+          // Update password di Firebase Auth ke password baru
+          await credential.user!.updatePassword(password);
+
+          // Update password di Firestore & hapus tempPassword
+          await doc.reference.update({
+            'password': password,
+            'tempPassword': FieldValue.delete(),
+          });
+        } else {
+          // Jalur login standar
+          credential = await authService.login(
+            email: email,
+            password: password,
+          );
+
+          // Sinkronisasi password yang dimasukkan ke Firestore agar selalu updated
+          await doc.reference.update({
+            'password': password,
+          });
+        }
+      } else {
+        // Fallback jika dokumen user belum dibuat di Firestore
+        credential = await authService.login(
+          email: email,
+          password: password,
+        );
+      }
 
       debugPrint('LOGIN BERHASIL UID: ${credential.user?.uid}');
       final uid = credential.user!.uid;

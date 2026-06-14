@@ -150,4 +150,59 @@ class SchoolService {
 
     return snapshot.docs.isNotEmpty;
   }
+
+  // Stream all schools for super admin dashboard
+  Stream<List<Map<String, dynamic>>> getSchoolsStream() {
+    return _firestore.collection('schools').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+    });
+  }
+
+  // Update subscription package plan of a school
+  Future<void> updateSchoolPlan({
+    required String domain,
+    required String plan,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'plan': plan,
+    });
+  }
+
+  // Delete school and associated admin users
+  Future<void> deleteSchool(String domain) async {
+    await _firestore.collection('schools').doc(domain).delete();
+
+    // Delete users associated with this school (school_admin, teacher, student, parent)
+    final usersSnapshot = await _firestore
+        .collection('users')
+        .where('schoolId', isEqualTo: domain)
+        .get();
+
+    for (var doc in usersSnapshot.docs) {
+      await doc.reference.delete();
+    }
+  }
+
+  // Get admin user for a school domain
+  Future<Map<String, dynamic>?> getSchoolAdmin(String domain) async {
+    final result = await _firestore
+        .collection('users')
+        .where('schoolId', isEqualTo: domain)
+        .where('role', isEqualTo: 'school_admin')
+        .limit(1)
+        .get();
+
+    if (result.docs.isEmpty) {
+      return null;
+    }
+
+    final doc = result.docs.first;
+    final data = doc.data();
+    data['uid'] = doc.id;
+    return data;
+  }
 }

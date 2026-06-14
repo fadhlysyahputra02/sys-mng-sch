@@ -19,6 +19,7 @@ class UserService {
     required String nama,
     required String role,
     required String schoolId,
+    String? password,
   }) async {
     await FirebaseFirestore.instance.collection('users').doc(uid).set({
       'email': email,
@@ -26,6 +27,7 @@ class UserService {
       'role': role,
       'schoolId': schoolId,
       'aktif': true,
+      if (password != null) 'password': password,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }

@@ -112,11 +112,21 @@ class ClassScheduleService {
         throw Exception('jadwal bentrok');
       }
 
-      if (data['teacherId'] == teacherId) {
+      // Bypass pengecekan konflik guru jika jenis jadwal adalah istirahat
+      // atau jika ID guru tidak valid/kosong
+      if (jenisJadwal != 'istirahat' &&
+          data['jenisJadwal'] != 'istirahat' &&
+          teacherId.isNotEmpty &&
+          teacherId != '-' &&
+          data['teacherId'] != null &&
+          data['teacherId'].toString().isNotEmpty &&
+          data['teacherId'].toString() != '-' &&
+          data['teacherId'] == teacherId) {
         throw Exception(
           'Guru sudah mengajar di kelas lain pada hari dan jam yang sama',
         );
       }
+
     }
 
     final doc = _schedulesRef(schoolId).doc();
