@@ -171,251 +171,289 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
     final role = SessionService.currentUser!.role;
     const primaryIndigo = Color(0xFF8B5CF6);
 
-    if (_isLoadingTeacherInfo) {
-      return const Scaffold(
-        body: AuthBackground(
-          child: Center(
-            child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(Colors.white)),
-          ),
-        ),
-      );
-    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
-    return Scaffold(
-      body: AuthBackground(
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            title: const Text(
-              'Buat Notifikasi Baru',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        final cardBg = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+        final cardBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+
+        final textPrimaryColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final textSecondaryColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+        final textLabelColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+
+        final fieldBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+        final fieldBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+        final hintColor = isDark ? Colors.white.withValues(alpha: 0.35) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+        final iconColor = isDark ? Colors.white54 : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+        final dropdownBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+
+        if (_isLoadingTeacherInfo) {
+          return Scaffold(
+            body: AuthBackground(
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(isDark ? Colors.white : primaryIndigo),
+                ),
+              ),
             ),
-          ),
-          body: GestureDetector(
-            onTap: () => FocusScope.of(context).unfocus(),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Info Card Banner
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.info_outline_rounded, color: primaryIndigo),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Notifikasi yang Anda buat akan langsung dipublikasikan kepada penerima terpilih secara real-time.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontWeight: FontWeight.w500,
-                                height: 1.4,
+          );
+        }
+
+        return Scaffold(
+          body: AuthBackground(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                foregroundColor: backButtonColor,
+                elevation: 0,
+                iconTheme: IconThemeData(color: backButtonColor),
+                title: Text(
+                  'Buat Notifikasi Baru',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
+                ),
+              ),
+              body: GestureDetector(
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Info Card Banner
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: cardBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.info_outline_rounded, color: primaryIndigo),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Notifikasi yang Anda buat akan langsung dipublikasikan kepada penerima terpilih secara real-time.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: textSecondaryColor,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.4,
+                                  ),
+                                ),
                               ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Form Judul
+                        Text(
+                          'Judul Notifikasi',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: textLabelColor,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _titleController,
+                          style: TextStyle(color: textPrimaryColor),
+                          validator: (val) => (val == null || val.trim().isEmpty) ? 'Judul wajib diisi' : null,
+                          decoration: InputDecoration(
+                            hintText: 'Masukkan judul pengumuman...',
+                            hintStyle: TextStyle(color: hintColor),
+                            prefixIcon: Icon(Icons.title_rounded, color: iconColor),
+                            filled: true,
+                            fillColor: fieldBg,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: fieldBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: fieldBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: primaryIndigo, width: 2),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                        ),
+                        const SizedBox(height: 20),
 
-                    // Form Judul
-                    const Text(
-                      'Judul Notifikasi',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _titleController,
-                      style: const TextStyle(color: Colors.white),
-                      validator: (val) => (val == null || val.trim().isEmpty) ? 'Judul wajib diisi' : null,
-                      decoration: InputDecoration(
-                        hintText: 'Masukkan judul pengumuman...',
-                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
-                        prefixIcon: const Icon(Icons.title_rounded, color: Colors.white54),
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.05),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: primaryIndigo, width: 2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Form Isi
-                    const Text(
-                      'Isi Notifikasi',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _contentController,
-                      style: const TextStyle(color: Colors.white),
-                      validator: (val) => (val == null || val.trim().isEmpty) ? 'Isi notifikasi wajib diisi' : null,
-                      maxLines: 5,
-                      decoration: InputDecoration(
-                        hintText: 'Tuliskan pesan atau pengumuman secara detail di sini...',
-                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.05),
-                        contentPadding: const EdgeInsets.all(16),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: primaryIndigo, width: 2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Form Tipe Penerima (Dropdown)
-                    const Text(
-                      'Target Penerima',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _targetType,
-                      dropdownColor: const Color(0xFF0F0C20),
-                      style: const TextStyle(color: Colors.white),
-                      onChanged: _onTargetTypeChanged,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.people_outline_rounded, color: Colors.white54),
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.05),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: primaryIndigo, width: 2),
-                        ),
-                      ),
-                      items: role == 'teacher'
-                          ? const [
-                              DropdownMenuItem(value: 'kelas', child: Text('Kelas')),
-                              DropdownMenuItem(value: 'murid', child: Text('Murid')),
-                            ]
-                          : const [
-                              DropdownMenuItem(value: 'umum', child: Text('Semua (Umum)')),
-                              DropdownMenuItem(value: 'kelas', child: Text('Kelas')),
-                              DropdownMenuItem(value: 'guru', child: Text('Guru')),
-                              DropdownMenuItem(value: 'murid', child: Text('Murid')),
-                            ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Dynamic Recipient Selector based on _targetType
-                    if (_targetType != 'umum') ...[
-                      Text(
-                        _targetType == 'kelas'
-                            ? 'Pilih Kelas Penerima'
-                            : _targetType == 'guru'
-                                ? 'Pilih Guru Penerima'
-                                : 'Pilih Murid Penerima',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildRecipientDropdown(schoolId),
-                      const SizedBox(height: 24),
-                    ],
-
-                    // Submit Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryIndigo,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                        // Form Isi
+                        Text(
+                          'Isi Notifikasi',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: textLabelColor,
                           ),
                         ),
-                        onPressed: _isSaving ? null : _saveNotification,
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : const Text(
-                                'Publikasikan Notifikasi',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _contentController,
+                          style: TextStyle(color: textPrimaryColor),
+                          validator: (val) => (val == null || val.trim().isEmpty) ? 'Isi notifikasi wajib diisi' : null,
+                          maxLines: 5,
+                          decoration: InputDecoration(
+                            hintText: 'Tuliskan pesan atau pengumuman secara detail di sini...',
+                            hintStyle: TextStyle(color: hintColor),
+                            filled: true,
+                            fillColor: fieldBg,
+                            contentPadding: const EdgeInsets.all(16),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: fieldBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: fieldBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: primaryIndigo, width: 2),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Form Tipe Penerima (Dropdown)
+                        Text(
+                          'Target Penerima',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: textLabelColor,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: _targetType,
+                          dropdownColor: dropdownBg,
+                          style: TextStyle(color: textPrimaryColor),
+                          onChanged: _onTargetTypeChanged,
+                          decoration: InputDecoration(
+                            prefixIcon: Icon(Icons.people_outline_rounded, color: iconColor),
+                            filled: true,
+                            fillColor: fieldBg,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: fieldBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: fieldBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: primaryIndigo, width: 2),
+                            ),
+                          ),
+                          items: role == 'teacher'
+                              ? [
+                                  DropdownMenuItem(value: 'kelas', child: Text('Kelas', style: TextStyle(color: textPrimaryColor))),
+                                  DropdownMenuItem(value: 'murid', child: Text('Murid', style: TextStyle(color: textPrimaryColor))),
+                                ]
+                              : [
+                                  DropdownMenuItem(value: 'umum', child: Text('Semua (Umum)', style: TextStyle(color: textPrimaryColor))),
+                                  DropdownMenuItem(value: 'kelas', child: Text('Kelas', style: TextStyle(color: textPrimaryColor))),
+                                  DropdownMenuItem(value: 'guru', child: Text('Guru', style: TextStyle(color: textPrimaryColor))),
+                                  DropdownMenuItem(value: 'murid', child: Text('Murid', style: TextStyle(color: textPrimaryColor))),
+                                ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Dynamic Recipient Selector based on _targetType
+                        if (_targetType != 'umum') ...[
+                          Text(
+                            _targetType == 'kelas'
+                                ? 'Pilih Kelas Penerima'
+                                : _targetType == 'guru'
+                                    ? 'Pilih Guru Penerima'
+                                    : 'Pilih Murid Penerima',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: textLabelColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildRecipientDropdown(schoolId),
+                          const SizedBox(height: 24),
+                        ],
+
+                        // Submit Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryIndigo,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                      ),
+                            ),
+                            onPressed: _isSaving ? null : _saveNotification,
+                            child: _isSaving
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Publikasikan Notifikasi',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _buildRecipientDropdown(String schoolId) {
     const primaryIndigo = Color(0xFF8B5CF6);
+    final isDark = AuthBackground.isDarkMode.value;
     final role = SessionService.currentUser!.role;
+
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+
+    final textPrimaryColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final textSecondaryColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+    final fieldBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+    final fieldBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final hintColor = isDark ? Colors.white.withValues(alpha: 0.35) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+    final iconColor = isDark ? Colors.white54 : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+    final dropdownBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+
     String collection = 'classes';
     if (_targetType == 'guru') collection = 'teachers';
     if (_targetType == 'murid') collection = 'students';
@@ -431,7 +469,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.1),
+              color: Colors.red.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Text('Gagal memuat data penerima', style: TextStyle(color: Colors.red)),
@@ -439,10 +477,12 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(Colors.white)),
+              padding: const EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(isDark ? Colors.white : primaryIndigo),
+              ),
             ),
           );
         }
@@ -462,9 +502,9 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
+              color: cardBg,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              border: Border.all(color: cardBorder),
             ),
             child: Text(
               _targetType == 'kelas'
@@ -472,7 +512,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                   : _targetType == 'guru'
                       ? 'Belum ada data guru terdaftar'
                       : 'Belum ada murid di kelas Anda',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+              style: TextStyle(color: textSecondaryColor),
             ),
           );
         }
@@ -480,15 +520,15 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
         // Map data to display text and values
         return DropdownButtonFormField<String>(
           value: filteredDocs.any((doc) => doc.id == _selectedTargetId) ? _selectedTargetId : null,
-          dropdownColor: const Color(0xFF0F0C20),
-          style: const TextStyle(color: Colors.white),
+          dropdownColor: dropdownBg,
+          style: TextStyle(color: textPrimaryColor),
           hint: Text(
             _targetType == 'kelas'
                 ? 'Pilih Kelas'
                 : _targetType == 'guru'
                     ? 'Pilih Guru'
                     : 'Pilih Murid',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
+            style: TextStyle(color: hintColor),
           ),
           onChanged: (val) {
             if (val != null) {
@@ -515,18 +555,18 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                   : _targetType == 'guru'
                       ? Icons.person_pin_rounded
                       : Icons.portrait_rounded,
-              color: Colors.white54,
+              color: iconColor,
             ),
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.05),
+            fillColor: fieldBg,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+              borderSide: BorderSide(color: fieldBorder),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+              borderSide: BorderSide(color: fieldBorder),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
@@ -542,7 +582,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
             }
             return DropdownMenuItem<String>(
               value: doc.id,
-              child: Text(name, style: const TextStyle(color: Colors.white)),
+              child: Text(name, style: TextStyle(color: textPrimaryColor)),
             );
           }).toList(),
         );

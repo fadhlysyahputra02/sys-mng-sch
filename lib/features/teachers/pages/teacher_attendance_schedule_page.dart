@@ -108,6 +108,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final isDark = AuthBackground.isDarkMode.value;
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -116,13 +117,20 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFF8B5CF6),
-              onPrimary: Colors.white,
-              surface: Color(0xFF0F0C20),
-              onSurface: Colors.white,
-            ),
-            dialogBackgroundColor: const Color(0xFF0F0C20),
+            colorScheme: isDark
+                ? const ColorScheme.dark(
+                    primary: Color(0xFF8B5CF6),
+                    onPrimary: Colors.white,
+                    surface: Color(0xFF0F0C20),
+                    onSurface: Colors.white,
+                  )
+                : const ColorScheme.light(
+                    primary: Color(0xFF8B5CF6),
+                    onPrimary: Colors.white,
+                    surface: Colors.white,
+                    onSurface: Color(0xFF1E1B4B),
+                  ),
+            dialogBackgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFF8B5CF6),
@@ -176,146 +184,159 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return Dialog(
-              backgroundColor: const Color(0xFF0F0C20),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Unduh Rekap Absen',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Pilih bulan dan kelas untuk rekapitulasi',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
+            return ValueListenableBuilder<bool>(
+              valueListenable: AuthBackground.isDarkMode,
+              builder: (context, isDark, _) {
+                final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+                final dialogBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+                final dialogTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+                final dialogSubTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+                final inputBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+                final inputBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+                final dropBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
 
-                    // Label Bulan
-                    const Text(
-                      'Bulan',
-                      style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<DateTime>(
-                          value: selectedMonth,
-                          dropdownColor: const Color(0xFF0F0C20),
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white54),
-                          isExpanded: true,
-                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                          items: monthOptions.map((date) {
-                            final monthName = _getMonthNameIndonesian(date.month);
-                            final year = date.year;
-                            return DropdownMenuItem<DateTime>(
-                              value: date,
-                              child: Text('$monthName $year'),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setDialogState(() {
-                                selectedMonth = val;
-                              });
-                            }
+                return Dialog(
+                  backgroundColor: dialogBg,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    side: BorderSide(color: dialogBorder),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Unduh Rekap Absen',
+                          style: TextStyle(
+                            color: dialogTextColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Pilih bulan dan kelas untuk rekapitulasi',
+                          style: TextStyle(color: dialogSubTextColor, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Label Bulan
+                        Text(
+                          'Bulan',
+                          style: TextStyle(color: dialogTextColor.withValues(alpha: 0.75), fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: inputBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: inputBorderColor),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<DateTime>(
+                              value: selectedMonth,
+                              dropdownColor: dropBg,
+                              icon: Icon(Icons.keyboard_arrow_down_rounded, color: dialogTextColor.withValues(alpha: 0.45)),
+                              isExpanded: true,
+                              style: TextStyle(color: dialogTextColor, fontSize: 14, fontWeight: FontWeight.bold),
+                              items: monthOptions.map((date) {
+                                final monthName = _getMonthNameIndonesian(date.month);
+                                final year = date.year;
+                                return DropdownMenuItem<DateTime>(
+                                  value: date,
+                                  child: Text('$monthName $year'),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setDialogState(() {
+                                    selectedMonth = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Label Kelas
+                        Text(
+                          'Kelas',
+                          style: TextStyle(color: dialogTextColor.withValues(alpha: 0.75), fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: inputBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: inputBorderColor),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedClass,
+                              dropdownColor: dropBg,
+                              icon: Icon(Icons.keyboard_arrow_down_rounded, color: dialogTextColor.withValues(alpha: 0.45)),
+                              isExpanded: true,
+                              style: TextStyle(color: dialogTextColor, fontSize: 14, fontWeight: FontWeight.bold),
+                              items: classOptions.map((className) {
+                                return DropdownMenuItem<String>(
+                                  value: className,
+                                  child: Text(className),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setDialogState(() {
+                                    selectedClass = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            final startDate = DateTime(selectedMonth.year, selectedMonth.month, 1);
+                            final endDate = DateTime(selectedMonth.year, selectedMonth.month + 1, 0);
+                            _exportAllRecapPdfWithRange(context, allSchedules, startDate, endDate, selectedClass);
                           },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF8B5CF6),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'Download Rekapan',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Label Kelas
-                    const Text(
-                      'Kelas',
-                      style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedClass,
-                          dropdownColor: const Color(0xFF0F0C20),
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white54),
-                          isExpanded: true,
-                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                          items: classOptions.map((className) {
-                            return DropdownMenuItem<String>(
-                              value: className,
-                              child: Text(className),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setDialogState(() {
-                                selectedClass = val;
-                              });
-                            }
-                          },
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            foregroundColor: dialogSubTextColor,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
-                      ),
+                      ],
                     ),
-
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        final startDate = DateTime(selectedMonth.year, selectedMonth.month, 1);
-                        final endDate = DateTime(selectedMonth.year, selectedMonth.month + 1, 0);
-                        _exportAllRecapPdfWithRange(context, allSchedules, startDate, endDate, selectedClass);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8B5CF6),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Download Rekapan',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white.withValues(alpha: 0.5),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
         );
@@ -334,6 +355,8 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     final teacherName = user.nama;
     final schoolData = await SchoolService().getSchoolByDomain(user.schoolId);
     final schoolName = schoolData?['namaSekolah']?.toString() ?? 'Sekolah';
+    final tahunAjaran = schoolData?['tahunAjaran']?.toString() ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
+    final semester = schoolData?['semester']?.toString() ?? 'Semester 1';
 
     // Tampilkan loading overlay
     Get.dialog(
@@ -448,6 +471,8 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
         students: targetStudents,
         classIdToName: classIdToName,
         schoolName: schoolName,
+        tahunAjaran: tahunAjaran,
+        semester: semester,
       );
 
     } catch (e) {
@@ -482,144 +507,170 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final user = SessionService.currentUser!;
     final todayHari = _getTodayHariIndonesian();
     final recapHari = _getHariIndonesianFor(_selectedDate);
     final recapDateStr = _getDateStrFor(_selectedDate);
 
-    return Scaffold(
-      body: AuthBackground(
-        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _scheduleService.getSchedulesByTeacher(user.schoolId, widget.teacherId),
-          builder: (context, snapshot) {
-            final allSchedules = snapshot.data?.docs.map((e) => e.data()).toList() ?? [];
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+        final backButtonIconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final progressColor = isDark ? Colors.white : const Color(0xFF8B5CF6);
 
-            // Sort chronologically helper
-            void sortSchedules(List<Map<String, dynamic>> list) {
-              list.sort((a, b) {
-                return _timeToMinutes(a['jamMulai'] ?? '').compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
-              });
-            }
+        return Scaffold(
+          body: AuthBackground(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _scheduleService.getSchedulesByTeacher(user.schoolId, widget.teacherId),
+              builder: (context, snapshot) {
+                final allSchedules = snapshot.data?.docs.map((e) => e.data()).toList() ?? [];
 
-            // Active Subject Section (Always based on current time & today)
-            final todaySchedules = allSchedules
-                .where((s) => s['hari'] == todayHari && s['jenisJadwal'] != 'istirahat')
-                .toList();
-            sortSchedules(todaySchedules);
+                // Sort chronologically helper
+                void sortSchedules(List<Map<String, dynamic>> list) {
+                  list.sort((a, b) {
+                    return _timeToMinutes(a['jamMulai'] ?? '').compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
+                  });
+                }
 
-            final activeSchedules = todaySchedules.where((s) {
-              final jamMulai = s['jamMulai'] ?? '00:00';
-              final jamSelesai = s['jamSelesai'] ?? '00:00';
-              return _isCurrentTimeInSlot(jamMulai, jamSelesai);
-            }).toList();
+                // Active Subject Section (Always based on current time & today)
+                final todaySchedules = allSchedules
+                    .where((s) => s['hari'] == todayHari && s['jenisJadwal'] != 'istirahat')
+                    .toList();
+                sortSchedules(todaySchedules);
 
-            // Recap Section (Based on selected date)
-            final recapSchedules = allSchedules
-                .where((s) => s['hari'] == recapHari && s['jenisJadwal'] != 'istirahat')
-                .toList();
-            sortSchedules(recapSchedules);
+                final activeSchedules = todaySchedules.where((s) {
+                  final jamMulai = s['jamMulai'] ?? '00:00';
+                  final jamSelesai = s['jamSelesai'] ?? '00:00';
+                  return _isCurrentTimeInSlot(jamMulai, jamSelesai);
+                }).toList();
 
-            return Scaffold(
-              backgroundColor: Colors.transparent,
-              appBar: AppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                iconTheme: const IconThemeData(color: Colors.white),
-                leading: Container(
-                  margin: const EdgeInsets.only(left: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-                title: const Text(
-                  'Absensi Murid',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-                ),
-                actions: [
-                  if (snapshot.connectionState != ConnectionState.waiting && !snapshot.hasError)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
-                      child: TextButton(
-                        onPressed: () => _exportAllRecapPdf(context, allSchedules),
-                        style: TextButton.styleFrom(
-                          backgroundColor: const Color(0xFF8B5CF6),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: const Text(
-                          'unduh rekapan absen',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                // Recap Section (Based on selected date)
+                final recapSchedules = allSchedules
+                    .where((s) => s['hari'] == recapHari && s['jenisJadwal'] != 'istirahat')
+                    .toList();
+                sortSchedules(recapSchedules);
+
+                return Scaffold(
+                  backgroundColor: Colors.transparent,
+                  appBar: AppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    iconTheme: IconThemeData(color: backButtonIconColor),
+                    leading: Container(
+                      margin: const EdgeInsets.only(left: 16),
+                      decoration: BoxDecoration(
+                        color: backButtonBgColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonIconColor, size: 18),
+                        onPressed: () => Navigator.pop(context),
                       ),
                     ),
-                ],
-              ),
-              body: snapshot.hasError
-                  ? _buildErrorBox('Terjadi kesalahan memuat jadwal')
-                  : snapshot.connectionState == ConnectionState.waiting
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: () async {
-                            setState(() {});
-                          },
-                          color: const Color(0xFF8B5CF6),
-                          backgroundColor: const Color(0xFF0F0C20),
-                          child: SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Clock / Date card
-                                _buildDateHeaderCard(),
-                                const SizedBox(height: 24),
-
-                                // Active Subject Section
-                                _buildSectionHeader('MATA PELAJARAN AKTIF SEKARANG', Icons.sensors_rounded),
-                                const SizedBox(height: 12),
-                                _buildActiveScheduleSection(activeSchedules),
-                                const SizedBox(height: 28),
-
-                                // Today's/Past Recap Section
-                                _buildRecapSectionHeader(recapDateStr),
-                                const SizedBox(height: 12),
-                                _buildTodayRecapSection(recapSchedules, user.schoolId, recapDateStr, _selectedDate),
-                                const SizedBox(height: 40),
-                              ],
+                    title: Text(
+                      'Absensi Murid',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
+                    ),
+                    actions: [
+                      if (snapshot.connectionState != ConnectionState.waiting && !snapshot.hasError)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
+                          child: TextButton(
+                            onPressed: () => _exportAllRecapPdf(context, allSchedules),
+                            style: TextButton.styleFrom(
+                              backgroundColor: const Color(0xFF8B5CF6),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Text(
+                              'unduh rekapan absen',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
-            );
-          },
-        ),
-      ),
+                    ],
+                  ),
+                  body: snapshot.hasError
+                      ? _buildErrorBox('Terjadi kesalahan memuat jadwal', isDark)
+                      : snapshot.connectionState == ConnectionState.waiting
+                          ? Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                              ),
+                            )
+                          : RefreshIndicator(
+                              onRefresh: () async {
+                                setState(() {});
+                              },
+                              color: const Color(0xFF8B5CF6),
+                              backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                              child: SingleChildScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Clock / Date card
+                                    _buildDateHeaderCard(isDark),
+                                    const SizedBox(height: 24),
+
+                                    // Active Subject Section
+                                    _buildSectionHeader('MATA PELAJARAN AKTIF SEKARANG', Icons.sensors_rounded, isDark),
+                                    const SizedBox(height: 12),
+                                    _buildActiveScheduleSection(activeSchedules, isDark),
+                                    const SizedBox(height: 28),
+
+                                    // Today's/Past Recap Section
+                                    _buildRecapSectionHeader(recapDateStr, isDark),
+                                    const SizedBox(height: 12),
+                                    _buildTodayRecapSection(recapSchedules, user.schoolId, recapDateStr, _selectedDate, isDark),
+                                    const SizedBox(height: 40),
+                                  ],
+                                ),
+                              ),
+                            ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildDateHeaderCard() {
+  Widget _buildDateHeaderCard(bool isDark) {
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.03);
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: cardBg,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(color: cardBorder),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: cardShadow,
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Row(
         children: [
@@ -638,12 +689,12 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
               children: [
                 Text(
                   _getFormattedDate(),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Waktu Server: ${_getFormattedTime()} WIB',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.w500),
+                  style: TextStyle(color: subTextColor, fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -653,15 +704,18 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
+  Widget _buildSectionHeader(String title, IconData icon, bool isDark) {
+    final headerColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.75);
+    final iconColor = isDark ? Colors.white54 : const Color(0xFF1E1B4B).withValues(alpha: 0.55);
+
     return Row(
       children: [
-        Icon(icon, color: Colors.white54, size: 18),
+        Icon(icon, color: iconColor, size: 18),
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
-            color: Colors.white70,
+          style: TextStyle(
+            color: headerColor,
             fontWeight: FontWeight.bold,
             fontSize: 13,
             letterSpacing: 0.8,
@@ -671,19 +725,21 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     );
   }
 
-  Widget _buildRecapSectionHeader(String dateStr) {
+  Widget _buildRecapSectionHeader(String dateStr, bool isDark) {
     final now = DateTime.now();
     final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final isToday = dateStr == todayStr;
+    final headerColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.75);
+    final iconColor = isDark ? Colors.white54 : const Color(0xFF1E1B4B).withValues(alpha: 0.55);
 
     return Row(
       children: [
-        const Icon(Icons.summarize_rounded, color: Colors.white54, size: 18),
+        Icon(Icons.summarize_rounded, color: iconColor, size: 18),
         const SizedBox(width: 8),
         Text(
           isToday ? 'REKAP ABSENSI HARI INI' : 'REKAP ABSENSI TANGGAL',
-          style: const TextStyle(
-            color: Colors.white70,
+          style: TextStyle(
+            color: headerColor,
             fontWeight: FontWeight.bold,
             fontSize: 13,
             letterSpacing: 0.8,
@@ -707,30 +763,47 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     );
   }
 
-  Widget _buildActiveScheduleSection(List<Map<String, dynamic>> activeSchedules) {
+  Widget _buildActiveScheduleSection(List<Map<String, dynamic>> activeSchedules, bool isDark) {
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.06);
+    final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.03);
+    final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.38) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
     if (activeSchedules.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
+          color: cardBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(color: cardBorder),
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: cardShadow,
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
         child: Center(
           child: Column(
             children: [
-              const Icon(Icons.query_builder_rounded, color: Colors.white30, size: 36),
+              Icon(Icons.query_builder_rounded, color: isDark ? Colors.white30 : const Color(0xFF1E1B4B).withValues(alpha: 0.3), size: 36),
               const SizedBox(height: 10),
               Text(
                 'Tidak ada mata pelajaran aktif di jam sekarang.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.38), fontSize: 13, fontStyle: FontStyle.italic),
+                style: TextStyle(color: emptyTextColor, fontSize: 13, fontStyle: FontStyle.italic),
               ),
             ],
           ),
         ),
       );
     }
+
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
 
     return Column(
       children: activeSchedules.map((s) {
@@ -744,18 +817,23 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                const Color(0xFF6366F1).withValues(alpha: 0.15),
-                const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-              ],
+              colors: isDark
+                  ? [
+                      const Color(0xFF6366F1).withValues(alpha: 0.15),
+                      const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                    ]
+                  : [
+                      Colors.white,
+                      Colors.white,
+                    ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+            border: Border.all(color: isDark ? const Color(0xFF8B5CF6).withValues(alpha: 0.3) : const Color(0xFF8B5CF6).withValues(alpha: 0.15)),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                color: const Color(0xFF8B5CF6).withValues(alpha: isDark ? 0.1 : 0.08),
                 blurRadius: 16,
                 offset: const Offset(0, 8),
               ),
@@ -792,21 +870,21 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
               const SizedBox(height: 16),
               Text(
                 subjectName,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 20),
               ),
               const SizedBox(height: 4),
               Text(
                 'Kelas: $className',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14, fontWeight: FontWeight.w600),
+                style: TextStyle(color: subTextColor, fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.schedule_rounded, color: Colors.white38, size: 14),
+                  Icon(Icons.schedule_rounded, color: isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4), size: 14),
                   const SizedBox(width: 6),
                   Text(
                     '$jamMulai – $jamSelesai WIB',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
+                    style: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6), fontSize: 13),
                   ),
                 ],
               ),
@@ -831,24 +909,41 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     );
   }
 
-  Widget _buildTodayRecapSection(List<Map<String, dynamic>> todaySchedules, String schoolId, String dateStr, DateTime selectedDate) {
+  Widget _buildTodayRecapSection(List<Map<String, dynamic>> todaySchedules, String schoolId, String dateStr, DateTime selectedDate, bool isDark) {
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.06);
+    final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.03);
+    final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.38) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
     if (todaySchedules.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
+          color: cardBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(color: cardBorder),
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: cardShadow,
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
         child: Center(
           child: Text(
             'Tidak ada jadwal mengajar untuk hari/tanggal ini.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.38), fontSize: 13, fontStyle: FontStyle.italic),
+            style: TextStyle(color: emptyTextColor, fontSize: 13, fontStyle: FontStyle.italic),
           ),
         ),
       );
     }
+
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
 
     return Column(
       children: todaySchedules.map((s) {
@@ -869,20 +964,34 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
           accentColor = const Color(0xFFF59E0B);
           statusColor = const Color(0xFFF59E0B);
         } else {
-          accentColor = Colors.white24;
-          statusColor = Colors.white38;
+          accentColor = isDark ? Colors.white24 : const Color(0xFF1E1B4B).withValues(alpha: 0.2);
+          statusColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
         }
+
+        final tileBg = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+        final tileBorder = isDark
+            ? (status == 'Berlangsung'
+                ? const Color(0xFF8B5CF6).withValues(alpha: 0.3)
+                : Colors.white.withValues(alpha: 0.08))
+            : (status == 'Berlangsung'
+                ? const Color(0xFF8B5CF6).withValues(alpha: 0.4)
+                : Colors.black.withValues(alpha: 0.06));
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.04),
+            color: tileBg,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: status == 'Berlangsung'
-                  ? const Color(0xFF8B5CF6).withValues(alpha: 0.3)
-                  : Colors.white.withValues(alpha: 0.08),
-            ),
+            border: Border.all(color: tileBorder),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: cardShadow,
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
@@ -909,7 +1018,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                                   Expanded(
                                     child: Text(
                                       subjectName,
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 15),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -932,16 +1041,16 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                               const SizedBox(height: 4),
                               Text(
                                 'Kelas: $className',
-                                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w500),
+                                style: TextStyle(color: subTextColor, fontSize: 12, fontWeight: FontWeight.w500),
                               ),
                               const SizedBox(height: 8),
                               Row(
                                 children: [
-                                  const Icon(Icons.schedule_rounded, color: Colors.white30, size: 12),
+                                  Icon(Icons.schedule_rounded, color: isDark ? Colors.white30 : const Color(0xFF1E1B4B).withValues(alpha: 0.3), size: 12),
                                   const SizedBox(width: 4),
                                   Text(
                                     '$jamMulai - $jamSelesai',
-                                    style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+                                    style: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5), fontSize: 11),
                                   ),
                                   const SizedBox(width: 16),
                                   Expanded(
@@ -959,13 +1068,13 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                                             Icon(
                                               Icons.people_alt_rounded,
                                               size: 12,
-                                              color: count > 0 ? const Color(0xFF10B981) : Colors.white30,
+                                              color: count > 0 ? const Color(0xFF10B981) : (isDark ? Colors.white30 : const Color(0xFF1E1B4B).withValues(alpha: 0.3)),
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
                                               '$count Murid Hadir',
                                               style: TextStyle(
-                                                color: count > 0 ? const Color(0xFF10B981) : Colors.white38,
+                                                color: count > 0 ? const Color(0xFF10B981) : (isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4)),
                                                 fontSize: 11,
                                                 fontWeight: count > 0 ? FontWeight.bold : FontWeight.normal,
                                               ),
@@ -982,7 +1091,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                         ),
                       ),
 
-                      const Icon(Icons.chevron_right_rounded, color: Colors.white30),
+                      Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white30 : const Color(0xFF1E1B4B).withValues(alpha: 0.3)),
                       const SizedBox(width: 12),
                     ],
                   ),
@@ -995,7 +1104,9 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     );
   }
 
-  Widget _buildErrorBox(String message) {
+  Widget _buildErrorBox(String message, bool isDark) {
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1004,7 +1115,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
           const SizedBox(height: 12),
           Text(
             message,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           ),
         ],
       ),

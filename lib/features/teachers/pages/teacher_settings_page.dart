@@ -139,201 +139,231 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
   Widget build(BuildContext context) {
     final user = SessionService.currentUser!;
 
-    return Scaffold(
-      body: AuthBackground(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // AppBar
-            SliverAppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              pinned: true,
-              leading: Container(
-                margin: const EdgeInsets.only(left: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-              title: const Text(
-                'Pengaturan',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
-              ),
-            ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+        final backButtonIconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Info Akun
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.person_rounded, color: Color(0xFF8B5CF6), size: 28),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user.nama,
-                                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  user.email,
-                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+        final cardBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+        final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+
+        final textPrimaryColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final textSecondaryColor = isDark ? Colors.white.withValues(alpha: 0.45) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // AppBar
+                SliverAppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  pinned: true,
+                  leading: Container(
+                    margin: const EdgeInsets.only(left: 16),
+                    decoration: BoxDecoration(
+                      color: backButtonBgColor,
+                      shape: BoxShape.circle,
                     ),
+                    child: IconButton(
+                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonIconColor, size: 18),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  title: Text(
+                    'Pengaturan',
+                    style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 20),
+                  ),
+                ),
 
-                    const SizedBox(height: 28),
-
-                    // Section Ubah Password
-                    Row(
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Icon(Icons.lock_rounded, color: Colors.white.withValues(alpha: 0.8), size: 20),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Ubah Password',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5),
+                        // Info Akun
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: cardBorder),
+                            boxShadow: isDark
+                                ? []
+                                : [
+                                    BoxShadow(
+                                      color: cardShadow,
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.person_rounded, color: Color(0xFF8B5CF6), size: 28),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      user.nama,
+                                      style: TextStyle(color: textPrimaryColor, fontSize: 18, fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      user.email,
+                                      style: TextStyle(color: textSecondaryColor, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+
+                        const SizedBox(height: 28),
+
+                        // Section Ubah Password
+                        Row(
+                          children: [
+                            Icon(Icons.lock_rounded, color: textPrimaryColor.withValues(alpha: 0.8), size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Ubah Password',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimaryColor, letterSpacing: 0.5),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: cardBorder),
+                            boxShadow: isDark
+                                ? []
+                                : [
+                                    BoxShadow(
+                                      color: cardShadow,
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                          ),
+                          child: Column(
+                            children: [
+                              // Password Saat Ini
+                              _buildPasswordField(
+                                controller: _currentPasswordController,
+                                label: 'Password Saat Ini',
+                                icon: Icons.lock_outline_rounded,
+                                obscure: _obscureCurrent,
+                                onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent),
+                                isDark: isDark,
+                              ),
+
+                              const SizedBox(height: 18),
+
+                              // Password Baru
+                              _buildPasswordField(
+                                controller: _newPasswordController,
+                                label: 'Password Baru',
+                                icon: Icons.lock_reset_rounded,
+                                obscure: _obscureNew,
+                                onToggle: () => setState(() => _obscureNew = !_obscureNew),
+                                isDark: isDark,
+                              ),
+
+                              const SizedBox(height: 18),
+
+                              // Konfirmasi Password Baru
+                              _buildPasswordField(
+                                controller: _confirmPasswordController,
+                                label: 'Konfirmasi Password Baru',
+                                icon: Icons.lock_rounded,
+                                obscure: _obscureConfirm,
+                                onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                                isDark: isDark,
+                              ),
+
+                              const SizedBox(height: 28),
+
+                              // Tombol Simpan
+                              Container(
+                                height: 52,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _changePassword,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          ),
+                                        )
+                                      : const Text(
+                                          'SIMPAN PASSWORD',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            letterSpacing: 1.2,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 40),
                       ],
                     ),
-
-                    const SizedBox(height: 16),
-
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          // Password Saat Ini
-                          _buildPasswordField(
-                            controller: _currentPasswordController,
-                            label: 'Password Saat Ini',
-                            icon: Icons.lock_outline_rounded,
-                            obscure: _obscureCurrent,
-                            onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent),
-                          ),
-
-                          const SizedBox(height: 18),
-
-                          // Password Baru
-                          _buildPasswordField(
-                            controller: _newPasswordController,
-                            label: 'Password Baru',
-                            icon: Icons.lock_reset_rounded,
-                            obscure: _obscureNew,
-                            onToggle: () => setState(() => _obscureNew = !_obscureNew),
-                          ),
-
-                          const SizedBox(height: 18),
-
-                          // Konfirmasi Password Baru
-                          _buildPasswordField(
-                            controller: _confirmPasswordController,
-                            label: 'Konfirmasi Password Baru',
-                            icon: Icons.lock_rounded,
-                            obscure: _obscureConfirm,
-                            onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                          ),
-
-                          const SizedBox(height: 28),
-
-                          // Tombol Simpan
-                          Container(
-                            height: 52,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _changePassword,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      height: 24,
-                                      width: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      ),
-                                    )
-                                  : const Text(
-                                      'SIMPAN PASSWORD',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                        letterSpacing: 1.2,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 40),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -343,32 +373,38 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
     required IconData icon,
     required bool obscure,
     required VoidCallback onToggle,
+    required bool isDark,
   }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-        prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.6)),
-        suffixIcon: IconButton(
-          icon: Icon(
-            obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: Colors.white.withValues(alpha: 0.6),
+    final fieldBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+    final fieldBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+    final textStyleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final labelColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final iconColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: fieldBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: fieldBorder),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscure,
+        style: TextStyle(color: textStyleColor),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: labelColor),
+          prefixIcon: Icon(icon, color: const Color(0xFF8B5CF6)),
+          suffixIcon: IconButton(
+            icon: Icon(
+              obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              color: iconColor,
+            ),
+            onPressed: onToggle,
           ),
-          onPressed: onToggle,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
-        ),
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.02),
       ),
     );
   }

@@ -33,6 +33,8 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   String? _className;
   String _plan = 'FREE';
   bool _isLoadingSchool = true;
+  String? _tahunAjaran;
+  String? _activeSemester;
 
   // Behavior check cache to prevent background async calls from being suspended
   List<Map<String, dynamic>> _todaySchedules = [];
@@ -402,6 +404,8 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         if (schoolData != null) {
           _schoolName = schoolData['namaSekolah'];
           _plan = (schoolData['plan'] ?? 'FREE').toString().toUpperCase();
+          _tahunAjaran = schoolData['tahunAjaran'];
+          _activeSemester = schoolData['semester'];
         }
         _studentDocId = doc?.id;
         _studentData = doc?.data();
@@ -594,88 +598,116 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-              border: Border.all(color: const Color(0xFF8B5CF6), width: 2),
-            ),
-            child: const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: titleColor)),
-                const SizedBox(height: 4),
-                Text(email, style: TextStyle(fontSize: 13, color: subtitleColor)),
-                const SizedBox(height: 4),
-                Text('NIS: $nis', style: TextStyle(fontSize: 12, color: emailColor)),
-                const SizedBox(height: 4),
-                Row(
+          Row(
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                  border: Border.all(color: const Color(0xFF8B5CF6), width: 2),
+                ),
+                child: const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.school_rounded, color: emailColor, size: 14),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _schoolName ?? 'Sekolah',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: emailColor,
-                          fontWeight: FontWeight.w500,
+                    Text(name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: titleColor)),
+                    const SizedBox(height: 4),
+                    Text(email, style: TextStyle(fontSize: 13, color: subtitleColor)),
+                    const SizedBox(height: 4),
+                    Text('NIS: $nis', style: TextStyle(fontSize: 12, color: emailColor)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.school_rounded, color: emailColor, size: 14),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _schoolName ?? 'Sekolah',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: emailColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.class_rounded, color: emailColor, size: 14),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _className != null ? 'Kelas: $_className' : 'Belum masuk kelas',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: emailColor,
-                          fontWeight: FontWeight.w500,
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.class_rounded, color: emailColor, size: 14),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _className != null ? 'Kelas: $_className' : 'Belum masuk kelas',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: emailColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
+                          ),
+                          child: const Text(
+                            'Murid',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF6366F1)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildPlanBadge(),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
-                      ),
-                      child: const Text(
-                        'Murid',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF6366F1)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildPlanBadge(),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+          if (_tahunAjaran != null || _activeSemester != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today_rounded, color: Color(0xFF6366F1), size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Tahun Ajaran: ${_tahunAjaran ?? "-"}  |  ${_activeSemester ?? "-"}',
+                      style: const TextStyle(color: Color(0xFF6366F1), fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

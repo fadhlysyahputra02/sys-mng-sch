@@ -1,0 +1,1065 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
+import '../../../core/services/session_service.dart';
+import '../../authentication/widgets/auth_background.dart';
+import '../services/grade_service.dart';
+import 'teacher_input_grade_page.dart';
+
+class TeacherGradesPage extends StatefulWidget {
+  final String teacherId;
+  const TeacherGradesPage({super.key, required this.teacherId});
+
+  @override
+  State<TeacherGradesPage> createState() => _TeacherGradesPageState();
+}
+
+class _TeacherGradesPageState extends State<TeacherGradesPage> {
+  final _gradeService = GradeService();
+
+  bool _isLoadingSchedules = true;
+  Map<String, Map<String, dynamic>> _classMap = {};
+  String? _selectedFilterClassId;
+  String? _selectedFilterSubjectId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTeacherSchedules();
+  }
+
+  Future<void> _loadTeacherSchedules() async {
+    final user = SessionService.currentUser!;
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(user.schoolId)
+          .collection('class_schedules')
+          .where('teacherId', isEqualTo: widget.teacherId)
+          .get();
+
+      final Map<String, Map<String, dynamic>> tempClassMap = {};
+      for (final doc in snapshot.docs) {
+        final s = doc.data();
+        final classId = s['classId']?.toString() ?? '';
+        final className = s['className']?.toString() ?? '';
+        final subjectId = s['subjectId']?.toString() ?? '';
+        final subjectName = s['subjectName']?.toString() ?? '';
+
+        if (classId.isEmpty || className.isEmpty) continue;
+
+        if (!tempClassMap.containsKey(classId)) {
+          tempClassMap[classId] = {
+            'classId': classId,
+            'className': className,
+            'subjects': <String, String>{},
+          };
+        }
+        if (subjectId.isNotEmpty && subjectName.isNotEmpty) {
+          final classData = tempClassMap[classId]!;
+          (classData['subjects'] as Map<String, String>)[subjectId] = subjectName;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _classMap = tempClassMap;
+          _isLoadingSchedules = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading schedules: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingSchedules = false;
+        });
+      }
+    }
+  }
+
+  String _getFormattedIndonesianDate(String dateStr) {
+    try {
+      final parts = dateStr.split('-');
+      if (parts.length == 3) {
+        final year = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final day = int.parse(parts[2]);
+        final date = DateTime(year, month, day);
+        final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        final months = [
+          'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+          'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+        final dayName = days[date.weekday % 7];
+        final monthName = months[date.month - 1];
+        return '$dayName, $day $monthName $year';
+      }
+    } catch (_) {}
+    return dateStr;
+  }
+
+  Future<void> _confirmDelete(BuildContext context, String schoolId, String gradeId, String title) async {
+    final isDark = AuthBackground.isDarkMode.value;
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
+          ),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            const SizedBox(width: 10),
+            Text(
+              'Hapus Penilaian',
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus penilaian "$title" beserta seluruh nilai siswa di dalamnya? Tindakan ini tidak dapat dibatalkan.',
+          style: TextStyle(
+            color: isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.5)
+                    : const Color(0xFF1E1B4B).withValues(alpha: 0.5),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _gradeService.deleteGrade(schoolId, gradeId);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Penilaian berhasil dihapus'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal menghapus penilaian: $e'),
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showWeightsConfigDialog(BuildContext context) {
+    final user = SessionService.currentUser!;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _WeightsConfigDialog(
+        schoolId: user.schoolId,
+        teacherId: widget.teacherId,
+        classMap: _classMap,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = SessionService.currentUser!;
+
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+        final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+        final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+        final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+        final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+        final shadowColor = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // AppBar
+                SliverAppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  pinned: true,
+                  iconTheme: IconThemeData(color: iconColor),
+                  leading: Container(
+                    margin: const EdgeInsets.only(left: 16),
+                    decoration: BoxDecoration(
+                      color: iconBgColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  title: Text(
+                    'Daftar Penilaian',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
+                  ),
+                  actions: [
+                    Container(
+                      margin: const EdgeInsets.only(right: 16),
+                      decoration: BoxDecoration(
+                        color: iconBgColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.percent_rounded, color: iconColor, size: 20),
+                        tooltip: 'Atur Bobot Kategori',
+                        onPressed: () => _showWeightsConfigDialog(context),
+                      ),
+                    ),
+                  ],
+                ),
+
+                if (_isLoadingSchedules)
+                  SliverFillRemaining(
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: isDark ? Colors.white : const Color(0xFF8B5CF6),
+                      ),
+                    ),
+                  ),
+
+                if (!_isLoadingSchedules)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: cardBgColor,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: cardBorderColor),
+                          boxShadow: isDark ? [] : [
+                            BoxShadow(
+                              color: shadowColor,
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.filter_alt_rounded, color: const Color(0xFF8B5CF6), size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Filter Penilaian',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: titleColor,
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (_selectedFilterClassId != null || _selectedFilterSubjectId != null)
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedFilterClassId = null;
+                                        _selectedFilterSubjectId = null;
+                                      });
+                                    },
+                                    child: const Text(
+                                      'Reset',
+                                      style: TextStyle(
+                                        color: Color(0xFFEF4444),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                // Dropdown Kelas
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    isExpanded: true,
+                                    value: _selectedFilterClassId,
+                                    dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                    decoration: InputDecoration(
+                                      labelText: 'Kelas',
+                                      labelStyle: TextStyle(color: subTextColor, fontSize: 11),
+                                      fillColor: inputFillColor,
+                                      filled: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: cardBorderColor),
+                                      ),
+                                    ),
+                                    style: TextStyle(color: titleColor, fontSize: 13),
+                                    items: [
+                                      const DropdownMenuItem<String>(
+                                        value: null,
+                                        child: Text('Semua Kelas'),
+                                      ),
+                                      ..._classMap.keys.map((classId) {
+                                        return DropdownMenuItem<String>(
+                                          value: classId,
+                                          child: Text(_classMap[classId]?['className']?.toString() ?? ''),
+                                        );
+                                      })
+                                    ],
+                                    onChanged: (val) {
+                                      setState(() {
+                                        _selectedFilterClassId = val;
+                                        _selectedFilterSubjectId = null; // Reset mapel
+                                      });
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                // Dropdown Mapel
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    isExpanded: true,
+                                    value: _selectedFilterSubjectId,
+                                    dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                    decoration: InputDecoration(
+                                      labelText: 'Mata Pelajaran',
+                                      labelStyle: TextStyle(color: subTextColor, fontSize: 11),
+                                      fillColor: inputFillColor,
+                                      filled: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: cardBorderColor),
+                                      ),
+                                    ),
+                                    style: TextStyle(color: titleColor, fontSize: 13),
+                                    items: () {
+                                      Map<String, String> subjectsList = {};
+                                      if (_selectedFilterClassId != null) {
+                                        final classData = _classMap[_selectedFilterClassId];
+                                        if (classData != null && classData['subjects'] != null) {
+                                          subjectsList = Map<String, String>.from(classData['subjects'] as Map);
+                                        }
+                                      } else {
+                                        for (final classId in _classMap.keys) {
+                                          final classData = _classMap[classId];
+                                          if (classData != null && classData['subjects'] != null) {
+                                            subjectsList.addAll(Map<String, String>.from(classData['subjects'] as Map));
+                                          }
+                                        }
+                                      }
+                                      return [
+                                        const DropdownMenuItem<String>(
+                                          value: null,
+                                          child: Text('Semua Mapel'),
+                                        ),
+                                        ...subjectsList.keys.map((subjectId) {
+                                          return DropdownMenuItem<String>(
+                                            value: subjectId,
+                                            child: Text(subjectsList[subjectId] ?? ''),
+                                          );
+                                        })
+                                      ];
+                                    }(),
+                                    onChanged: (val) {
+                                      setState(() {
+                                        _selectedFilterSubjectId = val;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // List Data
+                if (!_isLoadingSchedules)
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: _gradeService.getGradesByTeacher(
+                      user.schoolId,
+                      widget.teacherId,
+                      classId: _selectedFilterClassId,
+                      subjectId: _selectedFilterSubjectId,
+                    ),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return SliverFillRemaining(
+                        child: Center(
+                          child: Text(
+                            'Gagal memuat data nilai: ${snapshot.error}',
+                            style: const TextStyle(color: Colors.redAccent),
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return SliverFillRemaining(
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: isDark ? Colors.white : const Color(0xFF8B5CF6),
+                          ),
+                        ),
+                      );
+                    }
+
+                    final docs = snapshot.data?.docs ?? [];
+
+                    if (docs.isEmpty) {
+                      return SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.grade_rounded,
+                                size: 64,
+                                color: subTextColor.withValues(alpha: 0.3),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Belum ada penilaian yang dibuat',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: titleColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tekan tombol "+" di bawah untuk memasukkan nilai baru.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: subTextColor,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final doc = docs[index];
+                            final data = doc.data();
+                            final gradeId = doc.id;
+                            final title = data['title'] ?? 'Penilaian';
+                            final category = data['category'] ?? 'Tugas';
+                            final className = data['className'] ?? 'Kelas';
+                            final subjectName = data['subjectName'] ?? 'Pelajaran';
+                            final dateStr = data['date'] ?? '-';
+                            final maxScore = (data['maxScore'] ?? 100.0) as double;
+
+                            // Hitung rata-rata nilai
+                            final scores = data['scores'] as Map<String, dynamic>? ?? {};
+                            double sum = 0;
+                            int count = 0;
+                            scores.forEach((key, detail) {
+                              if (detail is Map) {
+                                sum += (detail['score'] ?? 0.0) as double;
+                                count++;
+                              }
+                            });
+                            final double average = count > 0 ? sum / count : 0.0;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: cardBgColor,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: cardBorderColor),
+                                boxShadow: isDark ? [] : [
+                                  BoxShadow(
+                                    color: shadowColor,
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                                        ),
+                                        child: Text(
+                                          category,
+                                          style: const TextStyle(
+                                            color: Color(0xFF8B5CF6),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit_rounded, color: Color(0xFF3B82F6), size: 20),
+                                            tooltip: 'Edit Nilai',
+                                            onPressed: () => Get.to(() => TeacherInputGradePage(
+                                                  teacherId: widget.teacherId,
+                                                  existingGradeData: data,
+                                                )),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete_rounded, color: Color(0xFFEF4444), size: 20),
+                                            tooltip: 'Hapus Penilaian',
+                                            onPressed: () => _confirmDelete(context, user.schoolId, gradeId, title),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: titleColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$subjectName ($className)',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF10B981),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Divider(color: cardBorderColor),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Tanggal',
+                                            style: TextStyle(fontSize: 11, color: subTextColor),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _getFormattedIndonesianDate(dateStr),
+                                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: titleColor),
+                                          ),
+                                        ],
+                                      ),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            'Rata-Rata Kelas',
+                                            style: TextStyle(fontSize: 11, color: subTextColor),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${average.toStringAsFixed(1)} / ${maxScore.toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              color: average >= 75.0 ? const Color(0xFF10B981) : Colors.orangeAccent,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        '$count Siswa dinilai',
+                                        style: TextStyle(fontSize: 12, color: subTextColor, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          childCount: docs.length,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            backgroundColor: const Color(0xFF8B5CF6),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            onPressed: () => Get.to(() => TeacherInputGradePage(teacherId: widget.teacherId)),
+            child: const Icon(Icons.add_rounded, size: 28),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _WeightsConfigDialog extends StatefulWidget {
+  final String schoolId;
+  final String teacherId;
+  final Map<String, Map<String, dynamic>> classMap;
+  const _WeightsConfigDialog({required this.schoolId, required this.teacherId, required this.classMap});
+
+  @override
+  State<_WeightsConfigDialog> createState() => _WeightsConfigDialogState();
+}
+
+class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
+  final _gradeService = GradeService();
+  final _formKey = GlobalKey<FormState>();
+  
+  bool _isLoadingWeights = false;
+  bool _isSaving = false;
+
+  String? _selectedClassId;
+  String? _selectedSubjectId;
+
+  // Controllers untuk bobot
+  final _tugasController = TextEditingController(text: '20');
+  final _kuisController = TextEditingController(text: '20');
+  final _ulanganController = TextEditingController(text: '20');
+  final _utsController = TextEditingController(text: '20');
+  final _uasController = TextEditingController(text: '20');
+
+  double get _totalPercentage {
+    final t = double.tryParse(_tugasController.text) ?? 0;
+    final k = double.tryParse(_kuisController.text) ?? 0;
+    final u = double.tryParse(_ulanganController.text) ?? 0;
+    final uts = double.tryParse(_utsController.text) ?? 0;
+    final uas = double.tryParse(_uasController.text) ?? 0;
+    return t + k + u + uts + uas;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  Future<void> _loadExistingWeights() async {
+    if (_selectedClassId == null || _selectedSubjectId == null) return;
+    setState(() {
+      _isLoadingWeights = true;
+    });
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('subject_weights')
+          .doc('${_selectedClassId}_$_selectedSubjectId')
+          .get();
+
+      if (doc.exists && doc.data()?['weights'] != null) {
+        final w = doc.data()!['weights'] as Map<String, dynamic>;
+        setState(() {
+          _tugasController.text = (w['Tugas'] ?? 20).toString();
+          _kuisController.text = (w['Kuis'] ?? 20).toString();
+          _ulanganController.text = (w['Ulangan Harian'] ?? 20).toString();
+          _utsController.text = (w['UTS'] ?? 20).toString();
+          _uasController.text = (w['UAS'] ?? 20).toString();
+        });
+      } else {
+        setState(() {
+          _tugasController.text = '20';
+          _kuisController.text = '20';
+          _ulanganController.text = '20';
+          _utsController.text = '20';
+          _uasController.text = '20';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading weights: $e');
+    } finally {
+      setState(() {
+        _isLoadingWeights = false;
+      });
+    }
+  }
+
+  Future<void> _saveWeights() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedClassId == null || _selectedSubjectId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih Kelas & Mapel terlebih dahulu'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    final total = _totalPercentage;
+    if (total != 100.0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Total bobot harus 100% (saat ini: ${total.toStringAsFixed(0)}%)'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final wMap = {
+        'Tugas': double.tryParse(_tugasController.text) ?? 20.0,
+        'Kuis': double.tryParse(_kuisController.text) ?? 20.0,
+        'Ulangan Harian': double.tryParse(_ulanganController.text) ?? 20.0,
+        'UTS': double.tryParse(_utsController.text) ?? 20.0,
+        'UAS': double.tryParse(_uasController.text) ?? 20.0,
+      };
+
+      await _gradeService.saveCategoryWeights(
+        schoolId: widget.schoolId,
+        classId: _selectedClassId!,
+        subjectId: _selectedSubjectId!,
+        teacherId: widget.teacherId,
+        weights: wMap,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bobot kategori berhasil disimpan'), backgroundColor: Color(0xFF10B981)),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan bobot: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+    final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+
+    Map<String, String> subjectsList = {};
+    if (_selectedClassId != null) {
+      final classData = widget.classMap[_selectedClassId];
+      if (classData != null && classData['subjects'] != null) {
+        subjectsList = Map<String, String>.from(classData['subjects'] as Map);
+      }
+    }
+
+    return AlertDialog(
+      backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: cardBorderColor),
+      ),
+      title: Row(
+        children: [
+          Icon(Icons.percent_rounded, color: const Color(0xFF8B5CF6)),
+          const SizedBox(width: 10),
+          Text(
+            'Atur Bobot Kategori',
+            style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ],
+      ),
+      content: Container(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Dropdown Kelas
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        value: _selectedClassId,
+                        dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                        decoration: InputDecoration(
+                          labelText: 'Pilih Kelas',
+                          labelStyle: TextStyle(color: subTextColor, fontSize: 13),
+                          fillColor: inputFillColor,
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: cardBorderColor),
+                          ),
+                        ),
+                        style: TextStyle(color: titleColor, fontSize: 14),
+                        items: widget.classMap.keys.map((classId) {
+                          return DropdownMenuItem(
+                            value: classId,
+                            child: Text(widget.classMap[classId]?['className']?.toString() ?? ''),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedClassId = val;
+                            _selectedSubjectId = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Dropdown Mapel
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        value: _selectedSubjectId,
+                        dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                        decoration: InputDecoration(
+                          labelText: 'Pilih Mata Pelajaran',
+                          labelStyle: TextStyle(color: subTextColor, fontSize: 13),
+                          fillColor: inputFillColor,
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: cardBorderColor),
+                          ),
+                        ),
+                        style: TextStyle(color: titleColor, fontSize: 14),
+                        items: subjectsList.keys.map((subjectId) {
+                          return DropdownMenuItem(
+                            value: subjectId,
+                            child: Text(subjectsList[subjectId] ?? ''),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedSubjectId = val;
+                          });
+                          _loadExistingWeights();
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      if (_selectedClassId != null && _selectedSubjectId != null) ...[
+                        if (_isLoadingWeights)
+                          const SizedBox(
+                            height: 100,
+                            child: Center(
+                              child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+                            ),
+                          )
+                        else ...[
+                          Divider(color: cardBorderColor),
+                          const SizedBox(height: 8),
+                          _buildWeightInput('Tugas', _tugasController, titleColor, subTextColor, inputFillColor, cardBorderColor),
+                          const SizedBox(height: 10),
+                          _buildWeightInput('Kuis', _kuisController, titleColor, subTextColor, inputFillColor, cardBorderColor),
+                          const SizedBox(height: 10),
+                          _buildWeightInput('Ulangan Harian', _ulanganController, titleColor, subTextColor, inputFillColor, cardBorderColor),
+                          const SizedBox(height: 10),
+                          _buildWeightInput('UTS', _utsController, titleColor, subTextColor, inputFillColor, cardBorderColor),
+                          const SizedBox(height: 10),
+                          _buildWeightInput('UAS', _uasController, titleColor, subTextColor, inputFillColor, cardBorderColor),
+                          const SizedBox(height: 16),
+                          
+                          // Total akumulasi
+                          StatefulBuilder(
+                            builder: (context, setSubState) {
+                              void update() => setSubState(() {});
+                              _tugasController.addListener(update);
+                              _kuisController.addListener(update);
+                              _ulanganController.addListener(update);
+                              _utsController.addListener(update);
+                              _uasController.addListener(update);
+                              
+                              final total = _totalPercentage;
+                              final isValid = total == 100.0;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isValid ? const Color(0xFF10B981).withValues(alpha: 0.1) : const Color(0xFFEF4444).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: isValid ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Total Akumulasi:',
+                                      style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 13),
+                                    ),
+                                    Text(
+                                      '${total.toStringAsFixed(0)}% / 100%',
+                                      style: TextStyle(
+                                        color: isValid ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ]
+                      ] else ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Text(
+                            'Pilih Kelas dan Mapel untuk mengatur bobot.',
+                            style: TextStyle(color: subTextColor, fontSize: 12),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ]
+                    ],
+                  ),
+                ),
+              ),
+            ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Batal',
+            style: TextStyle(color: subTextColor, fontWeight: FontWeight.w600),
+          ),
+        ),
+        if (_selectedClassId != null && _selectedSubjectId != null && !_isLoadingWeights)
+          ElevatedButton(
+            onPressed: _isSaving ? null : _saveWeights,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8B5CF6),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                : const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildWeightInput(
+    String label,
+    TextEditingController controller,
+    Color titleColor,
+    Color subTextColor,
+    Color inputFillColor,
+    Color cardBorderColor,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: TextStyle(color: titleColor, fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ),
+        Expanded(
+          flex: 1,
+          child: TextFormField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: titleColor, fontSize: 13, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              suffixText: '%',
+              suffixStyle: TextStyle(color: subTextColor, fontSize: 11),
+              fillColor: inputFillColor,
+              filled: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: cardBorderColor),
+              ),
+            ),
+            validator: (val) {
+              final d = double.tryParse(val ?? '');
+              if (d == null || d < 0 || d > 100) {
+                return '0-100';
+              }
+              return null;
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}

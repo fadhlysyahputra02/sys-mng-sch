@@ -192,211 +192,221 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final isStudent = role == 'student';
     final tabLength = isStudent ? 3 : 4;
 
-    if (_isLoadingInfo) {
-      return const Scaffold(
-        body: AuthBackground(
-          child: Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ),
-        ),
-      );
-    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final indicatorColor = isDark ? const Color(0xFF8B5CF6) : const Color(0xFF8B5CF6);
+        final unselectedLabelColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
 
-    if (_errorMessage != null) {
-      return Scaffold(
-        body: AuthBackground(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Gagal memuat info guru:\n$_errorMessage',
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8B5CF6),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isLoadingInfo = true;
-                        _errorMessage = null;
-                      });
-                      _loadTeacherInfo();
-                    },
-                    child: const Text('Coba Lagi', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ],
+        if (_isLoadingInfo) {
+          return Scaffold(
+            body: AuthBackground(
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(isDark ? Colors.white : const Color(0xFF8B5CF6)),
+                ),
               ),
             ),
-          ),
-        ),
-      );
-    }
+          );
+        }
 
-    return Scaffold(
-      body: AuthBackground(
-        child: DefaultTabController(
-          length: tabLength,
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              automaticallyImplyLeading: !widget.hideBackButton,
-              iconTheme: const IconThemeData(color: Colors.white),
-              title: const Text(
-                'Notifikasi',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-              ),
-              bottom: TabBar(
-                isScrollable: true,
-                indicatorColor: const Color(0xFF8B5CF6),
-                indicatorWeight: 3,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white38,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
-                tabs: [
-                  const Tab(text: 'Semua (Umum)', icon: Icon(Icons.campaign_outlined, size: 20)),
-                  const Tab(text: 'Kelas', icon: Icon(Icons.class_outlined, size: 20)),
-                  const Tab(text: 'Guru', icon: Icon(Icons.person_outline, size: 20)),
-                  if (!isStudent)
-                    const Tab(text: 'Murid', icon: Icon(Icons.school_outlined, size: 20)),
-                ],
-              ),
-            ),
-            floatingActionButton: (role == 'super_admin' || role == 'school_admin' || role == 'teacher')
-                ? FloatingActionButton.extended(
-                    onPressed: () {
-                      Get.to(() => CreateNotificationPage(
-                            teacherDocId: _teacherDocId,
-                            teacherClassIds: _teacherClassIds,
-                          ));
-                    },
-                    backgroundColor: const Color(0xFF8B5CF6),
-                    foregroundColor: Colors.white,
-                    icon: const Icon(Icons.add_comment_rounded),
-                    label: const Text('Buat Notifikasi', style: TextStyle(fontWeight: FontWeight.bold)),
-                  )
-                : null,
-            body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('schools')
-                  .doc(schoolId)
-                  .collection('notifications')
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
-                        SizedBox(height: 12),
-                        Text(
-                          'Terjadi kesalahan',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  );
-                }
-
-                final allDocs = snapshot.data?.docs ?? [];
-
-                // Filter documents based on teacher role and scope
-                final filteredDocs = allDocs.where((doc) {
-                  final data = doc.data();
-                  final targetType = data['targetType'] ?? '';
-                  final targetId = data['targetId'] ?? '';
-                  final senderId = data['senderId'] ?? '';
-
-                  bool keep = false;
-
-                  if (role == 'super_admin' || role == 'school_admin') {
-                    keep = true;
-                  } else if (role == 'teacher') {
-                    if (senderId == user.uid) {
-                      keep = true;
-                    } else if (targetType == 'umum') {
-                      keep = true;
-                    } else if (targetType == 'kelas' && _waliClassIds.contains(targetId)) {
-                      keep = true;
-                    } else if (targetType == 'guru' && (targetId == '' || targetId == _teacherDocId)) {
-                      keep = true;
-                    } else if (targetType == 'murid' && _waliClassIds.contains(data['targetClassId'] ?? '')) {
-                      keep = true;
-                    }
-                  } else if (role == 'student') {
-                    if (targetType == 'umum') {
-                      keep = true;
-                    } else if (targetType == 'kelas' &&
-                        ((_studentClassId != null && targetId == _studentClassId) ||
-                            (_studentClassName != null && data['targetName'] == _studentClassName))) {
-                      keep = true;
-                    } else if (targetType == 'murid' && _studentNama != null && data['targetName'] == _studentNama) {
-                      keep = true;
-                    }
-                  }
-
-                  return keep;
-                }).toList();
-
-                return TabBarView(
-                  children: [
-                    _buildNotificationList(
-                      context,
-                      filteredDocs.where((doc) => doc.data()['targetType'] == 'umum').toList(),
-                      'umum',
-                    ),
-                    _buildNotificationList(
-                      context,
-                      filteredDocs.where((doc) => doc.data()['targetType'] == 'kelas').toList(),
-                      'kelas',
-                    ),
-                    _buildNotificationList(
-                      context,
-                      isStudent
-                          ? filteredDocs.where((doc) => doc.data()['targetType'] == 'murid' && doc.data()['senderRole'] == 'teacher').toList()
-                          : filteredDocs.where((doc) => doc.data()['targetType'] == 'guru').toList(),
-                      'guru',
-                    ),
-                    if (!isStudent)
-                      _buildNotificationList(
-                        context,
-                        filteredDocs.where((doc) => doc.data()['targetType'] == 'murid').toList(),
-                        'murid',
+        if (_errorMessage != null) {
+          return Scaffold(
+            body: AuthBackground(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Gagal memuat info guru:\n$_errorMessage',
+                        style: TextStyle(color: titleColor, fontSize: 14),
+                        textAlign: TextAlign.center,
                       ),
-                  ],
-                );
-              },
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8B5CF6),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isLoadingInfo = true;
+                            _errorMessage = null;
+                          });
+                          _loadTeacherInfo();
+                        },
+                        child: const Text('Coba Lagi', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Scaffold(
+          body: AuthBackground(
+            child: DefaultTabController(
+              length: tabLength,
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  automaticallyImplyLeading: !widget.hideBackButton,
+                  iconTheme: IconThemeData(color: backButtonColor),
+                  title: Text(
+                    'Notifikasi',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
+                  ),
+                  bottom: TabBar(
+                    isScrollable: true,
+                    indicatorColor: indicatorColor,
+                    indicatorWeight: 3,
+                    labelColor: titleColor,
+                    unselectedLabelColor: unselectedLabelColor,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
+                    tabs: [
+                      const Tab(text: 'Semua (Umum)', icon: Icon(Icons.campaign_outlined, size: 20)),
+                      const Tab(text: 'Kelas', icon: Icon(Icons.class_outlined, size: 20)),
+                      const Tab(text: 'Guru', icon: Icon(Icons.person_outline, size: 20)),
+                      if (!isStudent)
+                        const Tab(text: 'Murid', icon: Icon(Icons.school_outlined, size: 20)),
+                    ],
+                  ),
+                ),
+                floatingActionButton: (role == 'super_admin' || role == 'school_admin' || role == 'teacher')
+                    ? FloatingActionButton.extended(
+                        onPressed: () {
+                          Get.to(() => CreateNotificationPage(
+                                teacherDocId: _teacherDocId,
+                                teacherClassIds: _teacherClassIds,
+                              ));
+                        },
+                        backgroundColor: const Color(0xFF8B5CF6),
+                        foregroundColor: Colors.white,
+                        icon: const Icon(Icons.add_comment_rounded),
+                        label: const Text('Buat Notifikasi', style: TextStyle(fontWeight: FontWeight.bold)),
+                      )
+                    : null,
+                body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('schools')
+                      .doc(schoolId)
+                      .collection('notifications')
+                      .orderBy('createdAt', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Terjadi kesalahan',
+                              style: TextStyle(
+                                color: titleColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(isDark ? Colors.white : const Color(0xFF8B5CF6)),
+                        ),
+                      );
+                    }
+
+                    final allDocs = snapshot.data?.docs ?? [];
+
+                    // Filter documents based on teacher role and scope
+                    final filteredDocs = allDocs.where((doc) {
+                      final data = doc.data();
+                      final targetType = data['targetType'] ?? '';
+                      final targetId = data['targetId'] ?? '';
+                      final senderId = data['senderId'] ?? '';
+
+                      bool keep = false;
+
+                      if (role == 'super_admin' || role == 'school_admin') {
+                        keep = true;
+                      } else if (role == 'teacher') {
+                        if (senderId == user.uid) {
+                          keep = true;
+                        } else if (targetType == 'umum') {
+                          keep = true;
+                        } else if (targetType == 'kelas' && _waliClassIds.contains(targetId)) {
+                          keep = true;
+                        } else if (targetType == 'guru' && (targetId == '' || targetId == _teacherDocId)) {
+                          keep = true;
+                        } else if (targetType == 'murid' && _waliClassIds.contains(data['targetClassId'] ?? '')) {
+                          keep = true;
+                        }
+                      } else if (role == 'student') {
+                        if (targetType == 'umum') {
+                          keep = true;
+                        } else if (targetType == 'kelas' &&
+                            ((_studentClassId != null && targetId == _studentClassId) ||
+                                (_studentClassName != null && data['targetName'] == _studentClassName))) {
+                          keep = true;
+                        } else if (targetType == 'murid' && _studentNama != null && data['targetName'] == _studentNama) {
+                          keep = true;
+                        }
+                      }
+
+                      return keep;
+                    }).toList();
+
+                    return TabBarView(
+                      children: [
+                        _buildNotificationList(
+                          context,
+                          filteredDocs.where((doc) => doc.data()['targetType'] == 'umum').toList(),
+                          'umum',
+                        ),
+                        _buildNotificationList(
+                          context,
+                          filteredDocs.where((doc) => doc.data()['targetType'] == 'kelas').toList(),
+                          'kelas',
+                        ),
+                        _buildNotificationList(
+                          context,
+                          isStudent
+                              ? filteredDocs.where((doc) => doc.data()['targetType'] == 'murid' && doc.data()['senderRole'] == 'teacher').toList()
+                              : filteredDocs.where((doc) => doc.data()['targetType'] == 'guru').toList(),
+                          'guru',
+                        ),
+                        if (!isStudent)
+                          _buildNotificationList(
+                            context,
+                            filteredDocs.where((doc) => doc.data()['targetType'] == 'murid').toList(),
+                            'murid',
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -405,6 +415,22 @@ class _NotificationsPageState extends State<NotificationsPage> {
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
     String type,
   ) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final emptyIconColor = isDark ? Colors.white.withValues(alpha: 0.25) : const Color(0xFF1E1B4B).withValues(alpha: 0.3);
+    final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+    final listTileBg = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+    final listTileBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final listTileShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.03);
+
+    final textPrimaryColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final textSecondaryColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final textSubtitleColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+
+    final chipBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03);
+    final chipBorder = isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08);
+    final chipTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+
     if (docs.isEmpty) {
       String message = 'Belum ada notifikasi umum';
       IconData icon = Icons.campaign_outlined;
@@ -423,13 +449,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: Colors.white.withValues(alpha: 0.25)),
+            Icon(icon, size: 64, color: emptyIconColor),
             const SizedBox(height: 16),
             Text(
               message,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.5),
+                color: emptyTextColor,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -466,9 +492,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.04),
+            color: listTileBg,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(color: listTileBorder),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: listTileShadow,
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
           ),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -505,10 +540,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         children: [
                           Text(
                             title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
-                              color: Colors.white,
+                              color: textPrimaryColor,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -516,7 +551,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             _formatDateTime(timestamp),
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.white.withValues(alpha: 0.5),
+                              color: textSecondaryColor,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -539,7 +574,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   content,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: textSubtitleColor,
                     height: 1.4,
                   ),
                 ),
@@ -551,9 +586,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
+                        color: chipBg,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
+                        border: Border.all(color: chipBorder, width: 1),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -561,13 +596,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           Icon(
                             Icons.person_rounded,
                             size: 12,
-                            color: Colors.white.withValues(alpha: 0.6),
+                            color: chipTextColor,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             'Pengirim: $senderName (${_formatRole(senderRole)})',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
+                              color: chipTextColor,
                               fontWeight: FontWeight.w500,
                               fontSize: 10,
                             ),
@@ -622,21 +657,28 @@ class _NotificationsPageState extends State<NotificationsPage> {
     BuildContext context,
     DocumentReference ref,
   ) async {
+    final isDark = AuthBackground.isDarkMode.value;
+    final dialogBgColor = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final dialogBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final bodyTextColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+    final cancelBtnColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBgColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: dialogBorderColor, width: 1.5),
           ),
-          title: const Text('Hapus Notifikasi', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-          content: Text('Apakah Anda yakin ingin menghapus notifikasi ini? Tindakan ini tidak dapat dibatalkan.', style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
+          title: Text('Hapus Notifikasi', style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor)),
+          content: Text('Apakah Anda yakin ingin menghapus notifikasi ini? Tindakan ini tidak dapat dibatalkan.', style: TextStyle(color: bodyTextColor)),
           actions: [
             TextButton(
               onPressed: () => Get.back(result: false),
-              child: const Text('Batal', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+              child: Text('Batal', style: TextStyle(color: cancelBtnColor, fontWeight: FontWeight.bold)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(

@@ -117,6 +117,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final user = SessionService.currentUser!;
     final scheduleId = widget.scheduleData['scheduleId'] ?? '';
@@ -130,141 +131,205 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
 
     // Create the unique verification payload
     final qrPayload = 'sys_mng_school_attendance:{"schoolId":"${user.schoolId}","scheduleId":"$scheduleId","date":"$dateStr","className":"$className","subjectName":"$subjectName"}';
-    
 
-    return Scaffold(
-      body: AuthBackground(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverAppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              pinned: true,
-              iconTheme: const IconThemeData(color: Colors.white),
-              leading: Container(
-                margin: const EdgeInsets.only(left: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-              title: const Text(
-                'QR Code Absensi',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    // Header info card
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            subjectName,
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Kelas: $className',
-                            style: const TextStyle(fontSize: 16, color: Color(0xFF10B981), fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _getFormattedIndonesianDate(dateStr),
-                            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.5)),
-                          ),
-                        ],
-                      ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+        final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+        final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+        final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+        final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final progressColor = isDark ? Colors.white : const Color(0xFF8B5CF6);
+        final shadowColor = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverAppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  pinned: true,
+                  iconTheme: IconThemeData(color: iconColor),
+                  leading: Container(
+                    margin: const EdgeInsets.only(left: 16),
+                    decoration: BoxDecoration(
+                      color: iconBgColor,
+                      shape: BoxShape.circle,
                     ),
-
-                    const SizedBox(height: 24),
-
-                    // QR Code Box (Only display if schedule has not passed)
-                    if (!isPassed)
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.25),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            QrImageView(
-                              data: qrPayload,
-                              version: QrVersions.auto,
-                              size: 200.0,
-                              gapless: false,
-                              foregroundColor: const Color(0xFF0F0C20),
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Scan QR Code di atas untuk absen',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                        ),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.history_toggle_off_rounded, color: Colors.amber, size: 48),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Presensi Selesai / Terlewat',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Pembuatan QR Code dinonaktifkan karena jam pelajaran telah selesai atau tanggal pelaksanaan telah berlalu.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    const SizedBox(height: 32),
-
-                    // Real-time Check-in Title
-                    Row(
+                    child: IconButton(
+                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  title: Text(
+                    'QR Code Absensi',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
                       children: [
-                        const Icon(Icons.people_alt_rounded, color: Colors.white, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          isToday ? 'Murid Hadir (Real-time)' : 'Murid Hadir (Riwayat)',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        // Header info card
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: cardBgColor,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: cardBorderColor),
+                            boxShadow: isDark ? [] : [
+                              BoxShadow(
+                                color: shadowColor,
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                subjectName,
+                                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: titleColor),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Kelas: $className',
+                                style: const TextStyle(fontSize: 16, color: Color(0xFF10B981), fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _getFormattedIndonesianDate(dateStr),
+                                style: TextStyle(fontSize: 13, color: subTextColor),
+                              ),
+                            ],
+                          ),
                         ),
-                        const Spacer(),
+
+                        const SizedBox(height: 24),
+
+                        // QR Code Box (Only display if schedule has not passed)
+                        if (!isPassed)
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(28),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.25),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              children: [
+                                QrImageView(
+                                  data: qrPayload,
+                                  version: QrVersions.auto,
+                                  size: 200.0,
+                                  gapless: false,
+                                  foregroundColor: const Color(0xFF0F0C20),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Scan QR Code di atas untuk absen',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: cardBgColor,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: cardBorderColor),
+                              boxShadow: isDark ? [] : [
+                                BoxShadow(
+                                  color: shadowColor,
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.history_toggle_off_rounded, color: Colors.amber, size: 48),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Presensi Selesai / Terlewat',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Pembuatan QR Code dinonaktifkan karena jam pelajaran telah selesai atau tanggal pelaksanaan telah berlalu.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 12, color: subTextColor),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        const SizedBox(height: 32),
+
+                        // Real-time Check-in Title
+                        Row(
+                          children: [
+                            Icon(Icons.people_alt_rounded, color: iconColor, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              isToday ? 'Murid Hadir (Real-time)' : 'Murid Hadir (Riwayat)',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                            ),
+                            const Spacer(),
+                            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('schools')
+                                  .doc(user.schoolId)
+                                  .collection('students')
+                                  .where('classId', isEqualTo: classId)
+                                  .snapshots(),
+                              builder: (context, classSnapshot) {
+                                final total = classSnapshot.data?.docs.length ?? 0;
+                                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                  stream: _studentService.getScheduleAttendanceListStream(
+                                    schoolId: user.schoolId,
+                                    scheduleId: scheduleId,
+                                    dateStr: dateStr,
+                                  ),
+                                  builder: (context, snapshot) {
+                                    final count = snapshot.data?.docs.length ?? 0;
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                                      ),
+                                      child: Text(
+                                        total > 0 ? '$count / $total Murid' : '$count Murid',
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Stream List
                         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                           stream: FirebaseFirestore.instance
                               .collection('schools')
@@ -273,301 +338,266 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                               .where('classId', isEqualTo: classId)
                               .snapshots(),
                           builder: (context, classSnapshot) {
-                            final total = classSnapshot.data?.docs.length ?? 0;
+                            if (classSnapshot.hasError) {
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                child: Text(
+                                  'Gagal memuat daftar murid kelas: ${classSnapshot.error}',
+                                  style: const TextStyle(color: Colors.redAccent),
+                                ),
+                              );
+                            }
+
+                            if (classSnapshot.connectionState == ConnectionState.waiting) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24.0),
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            final allStudents = classSnapshot.data?.docs ?? [];
+
                             return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                               stream: _studentService.getScheduleAttendanceListStream(
                                 schoolId: user.schoolId,
                                 scheduleId: scheduleId,
                                 dateStr: dateStr,
                               ),
-                              builder: (context, snapshot) {
-                                final count = snapshot.data?.docs.length ?? 0;
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
-                                  ),
-                                  child: Text(
-                                    total > 0 ? '$count / $total Murid' : '$count Murid',
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
-                                  ),
+                              builder: (context, attendanceSnapshot) {
+                                if (attendanceSnapshot.hasError) {
+                                  return Container(
+                                    padding: const EdgeInsets.all(16),
+                                    child: const Text(
+                                      'Gagal memuat daftar kehadiran',
+                                      style: TextStyle(color: Colors.redAccent),
+                                    ),
+                                  );
+                                }
+
+                                if (attendanceSnapshot.connectionState == ConnectionState.waiting) {
+                                  return Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(24.0),
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                final attendanceDocs = attendanceSnapshot.data?.docs ?? [];
+                                
+                                // Map studentId -> attendance data
+                                final Map<String, Map<String, dynamic>> attendanceMap = {};
+                                for (var doc in attendanceDocs) {
+                                  final data = doc.data();
+                                  final studentId = data['studentId'] ?? '';
+                                  if (studentId.isNotEmpty) {
+                                    attendanceMap[studentId] = data;
+                                  }
+                                }
+
+                                // Build the combined list
+                                final List<Map<String, dynamic>> combinedList = [];
+                                if (allStudents.isNotEmpty) {
+                                  for (var studentDoc in allStudents) {
+                                    final studentData = studentDoc.data();
+                                    final studentId = studentDoc.id;
+                                    final hasCheckedIn = attendanceMap.containsKey(studentId);
+                                    
+                                    combinedList.add({
+                                      'studentId': studentId,
+                                      'nama': studentData['nama'] ?? 'Murid',
+                                      'nis': studentData['nis'] ?? '-',
+                                      'hasCheckedIn': hasCheckedIn,
+                                      'attendanceData': hasCheckedIn ? attendanceMap[studentId] : null,
+                                    });
+                                  }
+                                } else {
+                                  // Fallback for empty students list (e.g. legacy schedules or classId not set)
+                                  for (var doc in attendanceDocs) {
+                                    final data = doc.data();
+                                    final studentId = data['studentId'] ?? '';
+                                    combinedList.add({
+                                      'studentId': studentId,
+                                      'nama': data['studentName'] ?? 'Murid',
+                                      'nis': '-',
+                                      'hasCheckedIn': true,
+                                      'attendanceData': data,
+                                    });
+                                  }
+                                }
+
+                                if (combinedList.isEmpty) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 40),
+                                    decoration: BoxDecoration(
+                                      color: cardBgColor,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: cardBorderColor),
+                                    ),
+                                    child: Center(
+                                      child: Column(
+                                        children: [
+                                          Icon(Icons.hourglass_empty_rounded, size: 40, color: subTextColor.withValues(alpha: 0.5)),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            'Belum ada murid di kelas ini',
+                                            style: TextStyle(color: subTextColor, fontSize: 13),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                // Sort: Checked in first (sorted by timestamp descending), then not checked in (alphabetically)
+                                combinedList.sort((a, b) {
+                                  final aChecked = a['hasCheckedIn'] as bool;
+                                  final bChecked = b['hasCheckedIn'] as bool;
+                                  
+                                  if (aChecked && !bChecked) return -1;
+                                  if (!aChecked && bChecked) return 1;
+                                  
+                                  if (aChecked && bChecked) {
+                                    final ta = (a['attendanceData']['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+                                    final tb = (b['attendanceData']['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+                                    return tb.compareTo(ta); // latest first
+                                  } else {
+                                    final String na = a['nama'] as String;
+                                    final String nb = b['nama'] as String;
+                                    return na.compareTo(nb); // alphabetical
+                                  }
+                                });
+
+                                return ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: combinedList.length,
+                                  itemBuilder: (context, index) {
+                                    final item = combinedList[index];
+                                    final studentName = item['nama'];
+                                    final hasCheckedIn = item['hasCheckedIn'] as bool;
+
+                                    if (hasCheckedIn) {
+                                      final attData = item['attendanceData'] as Map<String, dynamic>;
+                                      final timestamp = attData['timestamp'] as Timestamp?;
+                                      final method = attData['method'] ?? 'QR Scan';
+
+                                      return Container(
+                                        margin: const EdgeInsets.only(bottom: 12),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: cardBgColor,
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(color: cardBorderColor),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                              child: const Icon(Icons.person_rounded, color: Color(0xFF10B981)),
+                                            ),
+                                            const SizedBox(width: 14),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    studentName,
+                                                    style: TextStyle(fontWeight: FontWeight.bold, color: titleColor, fontSize: 15),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    'Metode: $method',
+                                                    style: TextStyle(fontSize: 11, color: subTextColor),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Text(
+                                              _formatTime(timestamp),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF10B981),
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    } else {
+                                      return Container(
+                                        margin: const EdgeInsets.only(bottom: 12),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.04),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+                                              child: Icon(Icons.person_outline_rounded, color: subTextColor),
+                                            ),
+                                            const SizedBox(width: 14),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    studentName,
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold, 
+                                                      color: titleColor.withValues(alpha: 0.7), 
+                                                      fontSize: 15,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    'Belum melakukan presensi',
+                                                    style: TextStyle(
+                                                      fontSize: 11, 
+                                                      color: Colors.orangeAccent.withValues(alpha: 0.8),
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Icon(
+                                              Icons.info_outline_rounded,
+                                              size: 16,
+                                              color: Colors.orangeAccent.withValues(alpha: 0.6),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                  },
                                 );
                               },
                             );
                           },
                         ),
+
+                        const SizedBox(height: 40),
                       ],
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // Stream List
-                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance
-                          .collection('schools')
-                          .doc(user.schoolId)
-                          .collection('students')
-                          .where('classId', isEqualTo: classId)
-                          .snapshots(),
-                      builder: (context, classSnapshot) {
-                        if (classSnapshot.hasError) {
-                          return Container(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              'Gagal memuat daftar murid kelas: ${classSnapshot.error}',
-                              style: const TextStyle(color: Colors.redAccent),
-                            ),
-                          );
-                        }
-
-                        if (classSnapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24.0),
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                          );
-                        }
-
-                        final allStudents = classSnapshot.data?.docs ?? [];
-
-                        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                          stream: _studentService.getScheduleAttendanceListStream(
-                            schoolId: user.schoolId,
-                            scheduleId: scheduleId,
-                            dateStr: dateStr,
-                          ),
-                          builder: (context, attendanceSnapshot) {
-                            if (attendanceSnapshot.hasError) {
-                              return Container(
-                                padding: const EdgeInsets.all(16),
-                                child: const Text(
-                                  'Gagal memuat daftar kehadiran',
-                                  style: TextStyle(color: Colors.redAccent),
-                                ),
-                              );
-                            }
-
-                            if (attendanceSnapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(24.0),
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                ),
-                              );
-                            }
-
-                            final attendanceDocs = attendanceSnapshot.data?.docs ?? [];
-                            
-                            // Map studentId -> attendance data
-                            final Map<String, Map<String, dynamic>> attendanceMap = {};
-                            for (var doc in attendanceDocs) {
-                              final data = doc.data();
-                              final studentId = data['studentId'] ?? '';
-                              if (studentId.isNotEmpty) {
-                                attendanceMap[studentId] = data;
-                              }
-                            }
-
-                            // Build the combined list
-                            final List<Map<String, dynamic>> combinedList = [];
-                            if (allStudents.isNotEmpty) {
-                              for (var studentDoc in allStudents) {
-                                final studentData = studentDoc.data();
-                                final studentId = studentDoc.id;
-                                final hasCheckedIn = attendanceMap.containsKey(studentId);
-                                
-                                combinedList.add({
-                                  'studentId': studentId,
-                                  'nama': studentData['nama'] ?? 'Murid',
-                                  'nis': studentData['nis'] ?? '-',
-                                  'hasCheckedIn': hasCheckedIn,
-                                  'attendanceData': hasCheckedIn ? attendanceMap[studentId] : null,
-                                });
-                              }
-                            } else {
-                              // Fallback for empty students list (e.g. legacy schedules or classId not set)
-                              for (var doc in attendanceDocs) {
-                                final data = doc.data();
-                                final studentId = data['studentId'] ?? '';
-                                combinedList.add({
-                                  'studentId': studentId,
-                                  'nama': data['studentName'] ?? 'Murid',
-                                  'nis': '-',
-                                  'hasCheckedIn': true,
-                                  'attendanceData': data,
-                                });
-                              }
-                            }
-
-                            if (combinedList.isEmpty) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(vertical: 40),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.03),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-                                ),
-                                child: const Center(
-                                  child: Column(
-                                    children: [
-                                      Icon(Icons.hourglass_empty_rounded, size: 40, color: Colors.white24),
-                                      SizedBox(height: 12),
-                                      Text(
-                                        'Belum ada murid di kelas ini',
-                                        style: TextStyle(color: Colors.white30, fontSize: 13),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }
-
-                            // Sort: Checked in first (sorted by timestamp descending), then not checked in (alphabetically)
-                            combinedList.sort((a, b) {
-                              final aChecked = a['hasCheckedIn'] as bool;
-                              final bChecked = b['hasCheckedIn'] as bool;
-                              
-                              if (aChecked && !bChecked) return -1;
-                              if (!aChecked && bChecked) return 1;
-                              
-                              if (aChecked && bChecked) {
-                                final ta = (a['attendanceData']['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-                                final tb = (b['attendanceData']['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-                                return tb.compareTo(ta); // latest first
-                              } else {
-                                final String na = a['nama'] as String;
-                                final String nb = b['nama'] as String;
-                                return na.compareTo(nb); // alphabetical
-                              }
-                            });
-
-                            return ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: combinedList.length,
-                              itemBuilder: (context, index) {
-                                final item = combinedList[index];
-                                final studentName = item['nama'];
-                                final hasCheckedIn = item['hasCheckedIn'] as bool;
-
-                                if (hasCheckedIn) {
-                                  final attData = item['attendanceData'] as Map<String, dynamic>;
-                                  final timestamp = attData['timestamp'] as Timestamp?;
-                                  final method = attData['method'] ?? 'QR Scan';
-
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.04),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.2),
-                                          child: const Icon(Icons.person_rounded, color: Color(0xFF10B981)),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                studentName,
-                                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                'Metode: $method',
-                                                style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4)),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Text(
-                                          _formatTime(timestamp),
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF10B981),
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                } else {
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.02),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          backgroundColor: Colors.white.withValues(alpha: 0.05),
-                                          child: Icon(Icons.person_outline_rounded, color: Colors.white.withValues(alpha: 0.4)),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                studentName,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold, 
-                                                  color: Colors.white.withValues(alpha: 0.6), 
-                                                  fontSize: 15,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                'Belum melakukan presensi',
-                                                style: TextStyle(
-                                                  fontSize: 11, 
-                                                  color: Colors.orangeAccent.withValues(alpha: 0.8),
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.info_outline_rounded,
-                                          size: 16,
-                                          color: Colors.orangeAccent.withValues(alpha: 0.6),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }
-                              },
-                            );
-                          },
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 40),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

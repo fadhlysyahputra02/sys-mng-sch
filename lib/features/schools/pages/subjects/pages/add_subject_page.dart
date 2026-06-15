@@ -16,6 +16,7 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
 
   final kodeController = TextEditingController();
   final namaController = TextEditingController();
+  final kkmController = TextEditingController(text: '75');
 
   String kategori = 'Wajib';
   bool isLoading = false;
@@ -33,6 +34,7 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
         kodeMapel: kodeController.text.trim(),
         namaMapel: namaController.text.trim(),
         kategori: kategori,
+        kkm: int.tryParse(kkmController.text.trim()) ?? 75,
       );
 
       if (mounted) {
@@ -59,184 +61,225 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
   void dispose() {
     kodeController.dispose();
     namaController.dispose();
+    kkmController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: AuthBackground(
-        child: Column(
-          children: [
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+        final cardBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+        final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+
+        final textPrimaryColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final textSecondaryColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+        final fieldBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03);
+        final fieldBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: Column(
+              children: [
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonColor, size: 20),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Tambah Mata Pelajaran',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    const Expanded(
-                      child: Text(
-                        'Tambah Mata Pelajaran',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 8),
-
-                      // Header card
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF10B981), Color(0xFF34D399)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 28),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Registrasi Mata Pelajaran',
-                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Kode mapel harus unik dan tidak boleh sama.',
-                                    style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.55)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Kode Mapel
-                      _buildField(
-                        controller: kodeController,
-                        label: 'Kode Mapel',
-                        icon: Icons.tag_rounded,
-                        validator: (v) => (v == null || v.isEmpty) ? 'Kode Mapel wajib diisi' : null,
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Nama Mapel
-                      _buildField(
-                        controller: namaController,
-                        label: 'Nama Mapel',
-                        icon: Icons.menu_book_rounded,
-                        validator: (v) => (v == null || v.isEmpty) ? 'Nama Mapel wajib diisi' : null,
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Kategori Dropdown
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-                        ),
-                        child: DropdownButtonFormField<String>(
-                          value: kategori,
-                          dropdownColor: const Color(0xFF0F0C20),
-                          style: const TextStyle(color: Colors.white, fontSize: 15),
-                          decoration: InputDecoration(
-                            labelText: 'Kategori',
-                            labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 14),
-                            prefixIcon: Icon(Icons.category_outlined, color: const Color(0xFF10B981), size: 20),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: 'Wajib', child: Text('Wajib')),
-                            DropdownMenuItem(value: 'Pilihan', child: Text('Pilihan')),
-                          ],
-                          onChanged: (v) {
-                            setState(() {
-                              kategori = v!;
-                            });
-                          },
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Submit button
-                      Container(
-                        height: 54,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF10B981), Color(0xFF34D399)],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                          onPressed: isLoading ? null : save,
-                          child: isLoading
-                              ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                                )
-                              : const Text(
-                                  'Simpan Data',
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                                ),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
-              ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 8),
+
+                          // Header card
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: cardBorder),
+                              boxShadow: isDark
+                                  ? []
+                                  : [
+                                      BoxShadow(
+                                        color: cardShadow,
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF10B981), Color(0xFF34D399)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 28),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Registrasi Mata Pelajaran',
+                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimaryColor),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Kode mapel harus unik dan tidak boleh sama.',
+                                        style: TextStyle(fontSize: 12, color: textSecondaryColor),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Kode Mapel
+                          _buildField(
+                            controller: kodeController,
+                            label: 'Kode Mapel',
+                            icon: Icons.tag_rounded,
+                            isDark: isDark,
+                            validator: (v) => (v == null || v.isEmpty) ? 'Kode Mapel wajib diisi' : null,
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Nama Mapel
+                          _buildField(
+                            controller: namaController,
+                            label: 'Nama Mapel',
+                            icon: Icons.menu_book_rounded,
+                            isDark: isDark,
+                            validator: (v) => (v == null || v.isEmpty) ? 'Nama Mapel wajib diisi' : null,
+                          ),
+                          const SizedBox(height: 14),
+
+                          // KKM Mapel
+                          _buildField(
+                            controller: kkmController,
+                            label: 'Nilai KKM (Contoh: 75)',
+                            icon: Icons.speed_rounded,
+                            isDark: isDark,
+                            keyboardType: TextInputType.number,
+                            validator: (v) => (v == null || v.isEmpty) ? 'Nilai KKM wajib diisi' : null,
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Kategori Dropdown
+                          Container(
+                            decoration: BoxDecoration(
+                              color: fieldBg,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: fieldBorder),
+                            ),
+                            child: DropdownButtonFormField<String>(
+                              initialValue: kategori,
+                              dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                              style: TextStyle(color: textPrimaryColor, fontSize: 15),
+                              decoration: InputDecoration(
+                                labelText: 'Kategori',
+                                labelStyle: TextStyle(color: textSecondaryColor, fontSize: 14),
+                                prefixIcon: const Icon(Icons.category_outlined, color: Color(0xFF10B981), size: 20),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                              ),
+                              items: [
+                                DropdownMenuItem(value: 'Wajib', child: Text('Wajib', style: TextStyle(color: textPrimaryColor))),
+                                DropdownMenuItem(value: 'Pilihan', child: Text('Pilihan', style: TextStyle(color: textPrimaryColor))),
+                              ],
+                              onChanged: (v) {
+                                setState(() {
+                                  kategori = v!;
+                                });
+                              },
+                            ),
+                          ),
+
+                          const SizedBox(height: 32),
+
+                          // Submit button
+                          Container(
+                            height: 54,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF10B981), Color(0xFF34D399)],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              onPressed: isLoading ? null : save,
+                              child: isLoading
+                                  ? const SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                    )
+                                  : const Text(
+                                      'Simpan Data',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -244,21 +287,29 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required bool isDark,
+    TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
+    final textStyleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final labelColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final fieldBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04);
+    final fieldBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: fieldBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: fieldBorder),
       ),
       child: TextFormField(
         controller: controller,
         validator: validator,
-        style: const TextStyle(color: Colors.white, fontSize: 15),
+        keyboardType: keyboardType,
+        style: TextStyle(color: textStyleColor, fontSize: 15),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 14),
+          labelStyle: TextStyle(color: labelColor, fontSize: 14),
           prefixIcon: Icon(icon, color: const Color(0xFF10B981), size: 20),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

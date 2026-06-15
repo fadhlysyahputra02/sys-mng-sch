@@ -15,6 +15,7 @@ class SubjectService {
     required String kodeMapel,
     required String namaMapel,
     required String kategori,
+    required int kkm,
   }) async {
     final doc = _subjectsRef(schoolId).doc();
 
@@ -24,6 +25,7 @@ class SubjectService {
       'kodeMapel': kodeMapel,
       'namaMapel': namaMapel,
       'kategori': kategori,
+      'kkm': kkm,
       'aktif': true,
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -42,11 +44,13 @@ class SubjectService {
     required String namaMapel,
     required String kodeMapel,
     required String kategori,
+    required int kkm,
   }) async {
     await _subjectsRef(schoolId).doc(subjectId).update({
       'namaMapel': namaMapel,
       'kodeMapel': kodeMapel,
       'kategori': kategori,
+      'kkm': kkm,
     });
   }
 }

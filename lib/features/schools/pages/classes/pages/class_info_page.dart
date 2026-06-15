@@ -18,9 +18,25 @@ class ClassInfoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: AuthBackground(
-        child: Column(
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+        final cardBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+        final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+
+        final textPrimaryColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final textSecondaryColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+        final bottomBarBg = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+        final bottomBarBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: Column(
           children: [
             // AppBar
             SafeArea(
@@ -31,13 +47,13 @@ class ClassInfoPage extends StatelessWidget {
                   children: [
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonColor, size: 20),
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         className,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -55,7 +71,7 @@ class ClassInfoPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Informasi Kelas header
-                    _sectionHeader('Informasi Kelas', Icons.info_outline_rounded),
+                    _sectionHeader('Informasi Kelas', Icons.info_outline_rounded, isDark),
                     const SizedBox(height: 12),
 
                     // Wali Kelas card
@@ -66,9 +82,9 @@ class ClassInfoPage extends StatelessWidget {
                           return Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.06),
+                              color: cardBg,
                               borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                              border: Border.all(color: cardBorder),
                             ),
                             child: const Center(
                               child: CircularProgressIndicator(
@@ -86,16 +102,18 @@ class ClassInfoPage extends StatelessWidget {
                         return Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.06),
+                            color: cardBg,
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                            border: Border.all(color: cardBorder),
+                            boxShadow: isDark
+                                ? []
+                                : [
+                                    BoxShadow(
+                                      color: cardShadow,
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                           ),
                           child: Row(
                             children: [
@@ -120,7 +138,7 @@ class ClassInfoPage extends StatelessWidget {
                                       'Wali Kelas',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.white.withValues(alpha: 0.5),
+                                        color: textSecondaryColor,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -130,7 +148,7 @@ class ClassInfoPage extends StatelessWidget {
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
-                                        color: hasTeacher ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                                        color: hasTeacher ? textPrimaryColor : textSecondaryColor,
                                       ),
                                     ),
                                   ],
@@ -158,7 +176,7 @@ class ClassInfoPage extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     // Daftar Siswa header
-                    _sectionHeader('Daftar Siswa', Icons.groups_rounded),
+                    _sectionHeader('Daftar Siswa', Icons.groups_rounded, isDark),
                     const SizedBox(height: 12),
 
                     // Student list
@@ -184,18 +202,18 @@ class ClassInfoPage extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.all(24),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.06),
+                                      color: cardBg,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                      border: Border.all(color: cardBorder),
                                     ),
-                                    child: Icon(Icons.group_off_rounded, size: 48, color: Colors.white.withValues(alpha: 0.35)),
+                                    child: Icon(Icons.group_off_rounded, size: 48, color: textSecondaryColor),
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
                                     'Belum ada siswa di kelas ini',
                                     style: TextStyle(
                                       fontSize: 15,
-                                      color: Colors.white.withValues(alpha: 0.55),
+                                      color: textSecondaryColor,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -215,16 +233,18 @@ class ClassInfoPage extends StatelessWidget {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 10),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.06),
+                                  color: cardBg,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.10),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
+                                  border: Border.all(color: cardBorder),
+                                  boxShadow: isDark
+                                      ? []
+                                      : [
+                                          BoxShadow(
+                                            color: cardShadow,
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
                                 ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -260,10 +280,10 @@ class ClassInfoPage extends StatelessWidget {
                                           children: [
                                             Text(
                                               nama,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 14,
-                                                color: Colors.white,
+                                                color: textPrimaryColor,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
@@ -271,7 +291,7 @@ class ClassInfoPage extends StatelessWidget {
                                               'NIS: ${student['nis'] ?? '-'}',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: Colors.white.withValues(alpha: 0.5),
+                                                color: textSecondaryColor,
                                               ),
                                             ),
                                           ],
@@ -310,9 +330,9 @@ class ClassInfoPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.04),
+                color: bottomBarBg,
                 border: Border(
-                  top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                  top: BorderSide(color: bottomBarBorder),
                 ),
               ),
               child: SafeArea(
@@ -324,7 +344,7 @@ class ClassInfoPage extends StatelessWidget {
                       child: Container(
                         height: 48,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.06),
+                          color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.02),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
                         ),
@@ -402,19 +422,23 @@ class ClassInfoPage extends StatelessWidget {
         ),
       ),
     );
+      },
+    );
   }
 
-  Widget _sectionHeader(String title, IconData icon) {
+  Widget _sectionHeader(String title, IconData icon, bool isDark) {
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final iconColor = isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
     return Row(
       children: [
-        Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 18),
+        Icon(icon, color: iconColor, size: 18),
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: textColor,
             letterSpacing: 0.3,
           ),
         ),
@@ -425,14 +449,27 @@ class ClassInfoPage extends StatelessWidget {
   // ─── Dialogs ─────────────────────────────────────────────────────────────────
 
   void _showAddStudentDialog(BuildContext context) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final emptyIconColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+    final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+    final tileBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03);
+    final tileBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+    final studentNameColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final studentNisColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(
+              color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08), 
+              width: 1.5
+            ),
           ),
           titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -447,9 +484,9 @@ class ClassInfoPage extends StatelessWidget {
                 child: const Icon(Icons.group_add_rounded, color: Color(0xFF0EA5E9), size: 20),
               ),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 'Tambah Siswa ke Kelas',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor, fontSize: 16),
               ),
             ],
           ),
@@ -476,11 +513,11 @@ class ClassInfoPage extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.inbox_rounded, size: 48, color: Colors.white.withValues(alpha: 0.3)),
+                        Icon(Icons.inbox_rounded, size: 48, color: emptyIconColor),
                         const SizedBox(height: 16),
                         Text(
                           'Tidak ada siswa tersedia',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                          style: TextStyle(color: emptyTextColor),
                         ),
                       ],
                     ),
@@ -498,9 +535,9 @@ class ClassInfoPage extends StatelessWidget {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: tileBg,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        border: Border.all(color: tileBorder),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -529,11 +566,11 @@ class ClassInfoPage extends StatelessWidget {
                                 children: [
                                   Text(
                                     student['nama'] ?? '',
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                    style: TextStyle(color: studentNameColor, fontWeight: FontWeight.bold, fontSize: 14),
                                   ),
                                   Text(
                                     student['nis'] ?? '',
-                                    style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                                    style: TextStyle(fontSize: 12, color: studentNisColor),
                                   ),
                                 ],
                               ),
@@ -578,11 +615,11 @@ class ClassInfoPage extends StatelessWidget {
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                  side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: Text('Tutup', style: TextStyle(color: titleTextColor, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -592,12 +629,23 @@ class ClassInfoPage extends StatelessWidget {
   }
 
   void _showAddWaliKelasDialog(BuildContext context) async {
+    final isDark = AuthBackground.isDarkMode.value;
+    final dialogBgColor = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final dialogBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final emptyIconColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+    final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+    final tileBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03);
+    final tileBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+    final teacherNameColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
+      builder: (_) => Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          valueColor: AlwaysStoppedAnimation<Color>(isDark ? Colors.white : const Color(0xFFF59E0B)),
         ),
       ),
     );
@@ -621,10 +669,10 @@ class ClassInfoPage extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBgColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: dialogBorderColor, width: 1.5),
           ),
           titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -639,9 +687,9 @@ class ClassInfoPage extends StatelessWidget {
                 child: const Icon(Icons.school_rounded, color: Color(0xFFF59E0B), size: 20),
               ),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 'Pilih Wali Kelas',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor, fontSize: 16),
               ),
             ],
           ),
@@ -656,7 +704,7 @@ class ClassInfoPage extends StatelessWidget {
                     child: Text(
                       'Error: ${snapshot.error}',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                      style: TextStyle(color: titleTextColor.withValues(alpha: 0.6)),
                     ),
                   );
                 }
@@ -679,12 +727,12 @@ class ClassInfoPage extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.person_off_rounded, size: 48, color: Colors.white.withValues(alpha: 0.3)),
+                        Icon(Icons.person_off_rounded, size: 48, color: emptyIconColor),
                         const SizedBox(height: 16),
                         Text(
                           'Tidak ada guru yang tersedia\n(semua sudah menjadi wali kelas)',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                          style: TextStyle(color: emptyTextColor),
                         ),
                       ],
                     ),
@@ -702,9 +750,9 @@ class ClassInfoPage extends StatelessWidget {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: tileBg,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        border: Border.all(color: tileBorder),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -730,7 +778,7 @@ class ClassInfoPage extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 teacherName,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: teacherNameColor),
                               ),
                             ),
                             ElevatedButton(
@@ -772,11 +820,11 @@ class ClassInfoPage extends StatelessWidget {
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                  side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: Text('Tutup', style: TextStyle(color: titleTextColor, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -786,14 +834,20 @@ class ClassInfoPage extends StatelessWidget {
   }
 
   void _showRemoveWaliKelasConfirmation(BuildContext context, String teacherName) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final dialogBgColor = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final dialogBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final bodyTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBgColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: dialogBorderColor, width: 1.5),
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: Column(
@@ -809,15 +863,15 @@ class ClassInfoPage extends StatelessWidget {
                 child: const Icon(Icons.person_remove_rounded, color: Colors.red, size: 30),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Batalkan Wali Kelas',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+                style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor, fontSize: 18),
               ),
               const SizedBox(height: 12),
               Text(
                 'Apakah Anda yakin ingin membatalkan $teacherName sebagai wali kelas?',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, height: 1.5),
+                style: TextStyle(color: bodyTextColor, fontSize: 13, height: 1.5),
               ),
             ],
           ),
@@ -829,11 +883,11 @@ class ClassInfoPage extends StatelessWidget {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Kembali', style: TextStyle(color: Colors.white)),
+                    child: Text('Kembali', style: TextStyle(color: titleTextColor)),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -866,14 +920,20 @@ class ClassInfoPage extends StatelessWidget {
   }
 
   void _showRemoveStudentConfirmation(BuildContext context, String studentId, String studentName) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final dialogBgColor = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final dialogBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final bodyTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBgColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: dialogBorderColor, width: 1.5),
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: Column(
@@ -889,15 +949,15 @@ class ClassInfoPage extends StatelessWidget {
                 child: const Icon(Icons.remove_circle_outline, color: Colors.orange, size: 30),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Keluarkan Siswa',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+                style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor, fontSize: 18),
               ),
               const SizedBox(height: 12),
               Text(
                 'Apakah Anda yakin ingin mengeluarkan $studentName dari kelas ini?',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, height: 1.5),
+                style: TextStyle(color: bodyTextColor, fontSize: 13, height: 1.5),
               ),
             ],
           ),
@@ -909,11 +969,11 @@ class ClassInfoPage extends StatelessWidget {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                    child: Text('Batal', style: TextStyle(color: titleTextColor)),
                   ),
                 ),
                 const SizedBox(width: 10),

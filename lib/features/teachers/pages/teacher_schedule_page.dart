@@ -35,92 +35,115 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
     final user = SessionService.currentUser!;
     const primaryIndigo = Color(0xFF8B5CF6);
 
-    return DefaultTabController(
-      length: _days.length,
-      child: Scaffold(
-        body: AuthBackground(
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+        final backButtonIconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final tabLabelColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final tabUnselectedLabelColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.45);
+
+        return DefaultTabController(
+          length: _days.length,
           child: Scaffold(
-            backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              iconTheme: const IconThemeData(color: Colors.white),
-              leading: Container(
-                margin: const EdgeInsets.only(left: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+            body: AuthBackground(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  iconTheme: IconThemeData(color: backButtonIconColor),
+                  leading: Container(
+                    margin: const EdgeInsets.only(left: 16),
+                    decoration: BoxDecoration(
+                      color: backButtonBgColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonIconColor, size: 18),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  title: Text(
+                    'Jadwal Mengajar',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
+                  ),
+                  bottom: TabBar(
+                    isScrollable: true,
+                    indicatorColor: primaryIndigo,
+                    indicatorWeight: 3,
+                    labelColor: tabLabelColor,
+                    unselectedLabelColor: tabUnselectedLabelColor,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
+                    tabs: _days.map((day) => Tab(text: day)).toList(),
+                  ),
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-              title: const Text(
-                'Jadwal Mengajar',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-              ),
-              bottom: TabBar(
-                isScrollable: true,
-                indicatorColor: primaryIndigo,
-                indicatorWeight: 3,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white38,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
-                tabs: _days.map((day) => Tab(text: day)).toList(),
-              ),
-            ),
-            body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _scheduleService.getSchedulesByTeacher(user.schoolId, widget.teacherId),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
-                        SizedBox(height: 12),
-                        Text(
-                          'Terjadi kesalahan memuat jadwal',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _scheduleService.getSchedulesByTeacher(user.schoolId, widget.teacherId),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Terjadi kesalahan memuat jadwal',
+                              style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                }
+                      );
+                    }
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  );
-                }
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(isDark ? Colors.white : primaryIndigo),
+                        ),
+                      );
+                    }
 
-                final allSchedules = snapshot.data?.docs.map((e) => e.data()).toList() ?? [];
+                    final allSchedules = snapshot.data?.docs.map((e) => e.data()).toList() ?? [];
 
-                return TabBarView(
-                  children: _days.map((day) {
-                    final daySchedules = allSchedules.where((s) => s['hari'] == day).toList();
-                    
-                    // Sort schedules chronologically by start time
-                    daySchedules.sort((a, b) {
-                      return _timeToMinutes(a['jamMulai'] ?? '').compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
-                    });
+                    return TabBarView(
+                      children: _days.map((day) {
+                        final daySchedules = allSchedules.where((s) => s['hari'] == day).toList();
+                        
+                        // Sort schedules chronologically by start time
+                        daySchedules.sort((a, b) {
+                          return _timeToMinutes(a['jamMulai'] ?? '').compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
+                        });
 
-                    return _buildScheduleListForDay(daySchedules, day);
-                  }).toList(),
-                );
-              },
+                        return _buildScheduleListForDay(daySchedules, day, isDark);
+                      }).toList(),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildScheduleListForDay(List<Map<String, dynamic>> schedules, String day) {
+  Widget _buildScheduleListForDay(List<Map<String, dynamic>> schedules, String day, bool isDark) {
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final emptyIconColor = isDark ? Colors.white.withValues(alpha: 0.15) : const Color(0xFF1E1B4B).withValues(alpha: 0.2);
+    final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.03);
+
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+    final textSubtitleColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+
     if (schedules.isEmpty) {
       return Center(
         child: Column(
@@ -129,14 +152,14 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
             Icon(
               Icons.calendar_today_rounded,
               size: 64,
-              color: Colors.white.withValues(alpha: 0.15),
+              color: emptyIconColor,
             ),
             const SizedBox(height: 16),
             Text(
               'Tidak ada jadwal mengajar pada hari $day',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.5),
+                color: emptyTextColor,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -162,9 +185,18 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.04),
+            color: cardBg,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(color: cardBorder),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: cardShadow,
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
@@ -187,8 +219,8 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
                       children: [
                         Text(
                           jamMulai,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: textColor,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -197,7 +229,7 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
                         Text(
                           jamSelesai,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.4),
+                            color: subTextColor,
                             fontSize: 12,
                           ),
                         ),
@@ -209,7 +241,7 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     width: 1,
-                    color: Colors.white.withValues(alpha: 0.08),
+                    color: cardBorder,
                   ),
                   
                   // Subject and Class Info
@@ -225,8 +257,8 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
                               Expanded(
                                 child: Text(
                                   subjectName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: textColor,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -259,7 +291,7 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
                               children: [
                                 Icon(
                                   Icons.class_outlined,
-                                  color: Colors.white.withValues(alpha: 0.4),
+                                  color: subTextColor,
                                   size: 14,
                                 ),
                                 const SizedBox(width: 6),
@@ -267,7 +299,7 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
                                   child: Text(
                                     className,
                                     style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.7),
+                                      color: textSubtitleColor,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -281,7 +313,7 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
                             Text(
                               'Waktunya Istirahat & Santai',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.4),
+                                color: subTextColor,
                                 fontSize: 12,
                                 fontStyle: FontStyle.italic,
                               ),

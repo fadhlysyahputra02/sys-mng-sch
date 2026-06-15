@@ -13,6 +13,9 @@ import 'teacher_schedule_page.dart';
 import 'teacher_settings_page.dart';
 import 'teacher_attendance_schedule_page.dart';
 import 'teacher_behavior_records_page.dart';
+import 'teacher_grades_page.dart';
+import 'teacher_reports_page.dart';
+
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -34,6 +37,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   String? _schoolName;
   String _plan = 'FREE';
   bool _isLoadingSchool = true;
+  String? _tahunAjaran;
+  String? _activeSemester;
 
   @override
   void initState() {
@@ -61,6 +66,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         if (schoolData != null) {
           _schoolName = schoolData['namaSekolah'];
           _plan = (schoolData['plan'] ?? 'FREE').toString().toUpperCase();
+          _tahunAjaran = schoolData['tahunAjaran'];
+          _activeSemester = schoolData['semester'];
         }
         _teacherDocId = doc?.id;
         _teacherData = doc?.data();
@@ -98,34 +105,49 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
+    final bool isDark = AuthBackground.isDarkMode.value;
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF0F0C20),
+        backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          side: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
+          ),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-            SizedBox(width: 10),
+            const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+            const SizedBox(width: 10),
             Text(
               'Konfirmasi Keluar',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
           ],
         ),
-        content: const Text(
+        content: Text(
           'Apakah Anda yakin ingin keluar dari akun guru Anda?',
-          style: TextStyle(color: Colors.white70, fontSize: 14),
+          style: TextStyle(
+            color: isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
+            fontSize: 14,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Batal',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.5)
+                    : const Color(0xFF1E1B4B).withValues(alpha: 0.5),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           ElevatedButton(
@@ -492,6 +514,30 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               ),
             ),
           ],
+          if (_tahunAjaran != null || _activeSemester != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today_rounded, color: Color(0xFF6366F1), size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Tahun Ajaran: ${_tahunAjaran ?? "-"}  |  ${_activeSemester ?? "-"}',
+                      style: const TextStyle(color: Color(0xFF6366F1), fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -819,6 +865,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 Get.to(() => TeacherAttendanceSchedulePage(teacherId: _teacherDocId!));
               } else if (menu['title'] == 'Realtime Control') {
                 Get.to(() => TeacherBehaviorRecordsPage(teacherId: _teacherDocId!));
+              } else if (menu['title'] == 'Input Nilai') {
+                Get.to(() => TeacherGradesPage(teacherId: _teacherDocId!));
+              } else if (menu['title'] == 'Laporan & Rapor') {
+                Get.to(() => TeacherReportsPage(
+                      schoolId: user.schoolId,
+                      teacherId: _teacherDocId!,
+                    ));
               }
             },
             borderRadius: BorderRadius.circular(20),

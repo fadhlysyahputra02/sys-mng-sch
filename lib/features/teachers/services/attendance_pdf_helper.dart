@@ -22,6 +22,8 @@ class AttendancePdfHelper {
     required List<Map<String, dynamic>> students,
     required Map<String, String> classIdToName,
     required String schoolName,
+    required String tahunAjaran,
+    required String semester,
   }) async {
     final pdf = pw.Document();
 
@@ -270,7 +272,7 @@ class AttendancePdfHelper {
                           ),
                           pw.SizedBox(height: 1),
                           pw.Text(
-                            'Bulan: ${_formatMonthYear(startDate)}',
+                            'Bulan: ${_formatMonthYear(startDate)}  |  Tahun Ajaran: $tahunAjaran ($semester)',
                             style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFF4B5563)),
                           ),
                         ],
@@ -398,6 +400,8 @@ class AttendancePdfHelper {
     required List<Map<String, dynamic>> students,
     required Map<String, String> classIdToName,
     required String schoolName,
+    required String tahunAjaran,
+    required String semester,
   }) async {
     final pdf = await _buildPdfDocument(
       teacherName: teacherName,
@@ -408,6 +412,8 @@ class AttendancePdfHelper {
       students: students,
       classIdToName: classIdToName,
       schoolName: schoolName,
+      tahunAjaran: tahunAjaran,
+      semester: semester,
     );
 
     await Printing.layoutPdf(

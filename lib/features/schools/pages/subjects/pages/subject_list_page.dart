@@ -14,9 +14,29 @@ class SubjectListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final schoolId = SessionService.currentUser!.schoolId;
 
-    return Scaffold(
-      body: AuthBackground(
-        child: Column(
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+        final listTileBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+        final listTileBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+        final listTileShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+
+        final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+        final tagIconColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+        final moreIconColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+        final emptyBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03);
+        final emptyBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+        final emptyIconColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+        final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+        final emptySubtitleColor = isDark ? Colors.white.withValues(alpha: 0.35) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: Column(
           children: [
             // AppBar Area
             SafeArea(
@@ -28,13 +48,13 @@ class SubjectListPage extends StatelessWidget {
                     if (!hideBackButton)
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonColor, size: 20),
                       ),
                     const SizedBox(width: 4),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Mata Pelajaran',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                       ),
                     ),
                     Container(
@@ -103,9 +123,9 @@ class SubjectListPage extends StatelessWidget {
                             child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
                           ),
                           const SizedBox(height: 16),
-                          const Text(
+                          Text(
                             'Terjadi kesalahan',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                         ],
                       ),
@@ -130,25 +150,25 @@ class SubjectListPage extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.06),
+                              color: emptyBg,
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                              border: Border.all(color: emptyBorder),
                             ),
-                            child: Icon(Icons.menu_book_rounded, size: 48, color: Colors.white.withValues(alpha: 0.4)),
+                            child: Icon(Icons.menu_book_rounded, size: 48, color: emptyIconColor),
                           ),
                           const SizedBox(height: 20),
                           Text(
                             'Belum ada mata pelajaran',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Colors.white.withValues(alpha: 0.6),
+                              color: emptyTextColor,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Tap "Tambah" untuk menambahkan mata pelajaran',
-                            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.35)),
+                            style: TextStyle(fontSize: 13, color: emptySubtitleColor),
                           ),
                         ],
                       ),
@@ -165,16 +185,18 @@ class SubjectListPage extends StatelessWidget {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.06),
+                          color: listTileBg,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                          border: Border.all(color: listTileBorder),
+                          boxShadow: isDark
+                              ? []
+                              : [
+                                  BoxShadow(
+                                    color: listTileShadow,
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -201,22 +223,22 @@ class SubjectListPage extends StatelessWidget {
                                   children: [
                                     Text(
                                       data['namaMapel'] ?? '-',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 15,
-                                        color: Colors.white,
+                                        color: titleColor,
                                       ),
                                     ),
                                     const SizedBox(height: 6),
                                     Row(
                                       children: [
-                                        Icon(Icons.tag_rounded, size: 13, color: Colors.white.withValues(alpha: 0.5)),
+                                        Icon(Icons.tag_rounded, size: 13, color: tagIconColor),
                                         const SizedBox(width: 4),
                                         Text(
                                           data['kodeMapel'] ?? '-',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: Colors.white.withValues(alpha: 0.55),
+                                            color: subtitleColor,
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -249,8 +271,8 @@ class SubjectListPage extends StatelessWidget {
                                 ),
                               ),
                               PopupMenuButton<String>(
-                                icon: Icon(Icons.more_vert_rounded, color: Colors.white.withValues(alpha: 0.5)),
-                                color: const Color(0xFF1E1B4B),
+                                icon: Icon(Icons.more_vert_rounded, color: moreIconColor),
+                                color: isDark ? const Color(0xFF1E1B4B) : Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                 onSelected: (value) {
                                   if (value == 'edit') {
@@ -266,7 +288,7 @@ class SubjectListPage extends StatelessWidget {
                                       children: [
                                         const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF6366F1)),
                                         const SizedBox(width: 8),
-                                        const Text('Edit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                                        Text('Edit', style: TextStyle(color: titleColor, fontWeight: FontWeight.w500)),
                                       ],
                                     ),
                                   ),
@@ -295,11 +317,22 @@ class SubjectListPage extends StatelessWidget {
         ),
       ),
     );
+      },
+    );
   }
 
   void _showEditDialog(BuildContext context, Map<String, dynamic> data, String schoolId) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final fieldBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+    final fieldBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final labelColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final textStyleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final dialogBgColor = isDark ? const Color(0xFF0F0C20) : Colors.white;
+
     final namaController = TextEditingController(text: data['namaMapel']);
     final kodeController = TextEditingController(text: data['kodeMapel']);
+    final kkmController = TextEditingController(text: (data['kkm'] ?? 75).toString());
     String selectedKategori = data['kategori'] ?? 'Wajib';
 
     showDialog(
@@ -308,44 +341,64 @@ class SubjectListPage extends StatelessWidget {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF0F0C20),
+              backgroundColor: dialogBgColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                side: BorderSide(
+                  color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08), 
+                  width: 1.5
+                ),
               ),
-              title: const Text(
+              title: Text(
                 'Edit Mata Pelajaran',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _dialogField(controller: kodeController, label: 'Kode Mapel', icon: Icons.tag_rounded),
+                  _dialogField(
+                    controller: kodeController,
+                    label: 'Kode Mapel',
+                    icon: Icons.tag_rounded,
+                    isDark: isDark,
+                  ),
                   const SizedBox(height: 12),
-                  _dialogField(controller: namaController, label: 'Nama Mapel', icon: Icons.menu_book_rounded),
+                  _dialogField(
+                    controller: namaController,
+                    label: 'Nama Mapel',
+                    icon: Icons.menu_book_rounded,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 12),
+                  _dialogField(
+                    controller: kkmController,
+                    label: 'Nilai KKM',
+                    icon: Icons.speed_rounded,
+                    isDark: isDark,
+                  ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: selectedKategori,
-                    dropdownColor: const Color(0xFF0F0C20),
-                    style: const TextStyle(color: Colors.white),
+                    initialValue: selectedKategori,
+                    dropdownColor: dialogBgColor,
+                    style: TextStyle(color: textStyleColor),
                     decoration: InputDecoration(
                       labelText: 'Kategori',
-                      labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
-                      prefixIcon: Icon(Icons.category_outlined, color: Colors.white.withValues(alpha: 0.55)),
+                      labelStyle: TextStyle(color: labelColor),
+                      prefixIcon: Icon(Icons.category_outlined, color: labelColor),
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.05),
+                      fillColor: fieldBgColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        borderSide: BorderSide(color: fieldBorderColor),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        borderSide: BorderSide(color: fieldBorderColor),
                       ),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'Wajib', child: Text('Wajib')),
-                      DropdownMenuItem(value: 'Pilihan', child: Text('Pilihan')),
+                    items: [
+                      DropdownMenuItem(value: 'Wajib', child: Text('Wajib', style: TextStyle(color: textStyleColor))),
+                      DropdownMenuItem(value: 'Pilihan', child: Text('Pilihan', style: TextStyle(color: textStyleColor))),
                     ],
                     onChanged: (v) => setDialogState(() => selectedKategori = v!),
                   ),
@@ -359,11 +412,11 @@ class SubjectListPage extends StatelessWidget {
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 13),
-                          side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                          side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                        child: Text('Batal', style: TextStyle(color: textStyleColor)),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -378,6 +431,7 @@ class SubjectListPage extends StatelessWidget {
                         onPressed: () async {
                           final nama = namaController.text.trim();
                           final kode = kodeController.text.trim();
+                          final kkmVal = int.tryParse(kkmController.text.trim()) ?? 75;
                           if (nama.isEmpty || kode.isEmpty) return;
 
                           await service.updateSubject(
@@ -386,6 +440,7 @@ class SubjectListPage extends StatelessWidget {
                             namaMapel: nama,
                             kodeMapel: kode,
                             kategori: selectedKategori,
+                            kkm: kkmVal,
                           );
 
                           if (ctx.mounted) {
@@ -409,14 +464,21 @@ class SubjectListPage extends StatelessWidget {
   }
 
   void _showDeleteConfirmation(BuildContext context, Map<String, dynamic> data, String schoolId) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final dialogBgColor = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final dialogBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final textStyleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final bodyTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBgColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: dialogBorderColor, width: 1.5),
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: Column(
@@ -432,15 +494,15 @@ class SubjectListPage extends StatelessWidget {
                 child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 30),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Hapus Mata Pelajaran',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+                style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor, fontSize: 18),
               ),
               const SizedBox(height: 12),
               Text(
                 'Apakah Anda yakin ingin menghapus "${data['namaMapel']}"? Data tidak dapat dikembalikan.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, height: 1.5),
+                style: TextStyle(color: bodyTextColor, fontSize: 13, height: 1.5),
               ),
             ],
           ),
@@ -452,11 +514,11 @@ class SubjectListPage extends StatelessWidget {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                    child: Text('Batal', style: TextStyle(color: textStyleColor)),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -495,23 +557,29 @@ class SubjectListPage extends StatelessWidget {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required bool isDark,
   }) {
+    final textStyleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final labelColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final fieldBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+    final fieldBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+
     return TextField(
       controller: controller,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: textStyleColor),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
-        prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.55)),
+        labelStyle: TextStyle(color: labelColor),
+        prefixIcon: Icon(icon, color: labelColor),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
+        fillColor: fieldBgColor,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: fieldBorderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: fieldBorderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
