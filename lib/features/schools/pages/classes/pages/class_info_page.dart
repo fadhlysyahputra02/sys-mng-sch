@@ -551,10 +551,12 @@ class ClassInfoPage extends StatelessWidget {
                                   studentId: docs[index].id,
                                   classId: classId,
                                 );
-                                if (ctx.mounted) {
-                                  Navigator.pop(ctx);
+                                if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('${student['nama']} berhasil ditambahkan ke kelas')),
+                                    SnackBar(
+                                      content: Text('${student['nama']} berhasil ditambahkan ke kelas'),
+                                      duration: const Duration(seconds: 2),
+                                    ),
                                   );
                                 }
                               },

@@ -158,240 +158,242 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     }
     final user = SessionService.currentUser!;
 
-    if (_isLoadingTeacher || _isLoadingSchool) {
-      return Scaffold(
-        body: AuthBackground(
-          child: const Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          ),
-        ),
-      );
-    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        if (_isLoadingTeacher || _isLoadingSchool) {
+          return Scaffold(
+            body: AuthBackground(
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: isDark ? Colors.white : const Color(0xFF8B5CF6),
+                ),
+              ),
+            ),
+          );
+        }
 
-    if (_teacherDocId == null) {
-      return Scaffold(
-        body: AuthBackground(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 64),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Akun Anda belum terhubung',
-                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
+        if (_teacherDocId == null) {
+          final infoTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+          final infoSubtitleColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+          final infoBorderColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.3);
+
+          return Scaffold(
+            body: AuthBackground(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 64),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Akun Anda belum terhubung',
+                        style: TextStyle(color: infoTextColor, fontSize: 20, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Data guru Anda tidak ditemukan di sekolah ini. Hubungi Admin Sekolah untuk menghubungkan akun Anda.',
+                        style: TextStyle(color: infoSubtitleColor, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      OutlinedButton.icon(
+                        onPressed: () => _confirmLogout(context),
+                        icon: Icon(Icons.logout_rounded, color: infoTextColor),
+                        label: Text('Keluar', style: TextStyle(color: infoTextColor)),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: infoBorderColor),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Data guru Anda tidak ditemukan di sekolah ini. Hubungi Admin Sekolah untuk menghubungkan akun Anda.',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  OutlinedButton.icon(
-                    onPressed: () => _confirmLogout(context),
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white),
-                    label: const Text('Keluar', style: TextStyle(color: Colors.white)),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                  ),
-                ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        final teacherId = _teacherDocId!;
+        final teacherNama = _teacherData?['nama'] ?? user.nama;
+        final teacherNip = _teacherData?['nip'] ?? '-';
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+        final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _scheduleService.getSchedulesByTeacher(user.schoolId, teacherId),
+                  builder: (context, scheduleSnapshot) {
+                    final schedules = scheduleSnapshot.data?.docs.map((e) => e.data()).toList() ?? [];
+
+                    final Set<String> teacherClassIds = schedules
+                        .map((e) => (e['classId'] ?? '') as String)
+                        .where((id) => id.isNotEmpty)
+                        .toSet();
+
+                    final currentDay = _getCurrentDay();
+                    final todaySchedules = schedules.where((s) => s['hari'] == currentDay).toList();
+                    todaySchedules.sort((a, b) {
+                      return _timeToMinutes(a['jamMulai'] ?? '').compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
+                    });
+
+                    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _teacherService.getClassesByTeacher(user.schoolId, teacherId),
+                      builder: (context, classSnapshot) {
+                        final waliKelasClasses = classSnapshot.data?.docs ?? [];
+
+                        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: _teacherSubjectService.getSubjectsByTeacher(user.schoolId, teacherId),
+                          builder: (context, subjectSnapshot) {
+                            final teacherSubjects = subjectSnapshot.data?.docs.map((e) => e.data()).toList() ?? [];
+
+                            return CustomScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              slivers: [
+                                SliverAppBar(
+                                  backgroundColor: Colors.transparent,
+                                  elevation: 0,
+                                  pinned: true,
+                                  toolbarHeight: 56,
+                                  title: Text(
+                                    _getGreeting(),
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: titleColor,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  actions: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: iconBgColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: IconButton(
+                                        icon: Icon(Icons.notifications_rounded, color: iconColor, size: 20),
+                                        tooltip: 'Notifikasi',
+                                        onPressed: () => Get.toNamed(AppRoutes.notifications),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: iconBgColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: IconButton(
+                                        icon: Icon(Icons.settings_rounded, color: iconColor, size: 20),
+                                        tooltip: 'Pengaturan',
+                                        onPressed: () => Get.to(() => const TeacherSettingsPage()),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      margin: const EdgeInsets.only(right: 16),
+                                      decoration: BoxDecoration(
+                                        color: iconBgColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: IconButton(
+                                        icon: Icon(Icons.logout_rounded, color: iconColor, size: 20),
+                                        tooltip: 'Keluar',
+                                        onPressed: () => _confirmLogout(context),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        _buildProfileHeader(teacherNama, user.email, teacherNip, waliKelasClasses, isDark),
+                                        const SizedBox(height: 24),
+                                        Row(
+                                          children: [
+                                            Expanded(child: _buildStatCard(
+                                              title: 'Kelas Mengajar',
+                                              value: teacherClassIds.length.toString(),
+                                              icon: Icons.class_rounded,
+                                              color: const Color(0xFF6366F1),
+                                              isDark: isDark,
+                                            )),
+                                            const SizedBox(width: 12),
+                                            Expanded(child: _buildStatCard(
+                                              title: 'Mata Pelajaran',
+                                              value: teacherSubjects.length.toString(),
+                                              icon: Icons.menu_book_rounded,
+                                              color: const Color(0xFF10B981),
+                                              isDark: isDark,
+                                            )),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 28),
+                                        _buildSectionTitle('Mata Pelajaran Saya', Icons.menu_book_rounded, isDark),
+                                        const SizedBox(height: 16),
+                                        _buildSubjectsList(teacherSubjects, isDark),
+                                        const SizedBox(height: 28),
+                                        _buildSectionTitle('Jadwal Hari Ini ($currentDay)', Icons.calendar_today_rounded, isDark),
+                                        const SizedBox(height: 16),
+                                        _buildTodaySchedule(todaySchedules, isDark),
+                                        const SizedBox(height: 28),
+                                        _buildSectionTitle('Menu Utama', Icons.dashboard_rounded, isDark),
+                                        const SizedBox(height: 16),
+                                        _buildMenuGrid(isDark),
+                                        const SizedBox(height: 40),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ),
           ),
-        ),
-      );
-    }
-
-    final teacherId = _teacherDocId!;
-    final teacherNama = _teacherData?['nama'] ?? user.nama;
-    final teacherNip = _teacherData?['nip'] ?? '-';
-
-    return Scaffold(
-      body: AuthBackground(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          // Ambil SEMUA jadwal guru ini berdasarkan teacherId (doc ID di subcollection)
-          stream: _scheduleService.getSchedulesByTeacher(user.schoolId, teacherId),
-          builder: (context, scheduleSnapshot) {
-            final schedules = scheduleSnapshot.data?.docs.map((e) => e.data()).toList() ?? [];
-
-            // Hitung jumlah kelas unik yang diajar
-            final Set<String> teacherClassIds = schedules
-                .map((e) => (e['classId'] ?? '') as String)
-                .where((id) => id.isNotEmpty)
-                .toSet();
-
-            // Filter jadwal hari ini & urutkan
-            final currentDay = _getCurrentDay();
-            final todaySchedules = schedules.where((s) => s['hari'] == currentDay).toList();
-            todaySchedules.sort((a, b) {
-              return _timeToMinutes(a['jamMulai'] ?? '').compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
-            });
-
-            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              // Ambil kelas-kelas yang wali kelasnya guru ini
-              stream: _teacherService.getClassesByTeacher(user.schoolId, teacherId),
-              builder: (context, classSnapshot) {
-                final waliKelasClasses = classSnapshot.data?.docs ?? [];
-
-                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  // Ambil mata pelajaran yang di-assign ke guru ini
-                  stream: _teacherSubjectService.getSubjectsByTeacher(user.schoolId, teacherId),
-                  builder: (context, subjectSnapshot) {
-                    final teacherSubjects = subjectSnapshot.data?.docs.map((e) => e.data()).toList() ?? [];
-
-                return CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    // AppBar (dengan judul ucapan)
-                    SliverAppBar(
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      pinned: true,
-                      toolbarHeight: 56,
-                      title: Text(
-                        '${_getGreeting()}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      actions: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.notifications_rounded, color: Colors.white, size: 20),
-                            tooltip: 'Notifikasi',
-                            onPressed: () => Get.toNamed(AppRoutes.notifications),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.settings_rounded, color: Colors.white, size: 20),
-                            tooltip: 'Pengaturan',
-                            onPressed: () => Get.to(() => const TeacherSettingsPage()),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          margin: const EdgeInsets.only(right: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
-                            tooltip: 'Keluar',
-                            onPressed: () => _confirmLogout(context),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // 1. HEADER PROFILE + WALI KELAS
-                            _buildProfileHeader(teacherNama, user.email, teacherNip, waliKelasClasses),
-
-                            const SizedBox(height: 24),
-
-                            // 2. QUICK STATS
-                            Row(
-                              children: [
-                                Expanded(child: _buildStatCard(
-                                  title: 'Kelas Mengajar',
-                                  value: teacherClassIds.length.toString(),
-                                  icon: Icons.class_rounded,
-                                  color: const Color(0xFF6366F1),
-                                )),
-                                const SizedBox(width: 12),
-                                Expanded(child: _buildStatCard(
-                                  title: 'Mata Pelajaran',
-                                  value: teacherSubjects.length.toString(),
-                                  icon: Icons.menu_book_rounded,
-                                  color: const Color(0xFF10B981),
-                                )),
-                              ],
-                            ),
-
-                            const SizedBox(height: 28),
-
-                            // 3. MATA PELAJARAN SAYA
-                            _buildSectionTitle('Mata Pelajaran Saya', Icons.menu_book_rounded),
-                            const SizedBox(height: 16),
-                            _buildSubjectsList(teacherSubjects),
-
-                            const SizedBox(height: 28),
-
-                            // 4. JADWAL HARI INI
-                            _buildSectionTitle('Jadwal Hari Ini ($currentDay)', Icons.calendar_today_rounded),
-                            const SizedBox(height: 16),
-                            _buildTodaySchedule(todaySchedules),
-
-                            const SizedBox(height: 28),
-
-                            // 5. MENU UTAMA
-                            _buildSectionTitle('Menu Utama', Icons.dashboard_rounded),
-                            const SizedBox(height: 16),
-                            _buildMenuGrid(),
-
-                            const SizedBox(height: 40),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-                  },
-                );
-              },
-            );
-          },
-        ),
-      ),
-    ),
-    ),
+        );
+      },
     );
   }
 
   // --- WIDGETS ---
 
-  Widget _buildProfileHeader(String nama, String email, String nip, List<QueryDocumentSnapshot<Map<String, dynamic>>> waliKelasClasses) {
+  Widget _buildProfileHeader(String nama, String email, String nip, List<QueryDocumentSnapshot<Map<String, dynamic>>> waliKelasClasses, bool isDark) {
     // Ambil nama kelas wali kelas (jika ada)
     final waliKelasNames = waliKelasClasses.map((doc) => doc.data()['namaKelas'] ?? 'Kelas').toList();
+    final cardColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08);
+    final cardShadow = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final nipColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: cardShadow,
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -416,22 +418,22 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(nama, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text(nama, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: titleColor)),
                     const SizedBox(height: 4),
-                    Text(email, style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7))),
+                    Text(email, style: TextStyle(fontSize: 13, color: subtitleColor)),
                     const SizedBox(height: 4),
-                    Text('NIP: $nip', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+                    Text('NIP: $nip', style: TextStyle(fontSize: 12, color: nipColor)),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.school_rounded, color: Colors.white.withValues(alpha: 0.5), size: 14),
+                        Icon(Icons.school_rounded, color: nipColor, size: 14),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             _schoolName ?? 'Sekolah',
                             style: TextStyle(
                               fontSize: 12, 
-                              color: Colors.white.withValues(alpha: 0.5), 
+                              color: nipColor, 
                               fontWeight: FontWeight.w500
                             ),
                             maxLines: 1,
@@ -559,50 +561,71 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildStatCard({required String title, required String value, required IconData icon, required Color color}) {
+  Widget _buildStatCard({required String title, required String value, required IconData icon, required Color color, required bool isDark}) {
+    final cardBg = isDark ? color.withValues(alpha: 0.1) : color.withValues(alpha: 0.08);
+    final cardBorderColor = isDark ? color.withValues(alpha: 0.3) : color.withValues(alpha: 0.2);
+    final valueColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final titleColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final shadowColor = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: cardBorderColor),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: shadowColor,
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: color, size: 28),
           const SizedBox(height: 12),
-          Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: valueColor)),
           const SizedBox(height: 4),
-          Text(title, style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.6))),
+          Text(title, style: TextStyle(fontSize: 13, color: titleColor)),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon) {
+  Widget _buildSectionTitle(String title, IconData icon, bool isDark) {
+    final iconColor = isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     return Row(
       children: [
-        Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 20),
+        Icon(icon, color: iconColor, size: 20),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
+        Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor, letterSpacing: 0.5)),
       ],
     );
   }
 
-  Widget _buildSubjectsList(List<Map<String, dynamic>> subjects) {
+  Widget _buildSubjectsList(List<Map<String, dynamic>> subjects, bool isDark) {
     if (subjects.isEmpty) {
+      final emptyBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+      final emptyBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+      final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+      
       return Container(
         height: 80,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: emptyBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          border: Border.all(color: emptyBorder),
         ),
         child: Text(
           'Belum ada mata pelajaran yang di-assign',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
+          style: TextStyle(color: emptyTextColor, fontSize: 14),
         ),
       );
     }
@@ -612,12 +635,16 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       runSpacing: 10,
       children: subjects.map((s) {
         final name = s['subjectName'] ?? 'Mapel';
+        final textLabelColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final itemBg = isDark ? const Color(0xFF10B981).withValues(alpha: 0.12) : const Color(0xFF10B981).withValues(alpha: 0.1);
+        final itemBorder = isDark ? const Color(0xFF10B981).withValues(alpha: 0.3) : const Color(0xFF10B981).withValues(alpha: 0.25);
+
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFF10B981).withValues(alpha: 0.12),
+            color: itemBg,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+            border: Border.all(color: itemBorder),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -626,7 +653,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               const SizedBox(width: 8),
               Text(
                 name,
-                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                style: TextStyle(color: textLabelColor, fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -635,19 +662,23 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildTodaySchedule(List<Map<String, dynamic>> schedules) {
+  Widget _buildTodaySchedule(List<Map<String, dynamic>> schedules, bool isDark) {
     if (schedules.isEmpty) {
+      final emptyBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+      final emptyBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+      final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
       return Container(
         height: 100,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: emptyBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          border: Border.all(color: emptyBorder),
         ),
         child: Text(
           'Tidak ada jadwal hari ini 🎉',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16),
+          style: TextStyle(color: emptyTextColor, fontSize: 16),
         ),
       );
     }
@@ -723,7 +754,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildMenuGrid() {
+  Widget _buildMenuGrid(bool isDark) {
     final menus = [
       {'title': 'Jadwal Mengajar', 'icon': Icons.calendar_month_rounded, 'color': const Color(0xFFF59E0B)},
       {'title': 'Absensi Murid', 'icon': Icons.fact_check_rounded, 'color': const Color(0xFF10B981)},
@@ -750,6 +781,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       crossAxisCount = 3;
       childAspectRatio = 1.25;
     }
+
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
     return GridView.builder(
       shrinkWrap: true,
@@ -789,9 +824,18 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             borderRadius: BorderRadius.circular(20),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.03),
+                color: cardBg,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                border: Border.all(color: cardBorder),
+                boxShadow: isDark
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -808,7 +852,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   Text(
                     menu['title'] as String,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),

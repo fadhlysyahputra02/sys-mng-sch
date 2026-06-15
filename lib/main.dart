@@ -4,10 +4,12 @@ import 'package:get/get.dart';
 
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
+import 'features/authentication/widgets/auth_background.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AuthBackground.initTheme();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 

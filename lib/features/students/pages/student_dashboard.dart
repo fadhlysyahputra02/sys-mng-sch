@@ -43,6 +43,12 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   @override
   void initState() {
     super.initState();
+    // Reset static trackers on initialization (e.g. after login)
+    _lastReportedScheduleId = null;
+    _lastReportedTime = null;
+    _lastReportedState = null;
+    _lastReportedIsLocked = null;
+
     WidgetsBinding.instance.addObserver(this);
     _resolveStudentDocId();
   }
@@ -58,12 +64,16 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   static String? _lastReportedScheduleId;
   static DateTime? _lastReportedTime;
   static String? _lastReportedState; // 'paused' or 'resumed'
+  static bool? _lastReportedIsLocked;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     debugPrint('=== AppLifecycleState changed to: $state ===');
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      debugPrint('App minimized/paused - triggering behavior check');
+    if (state == AppLifecycleState.inactive) {
+      debugPrint('App inactive (losing focus) - reporting leaving immediately');
+      _checkAndReportBehaviorViolation(isLocked: false);
+    } else if (state == AppLifecycleState.paused) {
+      debugPrint('App paused - checking lock screen status');
       bool isLocked = false;
       try {
         final locked = await isLockScreen();
@@ -73,7 +83,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       } catch (e) {
         debugPrint('Error checking lock screen status: $e');
       }
-      _checkAndReportBehaviorViolation(isLocked: isLocked);
+      if (isLocked) {
+        _checkAndReportBehaviorViolation(isLocked: true);
+      }
     } else if (state == AppLifecycleState.resumed) {
       debugPrint('App resumed - refreshing behavior cache and checking return');
       final user = SessionService.currentUser;
@@ -148,18 +160,20 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       subjectName = firstAtt?['subjectName'] ?? 'Absensi Hari Ini';
     }
 
-    // Avoid double reporting within 5 minutes unless state has changed
+    // Avoid double reporting within 5 minutes unless state or lock status has changed
     if (_lastReportedState == 'paused' &&
+        _lastReportedIsLocked == isLocked &&
         _lastReportedScheduleId == scheduleId &&
         _lastReportedTime != null &&
         nowTime.difference(_lastReportedTime!).inMinutes < 5) {
-      debugPrint('Behavior check: Already reported violation for $scheduleId within 5 minutes. Skipping.');
+      debugPrint('Behavior check: Already reported violation for $scheduleId within 5 minutes with lock state $isLocked. Skipping.');
       return;
     }
 
     _lastReportedScheduleId = scheduleId;
     _lastReportedTime = nowTime;
     _lastReportedState = 'paused';
+    _lastReportedIsLocked = isLocked;
 
     final name = _studentData?['nama'] ?? 'Murid';
     debugPrint('Reporting violation synchronously/immediately to Firestore for student $name (Class $_className)...');
@@ -242,6 +256,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
     _lastReportedScheduleId = scheduleId;
     _lastReportedTime = nowTime;
     _lastReportedState = 'resumed';
+    _lastReportedIsLocked = null;
 
     final name = _studentData?['nama'] ?? 'Murid';
     debugPrint('Reporting return/standby synchronously/immediately to Firestore for student $name (Class $_className)...');
@@ -261,6 +276,64 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       debugPrint('Successfully reported behavior return/standby to Firestore.');
     } catch (e) {
       debugPrint('Exception in behavior return check: $e');
+    }
+  }
+
+  Future<void> _reportLogoutBehavior() async {
+    final user = SessionService.currentUser;
+    if (user == null || _studentDocId == null || _className == null) {
+      return;
+    }
+
+    // Synchronously check active schedule from cached today schedules
+    Map<String, dynamic>? activeSchedule;
+    final nowTime = DateTime.now();
+    final nowMinutes = nowTime.hour * 60 + nowTime.minute;
+
+    for (final s in _todaySchedules) {
+      final jamMulai = s['jamMulai'] ?? '00:00';
+      final jamSelesai = s['jamSelesai'] ?? '00:00';
+      final startMinutes = _timeToMinutes(jamMulai);
+      final endMinutes = _timeToMinutes(jamSelesai);
+      if (nowMinutes >= startMinutes && nowMinutes <= endMinutes) {
+        activeSchedule = s;
+        break;
+      }
+    }
+
+    if (activeSchedule == null && !_hasCheckedInToday) {
+      return;
+    }
+
+    String scheduleId = 'general';
+    String subjectName = 'Absensi Hari Ini';
+
+    if (activeSchedule != null) {
+      scheduleId = activeSchedule['scheduleId'] ?? 'general';
+      subjectName = activeSchedule['subjectName'] ?? 'Pelajaran';
+    } else if (_todayAttendanceDocs.isNotEmpty) {
+      final firstAtt = _todayAttendanceDocs.first.data();
+      scheduleId = firstAtt?['scheduleId'] ?? 'general';
+      subjectName = firstAtt?['subjectName'] ?? 'Absensi Hari Ini';
+    }
+
+    final name = _studentData?['nama'] ?? 'Murid';
+    try {
+      await _studentService.reportBehaviorViolation(
+        schoolId: user.schoolId,
+        studentId: _studentDocId!,
+        studentName: name,
+        className: _className!,
+        scheduleId: scheduleId,
+        subjectName: subjectName,
+        type: 'Meninggalkan Layar Absensi (Logout)',
+        description: activeSchedule != null
+            ? 'Murid terdeteksi melakukan logout saat jam pelajaran $subjectName sedang berlangsung.'
+            : 'Murid terdeteksi melakukan logout setelah melakukan absensi pelajaran $subjectName hari ini.',
+      ).timeout(const Duration(seconds: 2));
+      debugPrint('Successfully reported logout behavior to Firestore.');
+    } catch (e) {
+      debugPrint('Error reporting logout behavior: $e');
     }
   }
 
@@ -353,147 +426,169 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingStudent || _isLoadingSchool) {
-      return Scaffold(
-        body: AuthBackground(
-          child: const Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          ),
-        ),
-      );
-    }
-    if (_studentDocId == null) {
-      return Scaffold(
-        body: AuthBackground(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 64),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Akun Anda belum terhubung',
-                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Data murid Anda tidak ditemukan di sekolah ini. Hubungi Admin Sekolah untuk menghubungkan akun Anda.',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  OutlinedButton.icon(
-                    onPressed: () async => await _logout(),
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white),
-                    label: const Text('Keluar', style: TextStyle(color: Colors.white)),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                  ),
-                ],
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        if (_isLoadingStudent || _isLoadingSchool) {
+          return Scaffold(
+            body: AuthBackground(
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: isDark ? Colors.white : const Color(0xFF8B5CF6),
+                ),
               ),
             ),
-          ),
-        ),
-      );
-    }
-
-    final student = _studentData ?? {};
-    final name = student['nama'] ?? 'Murid';
-    final email = student['email'] ?? '';
-    final nis = student['nis'] ?? '-';
-
-    return Scaffold(
-      body: AuthBackground(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverAppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              pinned: true,
-              toolbarHeight: 56,
-              title: Text(
-                _getGreeting(),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+          );
+        }
+        if (_studentDocId == null) {
+          final infoTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+          final infoSubtitleColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+          final infoBorderColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.3);
+          
+          return Scaffold(
+            body: AuthBackground(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 64),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Akun Anda belum terhubung',
+                        style: TextStyle(color: infoTextColor, fontSize: 20, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Data murid Anda tidak ditemukan di sekolah ini. Hubungi Admin Sekolah untuk menghubungkan akun Anda.',
+                        style: TextStyle(color: infoSubtitleColor, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      OutlinedButton.icon(
+                        onPressed: () async => await _logout(),
+                        icon: Icon(Icons.logout_rounded, color: infoTextColor),
+                        label: Text('Keluar', style: TextStyle(color: infoTextColor)),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: infoBorderColor),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              actions: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+            ),
+          );
+        }
+
+        final student = _studentData ?? {};
+        final name = student['nama'] ?? 'Murid';
+        final email = student['email'] ?? '';
+        final nis = student['nis'] ?? '-';
+        
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+        final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverAppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  pinned: true,
+                  toolbarHeight: 56,
+                  title: Text(
+                    _getGreeting(),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  child: IconButton(
-                    icon: const Icon(Icons.notifications_rounded, color: Colors.white, size: 20),
-                    tooltip: 'Notifikasi',
-                    onPressed: () => Get.toNamed(AppRoutes.notifications),
-                  ),
+                  actions: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: iconBgColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.notifications_rounded, color: iconColor, size: 20),
+                        tooltip: 'Notifikasi',
+                        onPressed: () => Get.toNamed(AppRoutes.notifications),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: iconBgColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.settings_rounded, color: iconColor, size: 20),
+                        tooltip: 'Pengaturan',
+                        onPressed: () => Get.to(() => const TeacherSettingsPage()),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      margin: const EdgeInsets.only(right: 16),
+                      decoration: BoxDecoration(
+                        color: iconBgColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.logout_rounded, color: iconColor, size: 20),
+                        tooltip: 'Keluar',
+                        onPressed: () async => await _logout(),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.settings_rounded, color: Colors.white, size: 20),
-                    tooltip: 'Pengaturan',
-                    onPressed: () => Get.to(() => const TeacherSettingsPage()),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  margin: const EdgeInsets.only(right: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
-                    tooltip: 'Keluar',
-                    onPressed: () async => await _logout(),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildProfileHeader(name, email, nis, isDark),
+                        const SizedBox(height: 28),
+                        _buildSectionTitle('Menu Utama', Icons.dashboard_rounded, isDark),
+                        const SizedBox(height: 16),
+                        _buildMenuGrid(isDark),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildProfileHeader(name, email, nis),
-                    const SizedBox(height: 28),
-                    _buildSectionTitle('Menu Utama', Icons.dashboard_rounded),
-                    const SizedBox(height: 16),
-                    _buildMenuGrid(),
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildProfileHeader(String name, String email, String nis) {
+  Widget _buildProfileHeader(String name, String email, String nis, bool isDark) {
+    final cardColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08);
+    final cardShadow = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final emailColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: cardShadow,
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -516,22 +611,22 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text(name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: titleColor)),
                 const SizedBox(height: 4),
-                Text(email, style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7))),
+                Text(email, style: TextStyle(fontSize: 13, color: subtitleColor)),
                 const SizedBox(height: 4),
-                Text('NIS: $nis', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+                Text('NIS: $nis', style: TextStyle(fontSize: 12, color: emailColor)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.school_rounded, color: Colors.white.withValues(alpha: 0.5), size: 14),
+                    Icon(Icons.school_rounded, color: emailColor, size: 14),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         _schoolName ?? 'Sekolah',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: emailColor,
                           fontWeight: FontWeight.w500,
                         ),
                         maxLines: 1,
@@ -543,14 +638,14 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.class_rounded, color: Colors.white.withValues(alpha: 0.5), size: 14),
+                    Icon(Icons.class_rounded, color: emailColor, size: 14),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         _className != null ? 'Kelas: $_className' : 'Belum masuk kelas',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: emailColor,
                           fontWeight: FontWeight.w500,
                         ),
                         maxLines: 1,
@@ -650,17 +745,19 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon) {
+  Widget _buildSectionTitle(String title, IconData icon, bool isDark) {
+    final iconColor = isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     return Row(
       children: [
-        Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 20),
+        Icon(icon, color: iconColor, size: 20),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
+        Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor, letterSpacing: 0.5)),
       ],
     );
   }
 
-  Widget _buildMenuGrid() {
+  Widget _buildMenuGrid(bool isDark) {
     final menus = [
       {'title': 'Absensi', 'icon': Icons.qr_code_scanner_rounded, 'color': const Color(0xFF8B5CF6)},
       {'title': 'Jadwal Saya', 'icon': Icons.calendar_month_rounded, 'color': const Color(0xFFF59E0B)},
@@ -668,6 +765,10 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       {'title': 'Chat Guru', 'icon': Icons.chat_rounded, 'color': const Color(0xFFF97316)},
       {'title': 'Fitur Premium', 'icon': Icons.workspace_premium_rounded, 'color': const Color(0xFFF97316)},
     ];
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -688,9 +789,18 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
             borderRadius: BorderRadius.circular(20),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.03),
+                color: cardBg,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                border: Border.all(color: cardBorder),
+                boxShadow: isDark
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -707,7 +817,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                   Text(
                     menu['title'] as String,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -766,33 +876,46 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   }
 
   Future<void> _logout() async {
+    final isDark = AuthBackground.isDarkMode.value;
     final bool? confirm = await Get.dialog<bool>(
       AlertDialog(
-        backgroundColor: const Color(0xFF0F0C20),
+        backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          side: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08),
+          ),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-            SizedBox(width: 10),
+            const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+            const SizedBox(width: 10),
             Text(
               'Keluar Akun',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
           ],
         ),
         content: Text(
           'Apakah Anda yakin ingin keluar dari aplikasi?',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
+          style: TextStyle(
+            color: isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.6),
+            fontSize: 14,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
             child: Text(
               'Batal',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           ElevatedButton(
@@ -813,6 +936,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
     if (confirm != true) return;
 
     try {
+      await _reportLogoutBehavior();
       await AppAuthService.logout();
       SessionService.logout();
       Get.offAllNamed('/login');

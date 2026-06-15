@@ -19,7 +19,6 @@ class TeacherBehaviorRecordsPage extends StatefulWidget {
 class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage> {
   final _studentService = StudentService();
   final _searchController = TextEditingController();
-  String _selectedClass = 'Semua Kelas';
   String _searchQuery = '';
   Timer? _cleanupTimer;
 
@@ -288,114 +287,126 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                   ],
                 ),
 
-                // Filters & Search Box
+                // Active Subject Information Card
+                if (activeSchedules.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.menu_book_rounded, color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  activeSchedules.length > 1 ? 'Mata Pelajaran Aktif' : 'Mata Pelajaran Aktif Saat Ini',
+                                  style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            ...activeSchedules.map((s) {
+                              final name = s['subjectName'] ?? 'Pelajaran';
+                              final cName = s['className'] ?? 'Kelas';
+                              final start = s['jamMulai'] ?? '00:00';
+                              final end = s['jamSelesai'] ?? '00:00';
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  '$name ($cName) • $start - $end WIB',
+                                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Tidak ada mata pelajaran yang sedang aktif saat ini.',
+                                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Search Box
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Search Bar
-                        TextField(
-                          controller: _searchController,
-                          onChanged: (value) {
-                            setState(() {
-                              _searchQuery = value.toLowerCase();
-                            });
-                          },
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
-                          decoration: InputDecoration(
-                            hintText: 'Cari nama murid...',
-                            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 14),
-                            prefixIcon: Icon(Icons.search_rounded, color: Colors.white.withValues(alpha: 0.6)),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear_rounded, color: Colors.white54, size: 18),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      setState(() {
-                                        _searchQuery = '';
-                                      });
-                                    },
-                                  )
-                                : null,
-                            fillColor: Colors.white.withValues(alpha: 0.05),
-                            filled: true,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: const BorderSide(color: Color(0xFF8B5CF6)),
-                            ),
-                          ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value.toLowerCase();
+                        });
+                      },
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Cari nama murid...',
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 14),
+                        prefixIcon: Icon(Icons.search_rounded, color: Colors.white.withValues(alpha: 0.6)),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, color: Colors.white54, size: 18),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        fillColor: Colors.white.withValues(alpha: 0.05),
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
                         ),
-                        const SizedBox(height: 12),
-
-                        // Filter dropdown
-                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                          stream: _studentService.getTodayAttendanceListStream(
-                            schoolId: user.schoolId,
-                            dateStr: _getTodayDateStr(),
-                          ),
-                          builder: (context, snapshot) {
-                            final records = snapshot.data?.docs.map((doc) => doc.data()).toList() ?? [];
-                            
-                            // Extract unique class names only for teacher's active schedules
-                            final classNames = records
-                                .where((r) => activeScheduleIds.contains(r['scheduleId']))
-                                .map((r) => r['className'] as String?)
-                                .whereType<String>()
-                                .toSet()
-                                .toList();
-                            classNames.sort();
-
-                            return Row(
-                              children: [
-                                Icon(Icons.filter_list_rounded, color: Colors.white.withValues(alpha: 0.5), size: 16),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.04),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: _selectedClass,
-                                        dropdownColor: const Color(0xFF0F0C20),
-                                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white54),
-                                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                                        items: [
-                                          const DropdownMenuItem(
-                                            value: 'Semua Kelas',
-                                            child: Text('Semua Kelas'),
-                                          ),
-                                          ...classNames.map((cName) => DropdownMenuItem(
-                                                value: cName,
-                                                child: Text(cName),
-                                              )),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            setState(() {
-                                              _selectedClass = val;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(color: Color(0xFF8B5CF6)),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -452,19 +463,17 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
 
                         final behaviorDocs = behaviorSnapshot.data?.docs ?? [];
 
-                        // Filter attendance by Class, Search query, and active schedules only
+                        // Filter attendance by Search query and active schedules only
                         final targetScheduleIds = activeScheduleIds;
                         final filteredAttendance = attendanceDocs.where((doc) {
                           final data = doc.data();
                           final studentName = (data['studentName'] ?? '').toString().toLowerCase();
-                          final className = (data['className'] ?? '').toString();
                           final scheduleId = (data['scheduleId'] ?? '').toString();
 
-                          final matchesClass = _selectedClass == 'Semua Kelas' || className == _selectedClass;
                           final matchesSearch = studentName.contains(_searchQuery);
                           final matchesSchedule = targetScheduleIds.contains(scheduleId);
 
-                          return matchesClass && matchesSearch && matchesSchedule;
+                          return matchesSearch && matchesSchedule;
                         }).toList();
 
                         debugPrint('Target Schedule IDs: $targetScheduleIds');
@@ -597,7 +606,9 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                                     }
 
                                     final type = latestRecord?['type']?.toString() ?? '';
-                                    final isKeluar = type.toLowerCase().contains('meninggalkan');
+                                    final isKeluar = type.toLowerCase().contains('meninggalkan') ||
+                                        type.toLowerCase().contains('keluar') ||
+                                        type.toLowerCase().contains('logout');
                                     final isScreenOff = type.toLowerCase().contains('layar mati') || type.toLowerCase().contains('terkunci');
                                     final isStandby = !isKeluar && !isScreenOff;
 

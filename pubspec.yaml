@@ -47,6 +47,7 @@ dependencies:
   is_lock_screen2: ^2.0.5
   excel: ^4.0.6
   file_picker: ^11.0.2
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:

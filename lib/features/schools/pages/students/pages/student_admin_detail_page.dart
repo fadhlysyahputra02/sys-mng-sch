@@ -26,15 +26,19 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
   void _showEditDialog() {
     final namaController = TextEditingController(text: student['nama']);
     final nisController = TextEditingController(text: student['nis']);
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+    final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
 
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: borderColor, width: 1.5),
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: Column(
@@ -52,9 +56,9 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 child: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Edit Data Murid',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
               ),
               const SizedBox(height: 20),
               _buildDialogField(
@@ -80,11 +84,11 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      side: BorderSide(color: borderColor),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                    child: Text('Batal', style: TextStyle(color: textColor)),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -131,14 +135,20 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
   }
 
   void _showDeleteDialog() {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+    final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: borderColor, width: 1.5),
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: Column(
@@ -154,15 +164,15 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 30),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Hapus Murid',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
               ),
               const SizedBox(height: 12),
               Text(
                 'Apakah Anda yakin ingin menghapus "${student['nama']}"? Data ini tidak dapat dikembalikan.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, height: 1.5),
+                style: TextStyle(color: subTextColor, fontSize: 13, height: 1.5),
               ),
             ],
           ),
@@ -174,11 +184,11 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      side: BorderSide(color: borderColor),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                    child: Text('Batal', style: TextStyle(color: textColor)),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -212,6 +222,13 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
   }
 
   Future<void> _handleResetPassword(BuildContext context, String? email, bool isRegistered) async {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
+    final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+    final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+
     if (email == null || email.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -226,24 +243,24 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       showDialog(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            side: BorderSide(color: borderColor),
           ),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.info_outline_rounded, color: Colors.orange),
-              SizedBox(width: 10),
+              const Icon(Icons.info_outline_rounded, color: Colors.orange),
+              const SizedBox(width: 10),
               Text(
                 'Akun Belum Terdaftar',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
               ),
             ],
           ),
           content: Text(
             'Akun dengan email $email belum melakukan registrasi di aplikasi. Reset password hanya dapat dilakukan untuk akun yang sudah aktif/terdaftar.',
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+            style: TextStyle(color: subTextColor, fontSize: 14),
           ),
           actions: [
             TextButton(
@@ -274,10 +291,10 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: borderColor, width: 1.5),
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: Column(
@@ -295,35 +312,35 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 child: const Icon(Icons.lock_reset_rounded, color: Colors.white, size: 26),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Reset Password Murid',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
               ),
               const SizedBox(height: 12),
               Text(
                 'Masukkan password baru untuk murid ${student['nama']}. Murid dapat langsung login menggunakan password baru ini.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, height: 1.5),
+                style: TextStyle(color: subTextColor, fontSize: 13, height: 1.5),
               ),
               const SizedBox(height: 20),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: cardBgColor,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                  border: Border.all(color: borderColor),
                 ),
                 child: TextField(
                   controller: newPasswordController,
                   obscureText: obscurePassword,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: textColor),
                   decoration: InputDecoration(
                     labelText: 'Password Baru',
-                    labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                    prefixIcon: Icon(Icons.lock_outline_rounded, color: Colors.white.withValues(alpha: 0.5)),
+                    labelStyle: TextStyle(color: subTextColor),
+                    prefixIcon: Icon(Icons.lock_outline_rounded, color: subTextColor),
                     suffixIcon: IconButton(
                       icon: Icon(
                         obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        color: Colors.white.withValues(alpha: 0.4),
+                        color: subTextColor,
                       ),
                       onPressed: () => setState(() => obscurePassword = !obscurePassword),
                     ),
@@ -342,11 +359,11 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      side: BorderSide(color: borderColor),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                    child: Text('Batal', style: TextStyle(color: textColor)),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -415,21 +432,27 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     TextCapitalization capitalization = TextCapitalization.none,
     TextInputType keyboardType = TextInputType.text,
   }) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
+    final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: cardBgColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: borderColor),
       ),
       child: TextField(
         controller: controller,
-        style: const TextStyle(color: Colors.white),
+        style: TextStyle(color: textColor),
         textCapitalization: capitalization,
         keyboardType: keyboardType,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-          prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.45), size: 20),
+          labelStyle: TextStyle(color: subTextColor),
+          prefixIcon: Icon(icon, color: subTextColor, size: 20),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
@@ -446,301 +469,330 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     final String? className = student['className'];
     final bool hasClass = className != null && className.isNotEmpty;
 
-    return Scaffold(
-      body: AuthBackground(
-        child: Column(
-          children: [
-            // ── AppBar ─────────────────────────────────────────────────────
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 4),
-                    const Expanded(
-                      child: Text(
-                        'Detail Murid',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
-                    // Edit button
-                    Container(
-                      margin: const EdgeInsets.only(right: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 20),
-                        tooltip: 'Edit Murid',
-                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                        padding: EdgeInsets.zero,
-                        onPressed: _showEditDialog,
-                      ),
-                    ),
-                    // Delete button
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
-                        tooltip: 'Hapus Murid',
-                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                        padding: EdgeInsets.zero,
-                        onPressed: _showDeleteDialog,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
+        final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04);
+        final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+        final dividerColor = isDark ? Colors.white.withValues(alpha: 0.07) : Colors.black.withValues(alpha: 0.05);
 
-            // ── Body ────────────────────────────────────────────────────────
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Profile Card ────────────────────────────────────────
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF0EA5E9).withValues(alpha: 0.35),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Avatar
-                          Container(
-                            width: 66,
-                            height: 66,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-                            ),
-                            child: Center(
-                              child: Text(
-                                inisial,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 18),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  nama,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                    color: Colors.white,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    Icon(Icons.badge_outlined, size: 14, color: Colors.white.withValues(alpha: 0.7)),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      'NIS: ${student['nis'] ?? '-'}',
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.8),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                // Badges row
-                                Wrap(
-                                  spacing: 6,
-                                  children: [
-                                    // Status registrasi
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isRegistered
-                                            ? Colors.white.withValues(alpha: 0.25)
-                                            : Colors.orange.withValues(alpha: 0.3),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: isRegistered
-                                              ? Colors.white.withValues(alpha: 0.4)
-                                              : Colors.orange.withValues(alpha: 0.5),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            isRegistered ? Icons.verified_rounded : Icons.pending_rounded,
-                                            size: 11,
-                                            color: Colors.white,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            isRegistered ? 'Terdaftar' : 'Belum Registrasi',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // ── Section Header ───────────────────────────────────────
-                    Row(
+        return Scaffold(
+          body: AuthBackground(
+            child: Column(
+              children: [
+                // ── AppBar ─────────────────────────────────────────────────────
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                    child: Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.3)),
-                          ),
-                          child: const Icon(Icons.info_outline_rounded, color: Color(0xFF0EA5E9), size: 18),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
                         ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Informasi Akademik',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.3,
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Detail Murid',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                          ),
+                        ),
+                        // Edit button
+                        Container(
+                          margin: const EdgeInsets.only(right: 4),
+                          decoration: BoxDecoration(
+                            color: cardBgColor,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: IconButton(
+                            icon: Icon(Icons.edit_outlined, color: textColor, size: 20),
+                            tooltip: 'Edit Murid',
+                            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                            padding: EdgeInsets.zero,
+                            onPressed: _showEditDialog,
+                          ),
+                        ),
+                        // Delete button
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                            tooltip: 'Hapus Murid',
+                            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                            padding: EdgeInsets.zero,
+                            onPressed: _showDeleteDialog,
                           ),
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 14),
-
-                    // ── Info Cards ───────────────────────────────────────────
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 14,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          // Kelas
-                          _infoTile(
-                            icon: Icons.class_outlined,
-                            iconColor: const Color(0xFF6366F1),
-                            label: 'Kelas',
-                            value: hasClass ? className : 'Belum ditentukan',
-                            valueColor: hasClass ? Colors.white : Colors.white.withValues(alpha: 0.4),
-                            showDivider: true,
-                          ),
-                          // Email
-                          _infoTile(
-                            icon: Icons.email_outlined,
-                            iconColor: const Color(0xFF0EA5E9),
-                            label: 'Email',
-                            value: (student['email'] ?? '').toString().isEmpty ? '-' : student['email'],
-                            showDivider: true,
-                          ),
-                          // Status Keaktifan
-                          _infoTile(
-                            icon: isAktif ? Icons.check_circle_outline_rounded : Icons.cancel_outlined,
-                            iconColor: isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                            label: 'Status Keaktifan',
-                            value: isAktif ? 'Aktif' : 'Tidak Aktif',
-                            valueColor: isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                            showDivider: false,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ── Reset Password Button ────────────────────────────────
-                    Container(
-                      width: double.infinity,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                      ),
-                      child: TextButton.icon(
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                        icon: const Icon(Icons.lock_reset_rounded, color: Colors.white),
-                        label: const Text(
-                          'Reset Password Akun',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        onPressed: () => _handleResetPassword(context, student['email'] as String?, isRegistered),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+
+                // ── Body ────────────────────────────────────────────────────────
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Profile Card ────────────────────────────────────────
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0EA5E9).withValues(alpha: 0.35),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Avatar
+                              Container(
+                                width: 66,
+                                height: 66,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    inisial,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 18),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      nama,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
+                                        color: Colors.white,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.badge_outlined, size: 14, color: Colors.white.withValues(alpha: 0.7)),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          'NIS: ${student['nis'] ?? '-'}',
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.8),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    // Badges row
+                                    Wrap(
+                                      spacing: 6,
+                                      children: [
+                                        // Status registrasi
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isRegistered
+                                                ? Colors.white.withValues(alpha: 0.25)
+                                                : Colors.orange.withValues(alpha: 0.3),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: isRegistered
+                                                  ? Colors.white.withValues(alpha: 0.4)
+                                                  : Colors.orange.withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                isRegistered ? Icons.verified_rounded : Icons.pending_rounded,
+                                                size: 11,
+                                                color: Colors.white,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                isRegistered ? 'Terdaftar' : 'Belum Registrasi',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 28),
+
+                        // ── Section Header ───────────────────────────────────────
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.3)),
+                              ),
+                              child: const Icon(Icons.info_outline_rounded, color: Color(0xFF0EA5E9), size: 18),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Informasi Akademik',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // ── Info Cards ───────────────────────────────────────────
+                        Container(
+                          decoration: BoxDecoration(
+                            color: cardBgColor,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: borderColor),
+                            boxShadow: isDark
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.15),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ]
+                                : [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.04),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                          ),
+                          child: Column(
+                            children: [
+                              // Kelas
+                              _infoTile(
+                                icon: Icons.class_outlined,
+                                iconColor: const Color(0xFF6366F1),
+                                label: 'Kelas',
+                                value: hasClass ? className : 'Belum ditentukan',
+                                valueColor: hasClass ? textColor : subTextColor.withValues(alpha: 0.5),
+                                textColor: textColor,
+                                subTextColor: subTextColor,
+                                showDivider: true,
+                                dividerColor: dividerColor,
+                              ),
+                              // Email
+                              _infoTile(
+                                icon: Icons.email_outlined,
+                                iconColor: const Color(0xFF0EA5E9),
+                                label: 'Email',
+                                value: (student['email'] ?? '').toString().isEmpty ? '-' : student['email'],
+                                valueColor: textColor,
+                                textColor: textColor,
+                                subTextColor: subTextColor,
+                                showDivider: true,
+                                dividerColor: dividerColor,
+                              ),
+                              // Status Keaktifan
+                              _infoTile(
+                                icon: isAktif ? Icons.check_circle_outline_rounded : Icons.cancel_outlined,
+                                iconColor: isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                label: 'Status Keaktifan',
+                                value: isAktif ? 'Aktif' : 'Tidak Aktif',
+                                valueColor: isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                textColor: textColor,
+                                subTextColor: subTextColor,
+                                showDivider: false,
+                                dividerColor: dividerColor,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // ── Reset Password Button ────────────────────────────────
+                        Container(
+                          width: double.infinity,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            color: cardBgColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(
+                              foregroundColor: textColor,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            icon: Icon(Icons.lock_reset_rounded, color: textColor),
+                            label: Text(
+                              'Reset Password Akun',
+                              style: TextStyle(
+                                color: textColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                            onPressed: () => _handleResetPassword(context, student['email'] as String?, isRegistered),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -749,8 +801,11 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     required Color iconColor,
     required String label,
     required String value,
-    Color valueColor = Colors.white,
+    required Color textColor,
+    required Color subTextColor,
+    Color? valueColor,
     required bool showDivider,
+    required Color dividerColor,
   }) {
     return Column(
       children: [
@@ -778,7 +833,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: subTextColor,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -787,7 +842,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
-                        color: valueColor,
+                        color: valueColor ?? textColor,
                       ),
                     ),
                   ],
@@ -801,7 +856,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             height: 1,
             indent: 70,
             endIndent: 16,
-            color: Colors.white.withValues(alpha: 0.07),
+            color: dividerColor,
           ),
       ],
     );

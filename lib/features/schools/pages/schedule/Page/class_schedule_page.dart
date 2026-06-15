@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
@@ -440,7 +441,7 @@ class ClassSchedulePage extends StatelessWidget {
     String? selectedTeacherName;
     String jamMulai = '';
     String jamSelesai = '';
-    const primaryColor = Color(0xFF4F46E5);
+    const primaryColor = Color(0xFFEC4899);
 
     Future<void> pickTime({
       required bool isStart,
@@ -451,111 +452,182 @@ class ClassSchedulePage extends StatelessWidget {
       final initialHour = hasInitialValue ? int.tryParse(initialValue.split(':').first) ?? 7 : 7;
       final initialMinute = hasInitialValue ? int.tryParse(initialValue.split(':').last) ?? 0 : 0;
 
+      if (kIsWeb) {
+        final TimeOfDay? picked = await showTimePicker(
+          context: context,
+          initialTime: TimeOfDay(hour: initialHour, minute: initialMinute),
+          initialEntryMode: TimePickerEntryMode.input,
+          builder: (BuildContext context, Widget? child) {
+            return Theme(
+              data: ThemeData.light().copyWith(
+                colorScheme: const ColorScheme.light(
+                  primary: primaryColor,
+                  onPrimary: Colors.white,
+                  onSurface: Color(0xFF1E1B4B),
+                ),
+                dialogTheme: const DialogThemeData(
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+
+        if (picked != null) {
+          final formatted =
+              '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+          dialogSetState(() {
+            if (isStart) {
+              jamMulai = formatted;
+            } else {
+              jamSelesai = formatted;
+            }
+          });
+        }
+        return;
+      }
+
       int selectedHour = initialHour;
       int selectedMinute = initialMinute;
 
       await showCupertinoModalPopup<void>(
         context: context,
         builder: (pickerContext) {
-          return Container(
-            height: 280,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          return CupertinoTheme(
+            data: const CupertinoThemeData(
+              brightness: Brightness.dark,
+              primaryColor: Color(0xFFEC4899),
             ),
-            child: Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                height: 310,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F0C20),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                  border: Border(
+                    top: BorderSide(color: Colors.white.withOpacity(0.08), width: 1.5),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        isStart ? 'Jam Mulai' : 'Jam Selesai',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17,
-                          color: Color(0xFF1E1B4B),
+                child: Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 10, bottom: 4),
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Text(
+                              isStart ? 'Jam Mulai' : 'Jam Selesai',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Positioned(
+                              right: 0,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFEC4899).withOpacity(0.2),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                                  ),
+                                  onPressed: () {
+                                    final formatted =
+                                        '${selectedHour.toString().padLeft(2, '0')}:${selectedMinute.toString().padLeft(2, '0')}';
+                                    dialogSetState(() {
+                                      if (isStart) {
+                                        jamMulai = formatted;
+                                      } else {
+                                        jamSelesai = formatted;
+                                      }
+                                    });
+                                    Navigator.pop(pickerContext);
+                                  },
+                                  child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        ),
-                        onPressed: () {
-                          final formatted =
-                              '${selectedHour.toString().padLeft(2, '0')}:${selectedMinute.toString().padLeft(2, '0')}';
-                          dialogSetState(() {
-                            if (isStart) {
-                              jamMulai = formatted;
-                            } else {
-                              jamSelesai = formatted;
-                            }
-                          });
-                          Navigator.pop(pickerContext);
-                        },
-                        child: const Text('Pilih', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: CupertinoPicker(
-                          scrollController: FixedExtentScrollController(initialItem: initialHour),
-                          itemExtent: 40,
-                          onSelectedItemChanged: (value) => selectedHour = value,
-                          children: List.generate(
-                            24,
-                            (index) => Center(
-                              child: Text(
-                                '${index.toString().padLeft(2, '0')}',
-                                style: const TextStyle(fontSize: 15),
+                    ),
+                    Divider(height: 1, color: Colors.white.withOpacity(0.08)),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CupertinoPicker(
+                            scrollController: FixedExtentScrollController(initialItem: initialHour),
+                            itemExtent: 40,
+                            onSelectedItemChanged: (value) => selectedHour = value,
+                            children: List.generate(
+                              24,
+                              (index) => Center(
+                                child: Text(
+                                  index.toString().padLeft(2, '0'),
+                                  style: const TextStyle(fontSize: 16, color: Colors.white),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      const VerticalDivider(width: 1),
-                      Expanded(
-                        child: CupertinoPicker(
-                          scrollController: FixedExtentScrollController(initialItem: initialMinute),
-                          itemExtent: 40,
-                          onSelectedItemChanged: (value) => selectedMinute = value,
-                          children: List.generate(
-                            60,
-                            (index) => Center(
-                              child: Text(
-                                '${index.toString().padLeft(2, '0')}',
-                                style: const TextStyle(fontSize: 15),
+                        VerticalDivider(width: 1, color: Colors.white.withOpacity(0.08)),
+                        Expanded(
+                          child: CupertinoPicker(
+                            scrollController: FixedExtentScrollController(initialItem: initialMinute),
+                            itemExtent: 40,
+                            onSelectedItemChanged: (value) => selectedMinute = value,
+                            children: List.generate(
+                              60,
+                              (index) => Center(
+                                child: Text(
+                                  index.toString().padLeft(2, '0'),
+                                  style: const TextStyle(fontSize: 16, color: Colors.white),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          );
-        },
-      );
+          ),
+        );
+      },
+    );
     }
 
     Widget buildTimeField({
@@ -567,28 +639,32 @@ class ClassSchedulePage extends StatelessWidget {
       final hasValue = value.isNotEmpty;
       return InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            border: Border.all(color: hasValue ? primaryColor : Colors.grey.shade200),
-            borderRadius: BorderRadius.circular(12),
+            color: Colors.white.withOpacity(0.03),
+            border: Border.all(
+              color: hasValue ? const Color(0xFFEC4899) : Colors.white.withOpacity(0.08),
+            ),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: hasValue ? primaryColor : Colors.grey),
+              Icon(icon, size: 20, color: hasValue ? const Color(0xFFEC4899) : Colors.white.withOpacity(0.4)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  hasValue ? value : 'Tap untuk pilih $label',
+                  hasValue ? value : 'Pilih $label',
                   style: TextStyle(
-                    color: hasValue ? const Color(0xFF1E1B4B) : Colors.grey,
+                    color: hasValue ? Colors.white : Colors.white.withOpacity(0.4),
                     fontWeight: hasValue ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 13,
                   ),
                 ),
               ),
-              const Icon(Icons.expand_more_rounded, color: Colors.grey, size: 20),
+              Icon(Icons.expand_more_rounded, color: Colors.white.withOpacity(0.4), size: 20),
             ],
           ),
         ),
@@ -601,18 +677,22 @@ class ClassSchedulePage extends StatelessWidget {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              backgroundColor: const Color(0xFF0F0C20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(color: Colors.white.withOpacity(0.08), width: 1.5),
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
               title: const Row(
                 children: [
-                  Icon(Icons.schedule_rounded, color: primaryColor, size: 22),
-                  SizedBox(width: 8),
+                  Icon(Icons.schedule_rounded, color: Color(0xFFEC4899), size: 24),
+                  SizedBox(width: 10),
                   Text(
                     'Tambah Jadwal',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E1B4B),
+                      color: Colors.white,
                       fontSize: 18,
                     ),
                   ),
@@ -623,7 +703,7 @@ class ClassSchedulePage extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     // Jenis jadwal toggle
                     Row(
                       children: ['pelajaran', 'istirahat'].map((jenis) {
@@ -643,10 +723,20 @@ class ClassSchedulePage extends StatelessWidget {
                               }),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: selected ? primaryColor : Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(10),
+                                  gradient: selected
+                                      ? const LinearGradient(
+                                          colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
+                                        )
+                                      : null,
+                                  color: selected ? null : Colors.white.withOpacity(0.04),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: selected
+                                        ? const Color(0xFFEC4899).withOpacity(0.4)
+                                        : Colors.white.withOpacity(0.08),
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -654,15 +744,15 @@ class ClassSchedulePage extends StatelessWidget {
                                     Icon(
                                       jenis == 'pelajaran' ? Icons.menu_book_rounded : Icons.free_breakfast_rounded,
                                       size: 16,
-                                      color: selected ? Colors.white : Colors.grey,
+                                      color: selected ? Colors.white : Colors.white.withOpacity(0.5),
                                     ),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: 8),
                                     Text(
                                       jenis == 'pelajaran' ? 'Pelajaran' : 'Istirahat',
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
-                                        color: selected ? Colors.white : Colors.grey,
+                                        color: selected ? Colors.white : Colors.white.withOpacity(0.6),
                                       ),
                                     ),
                                   ],
@@ -679,28 +769,31 @@ class ClassSchedulePage extends StatelessWidget {
                     // Hari dropdown
                     DropdownButtonFormField<String>(
                       initialValue: hari,
+                      dropdownColor: const Color(0xFF0F0C20),
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
                       decoration: InputDecoration(
                         labelText: 'Hari',
-                        prefixIcon: const Icon(Icons.calendar_today_rounded, color: primaryColor),
+                        labelStyle: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                        prefixIcon: const Icon(Icons.calendar_today_rounded, color: Color(0xFFEC4899), size: 20),
                         filled: true,
-                        fillColor: Colors.grey.shade50,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        fillColor: Colors.white.withOpacity(0.03),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: primaryColor, width: 2),
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFEC4899), width: 1.5),
                         ),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'Senin', child: Text('Senin')),
-                        DropdownMenuItem(value: 'Selasa', child: Text('Selasa')),
-                        DropdownMenuItem(value: 'Rabu', child: Text('Rabu')),
-                        DropdownMenuItem(value: 'Kamis', child: Text('Kamis')),
-                        DropdownMenuItem(value: 'Jumat', child: Text('Jumat')),
-                        DropdownMenuItem(value: 'Sabtu', child: Text('Sabtu')),
-                        DropdownMenuItem(value: 'Minggu', child: Text('Minggu')),
+                        DropdownMenuItem(value: 'Senin', child: Text('Senin', style: TextStyle(color: Colors.white))),
+                        DropdownMenuItem(value: 'Selasa', child: Text('Selasa', style: TextStyle(color: Colors.white))),
+                        DropdownMenuItem(value: 'Rabu', child: Text('Rabu', style: TextStyle(color: Colors.white))),
+                        DropdownMenuItem(value: 'Kamis', child: Text('Kamis', style: TextStyle(color: Colors.white))),
+                        DropdownMenuItem(value: 'Jumat', child: Text('Jumat', style: TextStyle(color: Colors.white))),
+                        DropdownMenuItem(value: 'Sabtu', child: Text('Sabtu', style: TextStyle(color: Colors.white))),
+                        DropdownMenuItem(value: 'Minggu', child: Text('Minggu', style: TextStyle(color: Colors.white))),
                       ],
                       onChanged: (value) => setState(() => hari = value),
                     ),
@@ -717,31 +810,33 @@ class ClassSchedulePage extends StatelessWidget {
                           stream: _subjectService.getSubjects(SessionService.currentUser!.schoolId),
                           builder: (context, snapshot) {
                             if (!snapshot.hasData) {
-                              return const LinearProgressIndicator();
+                              return const LinearProgressIndicator(color: Color(0xFFEC4899));
                             }
                             final docs = snapshot.data!.docs;
                             return DropdownButtonFormField<String>(
                               initialValue: selectedSubjectId,
+                              dropdownColor: const Color(0xFF0F0C20),
+                              style: const TextStyle(color: Colors.white, fontSize: 14),
                               decoration: InputDecoration(
                                 labelText: 'Mata Pelajaran',
-                                prefixIcon: const Icon(Icons.menu_book_rounded, color: primaryColor),
+                                labelStyle: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                                prefixIcon: const Icon(Icons.menu_book_rounded, color: Color(0xFFEC4899), size: 20),
                                 filled: true,
-                                fillColor: Colors.grey.shade50,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: Colors.grey.shade200),
+                                fillColor: Colors.white.withOpacity(0.03),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
                                 ),
                                 focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: primaryColor, width: 2),
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFEC4899), width: 1.5),
                                 ),
                               ),
                               items: docs.map((doc) {
                                 final data = doc.data();
                                 return DropdownMenuItem(
                                   value: doc.id,
-                                  onTap: () {},
-                                  child: Text(data['namaMapel'] ?? ''),
+                                  child: Text(data['namaMapel'] ?? '', style: const TextStyle(color: Colors.white)),
                                 );
                               }).toList(),
                               onChanged: (value) => setState(() {
@@ -766,31 +861,33 @@ class ClassSchedulePage extends StatelessWidget {
                           stream: _teacherService.getTeachers(SessionService.currentUser!.schoolId),
                           builder: (context, snapshot) {
                             if (!snapshot.hasData) {
-                              return const LinearProgressIndicator();
+                              return const LinearProgressIndicator(color: Color(0xFFEC4899));
                             }
                             final docs = snapshot.data!.docs;
                             return DropdownButtonFormField<String>(
                               initialValue: selectedTeacherId,
+                              dropdownColor: const Color(0xFF0F0C20),
+                              style: const TextStyle(color: Colors.white, fontSize: 14),
                               decoration: InputDecoration(
                                 labelText: 'Guru Pengajar',
-                                prefixIcon: const Icon(Icons.person_rounded, color: primaryColor),
+                                labelStyle: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                                prefixIcon: const Icon(Icons.person_rounded, color: Color(0xFFEC4899), size: 20),
                                 filled: true,
-                                fillColor: Colors.grey.shade50,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: Colors.grey.shade200),
+                                fillColor: Colors.white.withOpacity(0.03),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
                                 ),
                                 focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: primaryColor, width: 2),
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: Color(0xFFEC4899), width: 1.5),
                                 ),
                               ),
                               items: docs.map((doc) {
                                 final teacher = doc.data();
                                 return DropdownMenuItem<String>(
                                   value: doc.id,
-                                  onTap: () {},
-                                  child: Text(teacher['nama'] ?? ''),
+                                  child: Text(teacher['nama'] ?? '', style: const TextStyle(color: Colors.white)),
                                 );
                               }).toList(),
                               onChanged: (value) => setState(() {
@@ -831,73 +928,106 @@ class ClassSchedulePage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Batal', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [primaryColor, Color(0xFF6366F1)],
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          side: BorderSide(color: Colors.white.withOpacity(0.15)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: Text(
+                          'Batal',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () async {
-                      final selectedHari = hari;
-                      if (selectedHari == null || selectedHari.isEmpty) {
-                        ScaffoldMessenger.of(dialogContext).showSnackBar(
-                          const SnackBar(content: Text('Silakan pilih hari terlebih dahulu')),
-                        );
-                        return;
-                      }
-                      if (jamMulai.isEmpty || jamSelesai.isEmpty) return;
-                      if (jenisJadwal == 'pelajaran' &&
-                          (selectedSubjectId == null || selectedTeacherId == null)) {
-                        return;
-                      }
-                      try {
-                        await _service.addSchedule(
-                          schoolId: SessionService.currentUser!.schoolId,
-                          classId: classId,
-                          className: className,
-                          jenisJadwal: jenisJadwal,
-                          subjectId: selectedSubjectId ?? '',
-                          subjectName: selectedSubjectName ?? '',
-                          teacherId: selectedTeacherId ?? '',
-                          teacherName: selectedTeacherName ?? '',
-                          hari: selectedHari,
-                          jamMulai: jamMulai,
-                          jamSelesai: jamSelesai,
-                        );
-                        if (dialogContext.mounted) {
-                          Navigator.pop(dialogContext);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Jadwal berhasil ditambahkan')),
-                          );
-                        }
-                      } catch (e) {
-                        if (dialogContext.mounted) {
-                          ScaffoldMessenger.of(dialogContext).showSnackBar(
-                            SnackBar(
-                              content: Text(e.toString().replaceFirst('Exception: ', '')),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFEC4899).withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
                             ),
-                          );
-                        }
-                      }
-                    },
-                    child: const Text('Simpan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
+                          ],
+                        ),
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () async {
+                            final selectedHari = hari;
+                            if (selectedHari == null || selectedHari.isEmpty) {
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                const SnackBar(content: Text('Silakan pilih hari terlebih dahulu')),
+                              );
+                              return;
+                            }
+                            if (jamMulai.isEmpty || jamSelesai.isEmpty) return;
+                            if (jenisJadwal == 'pelajaran' &&
+                                (selectedSubjectId == null || selectedTeacherId == null)) {
+                              return;
+                            }
+                            try {
+                              await _service.addSchedule(
+                                schoolId: SessionService.currentUser!.schoolId,
+                                classId: classId,
+                                className: className,
+                                jenisJadwal: jenisJadwal,
+                                subjectId: selectedSubjectId ?? '',
+                                subjectName: selectedSubjectName ?? '',
+                                teacherId: selectedTeacherId ?? '',
+                                teacherName: selectedTeacherName ?? '',
+                                hari: selectedHari,
+                                jamMulai: jamMulai,
+                                jamSelesai: jamSelesai,
+                              );
+                              if (dialogContext.mounted) {
+                                Navigator.pop(dialogContext);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Jadwal berhasil ditambahkan')),
+                                );
+                              }
+                            } catch (e) {
+                              if (dialogContext.mounted) {
+                                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                  SnackBar(
+                                    content: Text(e.toString().replaceFirst('Exception: ', '')),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          child: const Text(
+                            'Simpan',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );

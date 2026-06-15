@@ -1,84 +1,118 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthBackground extends StatelessWidget {
   final Widget child;
+  static final ValueNotifier<bool> isDarkMode = ValueNotifier<bool>(true);
+
+  static Future<void> initTheme() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      isDarkMode.value = prefs.getBool('is_dark_mode') ?? true;
+    } catch (e) {
+      debugPrint('Failed to load theme preference: \$e');
+    }
+    isDarkMode.addListener(() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_dark_mode', isDarkMode.value);
+      } catch (e) {
+        debugPrint('Failed to save theme preference: \$e');
+      }
+    });
+  }
 
   const AuthBackground({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [
-            Color(0xFF1E1B4B), // Deep indigo
-            Color(0xFF0F0C20), // Dark indigo-purple
-            Color(0xFF090514), // Midnight black
-          ],
-          stops: [0.0, 0.5, 1.0],
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Aura Cahaya 1 (Top Right Glow)
-          Positioned(
-            top: -100,
-            right: -100,
-            child: Container(
-              width: 350,
-              height: 350,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF6366F1).withOpacity(0.18), // Violet glow
-                    const Color(0xFF6366F1).withOpacity(0.0),
-                  ],
+    return ValueListenableBuilder<bool>(
+      valueListenable: isDarkMode,
+      builder: (context, isDark, _) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+              colors: isDark
+                  ? [
+                      const Color(0xFF1E1B4B), // Deep indigo
+                      const Color(0xFF0F0C20), // Dark indigo-purple
+                      const Color(0xFF090514), // Midnight black
+                    ]
+                  : [
+                      const Color(0xFFEEF2F6), // Light slate gray
+                      const Color(0xFFF8FAFC), // Off white
+                      const Color(0xFFFFFFFF), // Pure white
+                    ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+          ),
+          child: Stack(
+            children: [
+              // Aura Cahaya 1 (Top Right Glow)
+              Positioned(
+                top: -100,
+                right: -100,
+                child: Container(
+                  width: 350,
+                  height: 350,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFF6366F1).withValues(alpha: isDark ? 0.18 : 0.08), // Violet glow
+                        const Color(0xFF6366F1).withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          // Aura Cahaya 2 (Bottom Left Glow)
-          Positioned(
-            bottom: -150,
-            left: -150,
-            child: Container(
-              width: 450,
-              height: 450,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFFD946EF).withOpacity(0.12), // Pink/Magenta glow
-                    const Color(0xFFD946EF).withOpacity(0.0),
-                  ],
+              // Aura Cahaya 2 (Bottom Left Glow)
+              Positioned(
+                bottom: -150,
+                left: -150,
+                child: Container(
+                  width: 450,
+                  height: 450,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFFD946EF).withValues(alpha: isDark ? 0.12 : 0.06), // Pink/Magenta glow
+                        const Color(0xFFD946EF).withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+              // Motif / Corak Garis Geometris & Grid
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: AuthPatternPainter(isDarkMode: isDark),
+                ),
+              ),
+              
+              // Konten utama
+              SafeArea(child: child),
+            ],
           ),
-          // Motif / Corak Garis Geometris & Grid
-          Positioned.fill(
-            child: CustomPaint(
-              painter: AuthPatternPainter(),
-            ),
-          ),
-          // Konten utama
-          SafeArea(child: child),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
 class AuthPatternPainter extends CustomPainter {
+  final bool isDarkMode;
+
+  AuthPatternPainter({required this.isDarkMode});
+
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Menggambar Grid Halus (Polanya Sekolah/Teknologi)
+    // 1. Menggambar Grid Halus
     final gridPaint = Paint()
-      ..color = Colors.white.withOpacity(0.018)
+      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.018) : Colors.black.withValues(alpha: 0.025)
       ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke;
 
@@ -92,7 +126,7 @@ class AuthPatternPainter extends CustomPainter {
 
     // 2. Menggambar Ornamen Gelombang Abstrak Melengkung
     final pathPaint = Paint()
-      ..color = Colors.white.withOpacity(0.035)
+      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.035) : Colors.black.withValues(alpha: 0.04)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
@@ -122,9 +156,9 @@ class AuthPatternPainter extends CustomPainter {
     );
     canvas.drawPath(wave2, pathPaint);
 
-    // 3. Menggambar Motif Titik-Titik Halus (Dot Pattern) di pojok kiri atas & kanan bawah
+    // 3. Menggambar Motif Titik-Titik Halus (Dot Pattern)
     final dotPaint = Paint()
-      ..color = Colors.white.withOpacity(0.06)
+      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05)
       ..style = PaintingStyle.fill;
 
     // Grid Dot Kiri Atas
@@ -158,7 +192,7 @@ class AuthPatternPainter extends CustomPainter {
 
     // 4. Garis Diagonal Dinamis Menyilang
     final accentPaint = Paint()
-      ..color = const Color(0xFF6366F1).withOpacity(0.12)
+      ..color = const Color(0xFF6366F1).withValues(alpha: isDarkMode ? 0.12 : 0.08)
       ..strokeWidth = 1.0;
     
     canvas.drawLine(
@@ -169,10 +203,12 @@ class AuthPatternPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(size.width * 0.4, size.height * 0.55),
       3.0,
-      Paint()..color = const Color(0xFF6366F1).withOpacity(0.25)..style = PaintingStyle.fill,
+      Paint()
+        ..color = const Color(0xFF6366F1).withValues(alpha: isDarkMode ? 0.25 : 0.15)
+        ..style = PaintingStyle.fill,
     );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

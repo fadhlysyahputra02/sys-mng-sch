@@ -144,18 +144,27 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         ),
       );
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 850) {
-          return _buildMobileLayout();
-        } else {
-          return _buildDesktopLayout();
-        }
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 850) {
+              return _buildMobileLayout(isDark);
+            } else {
+              return _buildDesktopLayout(isDark);
+            }
+          },
+        );
       },
     );
   }
 
-  Widget _buildMobileLayout() {
+  Widget _buildMobileLayout(bool isDark) {
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+    final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
     return Scaffold(
       body: AuthBackground(
         child: CustomScrollView(
@@ -168,11 +177,11 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               pinned: true,
               toolbarHeight: 56,
               title: Text(
-                '${_getGreeting()}, $nama',
-                style: const TextStyle(
+                _getGreeting(),
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: titleColor,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -180,11 +189,11 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               actions: [
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: iconBgColor,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.settings_rounded, color: Colors.white, size: 20),
+                    icon: Icon(Icons.settings_rounded, color: iconColor, size: 20),
                     tooltip: 'Pengaturan',
                     onPressed: () async {
                       final updated = await Get.to(() => SchoolSettingsPage(schoolId: schoolId));
@@ -198,11 +207,11 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 Container(
                   margin: const EdgeInsets.only(right: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: iconBgColor,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
+                    icon: Icon(Icons.logout_rounded, color: iconColor, size: 20),
                     tooltip: 'Keluar',
                     onPressed: _logout,
                   ),
@@ -217,12 +226,12 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Merged Header Card (Profile & School Info)
-                    _buildMergedHeaderCard(nama, email),
+                    _buildMergedHeaderCard(nama, email, isDark),
 
                     const SizedBox(height: 28),
 
                     // 3. MENU UTAMA
-                    _buildSectionTitle('Menu Utama', Icons.dashboard_rounded),
+                    _buildSectionTitle('Menu Utama', Icons.dashboard_rounded, isDark),
                     const SizedBox(height: 16),
 
                     GridView.builder(
@@ -235,7 +244,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                         childAspectRatio: 1.15,
                       ),
                       itemCount: _menus.length,
-                      itemBuilder: (_, i) => _buildMenuCard(_menus[i]),
+                      itemBuilder: (_, i) => _buildMenuCard(_menus[i], isDark),
                     ),
 
                     const SizedBox(height: 40),
@@ -249,16 +258,25 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildMergedHeaderCard(String adminNama, String adminEmail) {
+  Widget _buildMergedHeaderCard(String adminNama, String adminEmail, bool isDark) {
+    final cardColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08);
+    final cardShadow = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final emailColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+    final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+    final dateColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: cardShadow,
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -282,7 +300,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                           end: Alignment.bottomRight,
                         ),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                  border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08), width: 1.5),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(18),
@@ -307,17 +325,17 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _isLoadingSchool
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 18,
                             width: 140,
                             child: LinearProgressIndicator(
-                              backgroundColor: Colors.white12,
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                              backgroundColor: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
                             ),
                           )
                         : Text(
                             _schoolName ?? 'Sekolah Baru',
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: titleColor),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -326,7 +344,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                       'School ID: $schoolId',
                       style: TextStyle(
                         fontSize: 13, 
-                        color: Colors.white.withValues(alpha: 0.5), 
+                        color: subtitleColor, 
                         fontWeight: FontWeight.w500
                       ),
                     ),
@@ -334,7 +352,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                       adminEmail,
                       style: TextStyle(
                         fontSize: 11, 
-                        color: Colors.white.withValues(alpha: 0.4)
+                        color: emailColor
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -365,7 +383,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             ],
           ),
           const SizedBox(height: 16),
-          Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+          Divider(color: dividerColor, height: 1),
           const SizedBox(height: 16),
           // Footer: Date and System Status
           Row(
@@ -373,14 +391,14 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.calendar_today_rounded, size: 14, color: Colors.white.withValues(alpha: 0.5)),
+                  Icon(Icons.calendar_today_rounded, size: 14, color: dateColor),
                   const SizedBox(width: 6),
                   Text(
                     _getFormattedDate(),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Colors.white.withValues(alpha: 0.5),
+                      color: dateColor,
                     ),
                   ),
                 ],
@@ -477,17 +495,20 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon) {
+  Widget _buildSectionTitle(String title, IconData icon, bool isDark) {
+    final iconColor = isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
     return Row(
       children: [
-        Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 20),
+        Icon(icon, color: iconColor, size: 20),
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: textColor,
             letterSpacing: 0.5,
           ),
         ),
@@ -495,8 +516,23 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildMenuCard(_MenuData menu) {
+  Widget _buildMenuCard(_MenuData menu, bool isDark) {
     final bool isActive = ['Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi', 'Fitur Premium', 'Pengaturan'].contains(menu.title);
+
+    final cardBg = isActive
+        ? (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white)
+        : (isDark ? Colors.white.withValues(alpha: 0.015) : Colors.black.withValues(alpha: 0.015));
+
+    final cardBorder = isActive
+        ? (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06))
+        : (isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.03));
+
+    final titleColor = isActive
+        ? (isDark ? Colors.white : const Color(0xFF1E1B4B))
+        : (isDark ? Colors.white30 : Colors.black26);
+
+    final upcomingBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05);
+    final upcomingText = isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.4);
 
     return Material(
       color: Colors.transparent,
@@ -505,13 +541,18 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         borderRadius: BorderRadius.circular(20),
         child: Container(
           decoration: BoxDecoration(
-            color: isActive ? Colors.white.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.015),
+            color: cardBg,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isActive 
-                  ? Colors.white.withValues(alpha: 0.08) 
-                  : Colors.white.withValues(alpha: 0.03),
-            ),
+            border: Border.all(color: cardBorder),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -524,7 +565,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 ),
                 child: Icon(
                   menu.icon, 
-                  color: isActive ? menu.color : Colors.white24, 
+                  color: isActive ? menu.color : (isDark ? Colors.white24 : Colors.black26), 
                   size: 28
                 ),
               ),
@@ -533,7 +574,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 menu.title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: isActive ? Colors.white : Colors.white30, 
+                  color: titleColor, 
                   fontSize: 13, 
                   fontWeight: FontWeight.w600
                 ),
@@ -543,13 +584,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: upcomingBg,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     'Segera Hadir',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
+                      color: upcomingText,
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
                     ),
@@ -563,17 +604,19 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildDesktopLayout() {
+  Widget _buildDesktopLayout(bool isDark) {
+    final panelBg = isDark ? const Color(0xFF0B081B) : const Color(0xFFF8FAFC);
+
     return Scaffold(
       body: Row(
         children: [
           // Sidebar
-          _buildSidebar(),
+          _buildSidebar(isDark),
           // Main Panel Content
           Expanded(
             child: Container(
-              color: const Color(0xFF0B081B), // Dark premium background
-              child: _buildDesktopContent(),
+              color: panelBg,
+              child: _buildDesktopContent(isDark),
             ),
           ),
         ],
@@ -581,14 +624,20 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildSidebar() {
+  Widget _buildSidebar(bool isDark) {
+    final sidebarBg = isDark ? const Color(0xFF110E24) : Colors.white;
+    final borderRightColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final miniLogoBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06);
+    final schoolNameColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+
     return Container(
       width: 260,
       decoration: BoxDecoration(
-        color: const Color(0xFF110E24),
+        color: sidebarBg,
         border: Border(
           right: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
+            color: borderRightColor,
             width: 1,
           ),
         ),
@@ -614,7 +663,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                           ),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
+                      color: miniLogoBorder,
                       width: 1,
                     ),
                   ),
@@ -638,20 +687,20 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _isLoadingSchool
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 12,
                               width: 80,
                               child: LinearProgressIndicator(
-                                backgroundColor: Colors.white12,
-                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                                backgroundColor: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
                               ),
                             )
                           : Text(
                               _schoolName ?? 'Sekolah Baru',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                color: schoolNameColor,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -665,7 +714,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             ),
           ),
           Divider(
-            color: Colors.white.withValues(alpha: 0.08),
+            color: dividerColor,
             height: 1,
           ),
           // Sidebar Navigation Items
@@ -673,61 +722,106 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               children: [
-                _buildSidebarItem('Dashboard', Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6)),
+                _buildSidebarItem('Dashboard', Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Guru', Icons.person_rounded, 1, const Color(0xFF6366F1)),
+                _buildSidebarItem('Guru', Icons.person_rounded, 1, const Color(0xFF6366F1), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Murid', Icons.groups_rounded, 2, const Color(0xFF0EA5E9)),
+                _buildSidebarItem('Murid', Icons.groups_rounded, 2, const Color(0xFF0EA5E9), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Mata Pelajaran', Icons.menu_book_rounded, 3, const Color(0xFF10B981)),
+                _buildSidebarItem('Mata Pelajaran', Icons.menu_book_rounded, 3, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Kelas', Icons.class_rounded, 4, const Color(0xFFF59E0B)),
+                _buildSidebarItem('Kelas', Icons.class_rounded, 4, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Jadwal', Icons.calendar_month_rounded, 5, const Color(0xFFEC4899)),
+                _buildSidebarItem('Jadwal', Icons.calendar_month_rounded, 5, const Color(0xFFEC4899), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 6, const Color(0xFF06B6D4)),
+                _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 6, const Color(0xFF06B6D4), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Fitur Premium', Icons.workspace_premium_rounded, 7, const Color(0xFFF97316)),
+                _buildSidebarItem('Fitur Premium', Icons.workspace_premium_rounded, 7, const Color(0xFFF97316), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B)),
+                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
             ),
           ),
           Divider(
-            color: Colors.white.withValues(alpha: 0.08),
+            color: dividerColor,
             height: 1,
           ),
           // Logout Item at the bottom
           Padding(
             padding: const EdgeInsets.all(12),
-            child: _buildSidebarLogoutItem(),
+            child: _buildSidebarLogoutItem(isDark),
           ),
         ],
       ),
     );
   }
 
+  Widget _buildSidebarItem(String title, IconData icon, int index, Color color, bool isDark) {
+    final bool isSelected = _selectedMenuIndex == index;
+    final itemBg = isSelected ? color.withValues(alpha: isDark ? 0.15 : 0.08) : Colors.transparent;
+    final itemBorder = isSelected ? color.withValues(alpha: isDark ? 0.3 : 0.2) : Colors.transparent;
+    final iconColor = isSelected ? color : (isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5));
+    final textColor = isSelected ? (isDark ? Colors.white : const Color(0xFF1E1B4B)) : (isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.7));
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedMenuIndex = index;
+          });
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: itemBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: itemBorder,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: iconColor,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPlanBadgeSidebar() {
-    Color badgeColor;
     Gradient badgeGradient;
     String label = _plan;
 
     if (label == 'PRO') {
-      badgeColor = const Color(0xFFD97706);
       badgeGradient = const LinearGradient(
         colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
     } else if (label == 'BASIC') {
-      badgeColor = const Color(0xFF2563EB);
       badgeGradient = const LinearGradient(
         colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
     } else {
-      badgeColor = const Color(0xFF4B5563);
       badgeGradient = const LinearGradient(
         colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
         begin: Alignment.topLeft,
@@ -753,51 +847,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildSidebarItem(String title, IconData icon, int index, Color color) {
-    final bool isSelected = _selectedMenuIndex == index;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedMenuIndex = index;
-          });
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected ? color.withValues(alpha: 0.3) : Colors.transparent,
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? color : Colors.white.withValues(alpha: 0.5),
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.7),
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSidebarLogoutItem() {
+  Widget _buildSidebarLogoutItem(bool isDark) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -831,10 +881,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildDesktopContent() {
+  Widget _buildDesktopContent(bool isDark) {
     switch (_selectedMenuIndex) {
       case 0:
-        return _buildDesktopDashboardHome();
+        return _buildDesktopDashboardHome(isDark);
       case 1:
         return TeacherListPage(schoolId: schoolId, hideBackButton: true);
       case 2:
@@ -852,11 +902,19 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       case 8:
         return SchoolSettingsPage(schoolId: schoolId, hideBackButton: true);
       default:
-        return _buildDesktopDashboardHome();
+        return _buildDesktopDashboardHome(isDark);
     }
   }
 
-  Widget _buildDesktopDashboardHome() {
+  Widget _buildDesktopDashboardHome(bool isDark) {
+    final greetingColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final dateBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+    final dateBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final dateIconColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final dateTextColor = isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B);
+    final dateShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+
     return AuthBackground(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(40),
@@ -871,11 +929,11 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${_getGreeting()}, $nama',
-                      style: const TextStyle(
+                      _getGreeting(),
+                      style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: greetingColor,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -884,7 +942,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                       'Selamat datang kembali di panel administrasi ${_schoolName ?? "sekolah"}.',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: subtitleColor,
                       ),
                     ),
                   ],
@@ -893,20 +951,29 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: dateBgColor,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    border: Border.all(color: dateBorderColor),
+                    boxShadow: isDark
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: dateShadow,
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today_rounded, size: 16, color: Colors.white.withValues(alpha: 0.6)),
+                      Icon(Icons.calendar_today_rounded, size: 16, color: dateIconColor),
                       const SizedBox(width: 8),
                       Text(
                         _getFormattedDate(),
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: dateTextColor,
                         ),
                       ),
                     ],
@@ -917,12 +984,12 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             const SizedBox(height: 32),
 
             // Merged Header Card (Horizontal layout on desktop!)
-            _buildMergedHeaderCardDesktop(),
+            _buildMergedHeaderCardDesktop(isDark),
 
             const SizedBox(height: 36),
 
             // Live counters statistics
-            _buildSectionTitle('Statistik Sekolah', Icons.analytics_rounded),
+            _buildSectionTitle('Statistik Sekolah', Icons.analytics_rounded, isDark),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -931,7 +998,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('teachers').snapshots(),
                     builder: (context, snapshot) {
                       final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                      return _buildStatCardDesktop('Total Guru', '$count', Icons.person_rounded, const Color(0xFF6366F1));
+                      return _buildStatCardDesktop('Total Guru', '$count', Icons.person_rounded, const Color(0xFF6366F1), isDark);
                     },
                   ),
                 ),
@@ -941,7 +1008,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('students').snapshots(),
                     builder: (context, snapshot) {
                       final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                      return _buildStatCardDesktop('Total Murid', '$count', Icons.groups_rounded, const Color(0xFF0EA5E9));
+                      return _buildStatCardDesktop('Total Murid', '$count', Icons.groups_rounded, const Color(0xFF0EA5E9), isDark);
                     },
                   ),
                 ),
@@ -951,7 +1018,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('classes').snapshots(),
                     builder: (context, snapshot) {
                       final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                      return _buildStatCardDesktop('Total Kelas', '$count', Icons.class_rounded, const Color(0xFFF59E0B));
+                      return _buildStatCardDesktop('Total Kelas', '$count', Icons.class_rounded, const Color(0xFFF59E0B), isDark);
                     },
                   ),
                 ),
@@ -961,7 +1028,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('subjects').snapshots(),
                     builder: (context, snapshot) {
                       final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                      return _buildStatCardDesktop('Mata Pelajaran', '$count', Icons.menu_book_rounded, const Color(0xFF10B981));
+                      return _buildStatCardDesktop('Mata Pelajaran', '$count', Icons.menu_book_rounded, const Color(0xFF10B981), isDark);
                     },
                   ),
                 ),
@@ -971,7 +1038,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             const SizedBox(height: 40),
 
             // Fitur Lainnya (Segera Hadir)
-            _buildSectionTitle('Fitur Lainnya (Segera Hadir)', Icons.extension_rounded),
+            _buildSectionTitle('Fitur Lainnya (Segera Hadir)', Icons.extension_rounded, isDark),
             const SizedBox(height: 16),
             GridView.count(
               shrinkWrap: true,
@@ -981,10 +1048,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               mainAxisSpacing: 20,
               childAspectRatio: 1.6,
               children: [
-                _buildUpcomingFeatureCard('Absensi & QR', Icons.fact_check_rounded, const Color(0xFF8B5CF6)),
-                _buildUpcomingFeatureCard('Manajemen Nilai', Icons.grade_rounded, const Color(0xFFEF4444)),
-                _buildUpcomingFeatureCard('Keuangan & SPP', Icons.account_balance_wallet_rounded, const Color(0xFFEC4899)),
-                _buildUpcomingFeatureCard('WhatsApp Gateway', Icons.chat_bubble_rounded, const Color(0xFF10B981)),
+                _buildUpcomingFeatureCard('Absensi & QR', Icons.fact_check_rounded, const Color(0xFF8B5CF6), isDark),
+                _buildUpcomingFeatureCard('Manajemen Nilai', Icons.grade_rounded, const Color(0xFFEF4444), isDark),
+                _buildUpcomingFeatureCard('Keuangan & SPP', Icons.account_balance_wallet_rounded, const Color(0xFFEC4899), isDark),
+                _buildUpcomingFeatureCard('WhatsApp Gateway', Icons.chat_bubble_rounded, const Color(0xFF10B981), isDark),
               ],
             ),
           ],
@@ -993,16 +1060,24 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildMergedHeaderCardDesktop() {
+  Widget _buildMergedHeaderCardDesktop(bool isDark) {
+    final cardColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08);
+    final cardShadow = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final bulletColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.3);
+    final emailColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: cardShadow,
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -1023,7 +1098,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                       end: Alignment.bottomRight,
                     ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+              border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08), width: 1.5),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
@@ -1048,17 +1123,17 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _isLoadingSchool
-                    ? const SizedBox(
+                    ? SizedBox(
                         height: 24,
                         width: 200,
                         child: LinearProgressIndicator(
-                          backgroundColor: Colors.white12,
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                          backgroundColor: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
                         ),
                       )
                     : Text(
                         _schoolName ?? 'Sekolah Baru',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: titleColor),
                       ),
                 const SizedBox(height: 6),
                 Row(
@@ -1067,7 +1142,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                       'School ID: $schoolId',
                       style: TextStyle(
                         fontSize: 13, 
-                        color: Colors.white.withValues(alpha: 0.5), 
+                        color: subtitleColor, 
                         fontWeight: FontWeight.w500
                       ),
                     ),
@@ -1075,14 +1150,14 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     Container(
                       width: 4,
                       height: 4,
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.3), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: bulletColor, shape: BoxShape.circle),
                     ),
                     const SizedBox(width: 16),
                     Text(
                       email,
                       style: TextStyle(
                         fontSize: 13, 
-                        color: Colors.white.withValues(alpha: 0.4)
+                        color: emailColor
                       ),
                     ),
                   ],
@@ -1142,15 +1217,30 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildStatCardDesktop(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCardDesktop(String title, String value, IconData icon, Color color, bool isDark) {
+    final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+    final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final valueColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final titleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: cardBgColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: cardBorderColor,
         ),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: cardShadow,
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Row(
         children: [
@@ -1174,10 +1264,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: valueColor,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1186,7 +1276,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: titleColor,
                   ),
                 ),
               ],
@@ -1197,21 +1287,37 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildUpcomingFeatureCard(String title, IconData icon, Color color) {
+  Widget _buildUpcomingFeatureCard(String title, IconData icon, Color color, bool isDark) {
+    final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white;
+    final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.06);
+    final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.02);
+    final textThemeColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final badgeBgColor = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.05);
+    final badgeTextColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
+        color: cardBgColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.04),
+          color: cardBorderColor,
         ),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: cardShadow,
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
       ),
       child: Row(
         children: [
           Icon(
             icon,
-            color: Colors.white.withValues(alpha: 0.2),
+            color: isDark ? Colors.white.withValues(alpha: 0.2) : const Color(0xFF1E1B4B).withValues(alpha: 0.3),
             size: 24,
           ),
           const SizedBox(width: 16),
@@ -1223,7 +1329,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 Text(
                   title,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.4),
+                    color: textThemeColor,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1232,13 +1338,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.04),
+                    color: badgeBgColor,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     'Segera Hadir',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.3),
+                      color: badgeTextColor,
                       fontSize: 8,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1253,14 +1359,18 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   }
 
   Future<void> _logout() async {
+    final isDark = AuthBackground.isDarkMode.value;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(
+              color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08), 
+              width: 1.5
+            ),
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: Column(
@@ -1280,13 +1390,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Konfirmasi Logout',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: isDark ? Colors.white : const Color(0xFF1E1B4B),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1295,7 +1405,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.white.withValues(alpha: 0.6),
+                  color: isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.6),
                   height: 1.5,
                 ),
               ),
@@ -1309,13 +1419,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12)),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     onPressed: () => Get.back(result: false),
-                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                    child: Text('Batal', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E1B4B))),
                   ),
                 ),
                 const SizedBox(width: 12),

@@ -17,348 +17,359 @@ class TeacherListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: AuthBackground(
-        child: Column(
-          children: [
-            // AppBar Area
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                child: Row(
-                  children: [
-                    if (!hideBackButton)
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                      ),
-                    const SizedBox(width: 4),
-                    const Expanded(
-                      child: Text(
-                        'Data Guru',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF10B981), Color(0xFF059669)],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+        final mutedColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFF1E1B4B).withValues(alpha: 0.04);
+        final borderCol = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.08);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: Column(
+              children: [
+                // AppBar Area
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                    child: Row(
+                      children: [
+                        if (!hideBackButton)
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
                           ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () => _handleImport(context),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.file_upload_rounded, color: Colors.white, size: 18),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Import Excel',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Data Guru',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AddTeacherPage(schoolId: schoolId),
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF10B981), Color(0xFF059669)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
                               ),
-                            );
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Tambah',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => _handleImport(context),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.file_upload_rounded, color: Colors.white, size: 18),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Import Excel',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AddTeacherPage(schoolId: schoolId),
                                   ),
+                                );
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Tambah',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Body
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('schools')
+                        .doc(schoolId)
+                        .collection('teachers')
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Terjadi kesalahan',
+                                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                          ),
+                        );
+                      }
+
+                      final docs = snapshot.data?.docs ?? [];
+
+                      if (docs.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: textColor.withValues(alpha: 0.06),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: borderCol),
+                                ),
+                                child: Icon(Icons.person_off_rounded, size: 48, color: mutedColor),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                'Belum ada data guru',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: textColor.withValues(alpha: 0.6),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap "Tambah" untuk mendaftarkan guru baru',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: mutedColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                        itemCount: docs.length,
+                        itemBuilder: (context, index) {
+                          final guru = docs[index].data() as Map<String, dynamic>;
+                          final bool isRegistered = guru['sudahRegister'] ?? false;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: borderCol),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Body
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('schools')
-                    .doc(schoolId)
-                    .collection('teachers')
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Terjadi kesalahan',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
-                      ),
-                    );
-                  }
-
-                  final docs = snapshot.data?.docs ?? [];
-
-                  if (docs.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.06),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                            ),
-                            child: Icon(Icons.person_off_rounded, size: 48, color: Colors.white.withValues(alpha: 0.4)),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'Belum ada data guru',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white.withValues(alpha: 0.6),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Tap "Tambah" untuk mendaftarkan guru baru',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.white.withValues(alpha: 0.35),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                    itemCount: docs.length,
-                    itemBuilder: (context, index) {
-                      final guru = docs[index].data() as Map<String, dynamic>;
-                      final bool isRegistered = guru['sudahRegister'] ?? false;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => TeacherDetailPage(teacher: guru),
-                                ),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  // Avatar
-                                  Container(
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(14),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => TeacherDetailPage(teacher: guru),
                                     ),
-                                    child: const Icon(Icons.person_rounded, color: Colors.white, size: 26),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          guru['nama'] ?? '-',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                            color: Colors.white,
+                                  );
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    children: [
+                                      // Avatar
+                                      Container(
+                                        width: 50,
+                                        height: 50,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
                                           ),
+                                          borderRadius: BorderRadius.circular(14),
                                         ),
-                                        const SizedBox(height: 5),
-                                        Row(
+                                        child: const Icon(Icons.person_rounded, color: Colors.white, size: 26),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Icon(Icons.badge_outlined, size: 13, color: Colors.white.withValues(alpha: 0.5)),
-                                            const SizedBox(width: 4),
                                             Text(
-                                              'NIP: ${guru['nip'] ?? '-'}',
+                                              guru['nama'] ?? '-',
                                               style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.white.withValues(alpha: 0.55),
-                                                fontWeight: FontWeight.w500,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                                color: textColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 5),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.badge_outlined, size: 13, color: mutedColor),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'NIP: ${guru['nip'] ?? '-'}',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: subtitleColor,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if ((guru['email'] ?? '').toString().isNotEmpty) ...[
+                                              const SizedBox(height: 3),
+                                              Row(
+                                                children: [
+                                                  Icon(Icons.mail_outline_rounded, size: 13, color: mutedColor),
+                                                  const SizedBox(width: 4),
+                                                  Expanded(
+                                                    child: Text(
+                                                      guru['email'],
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: subtitleColor.withValues(alpha: 0.8),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                            const SizedBox(height: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: isRegistered
+                                                    ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                                    : const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: isRegistered
+                                                      ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                                                      : const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                isRegistered ? 'Terdaftar' : 'Belum Registrasi',
+                                                style: TextStyle(
+                                                  color: isRegistered ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
-                                        if ((guru['email'] ?? '').toString().isNotEmpty) ...[
-                                          const SizedBox(height: 3),
-                                          Row(
-                                            children: [
-                                              Icon(Icons.mail_outline_rounded, size: 13, color: Colors.white.withValues(alpha: 0.5)),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  guru['email'],
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.white.withValues(alpha: 0.45),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                        const SizedBox(height: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: isRegistered
-                                                ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                                                : const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(20),
-                                            border: Border.all(
-                                              color: isRegistered
-                                                  ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                                                  : const Color(0xFFF59E0B).withValues(alpha: 0.4),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            isRegistered ? 'Terdaftar' : 'Belum Registrasi',
-                                            style: TextStyle(
-                                              color: isRegistered ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                      Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        size: 14,
+                                        color: mutedColor,
+                                      ),
+                                    ],
                                   ),
-                                  Icon(
-                                    Icons.arrow_forward_ios_rounded,
-                                    size: 14,
-                                    color: Colors.white.withValues(alpha: 0.3),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       );
                     },
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -401,14 +412,20 @@ class TeacherListPage extends StatelessWidget {
   }
 
   void _showImportGuide(BuildContext context) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+    final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final dialogBorder = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.08);
+
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: dialogBorder, width: 1.5),
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: Column(
@@ -426,23 +443,23 @@ class TeacherListPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              const Center(
+              Center(
                 child: Text(
                   'Panduan Import Excel',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Pastikan file Excel Anda memenuhi syarat berikut:',
-                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+                style: TextStyle(color: subtitleColor, fontSize: 13, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              _buildGuideItem('Format file harus berupa .xlsx atau .xls'),
-              _buildGuideItem('Baris pertama (index 0) adalah header kolom (akan diabaikan)'),
-              _buildGuideItem('Kolom A: Nama Lengkap'),
-              _buildGuideItem('Kolom B: NIP (Nomor Induk Pegawai)'),
-              _buildGuideItem('Pastikan NIP belum terdaftar di sistem'),
+              _buildGuideItem('Format file harus berupa .xlsx atau .xls', subtitleColor),
+              _buildGuideItem('Baris pertama (index 0) adalah header kolom (akan diabaikan)', subtitleColor),
+              _buildGuideItem('Kolom A: Nama Lengkap', subtitleColor),
+              _buildGuideItem('Kolom B: NIP (Nomor Induk Pegawai)', subtitleColor),
+              _buildGuideItem('Pastikan NIP belum terdaftar di sistem', subtitleColor),
             ],
           ),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -508,11 +525,11 @@ class TeacherListPage extends StatelessWidget {
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                          side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : const Color(0xFF1E1B4B).withValues(alpha: 0.15)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                         onPressed: () => Navigator.pop(dialogContext),
-                        child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                        child: Text('Batal', style: TextStyle(color: textColor)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -542,7 +559,7 @@ class TeacherListPage extends StatelessWidget {
     );
   }
 
-  Widget _buildGuideItem(String text) {
+  Widget _buildGuideItem(String text, Color textColor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -552,7 +569,7 @@ class TeacherListPage extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, height: 1.4),
+              style: TextStyle(color: textColor, fontSize: 12, height: 1.4),
             ),
           ),
         ],
@@ -561,14 +578,21 @@ class TeacherListPage extends StatelessWidget {
   }
 
   void _showPremiumDialog(BuildContext context) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+    final mutedColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+    final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final dialogBorder = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.08);
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: dialogBorder, width: 1.5),
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: Column(
@@ -588,13 +612,13 @@ class TeacherListPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Fitur Premium 🌟',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textColor,
                 ),
               ),
               const SizedBox(height: 12),
@@ -603,7 +627,7 @@ class TeacherListPage extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.white.withValues(alpha: 0.65),
+                  color: subtitleColor,
                   height: 1.5,
                 ),
               ),
@@ -613,7 +637,7 @@ class TeacherListPage extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.45),
+                  color: mutedColor,
                   height: 1.4,
                 ),
               ),
@@ -649,6 +673,11 @@ class TeacherListPage extends StatelessWidget {
   Future<void> _startImporting(BuildContext context) async {
     final progressNotifier = ValueNotifier<double>(0.0);
     final statusNotifier = ValueNotifier<String>('Memproses file...');
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+    final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final dialogBorder = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.08);
 
     final result = await ExcelImportService().importTeachers(
       schoolId,
@@ -660,10 +689,10 @@ class TeacherListPage extends StatelessWidget {
           barrierDismissible: false,
           builder: (progressContext) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF0F0C20),
+              backgroundColor: dialogBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                side: BorderSide(color: dialogBorder, width: 1.5),
               ),
               content: ValueListenableBuilder<double>(
                 valueListenable: progressNotifier,
@@ -678,19 +707,19 @@ class TeacherListPage extends StatelessWidget {
                           CircularProgressIndicator(
                             value: progress > 0.0 ? progress : null,
                             valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
-                            backgroundColor: Colors.white.withValues(alpha: 0.1),
+                            backgroundColor: isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.1),
                           ),
                           const SizedBox(height: 20),
                           Text(
                             statusText,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                            style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           if (progress > 0.0) ...[
                             const SizedBox(height: 8),
                             Text(
                               '${(progress * 100).toInt()}%',
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w500),
+                              style: TextStyle(color: subtitleColor, fontSize: 12, fontWeight: FontWeight.w500),
                             ),
                           ],
                         ],
@@ -724,36 +753,36 @@ class TeacherListPage extends StatelessWidget {
       context: context,
       builder: (resultDialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0F0C20),
+          backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+            side: BorderSide(color: dialogBorder, width: 1.5),
           ),
-          title: const Text(
+          title: Text(
             'Hasil Import Excel',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildResultRow(Icons.check_circle_outline_rounded, Colors.green, 'Berhasil diimport: ${result.successCount} data'),
+              _buildResultRow(Icons.check_circle_outline_rounded, Colors.green, 'Berhasil diimport: ${result.successCount} data', textColor),
               const SizedBox(height: 10),
-              _buildResultRow(Icons.copy_rounded, Colors.orange, 'Duplikat (dilewati): ${result.duplicateCount} data'),
+              _buildResultRow(Icons.copy_rounded, Colors.orange, 'Duplikat (dilewati): ${result.duplicateCount} data', textColor),
               const SizedBox(height: 10),
-              _buildResultRow(Icons.error_outline_rounded, Colors.red, 'Gagal diimport: ${result.failedCount} data'),
+              _buildResultRow(Icons.error_outline_rounded, Colors.red, 'Gagal diimport: ${result.failedCount} data', textColor),
               if (result.errors.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Detail Error/Peringatan:',
-                  style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 13),
+                  style: TextStyle(color: subtitleColor, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(height: 6),
                 Container(
                   constraints: const BoxConstraints(maxHeight: 120),
                   width: double.maxFinite,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFF1E1B4B).withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ListView.builder(
@@ -783,7 +812,7 @@ class TeacherListPage extends StatelessWidget {
     );
   }
 
-  Widget _buildResultRow(IconData icon, Color color, String text) {
+  Widget _buildResultRow(IconData icon, Color color, String text, Color textColor) {
     return Row(
       children: [
         Icon(icon, color: color, size: 20),
@@ -791,7 +820,7 @@ class TeacherListPage extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: TextStyle(color: textColor, fontSize: 14),
           ),
         ),
       ],

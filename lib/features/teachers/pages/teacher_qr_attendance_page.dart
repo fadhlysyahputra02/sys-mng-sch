@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
@@ -16,6 +18,46 @@ class TeacherQrAttendancePage extends StatefulWidget {
 
 class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
   final _studentService = StudentService();
+  String _resolvedClassId = '';
+  StreamSubscription<QuerySnapshot>? _attendanceSubscription;
+  int? _previousAttendanceCount;
+
+  static const _feedbackChannel = MethodChannel('com.sysmngsch.sys_mng_school/feedback');
+
+  @override
+  void initState() {
+    super.initState();
+    _resolvedClassId = widget.scheduleData['classId']?.toString() ?? '';
+    if (_resolvedClassId.isEmpty) {
+      _resolveClassId();
+    }
+    _listenToAttendance();
+  }
+
+  Future<void> _resolveClassId() async {
+    try {
+      final user = SessionService.currentUser!;
+      final className = widget.scheduleData['className'] ?? '';
+      if (className.isNotEmpty) {
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(user.schoolId)
+            .collection('classes')
+            .where('namaKelas', isEqualTo: className)
+            .limit(1)
+            .get();
+        if (querySnapshot.docs.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _resolvedClassId = querySnapshot.docs.first.id;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error resolving classId: $e');
+    }
+  }
 
   String _getTodayDateStr() {
     final now = DateTime.now();
@@ -82,6 +124,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
     final className = widget.scheduleData['className'] ?? 'Kelas';
     final dateStr = widget.dateStr ?? _getTodayDateStr();
     final jamSelesai = widget.scheduleData['jamSelesai'] ?? '00:00';
+    final classId = _resolvedClassId.isNotEmpty ? _resolvedClassId : (widget.scheduleData['classId'] ?? '');
     final isPassed = _isSchedulePassed(dateStr, jamSelesai);
     final isToday = dateStr == _getTodayDateStr();
 
@@ -223,24 +266,35 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                         ),
                         const Spacer(),
                         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                          stream: _studentService.getScheduleAttendanceListStream(
-                            schoolId: user.schoolId,
-                            scheduleId: scheduleId,
-                            dateStr: dateStr,
-                          ),
-                          builder: (context, snapshot) {
-                            final count = snapshot.data?.docs.length ?? 0;
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                          stream: FirebaseFirestore.instance
+                              .collection('schools')
+                              .doc(user.schoolId)
+                              .collection('students')
+                              .where('classId', isEqualTo: classId)
+                              .snapshots(),
+                          builder: (context, classSnapshot) {
+                            final total = classSnapshot.data?.docs.length ?? 0;
+                            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                              stream: _studentService.getScheduleAttendanceListStream(
+                                schoolId: user.schoolId,
+                                scheduleId: scheduleId,
+                                dateStr: dateStr,
                               ),
-                              child: Text(
-                                '$count Murid',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
-                              ),
+                              builder: (context, snapshot) {
+                                final count = snapshot.data?.docs.length ?? 0;
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                                  ),
+                                  child: Text(
+                                    total > 0 ? '$count / $total Murid' : '$count Murid',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                                  ),
+                                );
+                              },
                             );
                           },
                         ),
@@ -251,23 +305,24 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
 
                     // Stream List
                     StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _studentService.getScheduleAttendanceListStream(
-                        schoolId: user.schoolId,
-                        scheduleId: scheduleId,
-                        dateStr: dateStr,
-                      ),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasError) {
+                      stream: FirebaseFirestore.instance
+                          .collection('schools')
+                          .doc(user.schoolId)
+                          .collection('students')
+                          .where('classId', isEqualTo: classId)
+                          .snapshots(),
+                      builder: (context, classSnapshot) {
+                        if (classSnapshot.hasError) {
                           return Container(
                             padding: const EdgeInsets.all(16),
-                            child: const Text(
-                              'Gagal memuat daftar murid hadir',
-                              style: TextStyle(color: Colors.redAccent),
+                            child: Text(
+                              'Gagal memuat daftar murid kelas: ${classSnapshot.error}',
+                              style: const TextStyle(color: Colors.redAccent),
                             ),
                           );
                         }
 
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (classSnapshot.connectionState == ConnectionState.waiting) {
                           return const Center(
                             child: Padding(
                               padding: EdgeInsets.all(24.0),
@@ -278,88 +333,227 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                           );
                         }
 
-                        final docs = snapshot.data?.docs ?? [];
-                        // Sort di sisi Dart: terbaru di atas
-                        final sorted = List.of(docs)
-                          ..sort((a, b) {
-                            final ta = (a.data()['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-                            final tb = (b.data()['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-                            return tb.compareTo(ta);
-                          });
-                        if (sorted.isEmpty) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(vertical: 40),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.03),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-                            ),
-                            child: const Center(
-                              child: Column(
-                                children: [
-                                  Icon(Icons.hourglass_empty_rounded, size: 40, color: Colors.white24),
-                                  SizedBox(height: 12),
-                                  Text(
-                                    'Belum ada murid yang melakukan absensi',
-                                    style: TextStyle(color: Colors.white30, fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
+                        final allStudents = classSnapshot.data?.docs ?? [];
 
-                        return ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: sorted.length,
-                          itemBuilder: (context, index) {
-                            final data = sorted[index].data();
-                            final studentName = data['studentName'] ?? 'Murid';
-                            final timestamp = data['timestamp'] as Timestamp?;
-                            final method = data['method'] ?? 'QR Scan';
+                        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: _studentService.getScheduleAttendanceListStream(
+                            schoolId: user.schoolId,
+                            scheduleId: scheduleId,
+                            dateStr: dateStr,
+                          ),
+                          builder: (context, attendanceSnapshot) {
+                            if (attendanceSnapshot.hasError) {
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                child: const Text(
+                                  'Gagal memuat daftar kehadiran',
+                                  style: TextStyle(color: Colors.redAccent),
+                                ),
+                              );
+                            }
 
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.04),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                              ),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.2),
-                                    child: const Icon(Icons.person_rounded, color: Color(0xFF10B981)),
+                            if (attendanceSnapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24.0),
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                   ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                ),
+                              );
+                            }
+
+                            final attendanceDocs = attendanceSnapshot.data?.docs ?? [];
+                            
+                            // Map studentId -> attendance data
+                            final Map<String, Map<String, dynamic>> attendanceMap = {};
+                            for (var doc in attendanceDocs) {
+                              final data = doc.data();
+                              final studentId = data['studentId'] ?? '';
+                              if (studentId.isNotEmpty) {
+                                attendanceMap[studentId] = data;
+                              }
+                            }
+
+                            // Build the combined list
+                            final List<Map<String, dynamic>> combinedList = [];
+                            if (allStudents.isNotEmpty) {
+                              for (var studentDoc in allStudents) {
+                                final studentData = studentDoc.data();
+                                final studentId = studentDoc.id;
+                                final hasCheckedIn = attendanceMap.containsKey(studentId);
+                                
+                                combinedList.add({
+                                  'studentId': studentId,
+                                  'nama': studentData['nama'] ?? 'Murid',
+                                  'nis': studentData['nis'] ?? '-',
+                                  'hasCheckedIn': hasCheckedIn,
+                                  'attendanceData': hasCheckedIn ? attendanceMap[studentId] : null,
+                                });
+                              }
+                            } else {
+                              // Fallback for empty students list (e.g. legacy schedules or classId not set)
+                              for (var doc in attendanceDocs) {
+                                final data = doc.data();
+                                final studentId = data['studentId'] ?? '';
+                                combinedList.add({
+                                  'studentId': studentId,
+                                  'nama': data['studentName'] ?? 'Murid',
+                                  'nis': '-',
+                                  'hasCheckedIn': true,
+                                  'attendanceData': data,
+                                });
+                              }
+                            }
+
+                            if (combinedList.isEmpty) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(vertical: 40),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.03),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                                ),
+                                child: const Center(
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.hourglass_empty_rounded, size: 40, color: Colors.white24),
+                                      SizedBox(height: 12),
+                                      Text(
+                                        'Belum ada murid di kelas ini',
+                                        style: TextStyle(color: Colors.white30, fontSize: 13),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+
+                            // Sort: Checked in first (sorted by timestamp descending), then not checked in (alphabetically)
+                            combinedList.sort((a, b) {
+                              final aChecked = a['hasCheckedIn'] as bool;
+                              final bChecked = b['hasCheckedIn'] as bool;
+                              
+                              if (aChecked && !bChecked) return -1;
+                              if (!aChecked && bChecked) return 1;
+                              
+                              if (aChecked && bChecked) {
+                                final ta = (a['attendanceData']['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+                                final tb = (b['attendanceData']['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+                                return tb.compareTo(ta); // latest first
+                              } else {
+                                final String na = a['nama'] as String;
+                                final String nb = b['nama'] as String;
+                                return na.compareTo(nb); // alphabetical
+                              }
+                            });
+
+                            return ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: combinedList.length,
+                              itemBuilder: (context, index) {
+                                final item = combinedList[index];
+                                final studentName = item['nama'];
+                                final hasCheckedIn = item['hasCheckedIn'] as bool;
+
+                                if (hasCheckedIn) {
+                                  final attData = item['attendanceData'] as Map<String, dynamic>;
+                                  final timestamp = attData['timestamp'] as Timestamp?;
+                                  final method = attData['method'] ?? 'QR Scan';
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.04),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                                    ),
+                                    child: Row(
                                       children: [
-                                        Text(
-                                          studentName,
-                                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15),
+                                        CircleAvatar(
+                                          backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                          child: const Icon(Icons.person_rounded, color: Color(0xFF10B981)),
                                         ),
-                                        const SizedBox(height: 2),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                studentName,
+                                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Metode: $method',
+                                                style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                         Text(
-                                          'Metode: $method',
-                                          style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4)),
+                                          _formatTime(timestamp),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF10B981),
+                                            fontSize: 13,
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  Text(
-                                    _formatTime(timestamp),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF10B981),
-                                      fontSize: 13,
+                                  );
+                                } else {
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.02),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: Colors.white.withValues(alpha: 0.05),
+                                          child: Icon(Icons.person_outline_rounded, color: Colors.white.withValues(alpha: 0.4)),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                studentName,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold, 
+                                                  color: Colors.white.withValues(alpha: 0.6), 
+                                                  fontSize: 15,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Belum melakukan presensi',
+                                                style: TextStyle(
+                                                  fontSize: 11, 
+                                                  color: Colors.orangeAccent.withValues(alpha: 0.8),
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.info_outline_rounded,
+                                          size: 16,
+                                          color: Colors.orangeAccent.withValues(alpha: 0.6),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                              },
                             );
                           },
                         );
@@ -376,4 +570,41 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
       ),
     );
   }
+
+  void _listenToAttendance() {
+    final user = SessionService.currentUser!;
+    final scheduleId = widget.scheduleData['scheduleId'] ?? '';
+    final dateStr = widget.dateStr ?? _getTodayDateStr();
+
+    _attendanceSubscription = _studentService
+        .getScheduleAttendanceListStream(
+          schoolId: user.schoolId,
+          scheduleId: scheduleId,
+          dateStr: dateStr,
+        )
+        .listen((snapshot) {
+      final currentCount = snapshot.docs.length;
+      if (_previousAttendanceCount != null && currentCount > _previousAttendanceCount!) {
+        _playBeepAndVibrate();
+      }
+      _previousAttendanceCount = currentCount;
+    });
+  }
+
+  Future<void> _playBeepAndVibrate() async {
+    try {
+      await HapticFeedback.vibrate();
+      await _feedbackChannel.invokeMethod('playBeep');
+    } catch (e) {
+      debugPrint('Error playing beep/vibrate: $e');
+    }
+  }
+
+
+  @override
+  void dispose() {
+    _attendanceSubscription?.cancel();
+    super.dispose();
+  }
 }
+

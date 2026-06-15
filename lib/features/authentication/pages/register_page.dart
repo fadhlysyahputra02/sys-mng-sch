@@ -6,6 +6,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../schools/services/school_service.dart';
 import '../widgets/auth_background.dart';
+import '../widgets/theme_toggle_button.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -27,6 +28,7 @@ class _RegisterPageState extends State<RegisterPage> {
   // Controllers bersama
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
 
   final authService = AuthService();
   final userService = UserService();
@@ -38,6 +40,7 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _loadingSekolah = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void initState() {
@@ -51,7 +54,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final list = await schoolService.getAllSchools();
       setState(() => _sekolahList = list);
     } catch (e) {
-      debugPrint('Gagal load sekolah: $e');
+      debugPrint('Failed to load schools: $e');
     } finally {
       setState(() => _loadingSekolah = false);
     }
@@ -64,6 +67,7 @@ class _RegisterPageState extends State<RegisterPage> {
     nipNisController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -114,7 +118,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   void _showError(String message) {
     _showNotification(
-      title: 'Pendaftaran Gagal',
+      title: 'Registration Failed',
       message: message,
       isSuccess: false,
     );
@@ -123,11 +127,23 @@ class _RegisterPageState extends State<RegisterPage> {
   void _showSchoolSearchBottomSheet() {
     String searchQuery = "";
     List<Map<String, dynamic>> filteredSekolah = List.from(_sekolahList);
+    final isDark = AuthBackground.isDarkMode.value;
+
+    final sheetBgColor = isDark ? const Color(0xFF151026) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final closeIconColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withOpacity(0.6);
+    final inputStyleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final hintTextColor = isDark ? Colors.white.withOpacity(0.4) : const Color(0xFF1E1B4B).withOpacity(0.4);
+    final searchIconColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withOpacity(0.5);
+    final enabledBorderColor = isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.15);
+    final fieldFillColor = isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.02);
+    final notFoundIconColor = isDark ? Colors.white.withOpacity(0.3) : const Color(0xFF1E1B4B).withOpacity(0.3);
+    final notFoundTextColor = isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF1E1B4B).withOpacity(0.5);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF151026),
+      backgroundColor: sheetBgColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -148,17 +164,17 @@ class _RegisterPageState extends State<RegisterPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'PILIH SEKOLAH',
+                      Text(
+                        'SELECT SCHOOL',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: titleColor,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.2,
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                        icon: Icon(Icons.close_rounded, color: closeIconColor),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
@@ -166,21 +182,21 @@ class _RegisterPageState extends State<RegisterPage> {
                   const SizedBox(height: 16),
                   // Search Field
                   TextField(
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: inputStyleColor),
                     decoration: InputDecoration(
-                      hintText: 'Cari nama sekolah...',
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-                      prefixIcon: const Icon(Icons.search_rounded, color: Colors.white70),
+                      hintText: 'Search school name...',
+                      hintStyle: TextStyle(color: hintTextColor),
+                      prefixIcon: Icon(Icons.search_rounded, color: searchIconColor),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.white.withOpacity(0.15)),
+                        borderSide: BorderSide(color: enabledBorderColor),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
                       ),
                       filled: true,
-                      fillColor: Colors.white.withOpacity(0.02),
+                      fillColor: fieldFillColor,
                     ),
                     onChanged: (val) {
                       setModalState(() {
@@ -205,11 +221,11 @@ class _RegisterPageState extends State<RegisterPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.search_off_rounded,
-                                    size: 48, color: Colors.white.withOpacity(0.3)),
+                                    size: 48, color: notFoundIconColor),
                                 const SizedBox(height: 12),
                                 Text(
-                                  'Sekolah tidak ditemukan',
-                                  style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                                  'School not found',
+                                  style: TextStyle(color: notFoundTextColor),
                                 ),
                               ],
                             ),
@@ -221,24 +237,33 @@ class _RegisterPageState extends State<RegisterPage> {
                               final school = filteredSekolah[index];
                               final isSelected = _selectedSekolah != null &&
                                   _selectedSekolah!['schoolId'] == school['schoolId'];
+                              
+                              final itemBg = isSelected
+                                  ? const Color(0xFF6366F1).withOpacity(0.15)
+                                  : (isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.01));
+                              final itemBorder = isSelected
+                                  ? const Color(0xFF6366F1)
+                                  : (isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.08));
+                              final itemTitleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+                              final itemSubtitleColor = isDark ? Colors.white.withOpacity(0.4) : const Color(0xFF1E1B4B).withOpacity(0.5);
+                              final trailingIconColor = isSelected
+                                  ? const Color(0xFF10B981)
+                                  : (isDark ? Colors.white54 : Colors.black26);
+
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? const Color(0xFF6366F1).withOpacity(0.15)
-                                      : Colors.white.withOpacity(0.02),
+                                  color: itemBg,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: isSelected
-                                        ? const Color(0xFF6366F1)
-                                        : Colors.white.withOpacity(0.08),
+                                    color: itemBorder,
                                   ),
                                 ),
                                 child: ListTile(
                                   title: Text(
                                     school['namaSekolah'] ?? '',
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: itemTitleColor,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -246,7 +271,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                       ? Text(
                                           'ID: ${school['domain']}',
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(0.4),
+                                            color: itemSubtitleColor,
                                             fontSize: 12,
                                           ),
                                         )
@@ -254,8 +279,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                   trailing: isSelected
                                       ? const Icon(Icons.check_circle_rounded,
                                           color: Color(0xFF10B981))
-                                      : const Icon(Icons.chevron_right_rounded,
-                                          color: Colors.white54),
+                                      : Icon(Icons.chevron_right_rounded,
+                                          color: trailingIconColor),
                                   onTap: () {
                                     setState(() {
                                       _selectedSekolah = school;
@@ -278,20 +303,27 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _onRegister() async {
     if (kIsWeb && selectedRole != 'school_admin') {
-      _showError('Akses pendaftaran website hanya untuk Admin Sekolah.');
+      _showError('Website registration access is only permitted for School Administrators.');
       return;
     }
 
     // Validasi form dasar
     if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
-      _showError('Email dan password wajib diisi.');
+      _showError('Email and password are required.');
+      return;
+    }
+
+    final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text;
+    if (password != confirmPassword) {
+      _showError('Passwords do not match.');
       return;
     }
 
     // ── KODE RAHASIA SUPER ADMIN ──
     if (selectedRole == 'school_admin' && kodeController.text.trim() == '081987') {
       if (namaController.text.trim().isEmpty) {
-        _showError('Nama lengkap wajib diisi.');
+        _showError('Full name is required.');
         return;
       }
       setState(() => _isLoading = true);
@@ -304,22 +336,22 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     if (_selectedSekolah == null) {
-      _showError('Silakan pilih sekolah Anda.');
+      _showError('Please select your school.');
       return;
     }
 
     if (selectedRole == 'school_admin') {
       if (namaController.text.trim().isEmpty) {
-        _showError('Nama lengkap wajib diisi.');
+        _showError('Full name is required.');
         return;
       }
       if (kodeController.text.trim().isEmpty) {
-        _showError('Kode Registrasi wajib diisi.');
+        _showError('Registration code is required.');
         return;
       }
     } else {
       if (nipNisController.text.trim().isEmpty) {
-        _showError('$_nipNisLabel wajib diisi.');
+        _showError('$_nipNisLabel is required.');
         return;
       }
     }
@@ -357,8 +389,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (mounted) {
         _showNotification(
-          title: 'Akses Rahasia Berhasil',
-          message: 'Akun Super Admin berhasil dibuat!',
+          title: 'Secret Access Successful',
+          message: 'Super Admin account successfully created!',
           isSuccess: true,
         );
         await Future.delayed(const Duration(milliseconds: 1000));
@@ -375,7 +407,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final school = _selectedSekolah!;
 
       if (school['kodeAdmin'] != kodeController.text.trim()) {
-        throw Exception('Kode admin tidak valid');
+        throw Exception('Invalid administrator code');
       }
 
       final credential = await authService.register(
@@ -394,8 +426,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (mounted) {
         _showNotification(
-          title: 'Registrasi Berhasil',
-          message: 'Pendaftaran admin sekolah berhasil dilakukan!',
+          title: 'Registration Successful',
+          message: 'School administrator registration was successful!',
           isSuccess: true,
         );
         await Future.delayed(const Duration(milliseconds: 1000));
@@ -419,15 +451,15 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       if (teacher == null) {
-        throw Exception('NIP tidak ditemukan di sekolah terpilih');
+        throw Exception('NIP not found at the selected school');
       }
 
       if (teacher['aktif'] != true) {
-        throw Exception('Akun Guru dinonaktifkan oleh sekolah');
+        throw Exception('Teacher account is disabled by the school');
       }
 
       if (teacher['sudahRegister'] == true) {
-        throw Exception('NIP Guru sudah terdaftar sebelumnya');
+        throw Exception('Teacher NIP is already registered');
       }
 
       final credential = await authService.register(
@@ -457,8 +489,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (mounted) {
         _showNotification(
-          title: 'Registrasi Berhasil',
-          message: 'Registrasi Guru atas nama ${teacher['nama']} berhasil!',
+          title: 'Registration Successful',
+          message: 'Teacher registration for ${teacher['nama']} was successful!',
           isSuccess: true,
         );
         await Future.delayed(const Duration(milliseconds: 1000));
@@ -482,15 +514,15 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       if (student == null) {
-        throw Exception('NIS tidak ditemukan di sekolah terpilih');
+        throw Exception('NIS not found at the selected school');
       }
 
       if (student['aktif'] != true) {
-        throw Exception('Akun Murid dinonaktifkan oleh sekolah');
+        throw Exception('Student account is disabled by the school');
       }
 
       if (student['sudahRegister'] == true) {
-        throw Exception('NIS Murid sudah terdaftar sebelumnya');
+        throw Exception('Student NIS is already registered');
       }
 
       final credential = await authService.register(
@@ -520,8 +552,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (mounted) {
         _showNotification(
-          title: 'Registrasi Berhasil',
-          message: 'Registrasi Murid atas nama ${student['nama']} berhasil!',
+          title: 'Registration Successful',
+          message: 'Student registration for ${student['nama']} was successful!',
           isSuccess: true,
         );
         await Future.delayed(const Duration(milliseconds: 1000));
@@ -537,7 +569,15 @@ class _RegisterPageState extends State<RegisterPage> {
     required IconData icon,
     required String value,
   }) {
+    final isDark = AuthBackground.isDarkMode.value;
     final isSelected = selectedRole == value;
+    
+    final unselectedBg = isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02);
+    final unselectedBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withOpacity(0.08);
+    final unselectedTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withOpacity(0.6);
+    
+    final selectedTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -552,10 +592,10 @@ class _RegisterPageState extends State<RegisterPage> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.02),
+            color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.15) : unselectedBg,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected ? const Color(0xFF6366F1) : Colors.white.withValues(alpha: 0.1),
+              color: isSelected ? const Color(0xFF6366F1) : unselectedBorder,
               width: 1.5,
             ),
           ),
@@ -563,14 +603,14 @@ class _RegisterPageState extends State<RegisterPage> {
             children: [
               Icon(
                 icon,
-                color: isSelected ? const Color(0xFF6366F1) : Colors.white.withValues(alpha: 0.5),
+                color: isSelected ? const Color(0xFF6366F1) : unselectedTextColor,
                 size: 28,
               ),
               const SizedBox(height: 8),
               Text(
                 title,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
+                  color: isSelected ? selectedTextColor : unselectedTextColor,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   fontSize: 13,
                 ),
@@ -584,445 +624,509 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: AuthBackground(
-        child: Center(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Header Icon
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.12),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF8B5CF6).withOpacity(0.2),
-                        blurRadius: 20,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.app_registration_rounded,
-                    size: 44,
-                    color: Colors.white,
-                  ),
-                ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subtitleColor = isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF1E1B4B).withOpacity(0.6);
+        final cardColor = isDark ? Colors.white.withOpacity(0.06) : Colors.white;
+        final cardBorderColor = isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06);
+        final fieldFillColor = isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.01);
+        final fieldBorderColor = isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.12);
+        final labelColor = isDark ? Colors.white.withOpacity(0.6) : const Color(0xFF1E1B4B).withOpacity(0.6);
+        final shadowColor = isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.06);
 
-                const SizedBox(height: 16),
-
-                const Text(
-                  'PENDAFTARAN',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 2.0,
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                Text(
-                  'Daftarkan akun Anda untuk mengakses sistem',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withOpacity(0.5),
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-
-                // Glassmorphic Card Form
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Pilihan Role Kustom
-                      if (!kIsWeb) ...[
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(left: 4, bottom: 12),
-                              child: Text(
-                                'Daftar Sebagai',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                _buildRoleCard(
-                                  title: 'Admin',
-                                  icon: Icons.admin_panel_settings_rounded,
-                                  value: 'school_admin',
-                                ),
-                                const SizedBox(width: 12),
-                                _buildRoleCard(
-                                  title: 'Guru',
-                                  icon: Icons.school_rounded,
-                                  value: 'teacher',
-                                ),
-                                const SizedBox(width: 12),
-                                _buildRoleCard(
-                                  title: 'Murid',
-                                  icon: Icons.face_rounded,
-                                  value: 'student',
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                      ],
-
-                      // Pilihan Sekolah (InkWell Selector dengan BottomSheet Pencarian)
-                      _loadingSekolah
-                          ? const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(12.0),
-                                child: CircularProgressIndicator(strokeWidth: 2.5),
-                              ),
-                            )
-                          : InkWell(
-                              onTap: _showSchoolSearchBottomSheet,
-                              borderRadius: BorderRadius.circular(16),
-                              child: InputDecorator(
-                                decoration: InputDecoration(
-                                  labelText: 'Pilih Sekolah',
-                                  labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                                  prefixIcon: Icon(
-                                    Icons.account_balance_rounded,
-                                    color: Colors.white.withOpacity(0.6),
-                                  ),
-                                  suffixIcon: Icon(
-                                    Icons.arrow_drop_down_rounded,
-                                    color: Colors.white.withOpacity(0.6),
-                                    size: 28,
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.15),
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF6366F1),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white.withOpacity(0.02),
-                                ),
-                                child: Text(
-                                  _selectedSekolah != null
-                                      ? (_selectedSekolah!['namaSekolah'] ?? '')
-                                      : 'Pilih nama sekolah',
-                                  style: TextStyle(
-                                    color: _selectedSekolah != null
-                                        ? Colors.white
-                                        : Colors.white.withOpacity(0.6),
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                      const SizedBox(height: 18),
-
-                      // ── Fields Khusus Admin Sekolah ──
-                      if (selectedRole == 'school_admin') ...[
-                        // Nama Lengkap Admin
-                        TextField(
-                          controller: namaController,
-                          style: const TextStyle(color: Colors.white),
-                          textCapitalization: TextCapitalization.words,
-                          decoration: InputDecoration(
-                            labelText: 'Nama Lengkap',
-                            labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                            prefixIcon: Icon(
-                              Icons.person_pin_rounded,
-                              color: Colors.white.withOpacity(0.6),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: Colors.white.withOpacity(0.15),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF6366F1),
-                                width: 1.5,
-                              ),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white.withOpacity(0.02),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-
-                        // Kode Registrasi
-                        TextField(
-                          controller: kodeController,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: 'Kode Registrasi',
-                            labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                            prefixIcon: Icon(
-                              Icons.key_rounded,
-                              color: Colors.white.withOpacity(0.6),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: Colors.white.withOpacity(0.15),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF6366F1),
-                                width: 1.5,
-                            ),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.02),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                    ],
-
-                    // ── Fields Khusus Guru & Murid ──
-                    if (selectedRole == 'teacher' || selectedRole == 'student') ...[
-
-
-                      // Field NIP / NIS
-                      TextField(
-                        controller: nipNisController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: _nipNisLabel,
-                          hintText: selectedRole == 'teacher'
-                              ? 'Masukkan NIP Anda'
-                              : 'Masukkan NIS Anda',
-                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 14),
-                          labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                          prefixIcon: Icon(
-                            Icons.badge_outlined,
-                            color: Colors.white.withOpacity(0.6),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                              color: Colors.white.withOpacity(0.15),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF6366F1),
-                              width: 1.5,
-                            ),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.02),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-
-                      const SizedBox(height: 18),
-                    ],
-
-                    // ── Email & Password (Semua Role) ──
-                    TextField(
-                      controller: emailController,
-                      style: const TextStyle(color: Colors.white),
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                        prefixIcon: Icon(
-                          Icons.email_outlined,
-                          color: Colors.white.withOpacity(0.6),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: Colors.white.withOpacity(0.15),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF6366F1),
-                            width: 1.5,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white.withOpacity(0.02),
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    TextField(
-                      controller: passwordController,
-                      obscureText: _obscurePassword,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                        prefixIcon: Icon(
-                          Icons.lock_outline,
-                          color: Colors.white.withOpacity(0.6),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.white.withOpacity(0.6),
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: Colors.white.withOpacity(0.15),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF6366F1),
-                            width: 1.5,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white.withOpacity(0.02),
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Tombol Register
+        return Scaffold(
+          extendBodyBehindAppBar: true,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            automaticallyImplyLeading: false,
+            actions: const [
+              ThemeToggleButton(),
+            ],
+          ),
+          body: AuthBackground(
+            child: Center(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Header Icon
                     Container(
-                      height: 52,
+                      padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF8B5CF6), // Purple
-                            Color(0xFFD946EF), // Pink
-                          ],
+                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF8B5CF6).withOpacity(0.35),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                            color: const Color(0xFF8B5CF6).withOpacity(isDark ? 0.2 : 0.1),
+                            blurRadius: 20,
+                            spreadRadius: 1,
                           ),
                         ],
                       ),
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _onRegister,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                      child: Icon(
+                        Icons.app_registration_rounded,
+                        size: 44,
+                        color: textColor,
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Text(
+                      'REGISTRATION',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                        letterSpacing: 2.0,
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Text(
+                      'Register your account to access the system',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: subtitleColor,
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // Glassmorphic Card Form
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(
+                          color: cardBorderColor,
                         ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        boxShadow: [
+                          BoxShadow(
+                            color: shadowColor,
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Pilihan Role Kustom
+                          if (!kIsWeb) ...[
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 4, bottom: 12),
+                                  child: Text(
+                                    'Register As',
+                                    style: TextStyle(
+                                      color: labelColor,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ),
-                              )
-                            : const Text(
-                                'REGISTER',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: 1.2,
+                                Row(
+                                  children: [
+                                    _buildRoleCard(
+                                      title: 'Admin',
+                                      icon: Icons.admin_panel_settings_rounded,
+                                      value: 'school_admin',
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _buildRoleCard(
+                                      title: 'Teacher',
+                                      icon: Icons.school_rounded,
+                                      value: 'teacher',
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _buildRoleCard(
+                                      title: 'Student',
+                                      icon: Icons.face_rounded,
+                                      value: 'student',
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                          ],
+
+                          // Pilihan Sekolah (InkWell Selector dengan BottomSheet Pencarian)
+                          _loadingSekolah
+                              ? const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(12.0),
+                                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                                  ),
+                                )
+                              : InkWell(
+                                  onTap: _showSchoolSearchBottomSheet,
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: InputDecorator(
+                                    decoration: InputDecoration(
+                                      labelText: 'Select School',
+                                      labelStyle: TextStyle(color: labelColor),
+                                      prefixIcon: Icon(
+                                        Icons.account_balance_rounded,
+                                        color: labelColor,
+                                      ),
+                                      suffixIcon: Icon(
+                                        Icons.arrow_drop_down_rounded,
+                                        color: labelColor,
+                                        size: 28,
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: fieldBorderColor,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: const BorderSide(
+                                          color: Color(0xFF6366F1),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: fieldFillColor,
+                                    ),
+                                    child: Text(
+                                      _selectedSekolah != null
+                                          ? (_selectedSekolah!['namaSekolah'] ?? '')
+                                          : 'Select school name',
+                                      style: TextStyle(
+                                        color: _selectedSekolah != null
+                                            ? textColor
+                                            : labelColor,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                          const SizedBox(height: 18),
+
+                          // ── Fields Khusus Admin Sekolah ──
+                          if (selectedRole == 'school_admin') ...[
+                            // Nama Lengkap Admin
+                            TextField(
+                              controller: namaController,
+                              style: TextStyle(color: textColor),
+                              textCapitalization: TextCapitalization.words,
+                              decoration: InputDecoration(
+                                labelText: 'Full Name',
+                                labelStyle: TextStyle(color: labelColor),
+                                prefixIcon: Icon(
+                                  Icons.person_pin_rounded,
+                                  color: labelColor,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: fieldBorderColor,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF6366F1),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: fieldFillColor,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+
+                            // Kode Registrasi
+                            TextField(
+                              controller: kodeController,
+                              style: TextStyle(color: textColor),
+                              decoration: InputDecoration(
+                                labelText: 'Registration Code',
+                                labelStyle: TextStyle(color: labelColor),
+                                prefixIcon: Icon(
+                                  Icons.key_rounded,
+                                  color: labelColor,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: fieldBorderColor,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF6366F1),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: fieldFillColor,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                          ],
+
+                          // ── Fields Khusus Guru & Murid ──
+                          if (selectedRole == 'teacher' || selectedRole == 'student') ...[
+                            // Field NIP / NIS
+                            TextField(
+                              controller: nipNisController,
+                              style: TextStyle(color: textColor),
+                              decoration: InputDecoration(
+                                labelText: _nipNisLabel,
+                                hintText: selectedRole == 'teacher'
+                                    ? 'Enter your NIP'
+                                    : 'Enter your NIS',
+                                hintStyle: TextStyle(color: isDark ? Colors.white.withOpacity(0.3) : const Color(0xFF1E1B4B).withOpacity(0.3), fontSize: 14),
+                                labelStyle: TextStyle(color: labelColor),
+                                prefixIcon: Icon(
+                                  Icons.badge_outlined,
+                                  color: labelColor,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: fieldBorderColor,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF6366F1),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: fieldFillColor,
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+
+                            const SizedBox(height: 18),
+                          ],
+
+                          // ── Email & Password (Semua Role) ──
+                          TextField(
+                            controller: emailController,
+                            style: TextStyle(color: textColor),
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              labelStyle: TextStyle(color: labelColor),
+                              prefixIcon: Icon(
+                                Icons.email_outlined,
+                                color: labelColor,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: fieldBorderColor,
                                 ),
                               ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF6366F1),
+                                  width: 1.5,
+                                ),
+                              ),
+                              filled: true,
+                              fillColor: fieldFillColor,
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          TextField(
+                            controller: passwordController,
+                            obscureText: _obscurePassword,
+                            style: TextStyle(color: textColor),
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              labelStyle: TextStyle(color: labelColor),
+                              prefixIcon: Icon(
+                                Icons.lock_outline,
+                                color: labelColor,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: labelColor,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: fieldBorderColor,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF6366F1),
+                                  width: 1.5,
+                                ),
+                              ),
+                              filled: true,
+                              fillColor: fieldFillColor,
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          TextField(
+                            controller: confirmPasswordController,
+                            obscureText: _obscureConfirmPassword,
+                            style: TextStyle(color: textColor),
+                            decoration: InputDecoration(
+                              labelText: 'Confirm Password',
+                              labelStyle: TextStyle(color: labelColor),
+                              prefixIcon: Icon(
+                                Icons.lock_outline,
+                                color: labelColor,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: labelColor,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureConfirmPassword = !_obscureConfirmPassword;
+                                  });
+                                },
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: fieldBorderColor,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF6366F1),
+                                  width: 1.5,
+                                ),
+                              ),
+                              filled: true,
+                              fillColor: fieldFillColor,
+                            ),
+                          ),
+
+                          const SizedBox(height: 32),
+
+                          // Tombol Register
+                          Container(
+                            height: 52,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF8B5CF6), // Purple
+                                  Color(0xFFD946EF), // Pink
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF8B5CF6).withOpacity(isDark ? 0.35 : 0.15),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _onRegister,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : const Text(
+                                      'REGISTER',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+
+                          // Tombol Kembali Ke Login
+                          OutlinedButton(
+                            onPressed: () {
+                              Get.toNamed(AppRoutes.login);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(50),
+                              side: BorderSide(color: isDark ? Colors.white.withOpacity(0.2) : const Color(0xFF1E1B4B).withOpacity(0.2)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Text(
+                              'BACK TO LOGIN',
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-
-                    const SizedBox(height: 18),
-
-                    // Tombol Kembali Ke Login
-                    OutlinedButton(
-                      onPressed: () {
-                        Get.toNamed(AppRoutes.login);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                        side: BorderSide(color: Colors.white.withOpacity(0.2)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text(
-                        'KEMBALI KE LOGIN',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
-        ),
-      ),
-    ),
-  );
-}
+        );
+      },
+    );
+  }
 }

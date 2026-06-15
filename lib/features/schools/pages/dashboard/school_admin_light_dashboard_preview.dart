@@ -5,10 +5,10 @@ class SchoolAdminLightDashboardPreview extends StatelessWidget {
   const SchoolAdminLightDashboardPreview({super.key});
 
   // Contoh data dummy untuk preview
-  final String schoolId = "skanesamjk";
-  final String adminNama = "guru 1 skanesa";
-  final String adminEmail = "guru1@skanesamjk.com";
-  final String schoolName = "SMK Negeri 1 Mojokerto";
+  final String schoolId = "smansamjk";
+  final String adminNama = "admin smansa";
+  final String adminEmail = "admin@smansamjk.com";
+  final String schoolName = "SMA Negeri 1 Mojokerto";
   final String plan = "PRO";
   final String? schoolLogoBase64 = null; // Bisa base64 jika ada
 
@@ -37,7 +37,7 @@ class SchoolAdminLightDashboardPreview extends StatelessWidget {
               pinned: true,
               toolbarHeight: 56,
               title: const Text(
-                'Selamat Sore, Admin',
+                'Selamat Sore',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

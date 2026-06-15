@@ -8,6 +8,7 @@ import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 import '../../students/data/student_service.dart';
 import '../services/attendance_pdf_helper.dart';
 import 'teacher_qr_attendance_page.dart';
+import '../../schools/services/school_service.dart';
 
 class TeacherAttendanceSchedulePage extends StatefulWidget {
   final String teacherId;
@@ -159,6 +160,17 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
 
     DateTime selectedMonth = monthOptions.first;
 
+    final List<String> classOptions = ['Semua Kelas'];
+    final uniqueClasses = allSchedules
+        .map((s) => s['className']?.toString() ?? '')
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    classOptions.addAll(uniqueClasses);
+
+    String selectedClass = classOptions.first;
+
     await showDialog(
       context: context,
       builder: (context) {
@@ -187,11 +199,18 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Pilih bulan rekapitulasi kehadiran murid',
+                      'Pilih bulan dan kelas untuk rekapitulasi',
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
+
+                    // Label Bulan
+                    const Text(
+                      'Bulan',
+                      style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       decoration: BoxDecoration(
@@ -204,6 +223,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                           value: selectedMonth,
                           dropdownColor: const Color(0xFF0F0C20),
                           icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white54),
+                          isExpanded: true,
                           style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                           items: monthOptions.map((date) {
                             final monthName = _getMonthNameIndonesian(date.month);
@@ -223,13 +243,52 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+
+                    // Label Kelas
+                    const Text(
+                      'Kelas',
+                      style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedClass,
+                          dropdownColor: const Color(0xFF0F0C20),
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white54),
+                          isExpanded: true,
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                          items: classOptions.map((className) {
+                            return DropdownMenuItem<String>(
+                              value: className,
+                              child: Text(className),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() {
+                                selectedClass = val;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
                         final startDate = DateTime(selectedMonth.year, selectedMonth.month, 1);
                         final endDate = DateTime(selectedMonth.year, selectedMonth.month + 1, 0);
-                        _exportAllRecapPdfWithRange(context, allSchedules, startDate, endDate);
+                        _exportAllRecapPdfWithRange(context, allSchedules, startDate, endDate, selectedClass);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF8B5CF6),
@@ -269,9 +328,12 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     List<Map<String, dynamic>> allSchedules,
     DateTime start,
     DateTime end,
+    String selectedClass,
   ) async {
     final user = SessionService.currentUser!;
     final teacherName = user.nama;
+    final schoolData = await SchoolService().getSchoolByDomain(user.schoolId);
+    final schoolName = schoolData?['namaSekolah']?.toString() ?? 'Sekolah';
 
     // Tampilkan loading overlay
     Get.dialog(
@@ -296,32 +358,77 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
 
       final allRecords = querySnapshot.docs.map((doc) => doc.data()).toList();
 
-      // Dapatkan semua kelas yang diajar oleh guru ini
+      // Fetch classes to map classId to className
+      final classesSnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(user.schoolId)
+          .collection('classes')
+          .get();
+      
+      final Map<String, String> classIdToName = {};
+      for (var doc in classesSnapshot.docs) {
+        final data = doc.data();
+        final name = data['namaKelas']?.toString() ?? '';
+        if (name.isNotEmpty) {
+          classIdToName[doc.id] = name;
+        }
+      }
+
+      // Fetch all students in the school
+      final studentsSnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(user.schoolId)
+          .collection('students')
+          .get();
+
+      final List<Map<String, dynamic>> allStudents = studentsSnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          ...data,
+          'studentId': doc.id,
+        };
+      }).toList();
+
+      // Dapatkan semua kelas dan mata pelajaran yang diajar oleh guru ini
       final teacherClassNames = allSchedules
           .map((s) => s['className'] as String?)
           .whereType<String>()
           .toSet();
 
-      // Filter data absensi untuk murid yang berada di kelas yang diampu guru ini
-      final filteredRecords = allRecords
-          .where((r) => teacherClassNames.contains(r['className'] as String?))
+      final teacherSubjectNames = allSchedules
+          .map((s) => s['subjectName'] as String?)
+          .whereType<String>()
+          .toSet();
+
+      // Filter berdasarkan kelas yang dipilih
+      final Set<String> targetClasses = selectedClass == 'Semua Kelas'
+          ? teacherClassNames
+          : {selectedClass};
+
+      final targetSchedules = allSchedules
+          .where((s) => targetClasses.contains(s['className'] as String?))
           .toList();
 
-      // Query semua jadwal pelajaran di sekolah untuk mendapatkan semua mapel per kelas
-      final schedulesSnapshot = await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(user.schoolId)
-          .collection('class_schedules')
-          .get();
-      final schoolSchedules = schedulesSnapshot.docs.map((doc) => doc.data()).toList();
+      // Filter data absensi untuk murid yang berada di kelas dan mapel yang diampu guru ini
+      final filteredRecords = allRecords
+          .where((r) =>
+              targetClasses.contains(r['className'] as String?) &&
+              teacherSubjectNames.contains(r['subjectName'] as String?))
+          .toList();
+
+      final List<Map<String, dynamic>> targetStudents = allStudents.where((student) {
+        final sClassId = student['classId']?.toString() ?? '';
+        final sClassName = classIdToName[sClassId] ?? '';
+        return targetClasses.contains(sClassName);
+      }).toList();
 
       // Tutup loading dialog
       Get.back();
 
-      if (filteredRecords.isEmpty) {
+      if (targetStudents.isEmpty) {
         Get.snackbar(
           'Informasi',
-          'Tidak ada data absensi pada rentang tanggal yang dipilih.',
+          'Tidak ada murid pada kelas yang dipilih.',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.amber,
           colorText: Colors.black,
@@ -331,13 +438,16 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
         return;
       }
 
-      // Panggil PDF Helper untuk generate rekap gabungan dengan semua jadwal sekolah
+      // Panggil PDF Helper untuk generate rekap gabungan dengan jadwal guru saja
       await AttendancePdfHelper.generateAndShowAllPdf(
         teacherName: teacherName,
         startDate: start,
         endDate: end,
         records: filteredRecords,
-        schedules: schoolSchedules,
+        schedules: targetSchedules,
+        students: targetStudents,
+        classIdToName: classIdToName,
+        schoolName: schoolName,
       );
 
     } catch (e) {
