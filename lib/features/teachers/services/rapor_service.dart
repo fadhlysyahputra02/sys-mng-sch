@@ -11,6 +11,7 @@ class RaporService {
   Future<void> saveStudentReport({
     required String schoolId,
     required String studentId,
+    required String tahunAjaran,
     required String semester,
     required List<Map<String, dynamic>> attitudeAspects,
     required int sakit,
@@ -19,7 +20,8 @@ class RaporService {
     required String catatanWali,
     required String updatedBy,
   }) async {
-    final docId = '${studentId}_$semester';
+    final cleanYear = tahunAjaran.replaceAll('/', '-');
+    final docId = '${studentId}_${cleanYear}_$semester';
 
     // Extract default/legacy aspects for backward compatibility if present in the dynamic list
     String spiritualPredikat = 'B';
@@ -40,6 +42,7 @@ class RaporService {
 
     await _reportsRef(schoolId).doc(docId).set({
       'studentId': studentId,
+      'tahunAjaran': tahunAjaran,
       'semester': semester,
       'attitudeAspects': attitudeAspects,
       'sikapSpiritualPredikat': spiritualPredikat,
@@ -59,9 +62,11 @@ class RaporService {
   Stream<DocumentSnapshot<Map<String, dynamic>>> getStudentReportStream({
     required String schoolId,
     required String studentId,
+    required String tahunAjaran,
     required String semester,
   }) {
-    final docId = '${studentId}_$semester';
+    final cleanYear = tahunAjaran.replaceAll('/', '-');
+    final docId = '${studentId}_${cleanYear}_$semester';
     return _reportsRef(schoolId).doc(docId).snapshots();
   }
 
@@ -69,9 +74,11 @@ class RaporService {
   Future<DocumentSnapshot<Map<String, dynamic>>> getStudentReport({
     required String schoolId,
     required String studentId,
+    required String tahunAjaran,
     required String semester,
   }) async {
-    final docId = '${studentId}_$semester';
+    final cleanYear = tahunAjaran.replaceAll('/', '-');
+    final docId = '${studentId}_${cleanYear}_$semester';
     return await _reportsRef(schoolId).doc(docId).get();
   }
 
@@ -80,6 +87,8 @@ class RaporService {
   Future<Map<String, int>> calculateAttendanceStats({
     required String schoolId,
     required String studentId,
+    required String tahunAjaran,
+    required String semester,
   }) async {
     try {
       final snapshot = await _firestore
@@ -87,6 +96,8 @@ class RaporService {
           .doc(schoolId)
           .collection('attendance')
           .where('studentId', isEqualTo: studentId)
+          .where('tahunAjaran', isEqualTo: tahunAjaran)
+          .where('semester', isEqualTo: semester)
           .get();
 
       int sakit = 0;

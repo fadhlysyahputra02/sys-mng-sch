@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../schools/services/school_service.dart';
 import '../services/grade_service.dart';
 import 'teacher_grade_recap_page.dart';
 import 'teacher_rapor_page.dart';
@@ -54,6 +55,9 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
     return subjects;
   }
 
+  String _tahunAjaran = '';
+  String _activeSemester = '';
+
   @override
   void initState() {
     super.initState();
@@ -66,6 +70,11 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
     });
 
     try {
+      // 0. Ambil metadata sekolah
+      final schoolDoc = await SchoolService().getSchoolByDomain(widget.schoolId);
+      final activeTahunAjaran = schoolDoc?['tahunAjaran']?.toString() ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
+      final activeSemester = schoolDoc?['semester']?.toString() ?? 'Semester 1';
+
       // 1. Ambil data kelas wali kelas
       final homeroomSnapshot = await FirebaseFirestore.instance
           .collection('schools')
@@ -113,6 +122,8 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
       });
 
       setState(() {
+        _tahunAjaran = activeTahunAjaran;
+        _activeSemester = activeSemester;
         _homeroomClasses = homeroomSnapshot.docs;
         _teachingPairs = tempPairs;
         _isLoading = false;
@@ -149,6 +160,8 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
           subjectId: subjectId,
           subjectName: subjectName,
           teacherName: SessionService.currentUser!.nama,
+          tahunAjaran: _tahunAjaran,
+          semester: _activeSemester,
         );
       },
     );
@@ -677,6 +690,8 @@ class _ManageDescriptionsBottomSheet extends StatefulWidget {
   final String subjectId;
   final String subjectName;
   final String teacherName;
+  final String tahunAjaran;
+  final String semester;
 
   const _ManageDescriptionsBottomSheet({
     required this.schoolId,
@@ -685,6 +700,8 @@ class _ManageDescriptionsBottomSheet extends StatefulWidget {
     required this.subjectId,
     required this.subjectName,
     required this.teacherName,
+    required this.tahunAjaran,
+    required this.semester,
   });
 
   @override
@@ -738,6 +755,7 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
       final descMap = await _gradeService.getSubjectDescriptionsBySubject(
         schoolId: widget.schoolId,
         subjectId: widget.subjectId,
+        tahunAjaran: widget.tahunAjaran,
         semester: _selectedSemester,
       );
 
@@ -791,6 +809,7 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
         schoolId: widget.schoolId,
         subjectId: widget.subjectId,
         studentId: studentId,
+        tahunAjaran: widget.tahunAjaran,
         semester: _selectedSemester,
         deskripsi: deskripsi,
         updatedBy: widget.teacherName,

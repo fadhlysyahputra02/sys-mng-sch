@@ -28,6 +28,7 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _activeSemester = 'Semester 1';
+  String _tahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
   bool _isLoadingSchool = true;
 
   @override
@@ -47,6 +48,11 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
         if (data['semester'] != null) {
           setState(() {
             _activeSemester = data['semester'] as String;
+          });
+        }
+        if (data['tahunAjaran'] != null) {
+          setState(() {
+            _tahunAjaran = data['tahunAjaran'] as String;
           });
         }
       }
@@ -233,7 +239,8 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                             final gender = studentData['jenisKelamin'] ?? 'L';
 
                             // Cek status rapor secara realtime dari Firestore student_reports subcollection
-                            final reportDocId = '${studentId}_$_activeSemester';
+                            final cleanYear = _tahunAjaran.replaceAll('/', '-');
+                            final reportDocId = '${studentId}_${cleanYear}_$_activeSemester';
 
                             return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                               stream: FirebaseFirestore.instance

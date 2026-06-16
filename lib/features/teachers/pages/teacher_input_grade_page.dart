@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../schools/services/school_service.dart';
 import '../services/grade_service.dart';
 
 class TeacherInputGradePage extends StatefulWidget {
@@ -25,6 +26,9 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
   // Data jadwal guru untuk dropdown
   Map<String, Map<String, dynamic>> _classMap = {};
   bool _isLoadingSchedules = true;
+
+  String? _tahunAjaran;
+  String? _activeSemester;
 
   // Form states
   String? _selectedClassId;
@@ -83,6 +87,9 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
       _selectedDate = DateTime.parse(data['date'].toString());
     }
 
+    _tahunAjaran = data['tahunAjaran']?.toString();
+    _activeSemester = data['semester']?.toString();
+
     final scores = data['scores'] as Map<String, dynamic>? ?? {};
     scores.forEach((studentId, detail) {
       if (detail is Map) {
@@ -101,6 +108,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
   Future<void> _loadTeacherSchedules() async {
     final user = SessionService.currentUser!;
     try {
+      final schoolData = await SchoolService().getSchoolByDomain(user.schoolId);
       final snapshot = await FirebaseFirestore.instance
           .collection('schools')
           .doc(user.schoolId)
@@ -135,6 +143,12 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
       if (mounted) {
         setState(() {
           _classMap = tempClassMap;
+          if (_tahunAjaran == null) {
+            _tahunAjaran = schoolData?['tahunAjaran']?.toString();
+          }
+          if (_activeSemester == null) {
+            _activeSemester = schoolData?['semester']?.toString();
+          }
           _isLoadingSchedules = false;
         });
       }
@@ -235,6 +249,8 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
         maxScore: maxScore,
         date: _selectedDate,
         scores: studentScores,
+        tahunAjaran: _tahunAjaran ?? '-',
+        semester: _activeSemester ?? '-',
       );
 
       if (mounted) {

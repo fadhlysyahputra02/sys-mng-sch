@@ -132,6 +132,8 @@ class StudentService {
     required String? classId,
     required String? className,
     required String dateStr,
+    required String tahunAjaran,
+    required String semester,
   }) async {
     await _firestore
         .collection('schools')
@@ -146,6 +148,8 @@ class StudentService {
       'date': dateStr,
       'timestamp': FieldValue.serverTimestamp(),
       'status': 'Hadir',
+      'tahunAjaran': tahunAjaran,
+      'semester': semester,
     });
   }
 
@@ -191,6 +195,8 @@ class StudentService {
     required String subjectName,
     required String dateStr,
     required String checkInMethod,
+    required String tahunAjaran,
+    required String semester,
   }) async {
     await _firestore
         .collection('schools')
@@ -208,6 +214,8 @@ class StudentService {
       'timestamp': FieldValue.serverTimestamp(),
       'status': 'Hadir',
       'method': checkInMethod,
+      'tahunAjaran': tahunAjaran,
+      'semester': semester,
     });
   }
 
@@ -221,6 +229,8 @@ class StudentService {
     required String subjectName,
     required String type,
     required String description,
+    required String tahunAjaran,
+    required String semester,
   }) async {
     final docId = '${studentId}_${scheduleId}_${DateTime.now().millisecondsSinceEpoch}';
     await _firestore
@@ -238,6 +248,8 @@ class StudentService {
       'type': type,
       'description': description,
       'timestamp': FieldValue.serverTimestamp(),
+      'tahunAjaran': tahunAjaran,
+      'semester': semester,
     });
   }
 

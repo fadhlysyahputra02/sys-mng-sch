@@ -195,6 +195,8 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
             : (activeSchedule != null
                 ? 'Murid terdeteksi meninggalkan aplikasi absensi saat jam pelajaran $subjectName sedang berlangsung.'
                 : 'Murid terdeteksi meninggalkan aplikasi absensi setelah melakukan absensi pelajaran $subjectName hari ini.'),
+        tahunAjaran: _tahunAjaran ?? '-',
+        semester: _activeSemester ?? '-',
       );
       debugPrint('Successfully reported behavior violation to Firestore.');
     } catch (e) {
@@ -274,6 +276,8 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         description: activeSchedule != null
             ? 'Murid terdeteksi kembali membuka aplikasi absensi (standby) saat jam pelajaran $subjectName sedang berlangsung.'
             : 'Murid terdeteksi kembali membuka aplikasi absensi (standby) setelah melakukan absensi pelajaran $subjectName hari ini.',
+        tahunAjaran: _tahunAjaran ?? '-',
+        semester: _activeSemester ?? '-',
       );
       debugPrint('Successfully reported behavior return/standby to Firestore.');
     } catch (e) {
@@ -332,6 +336,8 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         description: activeSchedule != null
             ? 'Murid terdeteksi melakukan logout saat jam pelajaran $subjectName sedang berlangsung.'
             : 'Murid terdeteksi melakukan logout setelah melakukan absensi pelajaran $subjectName hari ini.',
+        tahunAjaran: _tahunAjaran ?? '-',
+        semester: _activeSemester ?? '-',
       ).timeout(const Duration(seconds: 2));
       debugPrint('Successfully reported logout behavior to Firestore.');
     } catch (e) {
@@ -880,6 +886,8 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                 studentDocId: _studentDocId!,
                 studentData: _studentData!,
                 className: _className!,
+                tahunAjaran: _tahunAjaran ?? '-',
+                semester: _activeSemester ?? '-',
               ));
         }
         break;

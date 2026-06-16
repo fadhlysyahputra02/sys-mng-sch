@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../schools/services/school_service.dart';
 import '../services/grade_service.dart';
 import 'teacher_input_grade_page.dart';
 
@@ -21,6 +22,8 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
   Map<String, Map<String, dynamic>> _classMap = {};
   String? _selectedFilterClassId;
   String? _selectedFilterSubjectId;
+  String? _tahunAjaran;
+  String? _activeSemester;
 
   @override
   void initState() {
@@ -31,6 +34,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
   Future<void> _loadTeacherSchedules() async {
     final user = SessionService.currentUser!;
     try {
+      final schoolData = await SchoolService().getSchoolByDomain(user.schoolId);
       final snapshot = await FirebaseFirestore.instance
           .collection('schools')
           .doc(user.schoolId)
@@ -64,6 +68,8 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
       if (mounted) {
         setState(() {
           _classMap = tempClassMap;
+          _tahunAjaran = schoolData?['tahunAjaran'];
+          _activeSemester = schoolData?['semester'];
           _isLoadingSchedules = false;
         });
       }
@@ -190,6 +196,8 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
         schoolId: user.schoolId,
         teacherId: widget.teacherId,
         classMap: _classMap,
+        tahunAjaran: _tahunAjaran ?? '-',
+        semester: _activeSemester ?? '-',
       ),
     );
   }
@@ -427,6 +435,8 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                       widget.teacherId,
                       classId: _selectedFilterClassId,
                       subjectId: _selectedFilterSubjectId,
+                      tahunAjaran: _tahunAjaran ?? '-',
+                      semester: _activeSemester ?? '-',
                     ),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
@@ -669,7 +679,9 @@ class _WeightsConfigDialog extends StatefulWidget {
   final String schoolId;
   final String teacherId;
   final Map<String, Map<String, dynamic>> classMap;
-  const _WeightsConfigDialog({required this.schoolId, required this.teacherId, required this.classMap});
+  final String tahunAjaran;
+  final String semester;
+  const _WeightsConfigDialog({required this.schoolId, required this.teacherId, required this.classMap, required this.tahunAjaran, required this.semester});
 
   @override
   State<_WeightsConfigDialog> createState() => _WeightsConfigDialogState();
@@ -713,11 +725,12 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
     });
 
     try {
+      final docId = '${_selectedClassId}_${_selectedSubjectId}_${widget.tahunAjaran.replaceAll('/', '_')}_${widget.semester}';
       final doc = await FirebaseFirestore.instance
           .collection('schools')
           .doc(widget.schoolId)
           .collection('subject_weights')
-          .doc('${_selectedClassId}_$_selectedSubjectId')
+          .doc(docId)
           .get();
 
       if (doc.exists && doc.data()?['weights'] != null) {
@@ -783,6 +796,8 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
         subjectId: _selectedSubjectId!,
         teacherId: widget.teacherId,
         weights: wMap,
+        tahunAjaran: widget.tahunAjaran,
+        semester: widget.semester,
       );
 
       if (!mounted) return;

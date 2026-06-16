@@ -14,12 +14,16 @@ class StudentAttendancePage extends StatefulWidget {
   final String studentDocId;
   final Map<String, dynamic> studentData;
   final String className;
+  final String tahunAjaran;
+  final String semester;
 
   const StudentAttendancePage({
     super.key,
     required this.studentDocId,
     required this.studentData,
     required this.className,
+    required this.tahunAjaran,
+    required this.semester,
   });
 
   @override
@@ -179,6 +183,8 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                       subjectName: subjectName,
                       dateStr: dateStr,
                       checkInMethod: 'QR Scan',
+                      tahunAjaran: widget.tahunAjaran,
+                      semester: widget.semester,
                     );
                     _showSuccessSnackbar();
                   } catch (e) {

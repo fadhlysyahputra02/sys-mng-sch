@@ -406,7 +406,12 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                 });
 
                 return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _gradeService.getGradesByClass(schoolId: widget.schoolId, classId: widget.classId),
+                  stream: _gradeService.getGradesByClass(
+                    schoolId: widget.schoolId, 
+                    classId: widget.classId,
+                    tahunAjaran: _tahunAjaran,
+                    semester: _activeSemester,
+                  ),
                   builder: (context, gradesSnapshot) {
                     if (gradesSnapshot.connectionState == ConnectionState.waiting) {
                       return Center(
@@ -443,6 +448,8 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                           .doc(widget.schoolId)
                           .collection('subject_weights')
                           .where('classId', isEqualTo: widget.classId)
+                          .where('tahunAjaran', isEqualTo: _tahunAjaran)
+                          .where('semester', isEqualTo: _activeSemester)
                           .snapshots(),
                       builder: (context, weightsSnapshot) {
                         if (weightsSnapshot.connectionState == ConnectionState.waiting) {

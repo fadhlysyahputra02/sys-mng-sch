@@ -21,6 +21,8 @@ class GradeService {
     required double maxScore,
     required DateTime date,
     required Map<String, Map<String, dynamic>> scores,
+    required String tahunAjaran,
+    required String semester,
   }) async {
     final docRef = gradeId == null || gradeId.isEmpty
         ? _gradesRef(schoolId).doc()
@@ -55,6 +57,8 @@ class GradeService {
       'scores': formattedScores,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
+      'tahunAjaran': tahunAjaran,
+      'semester': semester,
     }, SetOptions(merge: true));
   }
 
@@ -65,8 +69,10 @@ class GradeService {
     required String subjectId,
     required String teacherId,
     required Map<String, double> weights,
+    required String tahunAjaran,
+    required String semester,
   }) async {
-    final docId = '${classId}_$subjectId';
+    final docId = '${classId}_${subjectId}_${tahunAjaran.replaceAll('/', '_')}_$semester';
     await _firestore
         .collection('schools')
         .doc(schoolId)
@@ -78,6 +84,8 @@ class GradeService {
       'teacherId': teacherId,
       'weights': weights,
       'updatedAt': FieldValue.serverTimestamp(),
+      'tahunAjaran': tahunAjaran,
+      'semester': semester,
     }, SetOptions(merge: true));
   }
 
@@ -86,8 +94,10 @@ class GradeService {
     required String schoolId,
     required String classId,
     required String subjectId,
+    required String tahunAjaran,
+    required String semester,
   }) {
-    final docId = '${classId}_$subjectId';
+    final docId = '${classId}_${subjectId}_${tahunAjaran.replaceAll('/', '_')}_$semester';
     return _firestore
         .collection('schools')
         .doc(schoolId)
@@ -102,8 +112,13 @@ class GradeService {
     String teacherId, {
     String? classId,
     String? subjectId,
+    required String tahunAjaran,
+    required String semester,
   }) {
-    Query<Map<String, dynamic>> query = _gradesRef(schoolId).where('teacherId', isEqualTo: teacherId);
+    Query<Map<String, dynamic>> query = _gradesRef(schoolId)
+        .where('teacherId', isEqualTo: teacherId)
+        .where('tahunAjaran', isEqualTo: tahunAjaran)
+        .where('semester', isEqualTo: semester);
     if (classId != null && classId.isNotEmpty) {
       query = query.where('classId', isEqualTo: classId);
     }
@@ -135,9 +150,13 @@ class GradeService {
   Stream<QuerySnapshot<Map<String, dynamic>>> getGradesByClass({
     required String schoolId,
     required String classId,
+    required String tahunAjaran,
+    required String semester,
   }) {
     return _gradesRef(schoolId)
         .where('classId', isEqualTo: classId)
+        .where('tahunAjaran', isEqualTo: tahunAjaran)
+        .where('semester', isEqualTo: semester)
         .snapshots();
   }
 
@@ -146,11 +165,12 @@ class GradeService {
     required String schoolId,
     required String subjectId,
     required String studentId,
+    required String tahunAjaran,
     required String semester,
     required String deskripsi,
     required String updatedBy,
   }) async {
-    final docId = '${subjectId}_${studentId}_$semester';
+    final docId = '${subjectId}_${studentId}_${tahunAjaran.replaceAll('/', '_')}_$semester';
     await _firestore
         .collection('schools')
         .doc(schoolId)
@@ -159,6 +179,7 @@ class GradeService {
         .set({
       'subjectId': subjectId,
       'studentId': studentId,
+      'tahunAjaran': tahunAjaran,
       'semester': semester,
       'deskripsi': deskripsi,
       'updatedBy': updatedBy,
@@ -170,6 +191,7 @@ class GradeService {
   Future<Map<String, String>> getSubjectDescriptions({
     required String schoolId,
     required String studentId,
+    required String tahunAjaran,
     required String semester,
   }) async {
     final snapshot = await _firestore
@@ -177,6 +199,7 @@ class GradeService {
         .doc(schoolId)
         .collection('subject_descriptions')
         .where('studentId', isEqualTo: studentId)
+        .where('tahunAjaran', isEqualTo: tahunAjaran)
         .where('semester', isEqualTo: semester)
         .get();
 
@@ -197,9 +220,10 @@ class GradeService {
     required String schoolId,
     required String subjectId,
     required String studentId,
+    required String tahunAjaran,
     required String semester,
   }) async {
-    final docId = '${subjectId}_${studentId}_$semester';
+    final docId = '${subjectId}_${studentId}_${tahunAjaran.replaceAll('/', '_')}_$semester';
     final doc = await _firestore
         .collection('schools')
         .doc(schoolId)
@@ -216,6 +240,7 @@ class GradeService {
   Future<Map<String, String>> getSubjectDescriptionsBySubject({
     required String schoolId,
     required String subjectId,
+    required String tahunAjaran,
     required String semester,
   }) async {
     final snapshot = await _firestore
@@ -223,6 +248,7 @@ class GradeService {
         .doc(schoolId)
         .collection('subject_descriptions')
         .where('subjectId', isEqualTo: subjectId)
+        .where('tahunAjaran', isEqualTo: tahunAjaran)
         .where('semester', isEqualTo: semester)
         .get();
 

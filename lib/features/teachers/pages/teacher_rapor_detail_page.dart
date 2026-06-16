@@ -130,10 +130,13 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
         _raporService.calculateAttendanceStats(
           schoolId: widget.schoolId,
           studentId: widget.studentId,
+          tahunAjaran: _tahunAjaran,
+          semester: _activeSemester,
         ),
         _raporService.getStudentReport(
           schoolId: widget.schoolId,
           studentId: widget.studentId,
+          tahunAjaran: _tahunAjaran,
           semester: _activeSemester,
         ),
       ]);
@@ -213,6 +216,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       await _raporService.saveStudentReport(
         schoolId: widget.schoolId,
         studentId: widget.studentId,
+        tahunAjaran: _tahunAjaran,
         semester: _activeSemester,
         attitudeAspects: serializedAspects,
         sakit: sakit,
@@ -274,6 +278,8 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
         .doc(widget.schoolId)
         .collection('subject_weights')
         .where('classId', isEqualTo: widget.classId)
+        .where('tahunAjaran', isEqualTo: _tahunAjaran)
+        .where('semester', isEqualTo: _activeSemester)
         .get();
 
     final Map<String, Map<String, double>> subjectWeightsMap = {};
@@ -313,6 +319,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
     final descMap = await _gradeService.getSubjectDescriptions(
       schoolId: widget.schoolId,
       studentId: widget.studentId,
+      tahunAjaran: _tahunAjaran,
       semester: _activeSemester,
     );
 
@@ -407,7 +414,12 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                     ),
                   )
                 : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: _gradeService.getGradesByClass(schoolId: widget.schoolId, classId: widget.classId),
+                    stream: _gradeService.getGradesByClass(
+                      schoolId: widget.schoolId, 
+                      classId: widget.classId,
+                      tahunAjaran: _tahunAjaran,
+                      semester: _activeSemester,
+                    ),
                     builder: (context, gradeSnap) {
                       final gradeDocs = gradeSnap.data?.docs ?? [];
 
