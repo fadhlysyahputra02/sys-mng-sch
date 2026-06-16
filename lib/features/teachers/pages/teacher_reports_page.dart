@@ -710,7 +710,6 @@ class _ManageDescriptionsBottomSheet extends StatefulWidget {
 
 class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBottomSheet> {
   final _gradeService = GradeService();
-  String _selectedSemester = 'Semester 1';
   bool _isLoading = true;
   List<DocumentSnapshot<Map<String, dynamic>>> _students = [];
   final Map<String, TextEditingController> _descControllers = {};
@@ -756,7 +755,7 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
         schoolId: widget.schoolId,
         subjectId: widget.subjectId,
         tahunAjaran: widget.tahunAjaran,
-        semester: _selectedSemester,
+        semester: widget.semester,
       );
 
       for (var controller in _descControllers.values) {
@@ -810,7 +809,7 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
         subjectId: widget.subjectId,
         studentId: studentId,
         tahunAjaran: widget.tahunAjaran,
-        semester: _selectedSemester,
+        semester: widget.semester,
         deskripsi: deskripsi,
         updatedBy: widget.teacherName,
       );
@@ -908,38 +907,6 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
               ),
             ),
             const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Text(
-                    'Pilih Semester:',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: titleColor),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'Semester 1', label: Text('Semester 1')),
-                        ButtonSegment(value: 'Semester 2', label: Text('Semester 2')),
-                      ],
-                      selected: {_selectedSemester},
-                      onSelectionChanged: (Set<String> newSelection) {
-                        setState(() {
-                          _selectedSemester = newSelection.first;
-                        });
-                        _loadStudentsAndDescriptions();
-                      },
-                      style: SegmentedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
-                        selectedBackgroundColor: const Color(0xFF8B5CF6),
-                        selectedForegroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 12),
             const Divider(),
             Expanded(
