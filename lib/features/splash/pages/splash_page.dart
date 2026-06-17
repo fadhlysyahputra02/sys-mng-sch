@@ -1,9 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import '../../../app/routes/app_routes.dart';
 import '../../../core/models/user_model.dart';
-import '../../../core/services/auth_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../authentication/widgets/auth_background.dart';
@@ -15,21 +14,20 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
-  final authService = AuthService();
+class _SplashPageState extends State<SplashPage>
+    with SingleTickerProviderStateMixin {
   final userService = UserService();
   late AnimationController _rotationController;
 
   @override
   void initState() {
     super.initState();
-
     _rotationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat();
 
-    Future.delayed(const Duration(milliseconds: 2000), checkLogin);
+    _checkLogin();
   }
 
   @override
@@ -38,9 +36,30 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  Future<void> checkLogin() async {
+  Future<void> _checkLogin() async {
     try {
-      final firebaseUser = authService.currentUser;
+      // ✅ FIX 2 (ROOT CAUSE):
+      // Di web, authStateChanges() emit null dulu sebelum Firebase selesai
+      // restore session dari IndexedDB. Solusinya: tunggu sampai dapat nilai
+      // non-null dalam batas waktu tertentu. Kalau timeout, baru arahkan ke login.
+      User? firebaseUser;
+
+      // Beri waktu maksimal 8 detik untuk Firebase restore session
+      firebaseUser = await FirebaseAuth.instance
+          .authStateChanges()
+          .firstWhere(
+            (user) => user != null,
+            orElse: () => null,
+          )
+          .timeout(
+            const Duration(seconds: 8),
+            onTimeout: () => null,
+          );
+
+      // Minimal tampilkan splash 2 detik agar tidak terlalu kilat
+      await Future.delayed(const Duration(milliseconds: 2000));
+
+      if (!mounted) return;
 
       if (firebaseUser == null) {
         Get.offAllNamed(AppRoutes.login);
@@ -48,42 +67,44 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       }
 
       final userData = await userService.getUserById(firebaseUser.uid);
-
       if (userData == null) {
+        await FirebaseAuth.instance.signOut();
         Get.offAllNamed(AppRoutes.login);
         return;
       }
 
+      // ✅ Isi ulang SessionService dari Firebase Auth
       SessionService.currentUser = UserModel.fromMap(
         firebaseUser.uid,
         userData,
       );
 
-      final role = userData['role'];
+      final role = userData['role'] as String?;
+
+      if (!mounted) return;
 
       switch (role) {
         case 'super_admin':
           Get.offAllNamed(AppRoutes.superAdmin);
           break;
-
         case 'school_admin':
           Get.offAllNamed(AppRoutes.schoolAdmin);
           break;
-
         case 'teacher':
           Get.offAllNamed(AppRoutes.teacher);
           break;
-
         case 'student':
           Get.offAllNamed(AppRoutes.student);
           break;
-
         default:
+          await FirebaseAuth.instance.signOut();
           Get.offAllNamed(AppRoutes.login);
       }
     } catch (e) {
       debugPrint('SPLASH ERROR: $e');
-      Get.offAllNamed(AppRoutes.login);
+      if (mounted) {
+        Get.offAllNamed(AppRoutes.login);
+      }
     }
   }
 
@@ -94,17 +115,22 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
         valueListenable: AuthBackground.isDarkMode,
         builder: (context, isDark, _) {
           final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-          final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
+          final subTextColor = isDark
+              ? Colors.white.withValues(alpha: 0.5)
+              : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
           final iconColor = isDark ? Colors.white : const Color(0xFF6366F1);
-          final logoBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
-          final logoBorderColor = isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08);
+          final logoBgColor = isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : Colors.black.withValues(alpha: 0.04);
+          final logoBorderColor = isDark
+              ? Colors.white.withValues(alpha: 0.12)
+              : Colors.black.withValues(alpha: 0.08);
 
           return AuthBackground(
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Spinning App Logo
                   RotationTransition(
                     turns: _rotationController,
                     child: Container(
@@ -112,12 +138,11 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                       decoration: BoxDecoration(
                         color: logoBgColor,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: logoBorderColor,
-                        ),
+                        border: Border.all(color: logoBorderColor),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.25),
+                            color: const Color(0xFF6366F1)
+                                .withValues(alpha: 0.25),
                             blurRadius: 32,
                             spreadRadius: 4,
                           ),
@@ -131,8 +156,6 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                     ),
                   ),
                   const SizedBox(height: 32),
-                  
-                  // App Title
                   Text(
                     'SYS MNG SCH',
                     style: TextStyle(
@@ -143,8 +166,6 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
-                  // Subtitle/Status
                   Text(
                     'Memuat Sistem Manajemen Sekolah...',
                     style: TextStyle(
@@ -154,14 +175,13 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                     ),
                   ),
                   const SizedBox(height: 48),
-                  
-                  // Tiny progress indicator to show loading
                   const SizedBox(
                     width: 24,
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                      valueColor:
+                          AlwaysStoppedAnimation(Color(0xFF8B5CF6)),
                     ),
                   ),
                 ],

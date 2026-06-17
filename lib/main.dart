@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
-
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import 'features/authentication/widgets/auth_background.dart';
@@ -13,19 +13,18 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AuthBackground.initTheme();
-
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Setup handler untuk notifikasi masuk saat aplikasi di background/ditutup
-  // (Tidak didukung di Flutter Web)
+  // ✅ FIX 1: Set persistence LOCAL agar token disimpan di IndexedDB browser
+  if (kIsWeb) {
+    await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+  }
+
   if (!kIsWeb) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
 
-  // Inisialisasi layanan Push Notification & Local Notifications
-  // (Di web, initialize() langsung return karena kIsWeb == true)
   await PushNotificationService().initialize();
-
   runApp(const MyApp());
 }
 
