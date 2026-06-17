@@ -19,6 +19,8 @@ class TeacherQrAttendancePage extends StatefulWidget {
 class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
   final _studentService = StudentService();
   String _resolvedClassId = '';
+  String _tahunAjaran = '-';
+  String _semester = '-';
   StreamSubscription<QuerySnapshot>? _attendanceSubscription;
   int? _previousAttendanceCount;
 
@@ -31,7 +33,25 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
     if (_resolvedClassId.isEmpty) {
       _resolveClassId();
     }
+    _fetchSchoolData();
     _listenToAttendance();
+  }
+
+  Future<void> _fetchSchoolData() async {
+    try {
+      final user = SessionService.currentUser!;
+      final doc = await FirebaseFirestore.instance.collection('schools').doc(user.schoolId).get();
+      if (doc.exists) {
+        if (mounted) {
+          setState(() {
+            _tahunAjaran = doc.data()?['tahunAjaran'] ?? '-';
+            _semester = doc.data()?['semester'] ?? '-';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching school data: $e');
+    }
   }
 
   Future<void> _resolveClassId() async {
@@ -487,6 +507,11 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                       final attData = item['attendanceData'] as Map<String, dynamic>;
                                       final timestamp = attData['timestamp'] as Timestamp?;
                                       final method = attData['method'] ?? 'QR Scan';
+                                      final status = attData['status'] ?? 'Hadir';
+                                      
+                                      Color statusColor = const Color(0xFF10B981); // Hadir
+                                      if (status == 'Izin') statusColor = const Color(0xFF3B82F6);
+                                      if (status == 'Sakit') statusColor = const Color(0xFFF59E0B);
 
                                       return Container(
                                         margin: const EdgeInsets.only(bottom: 12),
@@ -499,8 +524,8 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                         child: Row(
                                           children: [
                                             CircleAvatar(
-                                              backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.2),
-                                              child: const Icon(Icons.person_rounded, color: Color(0xFF10B981)),
+                                              backgroundColor: statusColor.withValues(alpha: 0.2),
+                                              child: Icon(Icons.person_rounded, color: statusColor),
                                             ),
                                             const SizedBox(width: 14),
                                             Expanded(
@@ -513,7 +538,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                                   ),
                                                   const SizedBox(height: 2),
                                                   Text(
-                                                    'Metode: $method',
+                                                    'Status: $status • Metode: $method',
                                                     style: TextStyle(fontSize: 11, color: subTextColor),
                                                   ),
                                                 ],
@@ -521,9 +546,9 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                             ),
                                             Text(
                                               _formatTime(timestamp),
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                color: Color(0xFF10B981),
+                                                color: statusColor,
                                                 fontSize: 13,
                                               ),
                                             ),
@@ -533,7 +558,6 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                     } else {
                                       return Container(
                                         margin: const EdgeInsets.only(bottom: 12),
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                         decoration: BoxDecoration(
                                           color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02),
                                           borderRadius: BorderRadius.circular(16),
@@ -541,43 +565,65 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                             color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.04),
                                           ),
                                         ),
-                                        child: Row(
-                                          children: [
-                                            CircleAvatar(
-                                              backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-                                              child: Icon(Icons.person_outline_rounded, color: subTextColor),
-                                            ),
-                                            const SizedBox(width: 14),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: () {
+                                              _showManualAttendanceDialog(
+                                                context,
+                                                user.schoolId,
+                                                item['studentId'],
+                                                studentName,
+                                                scheduleId,
+                                                widget.scheduleData['subjectName'] ?? '',
+                                                widget.scheduleData['className'] ?? '',
+                                                classId,
+                                                dateStr,
+                                              );
+                                            },
+                                            borderRadius: BorderRadius.circular(16),
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                              child: Row(
                                                 children: [
-                                                  Text(
-                                                    studentName,
-                                                    style: TextStyle(
-                                                      fontWeight: FontWeight.bold, 
-                                                      color: titleColor.withValues(alpha: 0.7), 
-                                                      fontSize: 15,
+                                                  CircleAvatar(
+                                                    backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+                                                    child: Icon(Icons.person_outline_rounded, color: subTextColor),
+                                                  ),
+                                                  const SizedBox(width: 14),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(
+                                                          studentName,
+                                                          style: TextStyle(
+                                                            fontWeight: FontWeight.bold, 
+                                                            color: titleColor.withValues(alpha: 0.7), 
+                                                            fontSize: 15,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(height: 2),
+                                                        Text(
+                                                          'Belum melakukan presensi (Klik untuk atur)',
+                                                          style: TextStyle(
+                                                            fontSize: 11, 
+                                                            color: Colors.orangeAccent.withValues(alpha: 0.8),
+                                                            fontWeight: FontWeight.w500,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    'Belum melakukan presensi',
-                                                    style: TextStyle(
-                                                      fontSize: 11, 
-                                                      color: Colors.orangeAccent.withValues(alpha: 0.8),
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
+                                                  Icon(
+                                                    Icons.touch_app_rounded,
+                                                    size: 16,
+                                                    color: Colors.orangeAccent.withValues(alpha: 0.6),
                                                   ),
                                                 ],
                                               ),
                                             ),
-                                            Icon(
-                                              Icons.info_outline_rounded,
-                                              size: 16,
-                                              color: Colors.orangeAccent.withValues(alpha: 0.6),
-                                            ),
-                                          ],
+                                          ),
                                         ),
                                       );
                                     }
@@ -630,6 +676,98 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
     }
   }
 
+
+  void _showManualAttendanceDialog(
+    BuildContext context,
+    String schoolId,
+    String studentId,
+    String studentName,
+    String scheduleId,
+    String subjectName,
+    String className,
+    String classId,
+    String dateStr,
+  ) {
+    final tahunAjaran = _tahunAjaran;
+    final semester = _semester;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Beri Keterangan', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Text('Atur kehadiran untuk $studentName:'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _studentService.checkInScheduleAttendance(
+                  schoolId: schoolId,
+                  studentId: studentId,
+                  studentName: studentName,
+                  classId: classId,
+                  className: className,
+                  scheduleId: scheduleId,
+                  subjectName: subjectName,
+                  dateStr: dateStr,
+                  checkInMethod: 'Manual (Guru)',
+                  tahunAjaran: tahunAjaran,
+                  semester: semester,
+                  status: 'Hadir',
+                );
+              },
+              child: const Text('Hadir', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _studentService.checkInScheduleAttendance(
+                  schoolId: schoolId,
+                  studentId: studentId,
+                  studentName: studentName,
+                  classId: classId,
+                  className: className,
+                  scheduleId: scheduleId,
+                  subjectName: subjectName,
+                  dateStr: dateStr,
+                  checkInMethod: 'Manual (Guru)',
+                  tahunAjaran: tahunAjaran,
+                  semester: semester,
+                  status: 'Izin',
+                );
+              },
+              child: const Text('Izin', style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.bold)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _studentService.checkInScheduleAttendance(
+                  schoolId: schoolId,
+                  studentId: studentId,
+                  studentName: studentName,
+                  classId: classId,
+                  className: className,
+                  scheduleId: scheduleId,
+                  subjectName: subjectName,
+                  dateStr: dateStr,
+                  checkInMethod: 'Manual (Guru)',
+                  tahunAjaran: tahunAjaran,
+                  semester: semester,
+                  status: 'Sakit',
+                );
+              },
+              child: const Text('Sakit', style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void dispose() {

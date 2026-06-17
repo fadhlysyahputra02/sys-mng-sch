@@ -48,6 +48,8 @@ dependencies:
   excel: ^4.0.6
   file_picker: ^11.0.2
   shared_preferences: ^2.5.5
+  firebase_messaging: ^16.3.0
+  flutter_local_notifications: ^18.0.0
 
 dev_dependencies:
   flutter_test:

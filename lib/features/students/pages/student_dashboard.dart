@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
@@ -14,6 +15,7 @@ import 'package:is_lock_screen2/is_lock_screen2.dart';
 import '../data/student_service.dart';
 import 'student_schedule_page.dart';
 import 'student_attendance_page.dart';
+import 'student_grades_page.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -35,12 +37,14 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   bool _isLoadingSchool = true;
   String? _tahunAjaran;
   String? _activeSemester;
+  String? _schoolLogoBase64;
 
   // Behavior check cache to prevent background async calls from being suspended
   List<Map<String, dynamic>> _todaySchedules = [];
   bool _hasCheckedInToday = false;
   List<DocumentSnapshot<Map<String, dynamic>>> _todayAttendanceDocs = [];
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _attendanceSubscription;
+  Timer? _selfHealTimer;
 
   @override
   void initState() {
@@ -53,12 +57,19 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
     WidgetsBinding.instance.addObserver(this);
     _resolveStudentDocId();
+
+    _selfHealTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        _checkAndReportBehaviorReturn();
+      }
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _attendanceSubscription?.cancel();
+    _selfHealTimer?.cancel();
     super.dispose();
   }
 
@@ -71,11 +82,12 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     debugPrint('=== AppLifecycleState changed to: $state ===');
-    if (state == AppLifecycleState.inactive) {
-      debugPrint('App inactive (losing focus) - reporting leaving immediately');
-      _checkAndReportBehaviorViolation(isLocked: false);
-    } else if (state == AppLifecycleState.paused) {
-      debugPrint('App paused - checking lock screen status');
+    
+    if (state == AppLifecycleState.paused) {
+      debugPrint('App paused - checking lock screen status with delay for iOS brightness animation...');
+      // Memberi jeda 500ms agar animasi layar mati di iOS (brightness turun ke 0.0) selesai
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       bool isLocked = false;
       try {
         final locked = await isLockScreen();
@@ -85,9 +97,11 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       } catch (e) {
         debugPrint('Error checking lock screen status: $e');
       }
-      if (isLocked) {
-        _checkAndReportBehaviorViolation(isLocked: true);
-      }
+      
+      // Apabila isLocked true -> berarti Layar Mati / Terkunci
+      // Apabila isLocked false -> berarti Keluar Aplikasi (Home Button / Recent Apps)
+      _checkAndReportBehaviorViolation(isLocked: isLocked);
+      
     } else if (state == AppLifecycleState.resumed) {
       debugPrint('App resumed - refreshing behavior cache and checking return');
       final user = SessionService.currentUser;
@@ -116,6 +130,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   }
 
   Future<void> _checkAndReportBehaviorViolation({bool isLocked = false}) async {
+    if (_plan == 'FREE') return;
     final user = SessionService.currentUser;
     debugPrint('Behavior violation check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className');
     if (user == null || _studentDocId == null || _className == null) {
@@ -172,11 +187,6 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       return;
     }
 
-    _lastReportedScheduleId = scheduleId;
-    _lastReportedTime = nowTime;
-    _lastReportedState = 'paused';
-    _lastReportedIsLocked = isLocked;
-
     final name = _studentData?['nama'] ?? 'Murid';
     debugPrint('Reporting violation synchronously/immediately to Firestore for student $name (Class $_className)...');
     try {
@@ -198,6 +208,12 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         tahunAjaran: _tahunAjaran ?? '-',
         semester: _activeSemester ?? '-',
       );
+
+      _lastReportedScheduleId = scheduleId;
+      _lastReportedTime = nowTime;
+      _lastReportedState = 'paused';
+      _lastReportedIsLocked = isLocked;
+
       debugPrint('Successfully reported behavior violation to Firestore.');
     } catch (e) {
       debugPrint('Exception in behavior violation check: $e');
@@ -205,6 +221,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   }
 
   Future<void> _checkAndReportBehaviorReturn() async {
+    if (_plan == 'FREE') return;
     final user = SessionService.currentUser;
     debugPrint('Behavior return check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className');
     if (user == null || _studentDocId == null || _className == null) {
@@ -257,11 +274,6 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       return;
     }
 
-    _lastReportedScheduleId = scheduleId;
-    _lastReportedTime = nowTime;
-    _lastReportedState = 'resumed';
-    _lastReportedIsLocked = null;
-
     final name = _studentData?['nama'] ?? 'Murid';
     debugPrint('Reporting return/standby synchronously/immediately to Firestore for student $name (Class $_className)...');
     try {
@@ -279,6 +291,12 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         tahunAjaran: _tahunAjaran ?? '-',
         semester: _activeSemester ?? '-',
       );
+
+      _lastReportedScheduleId = scheduleId;
+      _lastReportedTime = nowTime;
+      _lastReportedState = 'resumed';
+      _lastReportedIsLocked = null;
+
       debugPrint('Successfully reported behavior return/standby to Firestore.');
     } catch (e) {
       debugPrint('Exception in behavior return check: $e');
@@ -286,6 +304,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   }
 
   Future<void> _reportLogoutBehavior() async {
+    if (_plan == 'FREE') return;
     final user = SessionService.currentUser;
     if (user == null || _studentDocId == null || _className == null) {
       return;
@@ -368,6 +387,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
               .toList();
         });
         debugPrint('Behavior Cache: Loaded ${_todaySchedules.length} schedules today for class $_className');
+        
+        // Bersihkan data sampah jadwal yang sudah selesai HANYA setelah jadwal selesai dimuat
+        _cleanupMyExpiredBehaviorRecords();
       }
     } catch (e) {
       debugPrint('Behavior Cache error loading schedules: $e');
@@ -412,6 +434,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
           _plan = (schoolData['plan'] ?? 'FREE').toString().toUpperCase();
           _tahunAjaran = schoolData['tahunAjaran'];
           _activeSemester = schoolData['semester'];
+          _schoolLogoBase64 = schoolData['logoBase64'] as String?;
         }
         _studentDocId = doc?.id;
         _studentData = doc?.data();
@@ -423,6 +446,83 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       if (_studentDocId != null && _className != null) {
         _loadTodaySchedulesAndStartAttendanceListener(user.schoolId);
       }
+    }
+  }
+
+  Future<void> _cleanupMyExpiredBehaviorRecords() async {
+    if (_studentDocId == null) return;
+    final user = SessionService.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(user.schoolId)
+          .collection('behavior_records')
+          .where('studentId', isEqualTo: _studentDocId)
+          .get();
+
+      if (snapshot.docs.isEmpty) return;
+
+      final now = DateTime.now();
+      final nowMinutes = now.hour * 60 + now.minute;
+      final batch = FirebaseFirestore.instance.batch();
+      bool hasDeletions = false;
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final scheduleId = data['scheduleId'] as String?;
+        final timestamp = data['timestamp'] as Timestamp?;
+
+        bool shouldDelete = false;
+
+        if (timestamp != null) {
+          final recordDate = timestamp.toDate();
+          final isToday = recordDate.year == now.year &&
+                          recordDate.month == now.month &&
+                          recordDate.day == now.day;
+          
+          if (!isToday) {
+            shouldDelete = true;
+          } else if (scheduleId != null && scheduleId != 'general') {
+            final schedule = _todaySchedules.firstWhere(
+              (s) => s['scheduleId'] == scheduleId, 
+              orElse: () => <String, dynamic>{}
+            );
+            if (schedule.isNotEmpty) {
+              final jamSelesai = schedule['jamSelesai'] ?? '00:00';
+              final endMinutes = _timeToMinutes(jamSelesai);
+              if (nowMinutes > endMinutes) {
+                shouldDelete = true;
+              }
+            } else {
+              // Not in today's schedules (might be orphaned)
+              shouldDelete = true;
+            }
+          }
+        } else {
+          shouldDelete = true;
+        }
+
+        // Fallback TTL 24h
+        if (!shouldDelete && timestamp != null) {
+          if (now.difference(timestamp.toDate()).inHours > 24) {
+            shouldDelete = true;
+          }
+        }
+
+        if (shouldDelete) {
+          batch.delete(doc.reference);
+          hasDeletions = true;
+        }
+      }
+
+      if (hasDeletions) {
+        await batch.commit();
+        debugPrint('Student Auto-cleanup: Removed expired behavior records for $_studentDocId');
+      }
+    } catch (e) {
+      debugPrint('Student Auto-cleanup error: $e');
     }
   }
 
@@ -505,19 +605,54 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
         return Scaffold(
           body: AuthBackground(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
+            child: RefreshIndicator(
+              onRefresh: _resolveStudentDocId,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
               slivers: [
                 SliverAppBar(
                   backgroundColor: Colors.transparent,
                   elevation: 0,
                   pinned: true,
                   toolbarHeight: 56,
-                  title: Text(
-                    _getGreeting(),
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  title: Row(
+                    children: [
+                      if (_schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty) ...[
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: Image.memory(
+                              base64Decode(_schoolLogoBase64!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(Icons.school_rounded, size: 18, color: titleColor),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: Text(
+                          _getGreeting(),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                   actions: [
                     Container(
@@ -575,6 +710,7 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                   ),
                 ),
               ],
+              ),
             ),
           ),
         );
@@ -616,7 +752,17 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                   color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
                   border: Border.all(color: const Color(0xFF8B5CF6), width: 2),
                 ),
-                child: const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
+                child: _schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty
+                    ? ClipOval(
+                        child: Image.memory(
+                          base64Decode(_schoolLogoBase64!),
+                          fit: BoxFit.cover,
+                          width: 70,
+                          height: 70,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
+                        ),
+                      )
+                    : const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -905,6 +1051,43 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
           );
         } else {
           Get.to(() => StudentSchedulePage(className: _className!));
+        }
+        break;
+      case 'Nilai':
+        if (_studentDocId == null || _className == null) {
+          Get.snackbar(
+            'Informasi',
+            'Data murid belum lengkap. Hubungi admin sekolah.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.amber,
+            colorText: Colors.black,
+            margin: const EdgeInsets.all(16),
+            borderRadius: 12,
+            icon: const Icon(Icons.info_outline, color: Colors.black),
+          );
+        } else {
+          // Ambil classId dari studentData
+          final classId = (_studentData?['classId'] as String?) ?? '';
+          if (classId.isEmpty) {
+            Get.snackbar(
+              'Informasi',
+              'Anda belum masuk ke kelas manapun. Hubungi admin sekolah.',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.amber,
+              colorText: Colors.black,
+              margin: const EdgeInsets.all(16),
+              borderRadius: 12,
+              icon: const Icon(Icons.info_outline, color: Colors.black),
+            );
+          } else {
+            Get.to(() => StudentGradesPage(
+                  studentDocId: _studentDocId!,
+                  className: _className!,
+                  classId: classId,
+                  tahunAjaran: _tahunAjaran ?? '-',
+                  semester: _activeSemester ?? '-',
+                ));
+          }
         }
         break;
       case 'Fitur Premium':

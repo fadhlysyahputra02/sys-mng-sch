@@ -7,6 +7,7 @@ import '../../authentication/widgets/auth_background.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 import '../../students/data/student_service.dart';
 import '../services/attendance_pdf_helper.dart';
+import 'teacher_attendance_preview_page.dart';
 import 'teacher_qr_attendance_page.dart';
 import '../../schools/services/school_service.dart';
 
@@ -302,26 +303,56 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                         ),
 
                         const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            final startDate = DateTime(selectedMonth.year, selectedMonth.month, 1);
-                            final endDate = DateTime(selectedMonth.year, selectedMonth.month + 1, 0);
-                            _exportAllRecapPdfWithRange(context, allSchedules, startDate, endDate, selectedClass);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF8B5CF6),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  final startDate = DateTime(selectedMonth.year, selectedMonth.month, 1);
+                                  final endDate = DateTime(selectedMonth.year, selectedMonth.month + 1, 0);
+                                  _exportAllRecapPdfWithRange(context, allSchedules, startDate, endDate, selectedClass, isPreview: true);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: const Text(
+                                  'Lihat Rekapan',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+                                ),
+                              ),
                             ),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            'Download Rekapan',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  final startDate = DateTime(selectedMonth.year, selectedMonth.month, 1);
+                                  final endDate = DateTime(selectedMonth.year, selectedMonth.month + 1, 0);
+                                  _exportAllRecapPdfWithRange(context, allSchedules, startDate, endDate, selectedClass, isPreview: false);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF8B5CF6),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: const Text(
+                                  'Download',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 8),
                         TextButton(
@@ -350,6 +381,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     DateTime start,
     DateTime end,
     String selectedClass,
+    {bool isPreview = false}
   ) async {
     final user = SessionService.currentUser!;
     final teacherName = user.nama;
@@ -461,19 +493,49 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
         return;
       }
 
-      // Panggil PDF Helper untuk generate rekap gabungan dengan jadwal guru saja
-      await AttendancePdfHelper.generateAndShowAllPdf(
-        teacherName: teacherName,
-        startDate: start,
-        endDate: end,
-        records: filteredRecords,
-        schedules: targetSchedules,
-        students: targetStudents,
-        classIdToName: classIdToName,
-        schoolName: schoolName,
-        tahunAjaran: tahunAjaran,
-        semester: semester,
-      );
+      // Gunakan tahun ajaran dan semester dari data absensi yang difetch, jika tersedia
+      String recordTahunAjaran = tahunAjaran;
+      String recordSemester = semester;
+      if (filteredRecords.isNotEmpty) {
+        // Ambil dari record pertama yang valid
+        final firstValid = filteredRecords.firstWhere(
+          (r) => r['tahunAjaran'] != null && r['tahunAjaran'] != '-', 
+          orElse: () => <String, dynamic>{}
+        );
+        if (firstValid.isNotEmpty) {
+          recordTahunAjaran = firstValid['tahunAjaran']?.toString() ?? tahunAjaran;
+          recordSemester = firstValid['semester']?.toString() ?? semester;
+        }
+      }
+
+      if (isPreview) {
+        Get.to(() => TeacherAttendancePreviewPage(
+          teacherName: teacherName,
+          startDate: start,
+          endDate: end,
+          records: filteredRecords,
+          schedules: targetSchedules,
+          students: targetStudents,
+          classIdToName: classIdToName,
+          schoolName: schoolName,
+          tahunAjaran: recordTahunAjaran,
+          semester: recordSemester,
+        ));
+      } else {
+        // Panggil PDF Helper untuk generate rekap gabungan dengan jadwal guru saja
+        await AttendancePdfHelper.generateAndShowAllPdf(
+          teacherName: teacherName,
+          startDate: start,
+          endDate: end,
+          records: filteredRecords,
+          schedules: targetSchedules,
+          students: targetStudents,
+          classIdToName: classIdToName,
+          schoolName: schoolName,
+          tahunAjaran: recordTahunAjaran,
+          semester: recordSemester,
+        );
+      }
 
     } catch (e) {
       Get.back(); // Tutup loading dialog

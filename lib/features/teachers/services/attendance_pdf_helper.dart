@@ -180,23 +180,51 @@ class AttendancePdfHelper {
 
             if (isDayScheduled) {
               // This is a scheduled day, check attendance
-              final hasCheckedIn = records.any((r) {
+              final checkInRecordList = records.where((r) {
                 final rStudentId = r['studentId']?.toString();
                 final rSubjectName = r['subjectName']?.toString().trim().toLowerCase();
                 final rDate = r['date']?.toString();
                 return rStudentId == studentId &&
                        rSubjectName == cleanSubjectName &&
                        rDate == dateStr;
-              });
+              }).toList();
 
-              if (hasCheckedIn) {
-                rowCells.add(
-                  pw.Container(
-                    alignment: pw.Alignment.center,
-                    child: pw.Text('\u2714', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF10B981))),
-                  ),
-                );
-                presentCount++;
+              if (checkInRecordList.isNotEmpty) {
+                final status = (checkInRecordList.first['status'] ?? '').toString().toLowerCase();
+                if (status == 'izin') {
+                  rowCells.add(
+                    pw.Container(
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('I', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF3B82F6))),
+                    ),
+                  );
+                } else if (status == 'sakit') {
+                  rowCells.add(
+                    pw.Container(
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('S', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFFF59E0B))),
+                    ),
+                  );
+                } else if (status == 'alpa' || status == 'absen') {
+                  rowCells.add(
+                    pw.Container(
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('A', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFFEF4444))),
+                    ),
+                  );
+                } else {
+                  rowCells.add(
+                    pw.Container(
+                      alignment: pw.Alignment.center,
+                      child: pw.SvgImage(
+                        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+                        width: 6,
+                        height: 6,
+                      ),
+                    ),
+                  );
+                  presentCount++;
+                }
               } else {
                 rowCells.add(
                   pw.Container(

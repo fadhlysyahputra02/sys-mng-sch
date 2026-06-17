@@ -61,12 +61,42 @@ class ClassScheduleService {
         .snapshots();
   }
 
-  // Hapus jadwal
+  // Hapus jadwal beserta relasinya (Absensi & Catatan Sikap)
   Future<void> deleteSchedule({
     required String schoolId,
     required String scheduleId,
   }) async {
-    await _schedulesRef(schoolId).doc(scheduleId).delete();
+    final batch = _db.batch();
+
+    // 1. Cari dan hapus semua absensi yang terikat dengan jadwal ini
+    final attendanceSnapshot = await _db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('attendance')
+        .where('scheduleId', isEqualTo: scheduleId)
+        .get();
+        
+    for (final doc in attendanceSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // 2. Cari dan hapus semua catatan sikap (behavior records) yang terikat
+    final behaviorSnapshot = await _db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('behavior_records')
+        .where('scheduleId', isEqualTo: scheduleId)
+        .get();
+        
+    for (final doc in behaviorSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // 3. Hapus jadwal utamanya
+    batch.delete(_schedulesRef(schoolId).doc(scheduleId));
+
+    // Eksekusi semua proses hapus secara bersamaan
+    await batch.commit();
   }
 
   // Tambahkan jadwal baru

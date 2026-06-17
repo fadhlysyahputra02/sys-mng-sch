@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -19,6 +21,7 @@ class RaporPdfHelper {
     required int alpa,
     required String catatanWali,
     Map<String, int>? gradeTemplates,
+    String? logoBase64,
   }) {
     final pdf = pw.Document();
 
@@ -57,19 +60,51 @@ class RaporPdfHelper {
         },
         build: (context) {
           return [
-            // 1. KOP LAPORAN HASIL BELAJAR
+            // 1. KOP LAPORAN HASIL BELAJAR (dengan Logo)
             pw.Center(
               child: pw.Column(
                 children: [
-                  pw.Text(
-                    'LAPORAN HASIL BELAJAR (RAPOR)',
-                    style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E1B4B)),
-                  ),
-                  pw.SizedBox(height: 2),
-                  pw.Text(
-                    schoolName.toUpperCase(),
-                    style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF4B5563)),
-                  ),
+                  if (logoBase64 != null && logoBase64.isNotEmpty) ...[
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.center,
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Container(
+                          width: 50,
+                          height: 50,
+                          child: pw.Image(
+                            pw.MemoryImage(base64Decode(logoBase64)),
+                            fit: pw.BoxFit.contain,
+                          ),
+                        ),
+                        pw.SizedBox(width: 12),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'LAPORAN HASIL BELAJAR (RAPOR)',
+                              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E1B4B)),
+                            ),
+                            pw.SizedBox(height: 2),
+                            pw.Text(
+                              schoolName.toUpperCase(),
+                              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF4B5563)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    pw.Text(
+                      'LAPORAN HASIL BELAJAR (RAPOR)',
+                      style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E1B4B)),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      schoolName.toUpperCase(),
+                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF4B5563)),
+                    ),
+                  ],
                   pw.SizedBox(height: 10),
                   pw.Container(
                     height: 1.5,
@@ -439,6 +474,7 @@ class RaporPdfHelper {
     required int alpa,
     required String catatanWali,
     Map<String, int>? gradeTemplates,
+    String? logoBase64,
   }) async {
     final pdf = _buildPdfDocument(
       schoolName: schoolName,
@@ -455,6 +491,7 @@ class RaporPdfHelper {
       alpa: alpa,
       catatanWali: catatanWali,
       gradeTemplates: gradeTemplates,
+      logoBase64: logoBase64,
     );
 
     await Printing.layoutPdf(

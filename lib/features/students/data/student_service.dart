@@ -197,6 +197,7 @@ class StudentService {
     required String checkInMethod,
     required String tahunAjaran,
     required String semester,
+    String status = 'Hadir',
   }) async {
     await _firestore
         .collection('schools')
@@ -212,7 +213,7 @@ class StudentService {
       'subjectName': subjectName,
       'date': dateStr,
       'timestamp': FieldValue.serverTimestamp(),
-      'status': 'Hadir',
+      'status': status,
       'method': checkInMethod,
       'tahunAjaran': tahunAjaran,
       'semester': semester,
@@ -232,7 +233,7 @@ class StudentService {
     required String tahunAjaran,
     required String semester,
   }) async {
-    final docId = '${studentId}_${scheduleId}_${DateTime.now().millisecondsSinceEpoch}';
+    final docId = '${studentId}_${scheduleId}';
     await _firestore
         .collection('schools')
         .doc(schoolId)
@@ -250,7 +251,7 @@ class StudentService {
       'timestamp': FieldValue.serverTimestamp(),
       'tahunAjaran': tahunAjaran,
       'semester': semester,
-    });
+    }, SetOptions(merge: true));
   }
 
   /// Stream behavioral violations sorted by timestamp descending

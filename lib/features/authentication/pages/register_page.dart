@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -41,6 +43,7 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  String? _schoolLogoBase64;
 
   @override
   void initState() {
@@ -57,6 +60,22 @@ class _RegisterPageState extends State<RegisterPage> {
       debugPrint('Failed to load schools: $e');
     } finally {
       setState(() => _loadingSekolah = false);
+    }
+  }
+
+  Future<void> _loadSelectedSchoolLogo(String schoolId) async {
+    try {
+      final schoolDoc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .get();
+      if (schoolDoc.exists && mounted) {
+        setState(() {
+          _schoolLogoBase64 = schoolDoc.data()?['logoBase64'] as String?;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading school logo: $e');
     }
   }
 
@@ -285,6 +304,10 @@ class _RegisterPageState extends State<RegisterPage> {
                                     setState(() {
                                       _selectedSekolah = school;
                                     });
+                                    final schoolId = school['schoolId'] as String?;
+                                    if (schoolId != null) {
+                                      _loadSelectedSchoolLogo(schoolId);
+                                    }
                                     Navigator.pop(context);
                                   },
                                 ),
@@ -584,6 +607,7 @@ class _RegisterPageState extends State<RegisterPage> {
           setState(() {
             selectedRole = value;
             _selectedSekolah = null;
+            _schoolLogoBase64 = null;
             nipNisController.clear();
             namaController.clear();
           });
@@ -654,29 +678,64 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Header Icon
-                    Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF8B5CF6).withOpacity(isDark ? 0.2 : 0.1),
-                            blurRadius: 20,
-                            spreadRadius: 1,
+                    // Header Icon - dynamic with school logo
+                    _schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty
+                        ? Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF8B5CF6).withOpacity(isDark ? 0.2 : 0.1),
+                                  blurRadius: 20,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: Image.memory(
+                                base64Decode(_schoolLogoBase64!),
+                                fit: BoxFit.cover,
+                                width: 80,
+                                height: 80,
+                                errorBuilder: (_, __, ___) => Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(Icons.app_registration_rounded, size: 44, color: textColor),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF8B5CF6).withOpacity(isDark ? 0.2 : 0.1),
+                                  blurRadius: 20,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.app_registration_rounded,
+                              size: 44,
+                              color: textColor,
+                            ),
                           ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.app_registration_rounded,
-                        size: 44,
-                        color: textColor,
-                      ),
-                    ),
 
                     const SizedBox(height: 16),
 

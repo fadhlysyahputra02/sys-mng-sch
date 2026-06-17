@@ -77,6 +77,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
   String _schoolName = 'Sekolah';
   String _teacherName = 'Wali Kelas';
   Map<String, int> _gradeTemplates = {};
+  String? _schoolLogoBase64;
 
   @override
   void initState() {
@@ -120,6 +121,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
         temp.forEach((k, v) {
           _gradeTemplates[k] = (v as num).toInt();
         });
+        _schoolLogoBase64 = schoolData['logoBase64'] as String?;
       }
       if (teacherDoc.exists) {
         _teacherName = teacherDoc.data()?['nama'] ?? 'Wali Kelas';
@@ -390,6 +392,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       alpa: int.tryParse(_alpaController.text) ?? 0,
       catatanWali: _catatanController.text,
       gradeTemplates: _gradeTemplates,
+      logoBase64: _schoolLogoBase64,
     );
   }
 

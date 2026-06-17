@@ -23,6 +23,10 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
   Timer? _cleanupTimer;
   Map<String, Map<String, dynamic>>? _cachedSchedules;
 
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _schedulesStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _attendanceStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _behaviorStream;
+
   String _getTodayDateStr() {
     final now = DateTime.now();
     return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
@@ -53,6 +57,14 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
   @override
   void initState() {
     super.initState();
+    final user = SessionService.currentUser!;
+    _schedulesStream = ClassScheduleService().getSchedulesByTeacher(user.schoolId, widget.teacherId);
+    _attendanceStream = _studentService.getTodayAttendanceListStream(
+      schoolId: user.schoolId,
+      dateStr: _getTodayDateStr(),
+    );
+    _behaviorStream = _studentService.getBehaviorRecords(user.schoolId);
+
     _startAutoCleanup();
   }
 
@@ -72,6 +84,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
 
     // Then run every 10 seconds
     _cleanupTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) setState(() {}); // Trigger rebuild to update active schedules in real-time
       _runCleanup(user.schoolId);
     });
   }
@@ -296,7 +309,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
         return Scaffold(
           body: AuthBackground(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: ClassScheduleService().getSchedulesByTeacher(user.schoolId, widget.teacherId),
+              stream: _schedulesStream,
               builder: (context, scheduleSnapshot) {
                 final teacherSchedules = scheduleSnapshot.data?.docs.map((e) => e.data()).toList() ?? [];
                 final todayHari = _getTodayHariIndonesian();
@@ -493,10 +506,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
 
                     // Combined Attendance and Behavior Status Table
                     StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _studentService.getTodayAttendanceListStream(
-                        schoolId: user.schoolId,
-                        dateStr: _getTodayDateStr(),
-                      ),
+                      stream: _attendanceStream,
                       builder: (context, attendanceSnapshot) {
                         if (attendanceSnapshot.hasError) {
                           return const SliverFillRemaining(
@@ -520,7 +530,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                         final attendanceDocs = attendanceSnapshot.data?.docs ?? [];
 
                         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                          stream: _studentService.getBehaviorRecords(user.schoolId),
+                          stream: _behaviorStream,
                           builder: (context, behaviorSnapshot) {
                             if (behaviorSnapshot.hasError) {
                               return const SliverFillRemaining(

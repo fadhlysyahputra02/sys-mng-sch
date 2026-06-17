@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
@@ -39,6 +40,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   bool _isLoadingSchool = true;
   String? _tahunAjaran;
   String? _activeSemester;
+  String? _schoolLogoBase64;
 
   @override
   void initState() {
@@ -68,6 +70,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           _plan = (schoolData['plan'] ?? 'FREE').toString().toUpperCase();
           _tahunAjaran = schoolData['tahunAjaran'];
           _activeSemester = schoolData['semester'];
+          _schoolLogoBase64 = schoolData['logoBase64'] as String?;
         }
         _teacherDocId = doc?.id;
         _teacherData = doc?.data();
@@ -277,23 +280,58 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                           builder: (context, subjectSnapshot) {
                             final teacherSubjects = subjectSnapshot.data?.docs.map((e) => e.data()).toList() ?? [];
 
-                            return CustomScrollView(
-                              physics: const BouncingScrollPhysics(),
+                            return RefreshIndicator(
+                              onRefresh: _resolveTeacherDocId,
+                              child: CustomScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                               slivers: [
                                 SliverAppBar(
                                   backgroundColor: Colors.transparent,
                                   elevation: 0,
                                   pinned: true,
                                   toolbarHeight: 56,
-                                  title: Text(
-                                    _getGreeting(),
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: titleColor,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  title: Row(
+                                    children: [
+                                      if (_schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty) ...[
+                                        Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
+                                              width: 1.5,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                                                blurRadius: 8,
+                                              ),
+                                            ],
+                                          ),
+                                          child: ClipOval(
+                                            child: Image.memory(
+                                              base64Decode(_schoolLogoBase64!),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Icon(Icons.school_rounded, size: 18, color: titleColor),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                      ],
+                                      Expanded(
+                                        child: Text(
+                                          _getGreeting(),
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: titleColor,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   actions: [
                                     Container(
@@ -380,6 +418,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                   ),
                                 ),
                               ],
+                              ),
                             );
                           },
                         );
@@ -433,7 +472,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
                   border: Border.all(color: const Color(0xFF8B5CF6), width: 2),
                 ),
-                child: const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
+                child: _schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty
+                    ? ClipOval(
+                        child: Image.memory(
+                          base64Decode(_schoolLogoBase64!),
+                          fit: BoxFit.cover,
+                          width: 70,
+                          height: 70,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
+                        ),
+                      )
+                    : const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
               ),
               const SizedBox(width: 16),
               Expanded(

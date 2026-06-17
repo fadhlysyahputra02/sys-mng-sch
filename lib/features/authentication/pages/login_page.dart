@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +10,8 @@ import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/user_service.dart';
+import '../../../core/services/notification_listener_service.dart';
+import '../../../core/services/push_notification_service.dart';
 import '../widgets/auth_background.dart';
 import '../widgets/theme_toggle_button.dart';
 
@@ -26,11 +29,13 @@ class _LoginPageState extends State<LoginPage> {
   final userService = UserService();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String? _schoolLogoBase64;
 
   @override
   void initState() {
     super.initState();
     _loadLastEmail();
+    _loadCachedSchoolLogo();
   }
 
   Future<void> _loadLastEmail() async {
@@ -44,6 +49,26 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       debugPrint('Error loading last email: $e');
+    }
+  }
+
+  Future<void> _loadCachedSchoolLogo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedSchoolId = prefs.getString('last_school_id');
+      if (cachedSchoolId != null && cachedSchoolId.isNotEmpty) {
+        final schoolDoc = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(cachedSchoolId)
+            .get();
+        if (schoolDoc.exists && mounted) {
+          setState(() {
+            _schoolLogoBase64 = schoolDoc.data()?['logoBase64'] as String?;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading cached school logo: $e');
     }
   }
 
@@ -173,10 +198,21 @@ class _LoginPageState extends State<LoginPage> {
         userData,
       );
 
+      // Mulai mendengarkan notifikasi secara real-time
+      NotificationListenerService().startListening();
+
+      // Daftar perangkat untuk push notification
+      PushNotificationService().registerUserDevice();
+
       // Save last logged in email
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('last_logged_in_email', email);
+        // Cache schoolId for logo display on next login
+        final schoolId = SessionService.currentUser?.schoolId;
+        if (schoolId != null) {
+          await prefs.setString('last_school_id', schoolId);
+        }
       } catch (e) {
         debugPrint('Error saving last email: $e');
       }
@@ -463,28 +499,63 @@ class _LoginPageState extends State<LoginPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Logo / Icon Aplikasi Premium Bersinar
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6366F1).withOpacity(isDark ? 0.25 : 0.1),
-                            blurRadius: 24,
-                            spreadRadius: 2,
+                    _schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty
+                        ? Container(
+                            width: 96,
+                            height: 96,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF6366F1).withOpacity(isDark ? 0.25 : 0.1),
+                                  blurRadius: 24,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: Image.memory(
+                                base64Decode(_schoolLogoBase64!),
+                                fit: BoxFit.cover,
+                                width: 96,
+                                height: 96,
+                                errorBuilder: (_, __, ___) => Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(Icons.school_rounded, size: 56, color: textColor),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF6366F1).withOpacity(isDark ? 0.25 : 0.1),
+                                  blurRadius: 24,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.school_rounded,
+                              size: 56,
+                              color: textColor,
+                            ),
                           ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.school_rounded,
-                        size: 56,
-                        color: textColor,
-                      ),
-                    ),
                     
                     const SizedBox(height: 24),
                     

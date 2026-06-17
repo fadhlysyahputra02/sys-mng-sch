@@ -167,8 +167,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
 
     return Scaffold(
       body: AuthBackground(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
+        child: RefreshIndicator(
+          onRefresh: _loadSchoolData,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: [
             // SliverAppBar
             SliverAppBar(
@@ -254,6 +256,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -916,8 +919,11 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     final dateShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
 
     return AuthBackground(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(40),
+      child: RefreshIndicator(
+        onRefresh: _loadSchoolData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          padding: const EdgeInsets.all(40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1056,6 +1062,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
