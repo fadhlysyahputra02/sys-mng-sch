@@ -41,7 +41,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       duration: const Duration(seconds: 3),
     )..repeat();
 
-    Future.delayed(const Duration(milliseconds: 2000), checkLogin);
+    // Langsung mulai check login tanpa delay agar tidak buang waktu
+    checkLogin();
   }
 
   @override
@@ -53,44 +54,60 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   Future<void> checkLogin() async {
     _addLog('SPLASH: checkLogin started');
     try {
-      // Pada Flutter Web, Firebase Auth memulihkan session secara asinkron dari IndexedDB/localStorage.
-      // Event pertama dari authStateChanges() selalu null (synchronous initial value).
-      // Kita mendengarkan stream selama beberapa saat untuk melihat apakah ada session yang dipulihkan.
       User? firebaseUser;
-      final completer = Completer<User?>();
-      
-      final subscription = FirebaseAuth.instance.authStateChanges().listen((user) {
-        _addLog('SPLASH: authStateChanges emitted: ${user?.email ?? 'null (no user)'}');
-        if (user != null && !completer.isCompleted) {
-          completer.complete(user);
-        }
-      });
 
-      // Tunggu hingga 1.5 detik. Jika tidak ada user non-null, anggap user memang belum login.
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        if (!completer.isCompleted) {
-          _addLog('SPLASH: checkLogin timeout reached, completing with null');
-          completer.complete(null);
-        }
-      });
+      // --- Langkah 1: Cek currentUser secara synchronous ---
+      // Pada beberapa kondisi, Firebase Auth sudah memiliki user
+      // segera setelah initializeApp (misalnya saat hot-reload).
+      final syncUser = FirebaseAuth.instance.currentUser;
+      if (syncUser != null) {
+        _addLog('SPLASH: currentUser sync tersedia: ${syncUser.email}');
+        firebaseUser = syncUser;
+      } else {
+        _addLog('SPLASH: currentUser sync null, mendengarkan authStateChanges...');
 
-      firebaseUser = await completer.future;
-      await subscription.cancel();
+        // --- Langkah 2: Dengarkan authStateChanges ---
+        // Firebase Auth web memulihkan session dari IndexedDB secara async.
+        // Emisi pertama selalu null (sync), lalu user menyusul setelah IndexedDB dibaca.
+        final completer = Completer<User?>();
+
+        final subscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+          _addLog('SPLASH: authStateChanges emitted: ${user?.email ?? 'null (no user)'}');
+          if (user != null && !completer.isCompleted) {
+            completer.complete(user);
+          }
+        });
+
+        // Timeout 8 detik — lebih dari cukup untuk Firebase Web memulihkan
+        // session dari IndexedDB bahkan pada koneksi lambat.
+        Future.delayed(const Duration(seconds: 8), () {
+          if (!completer.isCompleted) {
+            // Fallback: cek currentUser sekali lagi sebelum menyerah
+            final fallbackUser = FirebaseAuth.instance.currentUser;
+            _addLog('SPLASH: timeout 8s — fallback currentUser: ${fallbackUser?.email ?? 'null'}');
+            completer.complete(fallbackUser);
+          }
+        });
+
+        firebaseUser = await completer.future;
+        await subscription.cancel();
+      }
+
       _addLog('SPLASH: Resolved firebaseUser: ${firebaseUser?.email ?? 'null'}');
 
       if (firebaseUser == null) {
-        _addLog('SPLASH: firebaseUser is null, redirecting to login in 4s...');
-        await Future.delayed(const Duration(seconds: 4));
+        _addLog('SPLASH: firebaseUser is null, redirecting to login in 2s...');
+        await Future.delayed(const Duration(seconds: 2));
         Get.offAllNamed(AppRoutes.login);
         return;
       }
 
       final userData = await userService.getUserById(firebaseUser.uid);
-      _addLog('SPLASH: Fetched userData: $userData');
+      _addLog('SPLASH: Fetched userData: ${userData?['role'] ?? 'null'}');
 
       if (userData == null) {
-        _addLog('SPLASH: userData is null in firestore, redirecting to login in 4s...');
-        await Future.delayed(const Duration(seconds: 4));
+        _addLog('SPLASH: userData null di Firestore, redirecting to login...');
+        await Future.delayed(const Duration(seconds: 2));
         Get.offAllNamed(AppRoutes.login);
         return;
       }
@@ -128,13 +145,13 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
           break;
 
         default:
-          _addLog('SPLASH: Unknown role, redirecting to login in 4s...');
-          await Future.delayed(const Duration(seconds: 4));
+          _addLog('SPLASH: Unknown role, redirecting to login...');
+          await Future.delayed(const Duration(seconds: 2));
           Get.offAllNamed(AppRoutes.login);
       }
     } catch (e) {
       _addLog('SPLASH ERROR: $e');
-      await Future.delayed(const Duration(seconds: 4));
+      await Future.delayed(const Duration(seconds: 2));
       Get.offAllNamed(AppRoutes.login);
     }
   }
