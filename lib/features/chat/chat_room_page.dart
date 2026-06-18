@@ -195,6 +195,17 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
                       final docs = snapshot.data?.docs ?? [];
 
+                      // Auto markAsRead saat ada pesan baru masuk
+                      if (docs.isNotEmpty) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _chatService.markAsRead(
+                            schoolId: widget.schoolId,
+                            chatRoomId: widget.chatRoomId,
+                            currentUserId: widget.currentUserId,
+                          );
+                        });
+                      }
+
                       if (docs.isEmpty) {
                         return Center(
                           child: Column(
@@ -239,6 +250,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                           final time = timestamp != null
                               ? _formatTime(timestamp.toDate())
                               : '';
+                          final isRead = data['isRead'] == true;
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
@@ -332,12 +344,29 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                                         ),
                                       ),
                                       const SizedBox(height: 2),
-                                      Text(
-                                        time,
-                                        style: TextStyle(
-                                          color: subTextColor,
-                                          fontSize: 10,
-                                        ),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            time,
+                                            style: TextStyle(
+                                              color: subTextColor,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                          if (isMe) ...[
+                                            const SizedBox(width: 3),
+                                            Icon(
+                                              isRead
+                                                  ? Icons.done_all_rounded
+                                                  : Icons.done_rounded,
+                                              size: 13,
+                                              color: isRead
+                                                  ? const Color(0xFF8B5CF6)
+                                                  : subTextColor,
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ],
                                   ),
