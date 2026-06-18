@@ -7,6 +7,7 @@ import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../chat/teacher_chat_list_page.dart';
+import '../../chat/teacher_chat_selector_page.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 import '../../schools/pages/teachers/data/teacher_service.dart';
 import '../../schools/pages/teachers/data/teacher_subject_service.dart';
@@ -1150,6 +1151,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'color': const Color(0xFF3B82F6),
       },
       {
+        'title': 'Chat',
+        'icon': Icons.chat_rounded,
+        'color': const Color(0xFF8B5CF6),
+      },
+      {
         'title': 'Laporan & Rapor',
         'icon': Icons.bar_chart_rounded,
         'color': const Color(0xFFEC4899),
@@ -1163,11 +1169,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'title': 'Daftar Siswa',
         'icon': Icons.groups_rounded,
         'color': const Color(0xFF0EA5E9),
-      },
-      {
-        'title': 'Wali Murid / Chat',
-        'icon': Icons.chat_rounded,
-        'color': const Color(0xFFF97316),
       },
       {
         'title': 'Bank Soal',
@@ -1188,11 +1189,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'title': 'Pengaturan Profil',
         'icon': Icons.manage_accounts_rounded,
         'color': const Color(0xFF64748B),
-      },
-      {
-        'title': 'Chat Murid',
-        'icon': Icons.chat_rounded,
-        'color': const Color(0xFF10B981),
       },
     ];
 
@@ -1261,13 +1257,24 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     teacherId: _teacherDocId!,
                   ),
                 );
-              } else if (menu['title'] == 'Chat Murid') {
+              } else if (menu['title'] == 'Chat') {
                 Get.to(
-                  () => TeacherChatListPage(
+                  () => TeacherChatSelectorPage(
                     schoolId: user.schoolId,
                     teacherDocId: _teacherDocId!,
                     teacherName: _teacherData?['nama'] ?? user.nama,
                   ),
+                );
+              } else {
+                Get.snackbar(
+                  'Info',
+                  'Fitur "${menu['title']}" sedang dalam pengembangan.',
+                  snackPosition: SnackPosition.BOTTOM,
+                  backgroundColor: Colors.amber,
+                  colorText: Colors.black,
+                  margin: const EdgeInsets.all(16),
+                  borderRadius: 12,
+                  icon: const Icon(Icons.info_outline, color: Colors.black),
                 );
               }
             },
