@@ -8,6 +8,7 @@ import '../../../app/routes/app_routes.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../chat/student_chat_list_page.dart';
 import '../../schools/services/school_service.dart';
 import '../../teachers/pages/teacher_settings_page.dart';
 import 'package:is_lock_screen2/is_lock_screen2.dart';
@@ -24,7 +25,8 @@ class StudentDashboard extends StatefulWidget {
   State<StudentDashboard> createState() => _StudentDashboardState();
 }
 
-class _StudentDashboardState extends State<StudentDashboard> with WidgetsBindingObserver {
+class _StudentDashboardState extends State<StudentDashboard>
+    with WidgetsBindingObserver {
   final _studentService = StudentService();
 
   String? _studentDocId;
@@ -43,7 +45,8 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   List<Map<String, dynamic>> _todaySchedules = [];
   bool _hasCheckedInToday = false;
   List<DocumentSnapshot<Map<String, dynamic>>> _todayAttendanceDocs = [];
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _attendanceSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _attendanceSubscription;
   Timer? _selfHealTimer;
 
   @override
@@ -59,7 +62,8 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
     _resolveStudentDocId();
 
     _selfHealTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (mounted && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      if (mounted &&
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
         _checkAndReportBehaviorReturn();
       }
     });
@@ -82,12 +86,14 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     debugPrint('=== AppLifecycleState changed to: $state ===');
-    
+
     if (state == AppLifecycleState.paused) {
-      debugPrint('App paused - checking lock screen status with delay for iOS brightness animation...');
+      debugPrint(
+        'App paused - checking lock screen status with delay for iOS brightness animation...',
+      );
       // Memberi jeda 500ms agar animasi layar mati di iOS (brightness turun ke 0.0) selesai
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       bool isLocked = false;
       try {
         final locked = await isLockScreen();
@@ -97,11 +103,10 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       } catch (e) {
         debugPrint('Error checking lock screen status: $e');
       }
-      
+
       // Apabila isLocked true -> berarti Layar Mati / Terkunci
       // Apabila isLocked false -> berarti Keluar Aplikasi (Home Button / Recent Apps)
       _checkAndReportBehaviorViolation(isLocked: isLocked);
-      
     } else if (state == AppLifecycleState.resumed) {
       debugPrint('App resumed - refreshing behavior cache and checking return');
       final user = SessionService.currentUser;
@@ -125,14 +130,24 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
   String _getTodayHariIndonesian() {
     final now = DateTime.now();
-    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    final days = [
+      'Minggu',
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+    ];
     return days[now.weekday % 7];
   }
 
   Future<void> _checkAndReportBehaviorViolation({bool isLocked = false}) async {
     if (_plan == 'FREE') return;
     final user = SessionService.currentUser;
-    debugPrint('Behavior violation check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className');
+    debugPrint(
+      'Behavior violation check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className',
+    );
     if (user == null || _studentDocId == null || _className == null) {
       debugPrint('Behavior check aborted: missing user, docId, or className.');
       return;
@@ -140,7 +155,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
     final todayHari = _getTodayHariIndonesian();
     final dateStr = _getTodayDateStr();
-    debugPrint('Current dateStr: $dateStr, day: $todayHari, cached hasCheckedIn: $_hasCheckedInToday, cached schedules: ${_todaySchedules.length}');
+    debugPrint(
+      'Current dateStr: $dateStr, day: $todayHari, cached hasCheckedIn: $_hasCheckedInToday, cached schedules: ${_todaySchedules.length}',
+    );
 
     // Synchronously check active schedule from cached today schedules
     Map<String, dynamic>? activeSchedule;
@@ -161,7 +178,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
     // If neither is true, then do not report
     if (activeSchedule == null && !_hasCheckedInToday) {
-      debugPrint('Behavior check: No active schedule right now and no check-ins today. Aborting report.');
+      debugPrint(
+        'Behavior check: No active schedule right now and no check-ins today. Aborting report.',
+      );
       return;
     }
 
@@ -183,12 +202,16 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         _lastReportedScheduleId == scheduleId &&
         _lastReportedTime != null &&
         nowTime.difference(_lastReportedTime!).inMinutes < 5) {
-      debugPrint('Behavior check: Already reported violation for $scheduleId within 5 minutes with lock state $isLocked. Skipping.');
+      debugPrint(
+        'Behavior check: Already reported violation for $scheduleId within 5 minutes with lock state $isLocked. Skipping.',
+      );
       return;
     }
 
     final name = _studentData?['nama'] ?? 'Murid';
-    debugPrint('Reporting violation synchronously/immediately to Firestore for student $name (Class $_className)...');
+    debugPrint(
+      'Reporting violation synchronously/immediately to Firestore for student $name (Class $_className)...',
+    );
     try {
       await _studentService.reportBehaviorViolation(
         schoolId: user.schoolId,
@@ -197,14 +220,16 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         className: _className!,
         scheduleId: scheduleId,
         subjectName: subjectName,
-        type: isLocked ? 'Layar Mati / Device Terkunci' : 'Meninggalkan Layar Absensi',
+        type: isLocked
+            ? 'Layar Mati / Device Terkunci'
+            : 'Meninggalkan Layar Absensi',
         description: isLocked
             ? (activeSchedule != null
-                ? 'Device murid mati atau layar terkunci saat jam pelajaran $subjectName sedang berlangsung.'
-                : 'Device murid mati atau layar terkunci setelah melakukan absensi pelajaran $subjectName hari ini.')
+                  ? 'Device murid mati atau layar terkunci saat jam pelajaran $subjectName sedang berlangsung.'
+                  : 'Device murid mati atau layar terkunci setelah melakukan absensi pelajaran $subjectName hari ini.')
             : (activeSchedule != null
-                ? 'Murid terdeteksi meninggalkan aplikasi absensi saat jam pelajaran $subjectName sedang berlangsung.'
-                : 'Murid terdeteksi meninggalkan aplikasi absensi setelah melakukan absensi pelajaran $subjectName hari ini.'),
+                  ? 'Murid terdeteksi meninggalkan aplikasi absensi saat jam pelajaran $subjectName sedang berlangsung.'
+                  : 'Murid terdeteksi meninggalkan aplikasi absensi setelah melakukan absensi pelajaran $subjectName hari ini.'),
         tahunAjaran: _tahunAjaran ?? '-',
         semester: _activeSemester ?? '-',
       );
@@ -223,15 +248,21 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   Future<void> _checkAndReportBehaviorReturn() async {
     if (_plan == 'FREE') return;
     final user = SessionService.currentUser;
-    debugPrint('Behavior return check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className');
+    debugPrint(
+      'Behavior return check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className',
+    );
     if (user == null || _studentDocId == null || _className == null) {
-      debugPrint('Behavior return check aborted: missing user, docId, or className.');
+      debugPrint(
+        'Behavior return check aborted: missing user, docId, or className.',
+      );
       return;
     }
 
     final todayHari = _getTodayHariIndonesian();
     final dateStr = _getTodayDateStr();
-    debugPrint('Current dateStr: $dateStr, day: $todayHari, cached hasCheckedIn: $_hasCheckedInToday, cached schedules: ${_todaySchedules.length}');
+    debugPrint(
+      'Current dateStr: $dateStr, day: $todayHari, cached hasCheckedIn: $_hasCheckedInToday, cached schedules: ${_todaySchedules.length}',
+    );
 
     // Synchronously check active schedule from cached today schedules
     Map<String, dynamic>? activeSchedule;
@@ -252,7 +283,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
     // If neither is true, then do not report
     if (activeSchedule == null && !_hasCheckedInToday) {
-      debugPrint('Behavior return check: No active schedule right now and no check-ins today. Aborting report.');
+      debugPrint(
+        'Behavior return check: No active schedule right now and no check-ins today. Aborting report.',
+      );
       return;
     }
 
@@ -269,13 +302,18 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
     }
 
     // Avoid double reporting return unless state has changed
-    if (_lastReportedState == 'resumed' && _lastReportedScheduleId == scheduleId) {
-      debugPrint('Behavior return check: Already reported standby for $scheduleId. Skipping.');
+    if (_lastReportedState == 'resumed' &&
+        _lastReportedScheduleId == scheduleId) {
+      debugPrint(
+        'Behavior return check: Already reported standby for $scheduleId. Skipping.',
+      );
       return;
     }
 
     final name = _studentData?['nama'] ?? 'Murid';
-    debugPrint('Reporting return/standby synchronously/immediately to Firestore for student $name (Class $_className)...');
+    debugPrint(
+      'Reporting return/standby synchronously/immediately to Firestore for student $name (Class $_className)...',
+    );
     try {
       await _studentService.reportBehaviorViolation(
         schoolId: user.schoolId,
@@ -344,27 +382,31 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
     final name = _studentData?['nama'] ?? 'Murid';
     try {
-      await _studentService.reportBehaviorViolation(
-        schoolId: user.schoolId,
-        studentId: _studentDocId!,
-        studentName: name,
-        className: _className!,
-        scheduleId: scheduleId,
-        subjectName: subjectName,
-        type: 'Meninggalkan Layar Absensi (Logout)',
-        description: activeSchedule != null
-            ? 'Murid terdeteksi melakukan logout saat jam pelajaran $subjectName sedang berlangsung.'
-            : 'Murid terdeteksi melakukan logout setelah melakukan absensi pelajaran $subjectName hari ini.',
-        tahunAjaran: _tahunAjaran ?? '-',
-        semester: _activeSemester ?? '-',
-      ).timeout(const Duration(seconds: 2));
+      await _studentService
+          .reportBehaviorViolation(
+            schoolId: user.schoolId,
+            studentId: _studentDocId!,
+            studentName: name,
+            className: _className!,
+            scheduleId: scheduleId,
+            subjectName: subjectName,
+            type: 'Meninggalkan Layar Absensi (Logout)',
+            description: activeSchedule != null
+                ? 'Murid terdeteksi melakukan logout saat jam pelajaran $subjectName sedang berlangsung.'
+                : 'Murid terdeteksi melakukan logout setelah melakukan absensi pelajaran $subjectName hari ini.',
+            tahunAjaran: _tahunAjaran ?? '-',
+            semester: _activeSemester ?? '-',
+          )
+          .timeout(const Duration(seconds: 2));
       debugPrint('Successfully reported logout behavior to Firestore.');
     } catch (e) {
       debugPrint('Error reporting logout behavior: $e');
     }
   }
 
-  Future<void> _loadTodaySchedulesAndStartAttendanceListener(String schoolId) async {
+  Future<void> _loadTodaySchedulesAndStartAttendanceListener(
+    String schoolId,
+  ) async {
     if (_studentDocId == null || _className == null) return;
 
     final todayHari = _getTodayHariIndonesian();
@@ -383,11 +425,16 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
       if (mounted) {
         setState(() {
           _todaySchedules = schedules
-              .where((s) => s['hari'] == todayHari && s['jenisJadwal'] != 'istirahat')
+              .where(
+                (s) =>
+                    s['hari'] == todayHari && s['jenisJadwal'] != 'istirahat',
+              )
               .toList();
         });
-        debugPrint('Behavior Cache: Loaded ${_todaySchedules.length} schedules today for class $_className');
-        
+        debugPrint(
+          'Behavior Cache: Loaded ${_todaySchedules.length} schedules today for class $_className',
+        );
+
         // Bersihkan data sampah jadwal yang sudah selesai HANYA setelah jadwal selesai dimuat
         _cleanupMyExpiredBehaviorRecords();
       }
@@ -404,18 +451,23 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         .where('studentId', isEqualTo: _studentDocId)
         .where('date', isEqualTo: dateStr)
         .snapshots()
-        .listen((snapshot) {
-      if (mounted) {
-        setState(() {
-          _hasCheckedInToday = snapshot.docs.isNotEmpty;
-          _todayAttendanceDocs = snapshot.docs;
-        });
-        debugPrint('Behavior Cache: Updated hasCheckedInToday = $_hasCheckedInToday (${snapshot.docs.length} attendance records)');
-        _checkAndReportBehaviorReturn();
-      }
-    }, onError: (e) {
-      debugPrint('Behavior Cache attendance stream error: $e');
-    });
+        .listen(
+          (snapshot) {
+            if (mounted) {
+              setState(() {
+                _hasCheckedInToday = snapshot.docs.isNotEmpty;
+                _todayAttendanceDocs = snapshot.docs;
+              });
+              debugPrint(
+                'Behavior Cache: Updated hasCheckedInToday = $_hasCheckedInToday (${snapshot.docs.length} attendance records)',
+              );
+              _checkAndReportBehaviorReturn();
+            }
+          },
+          onError: (e) {
+            debugPrint('Behavior Cache attendance stream error: $e');
+          },
+        );
   }
 
   Future<void> _resolveStudentDocId() async {
@@ -478,16 +530,17 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
         if (timestamp != null) {
           final recordDate = timestamp.toDate();
-          final isToday = recordDate.year == now.year &&
-                          recordDate.month == now.month &&
-                          recordDate.day == now.day;
-          
+          final isToday =
+              recordDate.year == now.year &&
+              recordDate.month == now.month &&
+              recordDate.day == now.day;
+
           if (!isToday) {
             shouldDelete = true;
           } else if (scheduleId != null && scheduleId != 'general') {
             final schedule = _todaySchedules.firstWhere(
-              (s) => s['scheduleId'] == scheduleId, 
-              orElse: () => <String, dynamic>{}
+              (s) => s['scheduleId'] == scheduleId,
+              orElse: () => <String, dynamic>{},
             );
             if (schedule.isNotEmpty) {
               final jamSelesai = schedule['jamSelesai'] ?? '00:00';
@@ -519,7 +572,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
 
       if (hasDeletions) {
         await batch.commit();
-        debugPrint('Student Auto-cleanup: Removed expired behavior records for $_studentDocId');
+        debugPrint(
+          'Student Auto-cleanup: Removed expired behavior records for $_studentDocId',
+        );
       }
     } catch (e) {
       debugPrint('Student Auto-cleanup error: $e');
@@ -552,9 +607,13 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         }
         if (_studentDocId == null) {
           final infoTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-          final infoSubtitleColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
-          final infoBorderColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.3);
-          
+          final infoSubtitleColor = isDark
+              ? Colors.white.withValues(alpha: 0.7)
+              : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+          final infoBorderColor = isDark
+              ? Colors.white.withValues(alpha: 0.3)
+              : const Color(0xFF1E1B4B).withValues(alpha: 0.3);
+
           return Scaffold(
             body: AuthBackground(
               child: Center(
@@ -563,27 +622,43 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 64),
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.amber,
+                        size: 64,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Akun Anda belum terhubung',
-                        style: TextStyle(color: infoTextColor, fontSize: 20, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: infoTextColor,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Data murid Anda tidak ditemukan di sekolah ini. Hubungi Admin Sekolah untuk menghubungkan akun Anda.',
-                        style: TextStyle(color: infoSubtitleColor, fontSize: 14),
+                        style: TextStyle(
+                          color: infoSubtitleColor,
+                          fontSize: 14,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 24),
                       OutlinedButton.icon(
                         onPressed: () async => await _logout(),
                         icon: Icon(Icons.logout_rounded, color: infoTextColor),
-                        label: Text('Keluar', style: TextStyle(color: infoTextColor)),
+                        label: Text(
+                          'Keluar',
+                          style: TextStyle(color: infoTextColor),
+                        ),
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: infoBorderColor),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                       ),
                     ],
@@ -598,9 +673,11 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         final name = student['nama'] ?? 'Murid';
         final email = student['email'] ?? '';
         final nis = student['nis'] ?? '-';
-        
+
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+        final iconBgColor = isDark
+            ? Colors.white.withValues(alpha: 0.1)
+            : Colors.black.withValues(alpha: 0.05);
         final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
         return Scaffold(
@@ -608,108 +685,143 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
             child: RefreshIndicator(
               onRefresh: _resolveStudentDocId,
               child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-              slivers: [
-                SliverAppBar(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  pinned: true,
-                  toolbarHeight: 56,
-                  title: Row(
-                    children: [
-                      if (_schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty) ...[
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
-                              width: 1.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                                blurRadius: 8,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                slivers: [
+                  SliverAppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    pinned: true,
+                    toolbarHeight: 56,
+                    title: Row(
+                      children: [
+                        if (_schoolLogoBase64 != null &&
+                            _schoolLogoBase64!.isNotEmpty) ...[
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(
+                                  0xFF8B5CF6,
+                                ).withValues(alpha: 0.4),
+                                width: 1.5,
                               ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: Image.memory(
-                              base64Decode(_schoolLogoBase64!),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(Icons.school_rounded, size: 18, color: titleColor),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFF8B5CF6,
+                                  ).withValues(alpha: 0.15),
+                                  blurRadius: 8,
+                                ),
+                              ],
                             ),
+                            child: ClipOval(
+                              child: Image.memory(
+                                base64Decode(_schoolLogoBase64!),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  Icons.school_rounded,
+                                  size: 18,
+                                  color: titleColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        Expanded(
+                          child: Text(
+                            _getGreeting(),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: titleColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 10),
                       ],
-                      Expanded(
-                        child: Text(
-                          _getGreeting(),
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    ),
+                    actions: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: iconBgColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.notifications_rounded,
+                            color: iconColor,
+                            size: 20,
+                          ),
+                          tooltip: 'Notifikasi',
+                          onPressed: () => Get.toNamed(AppRoutes.notifications),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: iconBgColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.settings_rounded,
+                            color: iconColor,
+                            size: 20,
+                          ),
+                          tooltip: 'Pengaturan',
+                          onPressed: () =>
+                              Get.to(() => const TeacherSettingsPage()),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        margin: const EdgeInsets.only(right: 16),
+                        decoration: BoxDecoration(
+                          color: iconBgColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.logout_rounded,
+                            color: iconColor,
+                            size: 20,
+                          ),
+                          tooltip: 'Keluar',
+                          onPressed: () async => await _logout(),
                         ),
                       ),
                     ],
                   ),
-                  actions: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: iconBgColor,
-                        shape: BoxShape.circle,
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
                       ),
-                      child: IconButton(
-                        icon: Icon(Icons.notifications_rounded, color: iconColor, size: 20),
-                        tooltip: 'Notifikasi',
-                        onPressed: () => Get.toNamed(AppRoutes.notifications),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildProfileHeader(name, email, nis, isDark),
+                          const SizedBox(height: 28),
+                          _buildSectionTitle(
+                            'Menu Utama',
+                            Icons.dashboard_rounded,
+                            isDark,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildMenuGrid(isDark),
+                          const SizedBox(height: 40),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: iconBgColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.settings_rounded, color: iconColor, size: 20),
-                        tooltip: 'Pengaturan',
-                        onPressed: () => Get.to(() => const TeacherSettingsPage()),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      margin: const EdgeInsets.only(right: 16),
-                      decoration: BoxDecoration(
-                        color: iconBgColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.logout_rounded, color: iconColor, size: 20),
-                        tooltip: 'Keluar',
-                        onPressed: () async => await _logout(),
-                      ),
-                    ),
-                  ],
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildProfileHeader(name, email, nis, isDark),
-                        const SizedBox(height: 28),
-                        _buildSectionTitle('Menu Utama', Icons.dashboard_rounded, isDark),
-                        const SizedBox(height: 16),
-                        _buildMenuGrid(isDark),
-                        const SizedBox(height: 40),
-                      ],
                     ),
                   ),
-                ),
-              ],
+                ],
               ),
             ),
           ),
@@ -718,13 +830,28 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
     );
   }
 
-  Widget _buildProfileHeader(String name, String email, String nis, bool isDark) {
-    final cardColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
-    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08);
-    final cardShadow = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
+  Widget _buildProfileHeader(
+    String name,
+    String email,
+    String nis,
+    bool isDark,
+  ) {
+    final cardColor = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : Colors.white;
+    final cardBorder = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : Colors.black.withValues(alpha: 0.08);
+    final cardShadow = isDark
+        ? Colors.black.withValues(alpha: 0.2)
+        : Colors.black.withValues(alpha: 0.05);
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-    final emailColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+    final subtitleColor = isDark
+        ? Colors.white.withValues(alpha: 0.7)
+        : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final emailColor = isDark
+        ? Colors.white.withValues(alpha: 0.5)
+        : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -752,28 +879,50 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                   color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
                   border: Border.all(color: const Color(0xFF8B5CF6), width: 2),
                 ),
-                child: _schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty
+                child:
+                    _schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty
                     ? ClipOval(
                         child: Image.memory(
                           base64Decode(_schoolLogoBase64!),
                           fit: BoxFit.cover,
                           width: 70,
                           height: 70,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.person_rounded,
+                            size: 36,
+                            color: Color(0xFF8B5CF6),
+                          ),
                         ),
                       )
-                    : const Icon(Icons.person_rounded, size: 36, color: Color(0xFF8B5CF6)),
+                    : const Icon(
+                        Icons.person_rounded,
+                        size: 36,
+                        color: Color(0xFF8B5CF6),
+                      ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: titleColor)),
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: titleColor,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(email, style: TextStyle(fontSize: 13, color: subtitleColor)),
+                    Text(
+                      email,
+                      style: TextStyle(fontSize: 13, color: subtitleColor),
+                    ),
                     const SizedBox(height: 4),
-                    Text('NIS: $nis', style: TextStyle(fontSize: 12, color: emailColor)),
+                    Text(
+                      'NIS: $nis',
+                      style: TextStyle(fontSize: 12, color: emailColor),
+                    ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -800,7 +949,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            _className != null ? 'Kelas: $_className' : 'Belum masuk kelas',
+                            _className != null
+                                ? 'Kelas: $_className'
+                                : 'Belum masuk kelas',
                             style: TextStyle(
                               fontSize: 12,
                               color: emailColor,
@@ -816,15 +967,28 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                            color: const Color(
+                              0xFF6366F1,
+                            ).withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
+                            border: Border.all(
+                              color: const Color(
+                                0xFF6366F1,
+                              ).withValues(alpha: 0.5),
+                            ),
                           ),
                           child: const Text(
                             'Murid',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF6366F1)),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF6366F1),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -844,16 +1008,26 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
               decoration: BoxDecoration(
                 color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.25)),
+                border: Border.all(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.25),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today_rounded, color: Color(0xFF6366F1), size: 18),
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    color: Color(0xFF6366F1),
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Tahun Ajaran: ${_tahunAjaran ?? "-"}  |  ${_activeSemester ?? "-"}',
-                      style: const TextStyle(color: Color(0xFF6366F1), fontSize: 13, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        color: Color(0xFF6366F1),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -930,27 +1104,59 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
   }
 
   Widget _buildSectionTitle(String title, IconData icon, bool isDark) {
-    final iconColor = isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+    final iconColor = isDark
+        ? Colors.white.withValues(alpha: 0.8)
+        : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     return Row(
       children: [
         Icon(icon, color: iconColor, size: 20),
         const SizedBox(width: 8),
-        Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor, letterSpacing: 0.5)),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+            letterSpacing: 0.5,
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildMenuGrid(bool isDark) {
     final menus = [
-      {'title': 'Absensi', 'icon': Icons.qr_code_scanner_rounded, 'color': const Color(0xFF8B5CF6)},
-      {'title': 'Jadwal Saya', 'icon': Icons.calendar_month_rounded, 'color': const Color(0xFFF59E0B)},
-      {'title': 'Nilai', 'icon': Icons.grade_rounded, 'color': const Color(0xFF10B981)},
-      {'title': 'Chat Guru', 'icon': Icons.chat_rounded, 'color': const Color(0xFFF97316)},
-      {'title': 'Fitur Premium', 'icon': Icons.workspace_premium_rounded, 'color': const Color(0xFFF97316)},
+      {
+        'title': 'Absensi',
+        'icon': Icons.qr_code_scanner_rounded,
+        'color': const Color(0xFF8B5CF6),
+      },
+      {
+        'title': 'Jadwal Saya',
+        'icon': Icons.calendar_month_rounded,
+        'color': const Color(0xFFF59E0B),
+      },
+      {
+        'title': 'Nilai',
+        'icon': Icons.grade_rounded,
+        'color': const Color(0xFF10B981),
+      },
+      {
+        'title': 'Chat Guru',
+        'icon': Icons.chat_rounded,
+        'color': const Color(0xFFF97316),
+      },
+      {
+        'title': 'Fitur Premium',
+        'icon': Icons.workspace_premium_rounded,
+        'color': const Color(0xFFF97316),
+      },
     ];
     final cardBg = isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white;
-    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final cardBorder = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.06);
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
     return GridView.builder(
@@ -995,13 +1201,21 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
                       color: color.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(menu['icon'] as IconData, color: color, size: 32),
+                    child: Icon(
+                      menu['icon'] as IconData,
+                      color: color,
+                      size: 32,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     menu['title'] as String,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -1016,7 +1230,10 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
     final user = SessionService.currentUser!;
     switch (title) {
       case 'Absensi':
-        if (_studentDocId == null || _studentData == null || _className == null || _className!.trim().isEmpty) {
+        if (_studentDocId == null ||
+            _studentData == null ||
+            _className == null ||
+            _className!.trim().isEmpty) {
           Get.snackbar(
             'Informasi',
             'Anda belum terhubung ke kelas manapun. Hubungi admin sekolah.',
@@ -1028,13 +1245,15 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
             icon: const Icon(Icons.info_outline, color: Colors.black),
           );
         } else {
-          Get.to(() => StudentAttendancePage(
-                studentDocId: _studentDocId!,
-                studentData: _studentData!,
-                className: _className!,
-                tahunAjaran: _tahunAjaran ?? '-',
-                semester: _activeSemester ?? '-',
-              ));
+          Get.to(
+            () => StudentAttendancePage(
+              studentDocId: _studentDocId!,
+              studentData: _studentData!,
+              className: _className!,
+              tahunAjaran: _tahunAjaran ?? '-',
+              semester: _activeSemester ?? '-',
+            ),
+          );
         }
         break;
       case 'Jadwal Saya':
@@ -1080,18 +1299,46 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
               icon: const Icon(Icons.info_outline, color: Colors.black),
             );
           } else {
-            Get.to(() => StudentGradesPage(
-                  studentDocId: _studentDocId!,
-                  className: _className!,
-                  classId: classId,
-                  tahunAjaran: _tahunAjaran ?? '-',
-                  semester: _activeSemester ?? '-',
-                ));
+            Get.to(
+              () => StudentGradesPage(
+                studentDocId: _studentDocId!,
+                className: _className!,
+                classId: classId,
+                tahunAjaran: _tahunAjaran ?? '-',
+                semester: _activeSemester ?? '-',
+              ),
+            );
           }
         }
         break;
+      case 'Chat Guru':
+        if (_studentDocId == null || _className == null) {
+          Get.snackbar(
+            'Informasi',
+            'Data murid belum lengkap. Hubungi admin sekolah.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.amber,
+            colorText: Colors.black,
+            margin: const EdgeInsets.all(16),
+            borderRadius: 12,
+            icon: const Icon(Icons.info_outline, color: Colors.black),
+          );
+        } else {
+          Get.to(
+            () => StudentChatListPage(
+              schoolId: user.schoolId,
+              studentDocId: _studentDocId!,
+              studentName: _studentData?['nama'] ?? 'Murid',
+              className: _className!,
+            ),
+          );
+        }
+        break;
       case 'Fitur Premium':
-        Get.toNamed(AppRoutes.premiumFeatures, arguments: {'plan': _plan, 'schoolId': user.schoolId});
+        Get.toNamed(
+          AppRoutes.premiumFeatures,
+          arguments: {'plan': _plan, 'schoolId': user.schoolId},
+        );
         break;
       default:
         break;
@@ -1106,7 +1353,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(
-            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.08),
           ),
         ),
         title: Row(
@@ -1126,7 +1375,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
         content: Text(
           'Apakah Anda yakin ingin keluar dari aplikasi?',
           style: TextStyle(
-            color: isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.6),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.7)
+                : const Color(0xFF1E1B4B).withValues(alpha: 0.6),
             fontSize: 14,
           ),
         ),
@@ -1136,7 +1387,9 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
             child: Text(
               'Batal',
               style: TextStyle(
-                color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.5)
+                    : const Color(0xFF1E1B4B).withValues(alpha: 0.5),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1146,11 +1399,16 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               elevation: 0,
             ),
-            child: const Text('Keluar', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Keluar',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -1168,4 +1426,3 @@ class _StudentDashboardState extends State<StudentDashboard> with WidgetsBinding
     }
   }
 }
-

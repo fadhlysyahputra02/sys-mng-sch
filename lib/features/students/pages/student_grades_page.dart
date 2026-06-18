@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../authentication/widgets/auth_background.dart';
 import '../../../core/services/session_service.dart';
-import '../../teachers/services/grade_service.dart';
 
 class StudentGradesPage extends StatefulWidget {
   final String studentDocId;
@@ -26,13 +25,11 @@ class StudentGradesPage extends StatefulWidget {
 }
 
 class _StudentGradesPageState extends State<StudentGradesPage> {
-  final _gradeService = GradeService();
-
   // Grades dikelompokkan per mata pelajaran
   // { subjectName: { subjectId, categories: { category: [{ title, score, maxScore, date }] } } }
   Map<String, Map<String, dynamic>> _groupedGrades = {};
   Map<String, double> _subjectWeightedAvg = {};
-  Set<String> _expandedSubjects = {};
+  final Set<String> _expandedSubjects = {};
   Map<String, dynamic>? _gradeTemplates;
   bool _isLoading = true;
   String? _error;
@@ -60,8 +57,12 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
     });
     try {
       final user = SessionService.currentUser!;
-      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(user.schoolId).get();
-      final gradeTemplates = schoolDoc.data()?['grade_templates'] as Map<String, dynamic>?;
+      final schoolDoc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(user.schoolId)
+          .get();
+      final gradeTemplates =
+          schoolDoc.data()?['grade_templates'] as Map<String, dynamic>?;
 
       final snapshot = await FirebaseFirestore.instance
           .collection('schools')
@@ -80,7 +81,8 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
         // Hanya ambil nilai yang ada untuk murid ini
         if (!scores.containsKey(widget.studentDocId)) continue;
 
-        final studentScoreData = scores[widget.studentDocId] as Map<String, dynamic>? ?? {};
+        final studentScoreData =
+            scores[widget.studentDocId] as Map<String, dynamic>? ?? {};
         final double score = (studentScoreData['score'] ?? 0.0) as double;
         final String notes = (studentScoreData['notes'] ?? '').toString();
 
@@ -98,7 +100,9 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
             'categories': <String, List<Map<String, dynamic>>>{},
           };
         }
-        final categories = grouped[subjectName]!['categories'] as Map<String, List<Map<String, dynamic>>>;
+        final categories =
+            grouped[subjectName]!['categories']
+                as Map<String, List<Map<String, dynamic>>>;
         if (!categories.containsKey(category)) {
           categories[category] = [];
         }
@@ -116,13 +120,16 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
       for (final entry in grouped.entries) {
         final subjectName = entry.key;
         final subjectId = entry.value['subjectId'] as String;
-        final categories = entry.value['categories'] as Map<String, List<Map<String, dynamic>>>;
+        final categories =
+            entry.value['categories']
+                as Map<String, List<Map<String, dynamic>>>;
 
         // Coba ambil bobot dari Firestore
         Map<String, double>? weights;
         try {
           final user = SessionService.currentUser!;
-          final docId = '${widget.classId}_${subjectId}_${widget.tahunAjaran.replaceAll('/', '_')}_${widget.semester}';
+          final docId =
+              '${widget.classId}_${subjectId}_${widget.tahunAjaran.replaceAll('/', '_')}_${widget.semester}';
           final weightDoc = await FirebaseFirestore.instance
               .collection('schools')
               .doc(user.schoolId)
@@ -141,16 +148,20 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
           categories.forEach((cat, items) {
             final catWeight = weights![cat] ?? 0.0;
             if (catWeight > 0 && items.isNotEmpty) {
-              double catAvg = items.fold(0.0, (sum, item) {
-                final s = (item['score'] as double);
-                final max = (item['maxScore'] as double);
-                return sum + (max > 0 ? (s / max) * 100 : 0);
-              }) / items.length;
+              double catAvg =
+                  items.fold(0.0, (sum, item) {
+                    final s = (item['score'] as double);
+                    final max = (item['maxScore'] as double);
+                    return sum + (max > 0 ? (s / max) * 100 : 0);
+                  }) /
+                  items.length;
               weightedSum += catAvg * catWeight;
               weightSum += catWeight;
             }
           });
-          weightedAvg[subjectName] = weightSum > 0 ? weightedSum / weightSum : 0.0;
+          weightedAvg[subjectName] = weightSum > 0
+              ? weightedSum / weightSum
+              : 0.0;
         } else {
           // Rata-rata biasa
           double totalScore = 0;
@@ -187,9 +198,12 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
 
   Color _getScoreColor(double score) {
     if (_gradeTemplates != null) {
-      if (score >= (_gradeTemplates!['aminus'] ?? 85)) return const Color(0xFF10B981);
-      if (score >= (_gradeTemplates!['bminus'] ?? 70)) return const Color(0xFF3B82F6);
-      if (score >= (_gradeTemplates!['cminus'] ?? 55)) return const Color(0xFFF59E0B);
+      if (score >= (_gradeTemplates!['aminus'] ?? 85))
+        return const Color(0xFF10B981);
+      if (score >= (_gradeTemplates!['bminus'] ?? 70))
+        return const Color(0xFF3B82F6);
+      if (score >= (_gradeTemplates!['cminus'] ?? 55))
+        return const Color(0xFFF59E0B);
       return const Color(0xFFEF4444);
     }
     if (score >= 85) return const Color(0xFF10B981);
@@ -223,7 +237,21 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
     try {
       final parts = dateStr.split('-');
       if (parts.length == 3) {
-        final months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        final months = [
+          '',
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'Mei',
+          'Jun',
+          'Jul',
+          'Agu',
+          'Sep',
+          'Okt',
+          'Nov',
+          'Des',
+        ];
         final month = int.parse(parts[1]);
         return '${parts[2]} ${months[month]} ${parts[0]}';
       }
@@ -240,12 +268,15 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
         final subTextColor = isDark
             ? Colors.white.withValues(alpha: 0.55)
             : const Color(0xFF1E1B4B).withValues(alpha: 0.55);
-        final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+        final cardBg = isDark
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.white;
         final cardBorder = isDark
             ? Colors.white.withValues(alpha: 0.1)
             : Colors.black.withValues(alpha: 0.07);
-        final shadowColor =
-            isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+        final shadowColor = isDark
+            ? Colors.transparent
+            : Colors.black.withValues(alpha: 0.04);
         final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final iconBgColor = isDark
             ? Colors.white.withValues(alpha: 0.1)
@@ -264,18 +295,30 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                   iconTheme: IconThemeData(color: iconColor),
                   leading: Container(
                     margin: const EdgeInsets.only(left: 16),
-                    decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: iconBgColor,
+                      shape: BoxShape.circle,
+                    ),
                     child: IconButton(
-                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
+                      icon: Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: iconColor,
+                        size: 18,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
                   title: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Nilai Saya',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 18, color: titleColor)),
+                      Text(
+                        'Nilai Saya',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: titleColor,
+                        ),
+                      ),
                       Text(
                         '${widget.tahunAjaran}  •  ${widget.semester}',
                         style: TextStyle(fontSize: 11, color: subTextColor),
@@ -285,10 +328,16 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                   actions: [
                     Container(
                       margin: const EdgeInsets.only(right: 16),
-                      decoration:
-                          BoxDecoration(color: iconBgColor, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: iconBgColor,
+                        shape: BoxShape.circle,
+                      ),
                       child: IconButton(
-                        icon: Icon(Icons.refresh_rounded, color: iconColor, size: 20),
+                        icon: Icon(
+                          Icons.refresh_rounded,
+                          color: iconColor,
+                          size: 20,
+                        ),
                         tooltip: 'Refresh',
                         onPressed: _loadGrades,
                       ),
@@ -301,7 +350,8 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                   SliverFillRemaining(
                     child: Center(
                       child: CircularProgressIndicator(
-                          color: isDark ? Colors.white : const Color(0xFF8B5CF6)),
+                        color: isDark ? Colors.white : const Color(0xFF8B5CF6),
+                      ),
                     ),
                   )
                 else if (_error != null)
@@ -312,18 +362,29 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline_rounded,
-                                size: 56, color: Color(0xFFEF4444)),
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              size: 56,
+                              color: Color(0xFFEF4444),
+                            ),
                             const SizedBox(height: 16),
-                            Text('Gagal memuat data nilai',
-                                style: TextStyle(
-                                    color: titleColor,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold)),
+                            Text(
+                              'Gagal memuat data nilai',
+                              style: TextStyle(
+                                color: titleColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 8),
-                            Text(_error!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: subTextColor, fontSize: 12)),
+                            Text(
+                              _error!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: subTextColor,
+                                fontSize: 12,
+                              ),
+                            ),
                             const SizedBox(height: 16),
                             ElevatedButton.icon(
                               onPressed: _loadGrades,
@@ -333,9 +394,10 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                 backgroundColor: const Color(0xFF8B5CF6),
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                            )
+                            ),
                           ],
                         ),
                       ),
@@ -348,15 +410,20 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.grade_rounded,
-                              size: 72,
-                              color: subTextColor.withValues(alpha: 0.3)),
+                          Icon(
+                            Icons.grade_rounded,
+                            size: 72,
+                            color: subTextColor.withValues(alpha: 0.3),
+                          ),
                           const SizedBox(height: 16),
-                          Text('Belum Ada Nilai',
-                              style: TextStyle(
-                                  color: titleColor,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold)),
+                          Text(
+                            'Belum Ada Nilai',
+                            style: TextStyle(
+                              color: titleColor,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             'Nilai Anda akan tampil di sini\nsetelah guru memasukkan nilai.',
@@ -371,211 +438,286 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final entries = _groupedGrades.entries.toList();
-                          final entry = entries[index];
-                          final subjectName = entry.key;
-                          final categories = entry.value['categories']
-                              as Map<String, List<Map<String, dynamic>>>;
-                          final avg = _subjectWeightedAvg[subjectName] ?? 0.0;
-                          final scoreColor = _getScoreColor(avg);
-                          final scoreLabel = _getScoreLabel(avg);
-                          final isExpanded = _expandedSubjects.contains(subjectName);
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final entries = _groupedGrades.entries.toList();
+                        final entry = entries[index];
+                        final subjectName = entry.key;
+                        final categories =
+                            entry.value['categories']
+                                as Map<String, List<Map<String, dynamic>>>;
+                        final avg = _subjectWeightedAvg[subjectName] ?? 0.0;
+                        final scoreColor = _getScoreColor(avg);
+                        final scoreLabel = _getScoreLabel(avg);
+                        final isExpanded = _expandedSubjects.contains(
+                          subjectName,
+                        );
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 20),
-                            decoration: BoxDecoration(
-                              color: cardBg,
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: cardBorder),
-                              boxShadow: isDark
-                                  ? []
-                                  : [
-                                      BoxShadow(
-                                          color: shadowColor,
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 4))
-                                    ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Header Mapel
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () => _toggleExpand(subjectName),
-                                    borderRadius: BorderRadius.vertical(
-                                      top: const Radius.circular(24),
-                                      bottom: Radius.circular(isExpanded ? 0 : 24),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: cardBorder),
+                            boxShadow: isDark
+                                ? []
+                                : [
+                                    BoxShadow(
+                                      color: shadowColor,
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
                                     ),
-                                    child: Container(
-                                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            const Color(0xFF8B5CF6).withValues(alpha: isDark ? 0.25 : 0.12),
-                                            const Color(0xFF6366F1).withValues(alpha: isDark ? 0.1 : 0.05),
-                                          ],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        ),
-                                        borderRadius: BorderRadius.vertical(
-                                          top: const Radius.circular(24),
-                                          bottom: Radius.circular(isExpanded ? 0 : 24),
+                                  ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Header Mapel
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => _toggleExpand(subjectName),
+                                  borderRadius: BorderRadius.vertical(
+                                    top: const Radius.circular(24),
+                                    bottom: Radius.circular(
+                                      isExpanded ? 0 : 24,
+                                    ),
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      20,
+                                      18,
+                                      20,
+                                      14,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          const Color(0xFF8B5CF6).withValues(
+                                            alpha: isDark ? 0.25 : 0.12,
+                                          ),
+                                          const Color(0xFF6366F1).withValues(
+                                            alpha: isDark ? 0.1 : 0.05,
+                                          ),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.vertical(
+                                        top: const Radius.circular(24),
+                                        bottom: Radius.circular(
+                                          isExpanded ? 0 : 24,
                                         ),
                                       ),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(10),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(Icons.book_rounded,
-                                                color: Color(0xFF8B5CF6), size: 20),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: const Color(
+                                              0xFF8B5CF6,
+                                            ).withValues(alpha: 0.2),
+                                            shape: BoxShape.circle,
                                           ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  subjectName,
-                                                  style: TextStyle(
-                                                      color: titleColor,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 15),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  widget.className,
-                                                  style: TextStyle(
-                                                      color: subTextColor, fontSize: 12),
-                                                ),
-                                              ],
-                                            ),
+                                          child: const Icon(
+                                            Icons.book_rounded,
+                                            color: Color(0xFF8B5CF6),
+                                            size: 20,
                                           ),
-                                          // Badge nilai akhir
-                                          Column(
-                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                    horizontal: 12, vertical: 6),
-                                                decoration: BoxDecoration(
-                                                  color: scoreColor.withValues(alpha: 0.15),
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  border: Border.all(
-                                                      color: scoreColor.withValues(alpha: 0.4)),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    Text(
-                                                      avg.toStringAsFixed(1),
-                                                      style: TextStyle(
-                                                          color: scoreColor,
-                                                          fontWeight: FontWeight.bold,
-                                                          fontSize: 16),
-                                                    ),
-                                                    const SizedBox(width: 6),
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(
-                                                          horizontal: 6, vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: scoreColor,
-                                                        borderRadius: BorderRadius.circular(6),
-                                                      ),
-                                                      child: Text(
-                                                        scoreLabel,
-                                                        style: const TextStyle(
-                                                            color: Colors.white,
-                                                            fontWeight: FontWeight.bold,
-                                                            fontSize: 11),
-                                                      ),
-                                                    ),
-                                                  ],
+                                              Text(
+                                                subjectName,
+                                                style: TextStyle(
+                                                  color: titleColor,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
                                                 ),
                                               ),
-                                              const SizedBox(height: 4),
-                                              Row(
-                                                children: [
-                                                  Text('Nilai Akhir',
-                                                      style: TextStyle(
-                                                          color: subTextColor, fontSize: 10)),
-                                                  const SizedBox(width: 4),
-                                                  Icon(
-                                                    isExpanded
-                                                        ? Icons.keyboard_arrow_up_rounded
-                                                        : Icons.keyboard_arrow_down_rounded,
-                                                    color: subTextColor,
-                                                    size: 14,
-                                                  ),
-                                                ],
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                widget.className,
+                                                style: TextStyle(
+                                                  color: subTextColor,
+                                                  fontSize: 12,
+                                                ),
                                               ),
                                             ],
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                        // Badge nilai akhir
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 6,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: scoreColor.withValues(
+                                                  alpha: 0.15,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: scoreColor.withValues(
+                                                    alpha: 0.4,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    avg.toStringAsFixed(1),
+                                                    style: TextStyle(
+                                                      color: scoreColor,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 16,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: scoreColor,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      scoreLabel,
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 11,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  'Nilai Akhir',
+                                                  style: TextStyle(
+                                                    color: subTextColor,
+                                                    fontSize: 10,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Icon(
+                                                  isExpanded
+                                                      ? Icons
+                                                            .keyboard_arrow_up_rounded
+                                                      : Icons
+                                                            .keyboard_arrow_down_rounded,
+                                                  color: subTextColor,
+                                                  size: 14,
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
+                              ),
 
-                                // Rincian Per Kategori
-                                if (isExpanded)
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+                              // Rincian Per Kategori
+                              if (isExpanded)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    12,
+                                    20,
+                                    18,
+                                  ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: categories.entries.map((catEntry) {
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: categories.entries.map((
+                                      catEntry,
+                                    ) {
                                       final catName = catEntry.key;
                                       final items = catEntry.value;
                                       double catAvg = 0;
                                       if (items.isNotEmpty) {
-                                        catAvg = items.fold(0.0, (sum, item) {
+                                        catAvg =
+                                            items.fold(0.0, (sum, item) {
                                               final s = item['score'] as double;
-                                              final max = item['maxScore'] as double;
-                                              return sum + (max > 0 ? (s / max) * 100 : 0);
+                                              final max =
+                                                  item['maxScore'] as double;
+                                              return sum +
+                                                  (max > 0
+                                                      ? (s / max) * 100
+                                                      : 0);
                                             }) /
                                             items.length;
                                       }
 
                                       return Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           // Label Kategori
                                           Row(
                                             children: [
                                               Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                    horizontal: 10, vertical: 3),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 3,
+                                                    ),
                                                 decoration: BoxDecoration(
-                                                  color: _getCategoryColor(catName)
-                                                      .withValues(alpha: 0.15),
-                                                  borderRadius: BorderRadius.circular(8),
+                                                  color: _getCategoryColor(
+                                                    catName,
+                                                  ).withValues(alpha: 0.15),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
                                                   border: Border.all(
-                                                    color: _getCategoryColor(catName)
-                                                        .withValues(alpha: 0.35),
+                                                    color: _getCategoryColor(
+                                                      catName,
+                                                    ).withValues(alpha: 0.35),
                                                   ),
                                                 ),
                                                 child: Text(
                                                   catName,
                                                   style: TextStyle(
-                                                      color: _getCategoryColor(catName),
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 11),
+                                                    color: _getCategoryColor(
+                                                      catName,
+                                                    ),
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 11,
+                                                  ),
                                                 ),
                                               ),
                                               const Spacer(),
                                               Text(
                                                 'Rata-rata: ${catAvg.toStringAsFixed(1)}',
                                                 style: TextStyle(
-                                                    color: _getScoreColor(catAvg),
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 12),
+                                                  color: _getScoreColor(catAvg),
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 12,
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -584,53 +726,90 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                           // Item Penilaian
                                           ...items.map((item) {
                                             final s = item['score'] as double;
-                                            final max = item['maxScore'] as double;
-                                            final pct = max > 0 ? (s / max) * 100 : 0.0;
-                                            final itemColor = _getScoreColor(pct);
+                                            final max =
+                                                item['maxScore'] as double;
+                                            final pct = max > 0
+                                                ? (s / max) * 100
+                                                : 0.0;
+                                            final itemColor = _getScoreColor(
+                                              pct,
+                                            );
 
                                             return Container(
-                                              margin: const EdgeInsets.only(bottom: 8),
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 14, vertical: 10),
+                                              margin: const EdgeInsets.only(
+                                                bottom: 8,
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 14,
+                                                    vertical: 10,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: isDark
-                                                    ? Colors.white.withValues(alpha: 0.04)
-                                                    : Colors.black.withValues(alpha: 0.02),
-                                                borderRadius: BorderRadius.circular(12),
-                                                border: Border.all(color: cardBorder),
+                                                    ? Colors.white.withValues(
+                                                        alpha: 0.04,
+                                                      )
+                                                    : Colors.black.withValues(
+                                                        alpha: 0.02,
+                                                      ),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: cardBorder,
+                                                ),
                                               ),
                                               child: Row(
                                                 children: [
                                                   Expanded(
                                                     child: Column(
                                                       crossAxisAlignment:
-                                                          CrossAxisAlignment.start,
+                                                          CrossAxisAlignment
+                                                              .start,
                                                       children: [
                                                         Text(
-                                                          item['title'] as String,
+                                                          item['title']
+                                                              as String,
                                                           style: TextStyle(
-                                                              color: titleColor,
-                                                              fontWeight: FontWeight.w600,
-                                                              fontSize: 13),
+                                                            color: titleColor,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            fontSize: 13,
+                                                          ),
                                                         ),
-                                                        const SizedBox(height: 2),
+                                                        const SizedBox(
+                                                          height: 2,
+                                                        ),
                                                         Text(
-                                                          _formatDate(item['date'] as String),
+                                                          _formatDate(
+                                                            item['date']
+                                                                as String,
+                                                          ),
                                                           style: TextStyle(
-                                                              color: subTextColor,
-                                                              fontSize: 11),
+                                                            color: subTextColor,
+                                                            fontSize: 11,
+                                                          ),
                                                         ),
-                                                        if ((item['notes'] as String)
+                                                        if ((item['notes']
+                                                                as String)
                                                             .isNotEmpty) ...[
-                                                          const SizedBox(height: 3),
+                                                          const SizedBox(
+                                                            height: 3,
+                                                          ),
                                                           Text(
-                                                            item['notes'] as String,
+                                                            item['notes']
+                                                                as String,
                                                             style: TextStyle(
-                                                                color: subTextColor,
-                                                                fontSize: 11,
-                                                                fontStyle: FontStyle.italic),
+                                                              color:
+                                                                  subTextColor,
+                                                              fontSize: 11,
+                                                              fontStyle:
+                                                                  FontStyle
+                                                                      .italic,
+                                                            ),
                                                             maxLines: 2,
-                                                            overflow: TextOverflow.ellipsis,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
                                                           ),
                                                         ],
                                                       ],
@@ -643,17 +822,21 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                                     children: [
                                                       Text(
                                                         s.toStringAsFixed(
-                                                            s % 1 == 0 ? 0 : 1),
+                                                          s % 1 == 0 ? 0 : 1,
+                                                        ),
                                                         style: TextStyle(
-                                                            color: itemColor,
-                                                            fontWeight: FontWeight.bold,
-                                                            fontSize: 18),
+                                                          color: itemColor,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 18,
+                                                        ),
                                                       ),
                                                       Text(
                                                         '/ ${max.toStringAsFixed(max % 1 == 0 ? 0 : 1)}',
                                                         style: TextStyle(
-                                                            color: subTextColor,
-                                                            fontSize: 11),
+                                                          color: subTextColor,
+                                                          fontSize: 11,
+                                                        ),
                                                       ),
                                                     ],
                                                   ),
@@ -663,21 +846,20 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                           }),
                                           const SizedBox(height: 8),
                                           Divider(
-                                              color: cardBorder,
-                                              height: 1,
-                                              thickness: 1),
+                                            color: cardBorder,
+                                            height: 1,
+                                            thickness: 1,
+                                          ),
                                           const SizedBox(height: 12),
                                         ],
                                       );
                                     }).toList(),
                                   ),
                                 ),
-                              ],
-                            ),
-                          );
-                        },
-                        childCount: _groupedGrades.length,
-                      ),
+                            ],
+                          ),
+                        );
+                      }, childCount: _groupedGrades.length),
                     ),
                   ),
               ],

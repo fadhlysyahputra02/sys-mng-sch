@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -14,7 +13,8 @@ class RaporPdfHelper {
     required String studentNis,
     required String semester,
     required String yearInfo,
-    required List<Map<String, dynamic>> subjectScores, // List berisi: {name, score, predikat, deskripsi, kkm}
+    required List<Map<String, dynamic>>
+    subjectScores, // List berisi: {name, score, predikat, deskripsi, kkm}
     required List<Map<String, dynamic>> attitudeAspects,
     required int sakit,
     required int izin,
@@ -33,17 +33,19 @@ class RaporPdfHelper {
     );
 
     // Fallback template jika null
-    final Map<String, int> gt = gradeTemplates ?? {
-      'aplus': 95,
-      'a': 90,
-      'aminus': 85,
-      'bplus': 80,
-      'b': 75,
-      'bminus': 70,
-      'cplus': 65,
-      'c': 60,
-      'cminus': 55,
-    };
+    final Map<String, int> gt =
+        gradeTemplates ??
+        {
+          'aplus': 95,
+          'a': 90,
+          'aminus': 85,
+          'bplus': 80,
+          'b': 75,
+          'bminus': 70,
+          'cplus': 65,
+          'c': 60,
+          'cminus': 55,
+        };
 
     pdf.addPage(
       pw.MultiPage(
@@ -54,7 +56,10 @@ class RaporPdfHelper {
             margin: const pw.EdgeInsets.only(top: 15),
             child: pw.Text(
               'Halaman ${context.pageNumber} dari ${context.pagesCount}',
-              style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFF94A3B8)),
+              style: pw.TextStyle(
+                fontSize: 8,
+                color: PdfColor.fromInt(0xFF94A3B8),
+              ),
             ),
           );
         },
@@ -83,12 +88,20 @@ class RaporPdfHelper {
                           children: [
                             pw.Text(
                               'LAPORAN HASIL BELAJAR (RAPOR)',
-                              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E1B4B)),
+                              style: pw.TextStyle(
+                                fontSize: 14,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColor.fromInt(0xFF1E1B4B),
+                              ),
                             ),
                             pw.SizedBox(height: 2),
                             pw.Text(
                               schoolName.toUpperCase(),
-                              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF4B5563)),
+                              style: pw.TextStyle(
+                                fontSize: 11,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColor.fromInt(0xFF4B5563),
+                              ),
                             ),
                           ],
                         ),
@@ -97,12 +110,20 @@ class RaporPdfHelper {
                   ] else ...[
                     pw.Text(
                       'LAPORAN HASIL BELAJAR (RAPOR)',
-                      style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E1B4B)),
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFF1E1B4B),
+                      ),
                     ),
                     pw.SizedBox(height: 2),
                     pw.Text(
                       schoolName.toUpperCase(),
-                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF4B5563)),
+                      style: pw.TextStyle(
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFF4B5563),
+                      ),
                     ),
                   ],
                   pw.SizedBox(height: 10),
@@ -145,7 +166,10 @@ class RaporPdfHelper {
             _buildSectionHeader('A. PENILAIAN SIKAP'),
             pw.SizedBox(height: 6),
             pw.Table(
-              border: pw.TableBorder.all(color: PdfColor.fromInt(0xFFCBD5E1), width: 0.5),
+              border: pw.TableBorder.all(
+                color: PdfColor.fromInt(0xFFCBD5E1),
+                width: 0.5,
+              ),
               columnWidths: {
                 0: const pw.FixedColumnWidth(100),
                 1: const pw.FixedColumnWidth(55),
@@ -153,7 +177,9 @@ class RaporPdfHelper {
               },
               children: [
                 pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF1F5F9)),
+                  decoration: const pw.BoxDecoration(
+                    color: PdfColor.fromInt(0xFFF1F5F9),
+                  ),
                   children: [
                     _buildTableHeaderCell('Aspek Sikap'),
                     _buildTableHeaderCell('Predikat'),
@@ -165,12 +191,16 @@ class RaporPdfHelper {
                   final name = aspect['name']?.toString() ?? '';
                   final pred = aspect['predikat']?.toString() ?? 'B';
                   final desc = aspect['deskripsi']?.toString() ?? '';
-                  final defaultDesc = 'Menunjukkan sikap ${name.toLowerCase()} yang baik.';
+                  final defaultDesc =
+                      'Menunjukkan sikap ${name.toLowerCase()} yang baik.';
                   return pw.TableRow(
                     children: [
                       _buildTableCell('${index + 1}. $name', alignLeft: true),
                       _buildTableCell(pred, isBold: true),
-                      _buildTableCell(desc.isEmpty ? defaultDesc : desc, alignLeft: true),
+                      _buildTableCell(
+                        desc.isEmpty ? defaultDesc : desc,
+                        alignLeft: true,
+                      ),
                     ],
                   );
                 }),
@@ -183,7 +213,10 @@ class RaporPdfHelper {
             _buildSectionHeader('B. PENILAIAN AKADEMIK'),
             pw.SizedBox(height: 6),
             pw.Table(
-              border: pw.TableBorder.all(color: PdfColor.fromInt(0xFFCBD5E1), width: 0.5),
+              border: pw.TableBorder.all(
+                color: PdfColor.fromInt(0xFFCBD5E1),
+                width: 0.5,
+              ),
               columnWidths: {
                 0: const pw.FixedColumnWidth(30),
                 1: const pw.FlexColumnWidth(3),
@@ -195,14 +228,19 @@ class RaporPdfHelper {
               children: [
                 // Header
                 pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF1F5F9)),
+                  decoration: const pw.BoxDecoration(
+                    color: PdfColor.fromInt(0xFFF1F5F9),
+                  ),
                   children: [
                     _buildTableHeaderCell('No'),
                     _buildTableHeaderCell('Mata Pelajaran', alignLeft: true),
                     _buildTableHeaderCell('KKM'),
                     _buildTableHeaderCell('Nilai'),
                     _buildTableHeaderCell('Predikat'),
-                    _buildTableHeaderCell('Deskripsi Pencapaian', alignLeft: true),
+                    _buildTableHeaderCell(
+                      'Deskripsi Pencapaian',
+                      alignLeft: true,
+                    ),
                   ],
                 ),
                 // Mapel Rows
@@ -210,9 +248,12 @@ class RaporPdfHelper {
                   final item = subjectScores[idx];
                   final name = item['name']?.toString() ?? '-';
                   final kkm = item['kkm']?.toString() ?? '75';
-                  final double scoreVal = (item['score'] as num?)?.toDouble() ?? 0.0;
-                  final String scoreStr = scoreVal > 0 ? scoreVal.toStringAsFixed(1) : '-';
-                  
+                  final double scoreVal =
+                      (item['score'] as num?)?.toDouble() ?? 0.0;
+                  final String scoreStr = scoreVal > 0
+                      ? scoreVal.toStringAsFixed(1)
+                      : '-';
+
                   // Hitung predikat dinamis menggunakan konfigurasi template dari sekolah
                   String pred = item['predikat']?.toString() ?? '';
                   if (pred.isEmpty && scoreVal > 0) {
@@ -243,14 +284,17 @@ class RaporPdfHelper {
 
                   String desc = item['deskripsi']?.toString() ?? '';
                   if (desc.isEmpty && scoreVal > 0) {
-                    desc = 'Menunjukkan penguasaan materi yang baik pada mata pelajaran ini.';
+                    desc =
+                        'Menunjukkan penguasaan materi yang baik pada mata pelajaran ini.';
                   } else if (scoreVal == 0.0) {
                     desc = 'Belum ada penilaian hasil belajar.';
                   }
 
                   return pw.TableRow(
                     decoration: pw.BoxDecoration(
-                      color: idx % 2 == 0 ? PdfColors.white : PdfColor.fromInt(0xFFF8FAFC),
+                      color: idx % 2 == 0
+                          ? PdfColors.white
+                          : PdfColor.fromInt(0xFFF8FAFC),
                     ),
                     children: [
                       _buildTableCell((idx + 1).toString()),
@@ -280,16 +324,24 @@ class RaporPdfHelper {
                       _buildSectionHeader('C. KETIDAKHADIRAN'),
                       pw.SizedBox(height: 6),
                       pw.Table(
-                        border: pw.TableBorder.all(color: PdfColor.fromInt(0xFFCBD5E1), width: 0.5),
+                        border: pw.TableBorder.all(
+                          color: PdfColor.fromInt(0xFFCBD5E1),
+                          width: 0.5,
+                        ),
                         columnWidths: {
                           0: const pw.FlexColumnWidth(2),
                           1: const pw.FixedColumnWidth(60),
                         },
                         children: [
                           pw.TableRow(
-                            decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF1F5F9)),
+                            decoration: const pw.BoxDecoration(
+                              color: PdfColor.fromInt(0xFFF1F5F9),
+                            ),
                             children: [
-                              _buildTableHeaderCell('Alasan Absensi', alignLeft: true),
+                              _buildTableHeaderCell(
+                                'Alasan Absensi',
+                                alignLeft: true,
+                              ),
                               _buildTableHeaderCell('Jumlah'),
                             ],
                           ),
@@ -307,7 +359,10 @@ class RaporPdfHelper {
                           ),
                           pw.TableRow(
                             children: [
-                              _buildTableCell('3. Tanpa Keterangan (A)', alignLeft: true),
+                              _buildTableCell(
+                                '3. Tanpa Keterangan (A)',
+                                alignLeft: true,
+                              ),
                               _buildTableCell('$alpa Hari'),
                             ],
                           ),
@@ -330,15 +385,24 @@ class RaporPdfHelper {
                         height: 80,
                         padding: const pw.EdgeInsets.all(10),
                         decoration: pw.BoxDecoration(
-                          border: pw.Border.all(color: PdfColor.fromInt(0xFFCBD5E1), width: 0.5),
+                          border: pw.Border.all(
+                            color: PdfColor.fromInt(0xFFCBD5E1),
+                            width: 0.5,
+                          ),
                           color: PdfColor.fromInt(0xFFF8FAFC),
-                          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                          borderRadius: const pw.BorderRadius.all(
+                            pw.Radius.circular(6),
+                          ),
                         ),
                         child: pw.Text(
-                          catatanWali.trim().isEmpty 
+                          catatanWali.trim().isEmpty
                               ? 'Pertahankan prestasimu dan teruslah belajar dengan giat agar cita-citamu tercapai.'
                               : catatanWali,
-                          style: pw.TextStyle(fontSize: 9, height: 1.4, color: PdfColor.fromInt(0xFF1E293B)),
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            height: 1.4,
+                            color: PdfColor.fromInt(0xFF1E293B),
+                          ),
                         ),
                       ),
                     ],
@@ -356,12 +420,23 @@ class RaporPdfHelper {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    pw.Text('Orang Tua/Wali Murid,', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF4B5563))),
+                    pw.Text(
+                      'Orang Tua/Wali Murid,',
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColor.fromInt(0xFF4B5563),
+                      ),
+                    ),
                     pw.SizedBox(height: 45),
                     pw.Container(
                       width: 140,
                       decoration: const pw.BoxDecoration(
-                        border: pw.Border(bottom: pw.BorderSide(color: PdfColors.black, width: 0.8)),
+                        border: pw.Border(
+                          bottom: pw.BorderSide(
+                            color: PdfColors.black,
+                            width: 0.8,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -369,19 +444,41 @@ class RaporPdfHelper {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    pw.Text('Mengetahui,', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF4B5563))),
-                    pw.Text('Wali Kelas', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF1E293B), fontWeight: pw.FontWeight.bold)),
+                    pw.Text(
+                      'Mengetahui,',
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColor.fromInt(0xFF4B5563),
+                      ),
+                    ),
+                    pw.Text(
+                      'Wali Kelas',
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColor.fromInt(0xFF1E293B),
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
                     pw.SizedBox(height: 45),
                     pw.Container(
                       width: 140,
                       decoration: const pw.BoxDecoration(
-                        border: pw.Border(bottom: pw.BorderSide(color: PdfColors.black, width: 0.8)),
+                        border: pw.Border(
+                          bottom: pw.BorderSide(
+                            color: PdfColors.black,
+                            width: 0.8,
+                          ),
+                        ),
                       ),
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
                       teacherName,
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColor.fromInt(0xFF1E293B)),
+                      style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold,
+                        fontSize: 9,
+                        color: PdfColor.fromInt(0xFF1E293B),
+                      ),
                     ),
                   ],
                 ),
@@ -406,16 +503,21 @@ class RaporPdfHelper {
             width: 75,
             child: pw.Text(
               label,
-              style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF64748B), fontWeight: pw.FontWeight.bold),
+              style: pw.TextStyle(
+                fontSize: 9,
+                color: PdfColor.fromInt(0xFF64748B),
+                fontWeight: pw.FontWeight.bold,
+              ),
             ),
           ),
-          pw.Text(
-            ': ',
-            style: const pw.TextStyle(fontSize: 9),
-          ),
+          pw.Text(': ', style: const pw.TextStyle(fontSize: 9)),
           pw.Text(
             value,
-            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E293B)),
+            style: pw.TextStyle(
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromInt(0xFF1E293B),
+            ),
           ),
         ],
       ),
@@ -426,24 +528,39 @@ class RaporPdfHelper {
   static pw.Widget _buildSectionHeader(String title) {
     return pw.Text(
       title,
-      style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E1B4B)),
+      style: pw.TextStyle(
+        fontSize: 10,
+        fontWeight: pw.FontWeight.bold,
+        color: PdfColor.fromInt(0xFF1E1B4B),
+      ),
     );
   }
 
   /// Helper header cell
-  static pw.Widget _buildTableHeaderCell(String text, {bool alignLeft = false}) {
+  static pw.Widget _buildTableHeaderCell(
+    String text, {
+    bool alignLeft = false,
+  }) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(6),
       alignment: alignLeft ? pw.Alignment.centerLeft : pw.Alignment.center,
       child: pw.Text(
         text,
-        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8, color: PdfColor.fromInt(0xFF1E293B)),
+        style: pw.TextStyle(
+          fontWeight: pw.FontWeight.bold,
+          fontSize: 8,
+          color: PdfColor.fromInt(0xFF1E293B),
+        ),
       ),
     );
   }
 
   /// Helper body cell
-  static pw.Widget _buildTableCell(String text, {bool alignLeft = false, bool isBold = false}) {
+  static pw.Widget _buildTableCell(
+    String text, {
+    bool alignLeft = false,
+    bool isBold = false,
+  }) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(6),
       alignment: alignLeft ? pw.Alignment.centerLeft : pw.Alignment.center,
