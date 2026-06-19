@@ -243,158 +243,183 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
             actions: const [ThemeToggleButton()],
           ),
           body: AuthBackground(
-            child: SafeArea(
+            child: SizedBox.expand(
               child: _showScanner
                   ? _buildScannerView(textColor, subTextColor)
-                  : SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(18),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.05)
-                                  : Colors.black.withValues(alpha: 0.03),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: cardBorder),
-                            ),
-                            child: Icon(
-                              Icons.family_restroom_rounded,
-                              size: 44,
-                              color: textColor,
-                            ),
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'DAFTAR ORANG TUA',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Buat akun lalu scan QR dari anak Anda',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 13, color: subTextColor),
-                          ),
-                          const SizedBox(height: 28),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 28,
-                            ),
-                            decoration: BoxDecoration(
-                              color: cardColor,
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: cardBorder),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight,
                             ),
                             child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                _buildField(
-                                  controller: _namaController,
-                                  label: 'Nama Lengkap',
-                                  icon: Icons.person_rounded,
-                                  textColor: textColor,
-                                  labelColor: labelColor,
-                                  fieldFill: fieldFill,
-                                  fieldBorder: fieldBorder,
-                                ),
-                                const SizedBox(height: 16),
-                                _buildField(
-                                  controller: _emailController,
-                                  label: 'Email',
-                                  icon: Icons.email_rounded,
-                                  textColor: textColor,
-                                  labelColor: labelColor,
-                                  fieldFill: fieldFill,
-                                  fieldBorder: fieldBorder,
-                                  keyboard: TextInputType.emailAddress,
-                                ),
-                                const SizedBox(height: 16),
-                                _buildField(
-                                  controller: _passwordController,
-                                  label: 'Password',
-                                  icon: Icons.lock_rounded,
-                                  textColor: textColor,
-                                  labelColor: labelColor,
-                                  fieldFill: fieldFill,
-                                  fieldBorder: fieldBorder,
-                                  obscure: _obscurePassword,
-                                  suffix: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_off_rounded
-                                          : Icons.visibility_rounded,
-                                      color: labelColor,
-                                    ),
-                                    onPressed: () => setState(
-                                      () => _obscurePassword = !_obscurePassword,
-                                    ),
+                                Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.05)
+                                        : Colors.black.withValues(alpha: 0.03),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: cardBorder),
+                                  ),
+                                  child: Icon(
+                                    Icons.family_restroom_rounded,
+                                    size: 44,
+                                    color: textColor,
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-                                _buildField(
-                                  controller: _confirmController,
-                                  label: 'Konfirmasi Password',
-                                  icon: Icons.lock_outline_rounded,
-                                  textColor: textColor,
-                                  labelColor: labelColor,
-                                  fieldFill: fieldFill,
-                                  fieldBorder: fieldBorder,
-                                  obscure: _obscureConfirm,
-                                  suffix: IconButton(
-                                    icon: Icon(
-                                      _obscureConfirm
-                                          ? Icons.visibility_off_rounded
-                                          : Icons.visibility_rounded,
-                                      color: labelColor,
-                                    ),
-                                    onPressed: () => setState(
-                                      () => _obscureConfirm = !_obscureConfirm,
-                                    ),
+                                Text(
+                                  'DAFTAR ORANG TUA',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                    letterSpacing: 1.5,
                                   ),
                                 ),
-                                const SizedBox(height: 24),
-                                SizedBox(
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Buat akun lalu scan QR dari anak Anda',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: subTextColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+                                Container(
                                   width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: _isLoading ? null : _registerAccount,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF8B5CF6),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 28,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: cardColor,
+                                    borderRadius: BorderRadius.circular(28),
+                                    border: Border.all(color: cardBorder),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      _buildField(
+                                        controller: _namaController,
+                                        label: 'Nama Lengkap',
+                                        icon: Icons.person_rounded,
+                                        textColor: textColor,
+                                        labelColor: labelColor,
+                                        fieldFill: fieldFill,
+                                        fieldBorder: fieldBorder,
                                       ),
-                                    ),
-                                    child: _isLoading
-                                        ? const SizedBox(
-                                            width: 22,
-                                            height: 22,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.5,
-                                              color: Colors.white,
+                                      const SizedBox(height: 16),
+                                      _buildField(
+                                        controller: _emailController,
+                                        label: 'Email',
+                                        icon: Icons.email_rounded,
+                                        textColor: textColor,
+                                        labelColor: labelColor,
+                                        fieldFill: fieldFill,
+                                        fieldBorder: fieldBorder,
+                                        keyboard: TextInputType.emailAddress,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _buildField(
+                                        controller: _passwordController,
+                                        label: 'Password',
+                                        icon: Icons.lock_rounded,
+                                        textColor: textColor,
+                                        labelColor: labelColor,
+                                        fieldFill: fieldFill,
+                                        fieldBorder: fieldBorder,
+                                        obscure: _obscurePassword,
+                                        suffix: IconButton(
+                                          icon: Icon(
+                                            _obscurePassword
+                                                ? Icons.visibility_off_rounded
+                                                : Icons.visibility_rounded,
+                                            color: labelColor,
+                                          ),
+                                          onPressed: () => setState(
+                                            () => _obscurePassword =
+                                                !_obscurePassword,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _buildField(
+                                        controller: _confirmController,
+                                        label: 'Konfirmasi Password',
+                                        icon: Icons.lock_outline_rounded,
+                                        textColor: textColor,
+                                        labelColor: labelColor,
+                                        fieldFill: fieldFill,
+                                        fieldBorder: fieldBorder,
+                                        obscure: _obscureConfirm,
+                                        suffix: IconButton(
+                                          icon: Icon(
+                                            _obscureConfirm
+                                                ? Icons.visibility_off_rounded
+                                                : Icons.visibility_rounded,
+                                            color: labelColor,
+                                          ),
+                                          onPressed: () => setState(
+                                            () => _obscureConfirm =
+                                                !_obscureConfirm,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 24),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton(
+                                          onPressed:
+                                              _isLoading ? null : _registerAccount,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFF8B5CF6),
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 16,
                                             ),
-                                          )
-                                        : const Text(
-                                            'BUAT AKUN & LANJUT SCAN QR',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 0.5,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
                                             ),
                                           ),
+                                          child: _isLoading
+                                              ? const SizedBox(
+                                                  width: 22,
+                                                  height: 22,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    strokeWidth: 2.5,
+                                                    color: Colors.white,
+                                                  ),
+                                                )
+                                              : const Text(
+                                                  'BUAT AKUN & LANJUT SCAN QR',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
             ),
           ),
@@ -405,9 +430,10 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
 
   Widget _buildScannerView(Color textColor, Color subTextColor) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
           child: Column(
             children: [
               Text(
@@ -428,31 +454,44 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
           ),
         ),
         Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Stack(
-              children: [
-                MobileScanner(
-                  controller: _scannerController,
-                  onDetect: _onDetect,
-                ),
-                if (_isLoading)
-                  Container(
-                    color: Colors.black54,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              MobileScanner(
+                controller: _scannerController,
+                onDetect: _onDetect,
+              ),
+              if (_isLoading)
+                Container(
+                  color: Colors.black54,
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF8B5CF6),
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(24),
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(
+            24,
+            16,
+            24,
+            16 + MediaQuery.of(context).padding.bottom,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.35),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.qr_code_scanner_rounded, color: subTextColor, size: 20),
+              Icon(
+                Icons.qr_code_scanner_rounded,
+                color: subTextColor,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 'QR terdeteksi otomatis',

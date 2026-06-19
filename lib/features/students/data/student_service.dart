@@ -264,6 +264,51 @@ class StudentService {
         .snapshots();
   }
 
+  /// Riwayat absensi murid per bulan (filter client-side, no composite index)
+  Stream<List<Map<String, dynamic>>> getStudentAttendanceHistoryStream({
+    required String schoolId,
+    required String studentId,
+    required int year,
+    required int month,
+  }) {
+    final startDate = '${year}-${month.toString().padLeft(2, '0')}-01';
+    final lastDay = DateTime(year, month + 1, 0).day;
+    final endDate =
+        '${year}-${month.toString().padLeft(2, '0')}-${lastDay.toString().padLeft(2, '0')}';
+
+    return _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('attendance')
+        .where('studentId', isEqualTo: studentId)
+        .snapshots()
+        .map((snapshot) {
+          final records = snapshot.docs
+              .map((doc) => {...doc.data(), 'id': doc.id})
+              .where((data) {
+                final date = (data['date'] ?? '').toString();
+                return date.compareTo(startDate) >= 0 &&
+                    date.compareTo(endDate) <= 0;
+              })
+              .toList();
+
+          records.sort((a, b) {
+            final dateCompare =
+                (b['date'] ?? '').toString().compareTo((a['date'] ?? '').toString());
+            if (dateCompare != 0) return dateCompare;
+
+            final aTime = a['timestamp'];
+            final bTime = b['timestamp'];
+            if (aTime is Timestamp && bTime is Timestamp) {
+              return bTime.compareTo(aTime);
+            }
+            return 0;
+          });
+
+          return records;
+        });
+  }
+
   /// Stream of today's attendance records for the school
   Stream<QuerySnapshot<Map<String, dynamic>>> getTodayAttendanceListStream({
     required String schoolId,

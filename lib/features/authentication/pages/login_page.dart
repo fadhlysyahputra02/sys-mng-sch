@@ -251,6 +251,9 @@ class _LoginPageState extends State<LoginPage> {
         case 'student':
           Get.offAllNamed(AppRoutes.student);
           break;
+        case 'parent':
+          Get.offAllNamed(AppRoutes.parent);
+          break;
         default:
           throw Exception('Unknown role');
       }
@@ -794,6 +797,29 @@ class _LoginPageState extends State<LoginPage> {
                               text: 'Register Now',
                               style: TextStyle(
                                 color: Color(0xFF8B5CF6),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Get.toNamed(AppRoutes.parentRegister);
+                      },
+                      child: RichText(
+                        text: TextSpan(
+                          text: 'Orang tua? ',
+                          style: TextStyle(
+                            color: isDark ? Colors.white.withOpacity(0.6) : const Color(0xFF1E1B4B).withOpacity(0.6),
+                            fontSize: 14,
+                          ),
+                          children: const [
+                            TextSpan(
+                              text: 'Daftar sebagai Orang Tua',
+                              style: TextStyle(
+                                color: Color(0xFF6366F1),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),

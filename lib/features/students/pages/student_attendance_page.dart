@@ -9,6 +9,7 @@ import '../../authentication/widgets/auth_background.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 import '../data/student_service.dart';
 import 'student_qr_scanner_page.dart';
+import 'student_attendance_history_page.dart';
 
 class StudentAttendancePage extends StatefulWidget {
   final String studentDocId;
@@ -270,6 +271,32 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                 'Absensi Hari Ini',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
               ),
+              actions: [
+                Container(
+                  margin: const EdgeInsets.only(right: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.history_rounded, color: Colors.white, size: 20),
+                    tooltip: 'Riwayat Absensi',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => StudentAttendanceHistoryPage(
+                            studentDocId: widget.studentDocId,
+                            className: widget.className,
+                            studentName: (widget.studentData['nama'] ?? 'Murid')
+                                .toString(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
 
             SliverToBoxAdapter(
@@ -280,6 +307,8 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                   children: [
                     // Header Tanggal & Kelas
                     _buildDateAndClassHeader(),
+                    const SizedBox(height: 16),
+                    _buildHistoryButton(context),
                     const SizedBox(height: 24),
 
                     // Daftar jadwal + status absensi
@@ -383,6 +412,81 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryButton(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StudentAttendanceHistoryPage(
+                studentDocId: widget.studentDocId,
+                className: widget.className,
+                studentName: (widget.studentData['nama'] ?? 'Murid').toString(),
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.history_rounded,
+                  color: Color(0xFF8B5CF6),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Riwayat Absensi',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Lihat absensi per bulan',
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFF8B5CF6),
+              ),
+            ],
+          ),
         ),
       ),
     );

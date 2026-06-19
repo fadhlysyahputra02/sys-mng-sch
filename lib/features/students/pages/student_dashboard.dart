@@ -9,6 +9,7 @@ import '../../../core/services/session_service.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../chat/student_chat_list_page.dart';
+import '../../parent_link/pages/student_link_parent_page.dart';
 import '../../schools/services/school_service.dart';
 import '../../teachers/pages/teacher_settings_page.dart';
 import 'package:is_lock_screen2/is_lock_screen2.dart';
@@ -1126,6 +1127,7 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Widget _buildMenuGrid(bool isDark) {
+    final parentLinked = _studentData?['parentLinked'] == true;
     final menus = [
       {
         'title': 'Absensi',
@@ -1146,6 +1148,15 @@ class _StudentDashboardState extends State<StudentDashboard>
         'title': 'Chat Guru',
         'icon': Icons.chat_rounded,
         'color': const Color(0xFFF97316),
+      },
+      {
+        'title': parentLinked ? 'Sudah Terhubung' : 'Sambungkan ke Orang Tua',
+        'icon': parentLinked
+            ? Icons.verified_rounded
+            : Icons.family_restroom_rounded,
+        'color': parentLinked
+            ? const Color(0xFF10B981)
+            : const Color(0xFF6366F1),
       },
       {
         'title': 'Fitur Premium',
@@ -1226,7 +1237,7 @@ class _StudentDashboardState extends State<StudentDashboard>
     );
   }
 
-  void _handleMenuTap(String title) {
+  Future<void> _handleMenuTap(String title) async {
     final user = SessionService.currentUser!;
     switch (title) {
       case 'Absensi':
@@ -1333,6 +1344,53 @@ class _StudentDashboardState extends State<StudentDashboard>
             ),
           );
         }
+        break;
+      case 'Sambungkan ke Orang Tua':
+        if (_studentDocId == null) {
+          Get.snackbar(
+            'Informasi',
+            'Data murid belum lengkap. Hubungi admin sekolah.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.amber,
+            colorText: Colors.black,
+            margin: const EdgeInsets.all(16),
+            borderRadius: 12,
+            icon: const Icon(Icons.info_outline, color: Colors.black),
+          );
+        } else {
+          final linked = await Get.to<bool>(
+            () => StudentLinkParentPage(
+              schoolId: user.schoolId,
+              studentId: _studentDocId!,
+              studentName: _studentData?['nama'] ?? 'Murid',
+            ),
+          );
+          if (linked == true && mounted) {
+            await _resolveStudentDocId();
+            Get.snackbar(
+              'Berhasil',
+              'Akun orang tua berhasil terhubung.',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: const Color(0xFF10B981),
+              colorText: Colors.white,
+              margin: const EdgeInsets.all(16),
+              borderRadius: 12,
+              icon: const Icon(Icons.verified_rounded, color: Colors.white),
+            );
+          }
+        }
+        break;
+      case 'Sudah Terhubung':
+        Get.snackbar(
+          'Terhubung',
+          'Akun Anda sudah terhubung dengan orang tua.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
+          icon: const Icon(Icons.verified_rounded, color: Colors.white),
+        );
         break;
       case 'Fitur Premium':
         Get.toNamed(

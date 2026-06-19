@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../authentication/widgets/auth_background.dart';
@@ -31,6 +30,7 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
   String? _qrData;
   DateTime? _expiresAt;
   Timer? _countdownTimer;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _studentSub;
   Duration _remaining = Duration.zero;
   bool _isLoading = true;
   bool _isExpired = false;
@@ -40,11 +40,28 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
   void initState() {
     super.initState();
     _generateQr();
+    _listenParentLinked();
+  }
+
+  void _listenParentLinked() {
+    _studentSub = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('students')
+        .doc(widget.studentId)
+        .snapshots()
+        .listen((doc) {
+      if (!mounted || doc.data()?['parentLinked'] != true) return;
+
+      _countdownTimer?.cancel();
+      Navigator.of(context).pop(true);
+    });
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _studentSub?.cancel();
     super.dispose();
   }
 

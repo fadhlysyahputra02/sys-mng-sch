@@ -14,6 +14,8 @@ class AppRoutes {
 
   static const student = '/student';
   static const studentList = '/student-list';
+  static const parent = '/parent';
+  static const parentRegister = '/parent-register';
 
   // Route untuk fitur lainnya.
   static const classList = '/class-list';

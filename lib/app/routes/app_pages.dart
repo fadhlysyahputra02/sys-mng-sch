@@ -12,6 +12,8 @@ import '../../features/splash/pages/splash_page.dart';
 import '../../features/schools/pages/dashboard/school_admin_dashboard.dart';
 import '../../features/teachers/pages/teacher_dashboard.dart';
 import '../../features/students/pages/student_dashboard.dart';
+import '../../features/parent/pages/parent_dashboard_page.dart';
+import '../../features/authentication/pages/parent_register_page.dart';
 import '../../features/schools/pages/notifications/notifications_page.dart';
 import '../../features/schools/pages/dashboard/premium_features_page.dart';
 
@@ -41,6 +43,11 @@ class AppPages {
 
     // Route untuk siswa.
     GetPage(name: AppRoutes.student, page: () => const StudentDashboard()),
+    GetPage(name: AppRoutes.parent, page: () => const ParentDashboardPage()),
+    GetPage(
+      name: AppRoutes.parentRegister,
+      page: () => const ParentRegisterPage(),
+    ),
     GetPage(
       name: AppRoutes.studentList,
       page: () =>
