@@ -2,8 +2,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../authentication/widgets/auth_background.dart';
+import '../schools/pages/schedule/Service/class_schedule_service.dart';
 import 'chat_room_page.dart';
 import 'chat_service.dart';
+
+class _ClassTeacher {
+  final String teacherId;
+  final String teacherName;
+  final String subject;
+
+  const _ClassTeacher({
+    required this.teacherId,
+    required this.teacherName,
+    required this.subject,
+  });
+}
 
 class StudentChatListPage extends StatefulWidget {
   final String schoolId;
@@ -25,6 +38,7 @@ class StudentChatListPage extends StatefulWidget {
 
 class _StudentChatListPageState extends State<StudentChatListPage> {
   final _chatService = ChatService();
+  final _scheduleService = ClassScheduleService();
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -32,6 +46,109 @@ class _StudentChatListPageState extends State<StudentChatListPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openChat({
+    required String teacherId,
+    required String teacherName,
+  }) async {
+    final chatRoomId = _chatService.getChatRoomId(
+      teacherId,
+      widget.studentDocId,
+    );
+
+    await FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('chats')
+        .doc(chatRoomId)
+        .set({
+          'chatRoomId': chatRoomId,
+          'teacherId': teacherId,
+          'teacherName': teacherName,
+          'studentId': widget.studentDocId,
+          'studentName': widget.studentName,
+          'className': widget.className,
+        }, SetOptions(merge: true));
+
+    Get.to(
+      () => ChatRoomPage(
+        schoolId: widget.schoolId,
+        chatRoomId: chatRoomId,
+        currentUserId: widget.studentDocId,
+        currentUserName: widget.studentName,
+        currentUserRole: 'student',
+        otherUserName: teacherName,
+      ),
+    );
+  }
+
+  List<_ClassTeacher> _buildClassTeachers({
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> scheduleDocs,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> classDocs,
+  }) {
+    final Map<String, _ClassTeacher> teachers = {};
+
+    for (final doc in scheduleDocs) {
+      final data = doc.data();
+      final teacherId = (data['teacherId'] ?? '').toString();
+      final teacherName = (data['teacherName'] ?? '').toString();
+      final subject = (data['subjectName'] ?? '').toString();
+      final jenisJadwal = (data['jenisJadwal'] ?? '').toString();
+
+      if (teacherId.isEmpty ||
+          teacherId == '-' ||
+          teacherName.isEmpty ||
+          teacherName == '-' ||
+          jenisJadwal == 'istirahat') {
+        continue;
+      }
+
+      final existing = teachers[teacherId];
+      if (existing == null) {
+        teachers[teacherId] = _ClassTeacher(
+          teacherId: teacherId,
+          teacherName: teacherName,
+          subject: subject,
+        );
+      } else if (subject.isNotEmpty && !existing.subject.contains(subject)) {
+        teachers[teacherId] = _ClassTeacher(
+          teacherId: teacherId,
+          teacherName: teacherName,
+          subject: '${existing.subject}, $subject',
+        );
+      }
+    }
+
+    for (final doc in classDocs) {
+      final data = doc.data();
+      final teacherId = (data['teacherId'] ?? '').toString();
+      final teacherName = (data['teacherName'] ?? '').toString();
+
+      if (teacherId.isEmpty || teacherName.isEmpty) continue;
+
+      teachers.putIfAbsent(
+        teacherId,
+        () => _ClassTeacher(
+          teacherId: teacherId,
+          teacherName: teacherName,
+          subject: 'Wali Kelas',
+        ),
+      );
+    }
+
+    final list = teachers.values.toList()
+      ..sort((a, b) => a.teacherName.compareTo(b.teacherName));
+
+    if (_searchQuery.isEmpty) return list;
+
+    return list
+        .where(
+          (t) =>
+              t.teacherName.toLowerCase().contains(_searchQuery) ||
+              t.subject.toLowerCase().contains(_searchQuery),
+        )
+        .toList();
   }
 
   @override
@@ -61,7 +178,6 @@ class _StudentChatListPageState extends State<StudentChatListPage> {
             child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
-                // AppBar
                 SliverAppBar(
                   backgroundColor: Colors.transparent,
                   elevation: 0,
@@ -92,7 +208,6 @@ class _StudentChatListPageState extends State<StudentChatListPage> {
                   ),
                 ),
 
-                // Search
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
@@ -102,10 +217,10 @@ class _StudentChatListPageState extends State<StudentChatListPage> {
                     child: TextField(
                       controller: _searchController,
                       onChanged: (v) =>
-                          setState(() => _searchQuery = v.toLowerCase()),
+                          setState(() => _searchQuery = v.toLowerCase().trim()),
                       style: TextStyle(color: textColor, fontSize: 14),
                       decoration: InputDecoration(
-                        hintText: 'Cari nama guru...',
+                        hintText: 'Cari guru di kelas ${widget.className}...',
                         hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                         prefixIcon: Icon(
                           Icons.search_rounded,
@@ -131,179 +246,22 @@ class _StudentChatListPageState extends State<StudentChatListPage> {
                   ),
                 ),
 
-                // Daftar Guru
-                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance
-                      .collection('schools')
-                      .doc(widget.schoolId)
-                      .collection('teachers')
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return SliverFillRemaining(
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: isDark
-                                ? Colors.white
-                                : const Color(0xFF8B5CF6),
-                          ),
-                        ),
-                      );
-                    }
-
-                    final teachers = (snapshot.data?.docs ?? []).where((doc) {
-                      final name = (doc.data()['nama'] ?? '')
-                          .toString()
-                          .toLowerCase();
-                      return name.contains(_searchQuery);
-                    }).toList();
-
-                    if (teachers.isEmpty) {
-                      return SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: Text(
-                            'Tidak ada guru ditemukan.',
-                            style: TextStyle(color: subTextColor),
-                          ),
-                        ),
-                      );
-                    }
-
-                    return SliverPadding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
-                      ),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final doc = teachers[index];
-                          final data = doc.data();
-                          final teacherId = doc.id;
-                          final teacherName = data['nama'] ?? 'Guru';
-                          final subject =
-                              data['mataPelajaran'] ?? data['mapel'] ?? '';
-                          final chatRoomId = _chatService.getChatRoomId(
-                            teacherId,
-                            widget.studentDocId,
-                          );
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () {
-                                  // Simpan metadata chat room dulu
-                                  FirebaseFirestore.instance
-                                      .collection('schools')
-                                      .doc(widget.schoolId)
-                                      .collection('chats')
-                                      .doc(chatRoomId)
-                                      .set({
-                                        'chatRoomId': chatRoomId,
-                                        'teacherId': teacherId,
-                                        'teacherName': teacherName,
-                                        'studentId': widget.studentDocId,
-                                        'studentName': widget.studentName,
-                                        'className': widget.className,
-                                      }, SetOptions(merge: true));
-
-                                  Get.to(
-                                    () => ChatRoomPage(
-                                      schoolId: widget.schoolId,
-                                      chatRoomId: chatRoomId,
-                                      currentUserId: widget.studentDocId,
-                                      currentUserName: widget.studentName,
-                                      currentUserRole: 'student',
-                                      otherUserName: teacherName,
-                                    ),
-                                  );
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: cardBg,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: cardBorder),
-                                    boxShadow: isDark
-                                        ? []
-                                        : [
-                                            BoxShadow(
-                                              color: Colors.black.withValues(
-                                                alpha: 0.04,
-                                              ),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 48,
-                                        height: 48,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: const Color(
-                                            0xFF8B5CF6,
-                                          ).withValues(alpha: 0.15),
-                                          border: Border.all(
-                                            color: const Color(
-                                              0xFF8B5CF6,
-                                            ).withValues(alpha: 0.4),
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.person_rounded,
-                                          color: Color(0xFF8B5CF6),
-                                          size: 24,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              teacherName,
-                                              style: TextStyle(
-                                                color: textColor,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            if (subject.isNotEmpty)
-                                              Text(
-                                                subject,
-                                                style: TextStyle(
-                                                  color: subTextColor,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      Icon(
-                                        Icons.chat_bubble_outline_rounded,
-                                        color: const Color(
-                                          0xFF8B5CF6,
-                                        ).withValues(alpha: 0.6),
-                                        size: 20,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }, childCount: teachers.length),
-                      ),
-                    );
-                  },
-                ),
+                if (_searchQuery.isNotEmpty)
+                  _buildSearchResults(
+                    isDark: isDark,
+                    textColor: textColor,
+                    subTextColor: subTextColor,
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                  )
+                else
+                  _buildChatHistory(
+                    isDark: isDark,
+                    textColor: textColor,
+                    subTextColor: subTextColor,
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                  ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 40)),
               ],
@@ -312,5 +270,377 @@ class _StudentChatListPageState extends State<StudentChatListPage> {
         );
       },
     );
+  }
+
+  Widget _buildChatHistory({
+    required bool isDark,
+    required Color textColor,
+    required Color subTextColor,
+    required Color cardBg,
+    required Color cardBorder,
+  }) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _chatService.getStudentChatRooms(
+        schoolId: widget.schoolId,
+        studentId: widget.studentDocId,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SliverFillRemaining(
+            child: Center(
+              child: CircularProgressIndicator(
+                color: isDark ? Colors.white : const Color(0xFF8B5CF6),
+              ),
+            ),
+          );
+        }
+
+        final chats = (snapshot.data?.docs ?? [])
+            .where((doc) {
+              final lastMessage = (doc.data()['lastMessage'] ?? '').toString();
+              return lastMessage.isNotEmpty;
+            })
+            .toList()
+          ..sort((a, b) {
+            final aTime = a.data()['lastMessageTime'] as Timestamp?;
+            final bTime = b.data()['lastMessageTime'] as Timestamp?;
+            if (aTime == null && bTime == null) return 0;
+            if (aTime == null) return 1;
+            if (bTime == null) return -1;
+            return bTime.compareTo(aTime);
+          });
+
+        if (chats.isEmpty) {
+          return SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 64,
+                    color: subTextColor.withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Belum ada riwayat chat.\nCari guru di kelas Anda untuk memulai.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: subTextColor, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final data = chats[index].data();
+              final chatRoomId = data['chatRoomId'] ?? chats[index].id;
+              final teacherName = data['teacherName'] ?? 'Guru';
+              final lastMessage = data['lastMessage'] ?? '';
+              final lastTime = data['lastMessageTime'] as Timestamp?;
+              final timeStr =
+                  lastTime != null ? _formatTime(lastTime.toDate()) : '';
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () {
+                      Get.to(
+                        () => ChatRoomPage(
+                          schoolId: widget.schoolId,
+                          chatRoomId: chatRoomId,
+                          currentUserId: widget.studentDocId,
+                          currentUserName: widget.studentName,
+                          currentUserRole: 'student',
+                          otherUserName: teacherName,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: cardBorder),
+                        boxShadow: isDark
+                            ? []
+                            : [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF8B5CF6)
+                                  .withValues(alpha: 0.15),
+                              border: Border.all(
+                                color: const Color(0xFF8B5CF6)
+                                    .withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.person_rounded,
+                              color: Color(0xFF8B5CF6),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        teacherName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: textColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      timeStr,
+                                      style: TextStyle(
+                                        color: subTextColor,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  lastMessage,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: subTextColor,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          StreamBuilder<int>(
+                            stream: _chatService.getUnreadCount(
+                              schoolId: widget.schoolId,
+                              chatRoomId: chatRoomId,
+                              currentUserId: widget.studentDocId,
+                            ),
+                            builder: (context, unreadSnap) {
+                              final count = unreadSnap.data ?? 0;
+                              if (count == 0) {
+                                return const SizedBox.shrink();
+                              }
+                              return Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8B5CF6),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '$count',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }, childCount: chats.length),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchResults({
+    required bool isDark,
+    required Color textColor,
+    required Color subTextColor,
+    required Color cardBg,
+    required Color cardBorder,
+  }) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _scheduleService.getSchedulesByClassName(
+        widget.schoolId,
+        widget.className,
+      ),
+      builder: (context, scheduleSnap) {
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('schools')
+              .doc(widget.schoolId)
+              .collection('classes')
+              .where('namaKelas', isEqualTo: widget.className)
+              .snapshots(),
+          builder: (context, classSnap) {
+            if (scheduleSnap.connectionState == ConnectionState.waiting ||
+                classSnap.connectionState == ConnectionState.waiting) {
+              return SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: isDark ? Colors.white : const Color(0xFF8B5CF6),
+                  ),
+                ),
+              );
+            }
+
+            final teachers = _buildClassTeachers(
+              scheduleDocs: scheduleSnap.data?.docs ?? [],
+              classDocs: classSnap.data?.docs ?? [],
+            );
+
+            if (teachers.isEmpty) {
+              return SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Text(
+                    'Tidak ada guru ditemukan di kelas ${widget.className}.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: subTextColor, fontSize: 14),
+                  ),
+                ),
+              );
+            }
+
+            return SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final teacher = teachers[index];
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => _openChat(
+                          teacherId: teacher.teacherId,
+                          teacherName: teacher.teacherName,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: cardBorder),
+                            boxShadow: isDark
+                                ? []
+                                : [
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.04),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF8B5CF6)
+                                      .withValues(alpha: 0.15),
+                                  border: Border.all(
+                                    color: const Color(0xFF8B5CF6)
+                                        .withValues(alpha: 0.4),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.person_rounded,
+                                  color: Color(0xFF8B5CF6),
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      teacher.teacherName,
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    if (teacher.subject.isNotEmpty)
+                                      Text(
+                                        teacher.subject,
+                                        style: TextStyle(
+                                          color: subTextColor,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chat_bubble_outline_rounded,
+                                color: const Color(0xFF8B5CF6)
+                                    .withValues(alpha: 0.6),
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }, childCount: teachers.length),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    final now = DateTime.now();
+    if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
+    return '${dt.day}/${dt.month}';
   }
 }

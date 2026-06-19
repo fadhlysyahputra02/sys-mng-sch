@@ -4,15 +4,21 @@ class ClassModel {
   final String id;
   final String schoolId;
   final String namaKelas;
-  final String? waliKelasId;
+  // Field di Firestore adalah 'teacherId' (lihat class_service.dart)
+  final String? teacherId;
+  final String? teacherName;
   final bool aktif;
   final Timestamp? createdAt;
+
+  // Backward compat getter
+  String? get waliKelasId => teacherId;
 
   ClassModel({
     required this.id,
     required this.schoolId,
     required this.namaKelas,
-    this.waliKelasId,
+    this.teacherId,
+    this.teacherName,
     required this.aktif,
     this.createdAt,
   });
@@ -24,7 +30,8 @@ class ClassModel {
       id: doc.id,
       schoolId: data['schoolId'] ?? '',
       namaKelas: data['namaKelas'] ?? '',
-      waliKelasId: data['waliKelasId'],
+      teacherId: data['teacherId'],
+      teacherName: data['teacherName'],
       aktif: data['aktif'] ?? true,
       createdAt: data['createdAt'],
     );
@@ -34,7 +41,8 @@ class ClassModel {
     return {
       'schoolId': schoolId,
       'namaKelas': namaKelas,
-      'waliKelasId': waliKelasId,
+      'teacherId': teacherId,
+      'teacherName': teacherName,
       'aktif': aktif,
       'createdAt': createdAt,
     };

@@ -9,6 +9,7 @@ import '../../../core/services/user_service.dart';
 import '../../schools/services/school_service.dart';
 import '../widgets/auth_background.dart';
 import '../widgets/theme_toggle_button.dart';
+import 'parent_register_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -325,6 +326,11 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _onRegister() async {
+    if (selectedRole == 'parent') {
+      Get.to(() => const ParentRegisterPage());
+      return;
+    }
+
     if (kIsWeb && selectedRole != 'school_admin') {
       _showError('Website registration access is only permitted for School Administrators.');
       return;
@@ -811,11 +817,21 @@ class _RegisterPageState extends State<RegisterPage> {
                                       icon: Icons.school_rounded,
                                       value: 'teacher',
                                     ),
-                                    const SizedBox(width: 12),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
                                     _buildRoleCard(
                                       title: 'Student',
                                       icon: Icons.face_rounded,
                                       value: 'student',
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _buildRoleCard(
+                                      title: 'Orang Tua',
+                                      icon: Icons.family_restroom_rounded,
+                                      value: 'parent',
                                     ),
                                   ],
                                 ),
@@ -825,7 +841,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           ],
 
                           // Pilihan Sekolah (InkWell Selector dengan BottomSheet Pencarian)
-                          _loadingSekolah
+                          if (selectedRole != 'parent')
+                            _loadingSekolah
                               ? const Center(
                                   child: Padding(
                                     padding: EdgeInsets.all(12.0),
@@ -878,7 +895,39 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                 ),
 
-                          const SizedBox(height: 18),
+                          if (selectedRole != 'parent') const SizedBox(height: 18),
+
+                          if (selectedRole == 'parent') ...[
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.qr_code_scanner_rounded,
+                                    color: Color(0xFF8B5CF6),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Daftar sebagai orang tua memerlukan scan QR dari akun anak. Tap tombol di bawah untuk melanjutkan.',
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                          ],
 
                           // ── Fields Khusus Admin Sekolah ──
                           if (selectedRole == 'school_admin') ...[
@@ -983,7 +1032,8 @@ class _RegisterPageState extends State<RegisterPage> {
                             const SizedBox(height: 18),
                           ],
 
-                          // ── Email & Password (Semua Role) ──
+                          // ── Email & Password (Semua Role kecuali Orang Tua) ──
+                          if (selectedRole != 'parent') ...[
                           TextField(
                             controller: emailController,
                             style: TextStyle(color: textColor),
@@ -1102,6 +1152,9 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
 
                           const SizedBox(height: 32),
+                          ],
+
+                          if (selectedRole == 'parent') const SizedBox(height: 32),
 
                           // Tombol Register
                           Container(
@@ -1140,9 +1193,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                       ),
                                     )
-                                  : const Text(
-                                      'REGISTER',
-                                      style: TextStyle(
+                                  : Text(
+                                      selectedRole == 'parent'
+                                          ? 'LANJUT DAFTAR ORANG TUA'
+                                          : 'REGISTER',
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,

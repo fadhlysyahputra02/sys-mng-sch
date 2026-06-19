@@ -81,6 +81,8 @@ class ChatService {
     required String chatRoomId,
     required String currentUserId,
   }) async {
+    // Query hanya berdasarkan isRead (1 where clause = no composite index needed)
+    // Filter senderId di client-side
     final messages = await _firestore
         .collection('schools')
         .doc(schoolId)
@@ -88,17 +90,22 @@ class ChatService {
         .doc(chatRoomId)
         .collection('messages')
         .where('isRead', isEqualTo: false)
-        .where('senderId', isNotEqualTo: currentUserId)
         .get();
 
     final batch = _firestore.batch();
+    var hasUpdates = false;
     for (final doc in messages.docs) {
-      batch.update(doc.reference, {'isRead': true});
+      // Hanya tandai pesan dari orang lain
+      if (doc.data()['senderId'] != currentUserId) {
+        batch.update(doc.reference, {'isRead': true});
+        hasUpdates = true;
+      }
     }
-    await batch.commit();
+    if (hasUpdates) await batch.commit();
   }
 
   /// Hitung unread messages untuk satu chat room
+  /// Query hanya isRead=false, filter senderId di client-side (no composite index)
   Stream<int> getUnreadCount({
     required String schoolId,
     required String chatRoomId,
@@ -111,8 +118,22 @@ class ChatService {
         .doc(chatRoomId)
         .collection('messages')
         .where('isRead', isEqualTo: false)
-        .where('senderId', isNotEqualTo: currentUserId)
         .snapshots()
-        .map((snap) => snap.docs.length);
+        .map((snap) => snap.docs
+            .where((doc) => doc.data()['senderId'] != currentUserId)
+            .length);
+  }
+
+  /// Stream daftar chat room untuk murid (berdasarkan studentId)
+  Stream<QuerySnapshot<Map<String, dynamic>>> getStudentChatRooms({
+    required String schoolId,
+    required String studentId,
+  }) {
+    return _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('chats')
+        .where('studentId', isEqualTo: studentId)
+        .snapshots();
   }
 }
