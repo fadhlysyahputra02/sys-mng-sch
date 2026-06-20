@@ -235,7 +235,7 @@ class _QrScanPageState extends State<QrScanPage>
         }
       }
 
-      await _repo.scanAttendance(
+      final isLate = await _repo.scanAttendance(
         schoolId: user.schoolId,
         studentId: studentId,
         studentName: studentName,
@@ -245,7 +245,6 @@ class _QrScanPageState extends State<QrScanPage>
       );
 
       final now = DateTime.now();
-      final isLate = now.hour > 7 || (now.hour == 7 && now.minute > 15);
       final timeStr =
           '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
@@ -337,7 +336,7 @@ class _QrScanPageState extends State<QrScanPage>
                       SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          'Arahkan ke QR Code siswa. Otomatis Terlambat jika > 07:15',
+                          'Arahkan ke QR Code siswa.',
                           style: TextStyle(color: Colors.white70, fontSize: 12),
                           textAlign: TextAlign.center,
                         ),

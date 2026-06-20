@@ -5,7 +5,7 @@ class OfficerRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // 1. Catat absensi via QR Scan
-  Future<void> scanAttendance({
+  Future<bool> scanAttendance({
     required String schoolId,
     required String studentId,
     required String studentName,
@@ -14,8 +14,35 @@ class OfficerRepository {
     required String officerId,
   }) async {
     final now = DateTime.now();
-    // Jika lewat dari 07:15, maka terlambat
-    final isLate = now.hour > 7 || (now.hour == 7 && now.minute > 15);
+    
+    // Ambil jamMasuk dari database sekolah
+    String jamMasukLimit = '07:15';
+    try {
+      final schoolDoc = await _firestore.collection('schools').doc(schoolId).get();
+      if (schoolDoc.exists) {
+        jamMasukLimit = schoolDoc.data()?['jamMasuk'] ?? '07:15';
+      }
+    } catch (_) {}
+
+    // Hitung apakah terlambat berdasarkan jamMasukLimit
+    bool isLate = false;
+    try {
+      final parts = jamMasukLimit.split(':');
+      if (parts.length == 2) {
+        final limitHour = int.parse(parts[0]);
+        final limitMinute = int.parse(parts[1]);
+        
+        final currentMinutes = now.hour * 60 + now.minute;
+        final limitMinutes = limitHour * 60 + limitMinute;
+        
+        isLate = currentMinutes > limitMinutes;
+      } else {
+        isLate = now.hour > 7 || (now.hour == 7 && now.minute > 15);
+      }
+    } catch (_) {
+      isLate = now.hour > 7 || (now.hour == 7 && now.minute > 15);
+    }
+
     final status = isLate ? 'terlambat' : 'hadir';
 
     await _saveAttendance(
@@ -29,6 +56,8 @@ class OfficerRepository {
       method: 'qr_scan',
       timeScanned: now,
     );
+    
+    return isLate;
   }
 
   // 2. Catat absensi Manual
@@ -86,7 +115,11 @@ class OfficerRepository {
       officerId: officerId,
       schoolId: schoolId,
     );
-    batch.set(logRef, logModel.toMap());
+    final logData = logModel.toMap();
+    logData['expireAt'] = Timestamp.fromDate(
+      DateTime.now().add(const Duration(days: 365 * 5)),
+    );
+    batch.set(logRef, logData);
 
     // b. Simpan ke daily_attendance
     // Format docId: date_studentId supaya mudah di query & mencegah duplicate entry
@@ -107,6 +140,9 @@ class OfficerRepository {
       'status': status,
       'method': method,
       'officerId': officerId,
+      'expireAt': Timestamp.fromDate(
+        DateTime.now().add(const Duration(days: 365 * 5)),
+      ),
     }, SetOptions(merge: true));
 
     await batch.commit();

@@ -16,6 +16,8 @@ class _AddStudentPageState extends State<AddStudentPage> {
 
   final namaController = TextEditingController();
   final nisController = TextEditingController();
+  final addressController = TextEditingController();
+  String? _selectedGender;
 
   bool isLoading = false;
 
@@ -31,6 +33,8 @@ class _AddStudentPageState extends State<AddStudentPage> {
         schoolId: widget.schoolId,
         nis: nisController.text.trim(),
         nama: namaController.text.trim(),
+        gender: _selectedGender ?? '',
+        alamat: addressController.text.trim(),
       );
 
       if (!mounted) return;
@@ -60,6 +64,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
   void dispose() {
     namaController.dispose();
     nisController.dispose();
+    addressController.dispose();
     super.dispose();
   }
 
@@ -178,6 +183,51 @@ class _AddStudentPageState extends State<AddStudentPage> {
                             borderColor: borderColor,
                             validator: (v) => (v == null || v.isEmpty) ? 'NIS wajib diisi' : null,
                           ),
+                          const SizedBox(height: 14),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: cardBgColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: borderColor),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedGender,
+                              decoration: InputDecoration(
+                                labelText: 'Jenis Kelamin',
+                                labelStyle: TextStyle(color: subTextColor, fontSize: 14),
+                                prefixIcon: const Icon(Icons.wc_rounded, color: Color(0xFF0EA5E9), size: 20),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                              dropdownColor: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+                              style: TextStyle(color: textColor, fontSize: 15),
+                              items: ['Laki-laki', 'Perempuan'].map((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                              onChanged: (newValue) {
+                                setState(() {
+                                  _selectedGender = newValue;
+                                });
+                              },
+                              validator: (v) => (v == null || v.isEmpty) ? 'Pilih jenis kelamin' : null,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _buildField(
+                            controller: addressController,
+                            label: 'Alamat',
+                            icon: Icons.home_outlined,
+                            isDark: isDark,
+                            textColor: textColor,
+                            subTextColor: subTextColor,
+                            cardBgColor: cardBgColor,
+                            borderColor: borderColor,
+                            maxLines: 3,
+                          ),
 
                           const SizedBox(height: 32),
 
@@ -239,6 +289,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
     required Color subTextColor,
     required Color cardBgColor,
     required Color borderColor,
+    int maxLines = 1,
     String? Function(String?)? validator,
   }) {
     return Container(
@@ -251,13 +302,14 @@ class _AddStudentPageState extends State<AddStudentPage> {
         controller: controller,
         keyboardType: keyboardType,
         validator: validator,
+        maxLines: maxLines,
         style: TextStyle(color: textColor, fontSize: 15),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: subTextColor, fontSize: 14),
           prefixIcon: Icon(icon, color: const Color(0xFF0EA5E9), size: 20),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 12 : 16),
         ),
       ),
     );

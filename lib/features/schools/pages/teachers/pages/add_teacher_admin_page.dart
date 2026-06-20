@@ -16,6 +16,8 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
 
   final namaController = TextEditingController();
   final nipController = TextEditingController();
+  final addressController = TextEditingController();
+  String? _selectedGender;
 
   bool isLoading = false;
 
@@ -58,6 +60,8 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
         'email': '',
         'nip': nip,
         'nama': namaController.text.trim(),
+        'gender': _selectedGender ?? '',
+        'alamat': addressController.text.trim(),
         'aktif': true,
         'sudahRegister': false,
         'createdAt': FieldValue.serverTimestamp(),
@@ -86,6 +90,7 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
   void dispose() {
     namaController.dispose();
     nipController.dispose();
+    addressController.dispose();
     super.dispose();
   }
 
@@ -203,6 +208,51 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                             borderColor: borderColor,
                             validator: (v) => (v == null || v.isEmpty) ? 'NIP wajib diisi' : null,
                           ),
+                          const SizedBox(height: 14),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: cardBgColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: borderColor),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedGender,
+                              decoration: InputDecoration(
+                                labelText: 'Jenis Kelamin',
+                                labelStyle: TextStyle(color: subTextColor, fontSize: 14),
+                                prefixIcon: const Icon(Icons.wc_rounded, color: Color(0xFF6366F1), size: 20),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                              dropdownColor: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+                              style: TextStyle(color: textColor, fontSize: 15),
+                              items: ['Laki-laki', 'Perempuan'].map((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                              onChanged: (newValue) {
+                                setState(() {
+                                  _selectedGender = newValue;
+                                });
+                              },
+                              validator: (v) => (v == null || v.isEmpty) ? 'Pilih jenis kelamin' : null,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _buildField(
+                            controller: addressController,
+                            label: 'Alamat',
+                            icon: Icons.home_outlined,
+                            isDark: isDark,
+                            textColor: textColor,
+                            subTextColor: subTextColor,
+                            cardBgColor: cardBgColor,
+                            borderColor: borderColor,
+                            maxLines: 3,
+                          ),
 
                           const SizedBox(height: 32),
 
@@ -263,6 +313,7 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
     required Color subTextColor,
     required Color cardBgColor,
     required Color borderColor,
+    int maxLines = 1,
     String? Function(String?)? validator,
   }) {
     return Container(
@@ -274,13 +325,14 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
       child: TextFormField(
         controller: controller,
         validator: validator,
+        maxLines: maxLines,
         style: TextStyle(color: textColor, fontSize: 15),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: subTextColor, fontSize: 14),
           prefixIcon: Icon(icon, color: const Color(0xFF6366F1), size: 20),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 12 : 16),
         ),
       ),
     );

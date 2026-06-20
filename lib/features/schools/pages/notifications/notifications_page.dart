@@ -140,6 +140,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       case 'super_admin':
         return 'Super Admin';
       case 'school_admin':
+      case 'tu':
         return 'Admin Sekolah';
       case 'teacher':
         return 'Guru';
@@ -173,7 +174,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   bool _canDeleteNotification(Map<String, dynamic> data) {
     final user = SessionService.currentUser!;
-    if (user.role == 'super_admin' || user.role == 'school_admin') {
+    if (user.role == 'super_admin' || user.role == 'school_admin' || user.role == 'tu') {
       return true;
     }
     if (user.role == 'teacher') {
@@ -190,7 +191,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final role = user.role;
 
     final isStudent = role == 'student';
-    final tabLength = isStudent ? 3 : 4;
+    final tabLength = 4;
 
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
@@ -275,16 +276,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     unselectedLabelColor: unselectedLabelColor,
                     labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                     unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
-                    tabs: [
-                      const Tab(text: 'Semua (Umum)', icon: Icon(Icons.campaign_outlined, size: 20)),
-                      const Tab(text: 'Kelas', icon: Icon(Icons.class_outlined, size: 20)),
-                      const Tab(text: 'Guru', icon: Icon(Icons.person_outline, size: 20)),
-                      if (!isStudent)
-                        const Tab(text: 'Murid', icon: Icon(Icons.school_outlined, size: 20)),
+                    tabs: const [
+                      Tab(text: 'Semua (Umum)', icon: Icon(Icons.campaign_outlined, size: 20)),
+                      Tab(text: 'Kelas', icon: Icon(Icons.class_outlined, size: 20)),
+                      Tab(text: 'Guru', icon: Icon(Icons.person_outline, size: 20)),
+                      Tab(text: 'Murid', icon: Icon(Icons.school_outlined, size: 20)),
                     ],
                   ),
                 ),
-                floatingActionButton: (role == 'super_admin' || role == 'school_admin' || role == 'teacher')
+                floatingActionButton: (role == 'super_admin' || role == 'school_admin' || role == 'tu' || role == 'teacher')
                     ? FloatingActionButton.extended(
                         onPressed: () {
                           Get.to(() => CreateNotificationPage(
@@ -344,7 +344,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
                       bool keep = false;
 
-                      if (role == 'super_admin' || role == 'school_admin') {
+                      if (role == 'super_admin' || role == 'school_admin' || role == 'tu') {
                         keep = true;
                       } else if (role == 'teacher') {
                         if (senderId == user.uid) {
@@ -388,16 +388,20 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         _buildNotificationList(
                           context,
                           isStudent
-                              ? filteredDocs.where((doc) => doc.data()['targetType'] == 'murid' && doc.data()['senderRole'] == 'teacher').toList()
+                              ? filteredDocs.where((doc) =>
+                                  doc.data()['targetType'] == 'guru' ||
+                                  (doc.data()['targetType'] == 'murid' && doc.data()['senderRole'] == 'teacher')).toList()
                               : filteredDocs.where((doc) => doc.data()['targetType'] == 'guru').toList(),
                           'guru',
                         ),
-                        if (!isStudent)
-                          _buildNotificationList(
-                            context,
-                            filteredDocs.where((doc) => doc.data()['targetType'] == 'murid').toList(),
-                            'murid',
-                          ),
+                        _buildNotificationList(
+                          context,
+                          isStudent
+                              ? filteredDocs.where((doc) =>
+                                  doc.data()['targetType'] == 'murid' && doc.data()['senderRole'] != 'teacher').toList()
+                              : filteredDocs.where((doc) => doc.data()['targetType'] == 'murid').toList(),
+                          'murid',
+                        ),
                       ],
                     );
                   },

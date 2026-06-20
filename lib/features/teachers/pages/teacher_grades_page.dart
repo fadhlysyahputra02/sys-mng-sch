@@ -511,7 +511,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                             final className = data['className'] ?? 'Kelas';
                             final subjectName = data['subjectName'] ?? 'Pelajaran';
                             final dateStr = data['date'] ?? '-';
-                            final maxScore = (data['maxScore'] ?? 100.0) as double;
+                            final maxScore = ((data['maxScore'] ?? 100.0) as num).toDouble();
 
                             // Hitung rata-rata nilai
                             final scores = data['scores'] as Map<String, dynamic>? ?? {};
@@ -519,7 +519,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                             int count = 0;
                             scores.forEach((key, detail) {
                               if (detail is Map) {
-                                sum += (detail['score'] ?? 0.0) as double;
+                                sum += ((detail['score'] ?? 0.0) as num).toDouble();
                                 count++;
                               }
                             });

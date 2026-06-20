@@ -26,6 +26,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
   void _showEditDialog() {
     final namaController = TextEditingController(text: student['nama']);
     final nisController = TextEditingController(text: student['nis']);
+    final alamatController = TextEditingController(text: student['alamat']);
+    String? selectedGender = (student['gender'] == 'Laki-laki' || student['gender'] == 'Perempuan') ? student['gender'] : null;
     final isDark = AuthBackground.isDarkMode.value;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
@@ -41,8 +43,10 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             side: BorderSide(color: borderColor, width: 1.5),
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          content: StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 56,
@@ -74,9 +78,49 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 icon: Icons.badge_outlined,
                 keyboardType: TextInputType.number,
               ),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: borderColor),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: DropdownButtonFormField<String>(
+                  value: selectedGender,
+                  decoration: InputDecoration(
+                    labelText: 'Jenis Kelamin',
+                    labelStyle: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65)),
+                    prefixIcon: Icon(Icons.wc_rounded, color: isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65), size: 20),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  dropdownColor: dialogBg,
+                  style: TextStyle(color: textColor, fontSize: 15),
+                  items: ['Laki-laki', 'Perempuan'].map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setStateDialog(() {
+                      selectedGender = newValue;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildDialogField(
+                controller: alamatController,
+                label: 'Alamat',
+                icon: Icons.home_outlined,
+                capitalization: TextCapitalization.sentences,
+              ),
             ],
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          );
+        }),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           actions: [
             Row(
               children: [
@@ -103,17 +147,23 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                     onPressed: () async {
                       final newNama = namaController.text.trim();
                       final newNis = nisController.text.trim();
+                      final newAlamat = alamatController.text.trim();
+                      final newGender = selectedGender ?? '';
                       if (newNama.isEmpty || newNis.isEmpty) return;
 
                       await _studentService.updateStudent(
                         studentId: student['studentId'],
                         nama: newNama,
                         nis: newNis,
+                        gender: newGender,
+                        alamat: newAlamat,
                       );
 
                       setState(() {
                         student['nama'] = newNama;
                         student['nis'] = newNis;
+                        student['gender'] = newGender;
+                        student['alamat'] = newAlamat;
                       });
 
                       if (ctx.mounted) {
@@ -723,6 +773,30 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                                 label: 'Kelas',
                                 value: hasClass ? className : 'Belum ditentukan',
                                 valueColor: hasClass ? textColor : subTextColor.withValues(alpha: 0.5),
+                                textColor: textColor,
+                                subTextColor: subTextColor,
+                                showDivider: true,
+                                dividerColor: dividerColor,
+                              ),
+                              // Jenis Kelamin
+                              _infoTile(
+                                icon: Icons.wc_rounded,
+                                iconColor: const Color(0xFF8B5CF6),
+                                label: 'Jenis Kelamin',
+                                value: (student['gender'] ?? '').toString().isEmpty ? '-' : student['gender'],
+                                valueColor: textColor,
+                                textColor: textColor,
+                                subTextColor: subTextColor,
+                                showDivider: true,
+                                dividerColor: dividerColor,
+                              ),
+                              // Alamat
+                              _infoTile(
+                                icon: Icons.home_outlined,
+                                iconColor: const Color(0xFFF59E0B),
+                                label: 'Alamat',
+                                value: (student['alamat'] ?? '').toString().isEmpty ? '-' : student['alamat'],
+                                valueColor: textColor,
                                 textColor: textColor,
                                 subTextColor: subTextColor,
                                 showDivider: true,

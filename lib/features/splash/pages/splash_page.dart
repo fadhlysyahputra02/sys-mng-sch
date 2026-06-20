@@ -97,7 +97,11 @@ class _SplashPageState extends State<SplashPage>
           Get.offAllNamed(AppRoutes.student);
           break;
         case 'parent':
-          Get.offAllNamed(AppRoutes.parent);
+          if (userData['schoolId'] == null || (userData['schoolId'] as String).isEmpty) {
+            Get.offAllNamed(AppRoutes.parentRegister, arguments: {'showScanner': true});
+          } else {
+            Get.offAllNamed(AppRoutes.parent);
+          }
           break;
         case 'officer':
           Get.offAllNamed(AppRoutes.officerDashboard);

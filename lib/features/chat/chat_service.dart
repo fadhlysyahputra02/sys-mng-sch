@@ -14,13 +14,14 @@ class ChatService {
     required String chatRoomId,
     required String senderId,
     required String senderName,
-    required String senderRole, // 'teacher' atau 'student'
+    required String senderRole, // 'teacher' atau 'student' atau 'parent'
     required String message,
+    String collectionName = 'chats',
   }) async {
     await _firestore
         .collection('schools')
         .doc(schoolId)
-        .collection('chats')
+        .collection(collectionName)
         .doc(chatRoomId)
         .collection('messages')
         .add({
@@ -36,7 +37,7 @@ class ChatService {
     await _firestore
         .collection('schools')
         .doc(schoolId)
-        .collection('chats')
+        .collection(collectionName)
         .doc(chatRoomId)
         .set({
           'chatRoomId': chatRoomId,
@@ -51,11 +52,12 @@ class ChatService {
   Stream<QuerySnapshot<Map<String, dynamic>>> getMessages({
     required String schoolId,
     required String chatRoomId,
+    String collectionName = 'chats',
   }) {
     return _firestore
         .collection('schools')
         .doc(schoolId)
-        .collection('chats')
+        .collection(collectionName)
         .doc(chatRoomId)
         .collection('messages')
         .orderBy('timestamp', descending: false)
@@ -80,13 +82,14 @@ class ChatService {
     required String schoolId,
     required String chatRoomId,
     required String currentUserId,
+    String collectionName = 'chats',
   }) async {
     // Query hanya berdasarkan isRead (1 where clause = no composite index needed)
     // Filter senderId di client-side
     final messages = await _firestore
         .collection('schools')
         .doc(schoolId)
-        .collection('chats')
+        .collection(collectionName)
         .doc(chatRoomId)
         .collection('messages')
         .where('isRead', isEqualTo: false)
@@ -110,11 +113,12 @@ class ChatService {
     required String schoolId,
     required String chatRoomId,
     required String currentUserId,
+    String collectionName = 'chats',
   }) {
     return _firestore
         .collection('schools')
         .doc(schoolId)
-        .collection('chats')
+        .collection(collectionName)
         .doc(chatRoomId)
         .collection('messages')
         .where('isRead', isEqualTo: false)

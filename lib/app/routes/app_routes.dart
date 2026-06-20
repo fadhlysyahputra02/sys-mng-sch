@@ -19,6 +19,7 @@ class AppRoutes {
   static const parentAttendance = '/parent-attendance';
   static const parentGrades = '/parent-grades';
   static const parentViolations = '/parent-violations';
+  static const parentChat = '/parent-chat';
 
   // Route untuk officer
   static const officerDashboard = '/officer/dashboard';
@@ -26,6 +27,9 @@ class AppRoutes {
   static const officerManual = '/officer/manual';
   static const officerRecap = '/officer/recap';
   static const officerMonthlyRecap = '/officer/monthly-recap';
+
+  // Route untuk TU (Tata Usaha)
+  static const tuDashboard = '/tu/dashboard';
 
   // Route untuk fitur lainnya.
   static const classList = '/class-list';

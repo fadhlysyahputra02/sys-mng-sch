@@ -16,6 +16,7 @@ import '../../features/parent/pages/parent_dashboard_page.dart';
 import '../../features/parent/pages/parent_attendance_page.dart';
 import '../../features/parent/pages/parent_grades_page.dart';
 import '../../features/parent/pages/parent_violation_page.dart';
+import '../../features/parent/pages/parent_chat_list_page.dart';
 import '../../features/authentication/pages/parent_register_page.dart';
 import '../../features/schools/pages/notifications/notifications_page.dart';
 import '../../features/schools/pages/dashboard/premium_features_page.dart';
@@ -24,6 +25,7 @@ import '../../features/officer/pages/qr_scan_page.dart';
 import '../../features/officer/pages/manual_attendance_page.dart';
 import '../../features/officer/pages/daily_recap_page.dart';
 import '../../features/officer/pages/monthly_recap_page.dart';
+import '../../features/tu/pages/tu_dashboard_page.dart';
 
 import 'app_routes.dart';
 
@@ -65,6 +67,19 @@ class AppPages {
       page: () => const ParentViolationPage(),
     ),
     GetPage(
+      name: AppRoutes.parentChat,
+      page: () {
+        final args = Get.arguments as Map<String, dynamic>? ?? {};
+        return ParentChatListPage(
+          schoolId: args['schoolId'] ?? '',
+          parentDocId: args['parentDocId'] ?? '',
+          parentName: args['parentName'] ?? '',
+          studentName: args['studentName'] ?? '',
+          className: args['className'] ?? '',
+        );
+      },
+    ),
+    GetPage(
       name: AppRoutes.parentRegister,
       page: () => const ParentRegisterPage(),
     ),
@@ -98,6 +113,9 @@ class AppPages {
     GetPage(name: AppRoutes.officerManual, page: () => const ManualAttendancePage()),
     GetPage(name: AppRoutes.officerRecap, page: () => const DailyRecapPage()),
     GetPage(name: AppRoutes.officerMonthlyRecap, page: () => const MonthlyRecapPage()),
+
+    // Route untuk TU
+    GetPage(name: AppRoutes.tuDashboard, page: () => const TuDashboardPage()),
   ];
 }
 

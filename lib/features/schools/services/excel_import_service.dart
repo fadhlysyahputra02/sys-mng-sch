@@ -30,6 +30,16 @@ class ExcelImportService {
     return str;
   }
 
+  String _parseGender(String val) {
+    final lower = val.toLowerCase().trim();
+    if (lower == 'l' || lower == 'laki-laki' || lower == 'laki') {
+      return 'Laki-laki';
+    } else if (lower == 'p' || lower == 'perempuan') {
+      return 'Perempuan';
+    }
+    return '';
+  }
+
   Future<ExcelImportResult?> importTeachers(
     String schoolId, {
     void Function()? onFileSelected,
@@ -91,6 +101,9 @@ class ExcelImportService {
 
           final nama = row.isNotEmpty ? _cleanValue(row[0]?.value) : '';
           final nip = row.length > 1 ? _cleanValue(row[1]?.value) : '';
+          final genderRaw = row.length > 2 ? _cleanValue(row[2]?.value) : '';
+          final gender = _parseGender(genderRaw);
+          final alamat = row.length > 3 ? _cleanValue(row[3]?.value) : '';
 
           // Skip completely empty rows silently (don't treat as failure)
           if (nama.isEmpty && nip.isEmpty) {
@@ -130,6 +143,8 @@ class ExcelImportService {
             'email': '',
             'nip': nip,
             'nama': nama,
+            'gender': gender,
+            'alamat': alamat,
             'aktif': true,
             'sudahRegister': false,
             'createdAt': FieldValue.serverTimestamp(),
@@ -217,6 +232,9 @@ class ExcelImportService {
 
           final nama = row.isNotEmpty ? _cleanValue(row[0]?.value) : '';
           final nis = row.length > 1 ? _cleanValue(row[1]?.value) : '';
+          final genderRaw = row.length > 2 ? _cleanValue(row[2]?.value) : '';
+          final gender = _parseGender(genderRaw);
+          final alamat = row.length > 3 ? _cleanValue(row[3]?.value) : '';
 
           // Skip completely empty rows silently (don't treat as failure)
           if (nama.isEmpty && nis.isEmpty) {
@@ -256,6 +274,8 @@ class ExcelImportService {
             'email': '',
             'nis': nis,
             'nama': nama,
+            'gender': gender,
+            'alamat': alamat,
             'classId': null,
             'aktif': true,
             'sudahRegister': false,
@@ -296,19 +316,27 @@ class ExcelImportService {
         sheetObject.appendRow([
           TextCellValue('Nama'),
           TextCellValue('NIP'),
+          TextCellValue('Jenis Kelamin (L/P)'),
+          TextCellValue('Alamat'),
         ]);
         sheetObject.appendRow([
           TextCellValue('Budi Santoso'),
           TextCellValue('199012345678901'),
+          TextCellValue('L'),
+          TextCellValue('Jl. Merdeka No. 1'),
         ]);
       } else {
         sheetObject.appendRow([
           TextCellValue('Nama'),
           TextCellValue('NIS'),
+          TextCellValue('Jenis Kelamin (L/P)'),
+          TextCellValue('Alamat'),
         ]);
         sheetObject.appendRow([
           TextCellValue('Adi Pratama'),
           TextCellValue('12345'),
+          TextCellValue('L'),
+          TextCellValue('Jl. Pahlawan No. 2'),
         ]);
       }
 

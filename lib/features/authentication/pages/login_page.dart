@@ -220,9 +220,9 @@ class _LoginPageState extends State<LoginPage> {
       debugPrint('USER DATA: $userData');
       final role = userData['role'];
 
-      if (kIsWeb && role != 'super_admin' && role != 'school_admin' && role != 'teacher' && role != 'officer') {
+      if (kIsWeb && role != 'super_admin' && role != 'school_admin' && role != 'teacher' && role != 'officer' && role != 'tu') {
         await FirebaseAuth.instance.signOut();
-        throw Exception('Website access is only permitted for Admins, Teachers, and Officers.');
+        throw Exception('Website access is only permitted for Admins, Teachers, Officers, and TU.');
       }
 
       if (!mounted) return;
@@ -252,10 +252,17 @@ class _LoginPageState extends State<LoginPage> {
           Get.offAllNamed(AppRoutes.student);
           break;
         case 'parent':
-          Get.offAllNamed(AppRoutes.parent);
+          if (userData['schoolId'] == null || (userData['schoolId'] as String).isEmpty) {
+            Get.offAllNamed(AppRoutes.parentRegister, arguments: {'showScanner': true});
+          } else {
+            Get.offAllNamed(AppRoutes.parent);
+          }
           break;
         case 'officer':
           Get.offAllNamed(AppRoutes.officerDashboard);
+          break;
+        case 'tu':
+          Get.offAllNamed(AppRoutes.tuDashboard);
           break;
         default:
           throw Exception('Unknown role');

@@ -15,6 +15,8 @@ class StudentService {
     required String schoolId,
     required String nis,
     required String nama,
+    required String gender,
+    required String alamat,
   }) async {
     // Cek NIS sudah ada atau belum dalam sekolah yang sama
     final existing = await _db
@@ -41,6 +43,8 @@ class StudentService {
       'email': '',
       'nis': nis,
       'nama': nama,
+      'gender': gender,
+      'alamat': alamat,
       'classId': null,
       'aktif': true,
       'sudahRegister': false,
@@ -101,10 +105,14 @@ class StudentService {
     required String studentId,
     required String nama,
     required String nis,
+    required String gender,
+    required String alamat,
   }) async {
     await _studentsRef.doc(studentId).update({
       'nama': nama,
       'nis': nis,
+      'gender': gender,
+      'alamat': alamat,
     });
   }
 

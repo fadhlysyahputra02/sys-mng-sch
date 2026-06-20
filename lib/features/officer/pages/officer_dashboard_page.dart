@@ -4,9 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
-import '../data/officer_repository.dart';
-import '../data/scan_log_model.dart';
-import 'package:intl/intl.dart';
 
 class OfficerDashboardPage extends StatefulWidget {
   const OfficerDashboardPage({super.key});
@@ -16,7 +13,6 @@ class OfficerDashboardPage extends StatefulWidget {
 }
 
 class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
-  final OfficerRepository _repo = OfficerRepository();
 
   void _logout() async {
     await FirebaseAuth.instance.signOut();
@@ -154,109 +150,6 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Recent Scans
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Scan Terakhir Hari Ini',
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          DateFormat('dd MMM yyyy').format(DateTime.now()),
-                          style: TextStyle(
-                            color: subTextColor,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: StreamBuilder<List<ScanLogModel>>(
-                        stream: _repo.getTodayScanLogs(user.schoolId),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
-                          }
-                          final logs = snapshot.data ?? [];
-                          if (logs.isEmpty) {
-                            return Center(
-                              child: Text(
-                                'Belum ada data scan hari ini.',
-                                style: TextStyle(color: subTextColor),
-                              ),
-                            );
-                          }
-
-                          return ListView.separated(
-                            itemCount: logs.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final log = logs[index];
-                              final isHadir = log.status == 'hadir';
-                              return Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: cardBg,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: cardBorder),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: isHadir
-                                            ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                                            : const Color(0xFFEF4444).withValues(alpha: 0.1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        isHadir ? Icons.check_circle_rounded : Icons.warning_rounded,
-                                        color: isHadir ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                                        size: 20,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            log.studentName,
-                                            style: TextStyle(
-                                              color: textColor,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Kelas: ${log.className} • ${log.method == 'qr_scan' ? 'QR' : 'Manual'}',
-                                            style: TextStyle(color: subTextColor, fontSize: 12),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      DateFormat('HH:mm').format(log.timeScanned),
-                                      style: TextStyle(
-                                        color: textColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
                   ],
                 ),
               ),

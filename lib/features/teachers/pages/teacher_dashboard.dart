@@ -6,8 +6,8 @@ import '../../../app/routes/app_routes.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
-import '../../chat/teacher_chat_list_page.dart';
 import '../../chat/teacher_chat_selector_page.dart';
+import '../../chat/widgets/chat_unread_badge.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 import '../../schools/pages/teachers/data/teacher_service.dart';
 import '../../schools/pages/teachers/data/teacher_subject_service.dart';
@@ -1297,17 +1297,33 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      menu['icon'] as IconData,
-                      color: color,
-                      size: 32,
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final container = Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          menu['icon'] as IconData,
+                          color: color,
+                          size: 32,
+                        ),
+                      );
+
+                      if (menu['title'] == 'Chat' && _teacherDocId != null) {
+                        return ChatUnreadBadge(
+                          schoolId: SessionService.currentUser!.schoolId,
+                          userId: _teacherDocId!,
+                          role: 'teacher',
+                          top: -2,
+                          right: -2,
+                          child: container,
+                        );
+                      }
+                      return container;
+                    },
                   ),
                   const SizedBox(height: 12),
                   Text(

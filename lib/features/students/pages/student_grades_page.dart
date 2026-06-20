@@ -83,14 +83,14 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
 
         final studentScoreData =
             scores[widget.studentDocId] as Map<String, dynamic>? ?? {};
-        final double score = (studentScoreData['score'] ?? 0.0) as double;
+        final double score = ((studentScoreData['score'] ?? 0.0) as num).toDouble();
         final String notes = (studentScoreData['notes'] ?? '').toString();
 
         final String subjectName = data['subjectName'] ?? 'Mata Pelajaran';
         final String subjectId = data['subjectId'] ?? '';
         final String category = data['category'] ?? 'Tugas';
         final String title = data['title'] ?? 'Penilaian';
-        final double maxScore = (data['maxScore'] ?? 100.0) as double;
+        final double maxScore = ((data['maxScore'] ?? 100.0) as num).toDouble();
         final String date = data['date'] ?? '-';
 
         if (!grouped.containsKey(subjectName)) {
@@ -150,8 +150,8 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
             if (catWeight > 0 && items.isNotEmpty) {
               double catAvg =
                   items.fold(0.0, (sum, item) {
-                    final s = (item['score'] as double);
-                    final max = (item['maxScore'] as double);
+                    final s = (item['score'] as num).toDouble();
+                    final max = (item['maxScore'] as num).toDouble();
                     return sum + (max > 0 ? (s / max) * 100 : 0);
                   }) /
                   items.length;
@@ -168,8 +168,8 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
           int count = 0;
           categories.forEach((cat, items) {
             for (final item in items) {
-              final s = (item['score'] as double);
-              final max = (item['maxScore'] as double);
+              final s = (item['score'] as num).toDouble();
+              final max = (item['maxScore'] as num).toDouble();
               totalScore += max > 0 ? (s / max) * 100 : 0;
               count++;
             }
@@ -663,9 +663,9 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                       if (items.isNotEmpty) {
                                         catAvg =
                                             items.fold(0.0, (sum, item) {
-                                              final s = item['score'] as double;
+                                              final s = (item['score'] as num).toDouble();
                                               final max =
-                                                  item['maxScore'] as double;
+                                                  (item['maxScore'] as num).toDouble();
                                               return sum +
                                                   (max > 0
                                                       ? (s / max) * 100
@@ -725,9 +725,9 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
 
                                           // Item Penilaian
                                           ...items.map((item) {
-                                            final s = item['score'] as double;
+                                            final s = (item['score'] as num).toDouble();
                                             final max =
-                                                item['maxScore'] as double;
+                                                (item['maxScore'] as num).toDouble();
                                             final pct = max > 0
                                                 ? (s / max) * 100
                                                 : 0.0;

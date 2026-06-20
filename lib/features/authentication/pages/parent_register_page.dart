@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../core/models/user_model.dart';
@@ -41,6 +42,18 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
   bool _showScanner = false;
   bool _hasScanned = false;
   String? _parentUid;
+
+  @override
+  void initState() {
+    super.initState();
+    final args = Get.arguments as Map<String, dynamic>?;
+    if (args != null && args['showScanner'] == true) {
+      _showScanner = true;
+      _parentUid = SessionService.currentUser?.uid;
+      _namaController.text = SessionService.currentUser?.nama ?? '';
+      _emailController.text = SessionService.currentUser?.email ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -238,7 +251,16 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
             elevation: 0,
             leading: IconButton(
               icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 18),
-              onPressed: () => Navigator.pop(context),
+              onPressed: () async {
+                final args = Get.arguments as Map<String, dynamic>?;
+                if (args != null && args['showScanner'] == true) {
+                  await FirebaseAuth.instance.signOut();
+                  SessionService.currentUser = null;
+                  Get.offAllNamed(AppRoutes.login);
+                } else {
+                  Navigator.pop(context);
+                }
+              },
             ),
             actions: const [ThemeToggleButton()],
           ),

@@ -11,6 +11,7 @@ import '../../../core/services/app_auth_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../chat/student_chat_list_page.dart';
 import '../../parent_link/pages/student_link_parent_page.dart';
+import '../../chat/widgets/chat_unread_badge.dart';
 import '../../schools/services/school_service.dart';
 import '../../teachers/pages/teacher_settings_page.dart';
 import 'package:is_lock_screen2/is_lock_screen2.dart';
@@ -591,6 +592,36 @@ class _StudentDashboardState extends State<StudentDashboard>
     return 'Selamat Malam';
   }
 
+  void _showFullScreenQr(BuildContext context, String qrData) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                QrImageView(
+                  data: qrData,
+                  version: QrVersions.auto,
+                  size: MediaQuery.of(context).size.width * 0.65,
+                  backgroundColor: Colors.white,
+                  gapless: false,
+                  foregroundColor: const Color(0xFF0F0C20),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -903,19 +934,22 @@ class _StudentDashboardState extends State<StudentDashboard>
                     ),
                   ],
                 ),
-                child: QrImageView(
-                  data: qrPayload,
-                  version: QrVersions.auto,
-                  size: 120,
-                  backgroundColor: Colors.white,
-                  padding: EdgeInsets.zero,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: Color(0xFF1E1B4B),
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: Color(0xFF1E1B4B),
+                child: GestureDetector(
+                  onTap: () => _showFullScreenQr(context, qrPayload),
+                  child: QrImageView(
+                    data: qrPayload,
+                    version: QrVersions.auto,
+                    size: 120,
+                    backgroundColor: Colors.white,
+                    padding: EdgeInsets.zero,
+                    eyeStyle: const QrEyeStyle(
+                      eyeShape: QrEyeShape.square,
+                      color: Color(0xFF1E1B4B),
+                    ),
+                    dataModuleStyle: const QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.square,
+                      color: Color(0xFF1E1B4B),
+                    ),
                   ),
                 ),
               ),
@@ -1224,17 +1258,33 @@ class _StudentDashboardState extends State<StudentDashboard>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      menu['icon'] as IconData,
-                      color: color,
-                      size: 32,
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final container = Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          menu['icon'] as IconData,
+                          color: color,
+                          size: 32,
+                        ),
+                      );
+
+                      if (menu['title'] == 'Chat Guru' && _studentDocId != null) {
+                        return ChatUnreadBadge(
+                          schoolId: SessionService.currentUser!.schoolId,
+                          userId: _studentDocId!,
+                          role: 'student',
+                          top: -2,
+                          right: -2,
+                          child: container,
+                        );
+                      }
+                      return container;
+                    },
                   ),
                   const SizedBox(height: 12),
                   Text(

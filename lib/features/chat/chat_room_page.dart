@@ -9,8 +9,9 @@ class ChatRoomPage extends StatefulWidget {
   final String chatRoomId;
   final String currentUserId;
   final String currentUserName;
-  final String currentUserRole; // 'teacher' atau 'student'
+  final String currentUserRole; // 'teacher' atau 'student' atau 'parent'
   final String otherUserName;
+  final bool isParentChat;
 
   const ChatRoomPage({
     super.key,
@@ -20,6 +21,7 @@ class ChatRoomPage extends StatefulWidget {
     required this.currentUserName,
     required this.currentUserRole,
     required this.otherUserName,
+    this.isParentChat = false,
   });
 
   @override
@@ -39,6 +41,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       schoolId: widget.schoolId,
       chatRoomId: widget.chatRoomId,
       currentUserId: widget.currentUserId,
+      collectionName: widget.isParentChat ? 'parent_chats' : 'chats',
     );
   }
 
@@ -74,6 +77,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       senderName: widget.currentUserName,
       senderRole: widget.currentUserRole,
       message: text,
+      collectionName: widget.isParentChat ? 'parent_chats' : 'chats',
     );
 
     _scrollToBottom();
@@ -181,6 +185,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                     stream: _chatService.getMessages(
                       schoolId: widget.schoolId,
                       chatRoomId: widget.chatRoomId,
+                      collectionName: widget.isParentChat ? 'parent_chats' : 'chats',
                     ),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -202,6 +207,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                             schoolId: widget.schoolId,
                             chatRoomId: widget.chatRoomId,
                             currentUserId: widget.currentUserId,
+                            collectionName: widget.isParentChat ? 'parent_chats' : 'chats',
                           );
                         });
                       }
@@ -382,11 +388,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
                 // Input Box
                 Container(
-                  padding: EdgeInsets.only(
+                  padding: const EdgeInsets.only(
                     left: 16,
                     right: 16,
                     top: 12,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                    bottom: 16,
                   ),
                   decoration: BoxDecoration(
                     color: isDark
@@ -394,9 +400,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                         : Colors.white.withValues(alpha: 0.8),
                     border: Border(top: BorderSide(color: inputBorder)),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
+                  child: SafeArea(
+                    top: false,
+                    child: Row(
+                      children: [
+                        Expanded(
                         child: TextField(
                           controller: _messageController,
                           style: TextStyle(color: textColor, fontSize: 14),
@@ -449,7 +457,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                     ],
                   ),
                 ),
-              ],
+              ),
+            ],
             ),
           ),
         );

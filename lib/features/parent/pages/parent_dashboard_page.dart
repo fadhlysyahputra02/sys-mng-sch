@@ -6,6 +6,7 @@ import '../../../app/routes/app_routes.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../chat/widgets/chat_unread_badge.dart';
 import '../../schools/services/school_service.dart';
 
 class ParentDashboardPage extends StatefulWidget {
@@ -526,6 +527,18 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
             }),
       },
       {
+        'title': 'Chat Guru',
+        'icon': Icons.chat_bubble_outline_rounded,
+        'color': const Color(0xFFF97316),
+        'onTap': () => Get.toNamed(AppRoutes.parentChat, arguments: {
+              'schoolId': schoolId,
+              'parentDocId': SessionService.currentUser?.uid ?? '',
+              'parentName': SessionService.currentUser?.nama ?? '',
+              'studentName': studentName,
+              'className': className,
+            }),
+      },
+      {
         'title': 'Informasi',
         'icon': Icons.info_outline_rounded,
         'color': const Color(0xFF6366F1),
@@ -570,17 +583,33 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      menu['icon'] as IconData,
-                      color: color,
-                      size: 32,
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final container = Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          menu['icon'] as IconData,
+                          color: color,
+                          size: 32,
+                        ),
+                      );
+
+                      if (menu['title'] == 'Chat Guru' && SessionService.currentUser?.uid != null) {
+                        return ChatUnreadBadge(
+                          schoolId: schoolId,
+                          userId: SessionService.currentUser!.uid,
+                          role: 'parent',
+                          top: -2,
+                          right: -2,
+                          child: container,
+                        );
+                      }
+                      return container;
+                    },
                   ),
                   const SizedBox(height: 12),
                   Text(

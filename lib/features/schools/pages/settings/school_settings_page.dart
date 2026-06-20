@@ -42,6 +42,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
   final _cminusController = TextEditingController(text: '55');
   final _tahunAjaranController = TextEditingController(text: '${DateTime.now().year}/${DateTime.now().year + 1}');
   String _activeSemester = 'Semester 1';
+  final _jamMasukController = TextEditingController(text: '07:15');
 
   String? _logoBase64;
   bool _isLoading    = true;
@@ -74,6 +75,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
           _logoBase64 = data['logoBase64'];
           _tahunAjaranController.text = data['tahunAjaran'] ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
           _activeSemester = data['semester'] ?? 'Semester 1';
+          _jamMasukController.text = data['jamMasuk'] ?? '07:15';
 
           if (gradeTemplates.isNotEmpty) {
             _aplusController.text  = (gradeTemplates['aplus']  ?? 95).toString();
@@ -204,6 +206,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
         'grade_templates': templates,
         'tahunAjaran': _tahunAjaranController.text.trim(),
         'semester': _activeSemester,
+        'jamMasuk': _jamMasukController.text.trim(),
       });
 
       if (mounted) _snack('Pengaturan sekolah berhasil disimpan');
@@ -211,6 +214,30 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
       if (mounted) _snack('Gagal menyimpan: $e');
     } finally {
       if (mounted) setState(() => _isSavingNilai = false);
+    }
+  }
+
+  Future<void> _selectJamMasuk() async {
+    TimeOfDay initialTime = const TimeOfDay(hour: 7, minute: 15);
+    try {
+      final parts = _jamMasukController.text.split(':');
+      if (parts.length == 2) {
+        initialTime = TimeOfDay(
+          hour: int.parse(parts[0]),
+          minute: int.parse(parts[1]),
+        );
+      }
+    } catch (_) {}
+
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+
+    if (picked != null) {
+      setState(() {
+        _jamMasukController.text = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      });
     }
   }
 
@@ -233,6 +260,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
     _cController.dispose();
     _cminusController.dispose();
     _tahunAjaranController.dispose();
+    _jamMasukController.dispose();
     super.dispose();
   }
 
@@ -887,6 +915,34 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
                       backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
                       side: BorderSide(color: cardBorder),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Jam Masuk Input
+                Text(
+                  'Jam Masuk Sekolah (Toleransi)',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: cardBorder),
+                  ),
+                  child: TextFormField(
+                    controller: _jamMasukController,
+                    readOnly: true,
+                    style: TextStyle(color: textPrimary, fontSize: 14),
+                    onTap: _selectJamMasuk,
+                    decoration: InputDecoration(
+                      hintText: 'e.g. 07:15',
+                      hintStyle: TextStyle(color: textSecondary),
+                      prefixIcon: const Icon(Icons.access_time_rounded, color: Color(0xFF6366F1)),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                     ),
                   ),
                 ),

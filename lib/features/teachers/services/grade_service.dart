@@ -59,6 +59,9 @@ class GradeService {
       'updatedAt': FieldValue.serverTimestamp(),
       'tahunAjaran': tahunAjaran,
       'semester': semester,
+      'expireAt': Timestamp.fromDate(
+        DateTime.now().add(const Duration(days: 365 * 5)),
+      ),
     }, SetOptions(merge: true));
   }
 

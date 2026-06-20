@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
@@ -443,231 +444,35 @@ class ClassSchedulePage extends StatelessWidget {
     String jamSelesai = '';
     const primaryColor = Color(0xFFEC4899);
 
-    Future<void> pickTime({
-      required bool isStart,
-      required void Function(void Function()) dialogSetState,
-    }) async {
-      final initialValue = isStart ? jamMulai : jamSelesai;
-      final hasInitialValue = initialValue.isNotEmpty;
-      final initialHour = hasInitialValue ? int.tryParse(initialValue.split(':').first) ?? 7 : 7;
-      final initialMinute = hasInitialValue ? int.tryParse(initialValue.split(':').last) ?? 0 : 0;
-
-      if (kIsWeb) {
-        final TimeOfDay? picked = await showTimePicker(
-          context: context,
-          initialTime: TimeOfDay(hour: initialHour, minute: initialMinute),
-          initialEntryMode: TimePickerEntryMode.input,
-          builder: (BuildContext context, Widget? child) {
-            return Theme(
-              data: ThemeData.light().copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: primaryColor,
-                  onPrimary: Colors.white,
-                  onSurface: Color(0xFF1E1B4B),
-                ),
-                dialogTheme: const DialogThemeData(
-                  backgroundColor: Colors.white,
-                ),
-              ),
-              child: child!,
-            );
-          },
-        );
-
-        if (picked != null) {
-          final formatted =
-              '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
-          dialogSetState(() {
-            if (isStart) {
-              jamMulai = formatted;
-            } else {
-              jamSelesai = formatted;
-            }
-          });
-        }
-        return;
-      }
-
-      int selectedHour = initialHour;
-      int selectedMinute = initialMinute;
-
-      await showCupertinoModalPopup<void>(
-        context: context,
-        builder: (pickerContext) {
-          return CupertinoTheme(
-            data: const CupertinoThemeData(
-              brightness: Brightness.dark,
-              primaryColor: Color(0xFFEC4899),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                height: 310,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F0C20),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                  border: Border(
-                    top: BorderSide(color: Colors.white.withOpacity(0.08), width: 1.5),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 10, bottom: 4),
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Text(
-                              isStart ? 'Jam Mulai' : 'Jam Selesai',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 17,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Positioned(
-                              right: 0,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFEC4899).withOpacity(0.2),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                                  ),
-                                  onPressed: () {
-                                    final formatted =
-                                        '${selectedHour.toString().padLeft(2, '0')}:${selectedMinute.toString().padLeft(2, '0')}';
-                                    dialogSetState(() {
-                                      if (isStart) {
-                                        jamMulai = formatted;
-                                      } else {
-                                        jamSelesai = formatted;
-                                      }
-                                    });
-                                    Navigator.pop(pickerContext);
-                                  },
-                                  child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Divider(height: 1, color: Colors.white.withOpacity(0.08)),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: CupertinoPicker(
-                            scrollController: FixedExtentScrollController(initialItem: initialHour),
-                            itemExtent: 40,
-                            onSelectedItemChanged: (value) => selectedHour = value,
-                            children: List.generate(
-                              24,
-                              (index) => Center(
-                                child: Text(
-                                  index.toString().padLeft(2, '0'),
-                                  style: const TextStyle(fontSize: 16, color: Colors.white),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        VerticalDivider(width: 1, color: Colors.white.withOpacity(0.08)),
-                        Expanded(
-                          child: CupertinoPicker(
-                            scrollController: FixedExtentScrollController(initialItem: initialMinute),
-                            itemExtent: 40,
-                            onSelectedItemChanged: (value) => selectedMinute = value,
-                            children: List.generate(
-                              60,
-                              (index) => Center(
-                                child: Text(
-                                  index.toString().padLeft(2, '0'),
-                                  style: const TextStyle(fontSize: 16, color: Colors.white),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-    }
-
-    Widget buildTimeField({
+    Widget buildTimeInput({
       required String label,
-      required String value,
-      required VoidCallback onTap,
+      required String initialValue,
       required IconData icon,
+      required ValueChanged<String> onChanged,
     }) {
-      final hasValue = value.isNotEmpty;
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.03),
-            border: Border.all(
-              color: hasValue ? const Color(0xFFEC4899) : Colors.white.withOpacity(0.08),
-            ),
+      return TextFormField(
+        initialValue: initialValue,
+        style: const TextStyle(color: Colors.white, fontSize: 14),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+          prefixIcon: Icon(icon, color: const Color(0xFFEC4899), size: 20),
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.03),
+          hintText: '00:00',
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 13),
+          enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
           ),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: hasValue ? const Color(0xFFEC4899) : Colors.white.withOpacity(0.4)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  hasValue ? value : 'Pilih $label',
-                  style: TextStyle(
-                    color: hasValue ? Colors.white : Colors.white.withOpacity(0.4),
-                    fontWeight: hasValue ? FontWeight.bold : FontWeight.normal,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              Icon(Icons.expand_more_rounded, color: Colors.white.withOpacity(0.4), size: 20),
-            ],
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFEC4899), width: 1.5),
           ),
         ),
+        keyboardType: TextInputType.number,
+        inputFormatters: [TimeTextInputFormatter()],
+        onChanged: onChanged,
       );
     }
 
@@ -902,28 +707,24 @@ class ClassSchedulePage extends StatelessWidget {
 
                     const SizedBox(height: 16),
 
-                    // Time pickers
+                    // Time inputs
                     Row(
                       children: [
                         Expanded(
-                          child: buildTimeField(
+                          child: buildTimeInput(
                             label: 'Jam Mulai',
-                            value: jamMulai,
+                            initialValue: jamMulai,
                             icon: Icons.play_arrow_rounded,
-                            onTap: () async {
-                              await pickTime(isStart: true, dialogSetState: setState);
-                            },
+                            onChanged: (val) => setState(() => jamMulai = val),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: buildTimeField(
+                          child: buildTimeInput(
                             label: 'Jam Selesai',
-                            value: jamSelesai,
+                            initialValue: jamSelesai,
                             icon: Icons.stop_rounded,
-                            onTap: () async {
-                              await pickTime(isStart: false, dialogSetState: setState);
-                            },
+                            onChanged: (val) => setState(() => jamSelesai = val),
                           ),
                         ),
                       ],
@@ -1012,9 +813,55 @@ class ClassSchedulePage extends StatelessWidget {
                               }
                             } catch (e) {
                               if (dialogContext.mounted) {
-                                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                  SnackBar(
-                                    content: Text(e.toString().replaceFirst('Exception: ', '')),
+                                showDialog(
+                                  context: dialogContext,
+                                  builder: (ctx) => AlertDialog(
+                                    backgroundColor: const Color(0xFF0F0C20),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                      side: BorderSide(color: Colors.red.withOpacity(0.5), width: 1.5),
+                                    ),
+                                    contentPadding: const EdgeInsets.all(24),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 60,
+                                          height: 60,
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withOpacity(0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'Gagal Menambahkan Jadwal',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          e.toString().replaceFirst('Exception: ', ''),
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, height: 1.5),
+                                        ),
+                                        const SizedBox(height: 24),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            ),
+                                            onPressed: () => Navigator.pop(ctx),
+                                            child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 );
                               }
@@ -1038,3 +885,20 @@ class ClassSchedulePage extends StatelessWidget {
   }
 }
 
+class TimeTextInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    String newText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (newText.length > 4) newText = newText.substring(0, 4);
+
+    String formattedText = newText;
+    if (newText.length >= 3) {
+      formattedText = '${newText.substring(0, 2)}:${newText.substring(2)}';
+    }
+
+    return TextEditingValue(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: formattedText.length),
+    );
+  }
+}

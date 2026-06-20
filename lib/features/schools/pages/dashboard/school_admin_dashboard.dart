@@ -16,6 +16,9 @@ import '../schedule/Page/class_schedule_overview_page.dart';
 import '../notifications/notifications_page.dart';
 import 'premium_features_page.dart';
 import '../officers/pages/officer_management_page.dart';
+import '../tu/pages/tu_management_page.dart';
+import '../../../officer/pages/daily_recap_page.dart';
+import '../../../officer/pages/monthly_recap_page.dart';
 
 class SchoolAdminDashboard extends StatefulWidget {
   const SchoolAdminDashboard({super.key});
@@ -79,6 +82,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('Fitur Premium', Icons.workspace_premium_rounded, Color(0xFFF97316)),
     _MenuData('Pengaturan', Icons.settings_rounded, Color(0xFF64748B)),
     _MenuData('Petugas', Icons.security_rounded, Color(0xFF8B5CF6)),
+    _MenuData('Tata Usaha', Icons.support_agent_rounded, Color(0xFF3B82F6)),
   ];
 
   void _onMenuTap(String title) async {
@@ -115,6 +119,12 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         break;
       case 'Petugas':
         Get.to(() => const OfficerManagementPage());
+        break;
+      case 'Tata Usaha':
+        Get.to(() => const TuManagementPage());
+        break;
+      case 'Absensi':
+        _showAbsensiSelectionDialog();
         break;
     }
   }
@@ -525,7 +535,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   }
 
   Widget _buildMenuCard(_MenuData menu, bool isDark) {
-    final bool isActive = ['Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi', 'Fitur Premium', 'Pengaturan', 'Petugas'].contains(menu.title);
+    final bool isActive = ['Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi', 'Fitur Premium', 'Pengaturan', 'Petugas', 'Tata Usaha', 'Absensi'].contains(menu.title);
 
     final cardBg = isActive
         ? (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white)
@@ -742,13 +752,17 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Jadwal', Icons.calendar_month_rounded, 5, const Color(0xFFEC4899), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 6, const Color(0xFF06B6D4), isDark),
+                _buildSidebarItem('Absensi', Icons.fact_check_rounded, 6, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Fitur Premium', Icons.workspace_premium_rounded, 7, const Color(0xFFF97316), isDark),
+                _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 7, const Color(0xFF06B6D4), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
+                _buildSidebarItem('Fitur Premium', Icons.workspace_premium_rounded, 8, const Color(0xFFF97316), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Petugas', Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 9, const Color(0xFF64748B), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Petugas', Icons.security_rounded, 10, const Color(0xFF8B5CF6), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Tata Usaha', Icons.support_agent_rounded, 11, const Color(0xFF3B82F6), isDark),
               ],
             ),
           ),
@@ -906,16 +920,228 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       case 5:
         return ClassScheduleOverviewPage(hideBackButton: true);
       case 6:
-        return NotificationsPage(hideBackButton: true);
+        return _buildDesktopAbsensiOverview(isDark);
       case 7:
-        return PremiumFeaturesPage(hideBackButton: true);
+        return NotificationsPage(hideBackButton: true);
       case 8:
-        return SchoolSettingsPage(schoolId: schoolId, hideBackButton: true);
+        return PremiumFeaturesPage(hideBackButton: true);
       case 9:
+        return SchoolSettingsPage(schoolId: schoolId, hideBackButton: true);
+      case 10:
         return const OfficerManagementPage();
       default:
         return _buildDesktopDashboardHome(isDark);
     }
+  }
+
+  void _showAbsensiSelectionDialog() {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F0C20) : Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
+          border: Border(
+            top: BorderSide(color: cardBorder),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Rekap Absensi',
+              style: TextStyle(
+                color: textColor,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Pilih skala rekapan absensi yang ingin Anda lihat:',
+              style: TextStyle(
+                color: textColor.withValues(alpha: 0.6),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSelectionCard(
+                    title: 'Rekap Harian',
+                    description: 'Laporan kehadiran per tanggal',
+                    icon: Icons.calendar_today_rounded,
+                    color: const Color(0xFF8B5CF6),
+                    onTap: () {
+                      Get.back();
+                      Get.to(() => const DailyRecapPage());
+                    },
+                    isDark: isDark,
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildSelectionCard(
+                    title: 'Rekap Bulanan',
+                    description: 'Statistik kehadiran per kelas',
+                    icon: Icons.calendar_month_rounded,
+                    color: const Color(0xFF10B981),
+                    onTap: () {
+                      Get.back();
+                      Get.to(() => const MonthlyRecapPage());
+                    },
+                    isDark: isDark,
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionCard({
+    required String title,
+    required String description,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required bool isDark,
+    required Color cardBg,
+    required Color cardBorder,
+  }) {
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                description,
+                style: TextStyle(
+                  color: textColor.withValues(alpha: 0.5),
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopAbsensiOverview(bool isDark) {
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+
+    return AuthBackground(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(40.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'Rekap Absensi Sekolah',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Pilih jenis rekap absensi yang ingin Anda tinjau atau cetak laporan.',
+                style: TextStyle(
+                  color: subTextColor,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 48),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 280,
+                    child: _buildSelectionCard(
+                      title: 'Rekap Harian',
+                      description: 'Laporan kehadiran per tanggal sekolah',
+                      icon: Icons.calendar_today_rounded,
+                      color: const Color(0xFF8B5CF6),
+                      onTap: () => Get.to(() => const DailyRecapPage()),
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      cardBorder: cardBorder,
+                    ),
+                  ),
+                  const SizedBox(width: 32),
+                  SizedBox(
+                    width: 280,
+                    child: _buildSelectionCard(
+                      title: 'Rekap Bulanan',
+                      description: 'Statistik kehadiran bulanan per kelas siswa',
+                      icon: Icons.calendar_month_rounded,
+                      color: const Color(0xFF10B981),
+                      onTap: () => Get.to(() => const MonthlyRecapPage()),
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      cardBorder: cardBorder,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildDesktopDashboardHome(bool isDark) {
@@ -1063,7 +1289,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               mainAxisSpacing: 20,
               childAspectRatio: 1.6,
               children: [
-                _buildUpcomingFeatureCard('Absensi & QR', Icons.fact_check_rounded, const Color(0xFF8B5CF6), isDark),
+                _buildUpcomingFeatureCard('E-Raport Siswa', Icons.description_rounded, const Color(0xFF8B5CF6), isDark),
                 _buildUpcomingFeatureCard('Manajemen Nilai', Icons.grade_rounded, const Color(0xFFEF4444), isDark),
                 _buildUpcomingFeatureCard('Keuangan & SPP', Icons.account_balance_wallet_rounded, const Color(0xFFEC4899), isDark),
                 _buildUpcomingFeatureCard('WhatsApp Gateway', Icons.chat_bubble_rounded, const Color(0xFF10B981), isDark),

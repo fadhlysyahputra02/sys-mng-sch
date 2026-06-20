@@ -126,6 +126,55 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
     return '$minutes:$seconds';
   }
 
+  void _showFullScreenQr(BuildContext context) {
+    if (_qrData == null) return;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'QR Code',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F0C20),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF0F0C20)),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                QrImageView(
+                  data: _qrData!,
+                  version: QrVersions.auto,
+                  size: MediaQuery.of(context).size.width * 0.65,
+                  backgroundColor: Colors.white,
+                  gapless: false,
+                  foregroundColor: const Color(0xFF0F0C20),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -234,13 +283,30 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
                                               size: 48,
                                             )
                                           else if (_qrData != null)
-                                            QrImageView(
-                                              data: _qrData!,
-                                              version: QrVersions.auto,
-                                              size: 220,
-                                              gapless: false,
-                                              foregroundColor:
-                                                  const Color(0xFF0F0C20),
+                                            GestureDetector(
+                                              onTap: () => _showFullScreenQr(context),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(16),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius: BorderRadius.circular(16),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black.withValues(alpha: 0.1),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 4),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: QrImageView(
+                                                  data: _qrData!,
+                                                  version: QrVersions.auto,
+                                                  size: 200,
+                                                  backgroundColor: Colors.white,
+                                                  gapless: false,
+                                                  foregroundColor: const Color(0xFF0F0C20),
+                                                ),
+                                              ),
                                             ),
                                           const SizedBox(height: 20),
                                           Container(

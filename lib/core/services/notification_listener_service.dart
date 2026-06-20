@@ -119,7 +119,7 @@ class NotificationListenerService {
 
           bool isRecipient = false;
 
-          if (user.role == 'super_admin' || user.role == 'school_admin') {
+          if (user.role == 'super_admin' || user.role == 'school_admin' || user.role == 'tu') {
             isRecipient = true;
           } else if (user.role == 'teacher') {
             if (targetType == 'umum') {
@@ -257,6 +257,9 @@ class NotificationListenerService {
         ),
       ],
       barBlur: 20, // Premium glass effect
+      onTap: (snack) {
+        Get.toNamed(AppRoutes.notifications);
+      },
       mainButton: TextButton(
         onPressed: () {
           if (Get.isSnackbarOpen) {
