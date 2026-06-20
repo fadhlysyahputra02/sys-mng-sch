@@ -7,8 +7,6 @@ import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
-import '../../students/widgets/monthly_attendance_table_section.dart';
-import '../widgets/parent_student_grades_section.dart';
 
 class ParentDashboardPage extends StatefulWidget {
   const ParentDashboardPage({super.key});
@@ -20,9 +18,6 @@ class ParentDashboardPage extends StatefulWidget {
 class _ParentDashboardPageState extends State<ParentDashboardPage> {
   final _scrollController = ScrollController();
   final _infoKey = GlobalKey();
-  final _attendanceKey = GlobalKey();
-  final _violationKey = GlobalKey();
-  final _gradesKey = GlobalKey();
 
   Map<String, dynamic>? _parentData;
   String? _schoolName;
@@ -86,7 +81,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
           // Gunakan teacherName dari class doc sebagai nilai cepat
           waliKelas = classDoc.data()?['teacherName'] as String?;
           // Jika teacherName kosong, ambil dari koleksi teachers berdasarkan teacherId
-          if ((waliKelas == null || waliKelas!.isEmpty) &&
+          if ((waliKelas == null || waliKelas.isEmpty) &&
               teacherId != null &&
               teacherId.isNotEmpty) {
             final teacherDoc = await FirebaseFirestore.instance
@@ -389,7 +384,20 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                   subTextColor,
                                 ),
                                 const SizedBox(height: 16),
-                                _buildMenuGrid(isDark, textColor, cardBg, cardBorder),
+                                _buildMenuGrid(
+                                  isDark,
+                                  textColor,
+                                  cardBg,
+                                  cardBorder,
+                                  user.schoolId,
+                                  (_parentData?['studentId'] ?? '').toString(),
+                                  _studentClassId,
+                                  (_parentData?['className'] ?? '-').toString(),
+                                  (_parentData?['studentName'] ?? 'Anak')
+                                      .toString(),
+                                  _tahunAjaran,
+                                  _semester,
+                                ),
                               ],
                             ),
                           ),
@@ -422,138 +430,6 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                   subTextColor: subTextColor,
                                   fullWidth: true,
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // --- ATTENDANCE SECTION ---
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
-                            child: Column(
-                              key: _attendanceKey,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildSectionTitle(
-                                  'Daftar Hadir Anak',
-                                  Icons.fact_check_rounded,
-                                  textColor,
-                                  subTextColor,
-                                ),
-                                const SizedBox(height: 16),
-                                MonthlyAttendanceTableSection(
-                                  schoolId: user.schoolId,
-                                  studentId: (_parentData?['studentId'] ?? '')
-                                      .toString(),
-                                  className: (_parentData?['className'] ?? '-')
-                                      .toString(),
-                                  studentName: (_parentData?['studentName'] ?? 'Anak')
-                                      .toString(),
-                                  isDark: isDark,
-                                  textColor: textColor,
-                                  subTextColor: subTextColor,
-                                  cardBg: cardBg,
-                                  cardBorder: cardBorder,
-                                  showTitle: false,
-                                  embedded: true,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // --- VIOLATION SECTION ---
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
-                            child: Column(
-                              key: _violationKey,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildSectionTitle(
-                                  'Laporan Pelanggaran',
-                                  Icons.warning_amber_rounded,
-                                  textColor,
-                                  subTextColor,
-                                ),
-                                const SizedBox(height: 16),
-                                _ViolationCard(
-                                  schoolId: user.schoolId,
-                                  studentId: (_parentData?['studentId'] ?? '')
-                                      .toString(),
-                                  isDark: isDark,
-                                  textColor: textColor,
-                                  subTextColor: subTextColor,
-                                  cardBg: cardBg,
-                                  cardBorder: cardBorder,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // --- GRADES SECTION ---
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
-                            child: Column(
-                              key: _gradesKey,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildSectionTitle(
-                                  'Laporan Nilai Anak',
-                                  Icons.analytics_rounded,
-                                  textColor,
-                                  subTextColor,
-                                ),
-                                const SizedBox(height: 16),
-                                _studentClassId != null &&
-                                        _studentClassId!.isNotEmpty &&
-                                        _tahunAjaran != null &&
-                                        _semester != null
-                                    ? ParentStudentGradesSection(
-                                        schoolId: user.schoolId,
-                                        studentId:
-                                            (_parentData?['studentId'] ?? '')
-                                                .toString(),
-                                        classId: _studentClassId!,
-                                        className:
-                                            (_parentData?['className'] ?? '-')
-                                                .toString(),
-                                        tahunAjaran: _tahunAjaran!,
-                                        semester: _semester!,
-                                        isDark: isDark,
-                                        textColor: textColor,
-                                        subTextColor: subTextColor,
-                                        cardBg: cardBg,
-                                        cardBorder: cardBorder,
-                                      )
-                                    : Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(24),
-                                        decoration: BoxDecoration(
-                                          color: cardBg,
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(color: cardBorder),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            Icon(Icons.info_outline_rounded,
-                                                color: subTextColor, size: 32),
-                                            const SizedBox(height: 12),
-                                            Text(
-                                              'Data kelas anak belum lengkap.\nLaporan nilai belum tersedia.',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                color: subTextColor,
-                                                fontSize: 13,
-                                                height: 1.5,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
                               ],
                             ),
                           ),
@@ -607,31 +483,53 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
     Color textColor,
     Color cardBg,
     Color cardBorder,
+    String schoolId,
+    String studentId,
+    String? classId,
+    String? className,
+    String? studentName,
+    String? tahunAjaran,
+    String? semester,
   ) {
     final menus = [
       {
         'title': 'Daftar Hadir',
         'icon': Icons.fact_check_rounded,
         'color': const Color(0xFF10B981),
-        'key': _attendanceKey,
+        'onTap': () => Get.toNamed(AppRoutes.parentAttendance, arguments: {
+              'schoolId': schoolId,
+              'studentId': studentId,
+              'className': className,
+              'studentName': studentName,
+            }),
       },
       {
         'title': 'Pelanggaran',
         'icon': Icons.warning_amber_rounded,
         'color': const Color(0xFFEF4444),
-        'key': _violationKey,
+        'onTap': () => Get.toNamed(AppRoutes.parentViolations, arguments: {
+              'schoolId': schoolId,
+              'studentId': studentId,
+            }),
       },
       {
         'title': 'Nilai Anak',
         'icon': Icons.grade_rounded,
         'color': const Color(0xFF8B5CF6),
-        'key': _gradesKey,
+        'onTap': () => Get.toNamed(AppRoutes.parentGrades, arguments: {
+              'schoolId': schoolId,
+              'studentId': studentId,
+              'classId': classId,
+              'className': className,
+              'tahunAjaran': tahunAjaran,
+              'semester': semester,
+            }),
       },
       {
         'title': 'Informasi',
         'icon': Icons.info_outline_rounded,
         'color': const Color(0xFF6366F1),
-        'key': _infoKey,
+        'onTap': () => _scrollToSection(_infoKey),
       },
     ];
 
@@ -648,11 +546,11 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
       itemBuilder: (context, index) {
         final menu = menus[index];
         final color = menu['color'] as Color;
-        final sectionKey = menu['key'] as GlobalKey;
+        final onTap = menu['onTap'] as VoidCallback;
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => _scrollToSection(sectionKey),
+            onTap: onTap,
             borderRadius: BorderRadius.circular(20),
             child: Container(
               decoration: BoxDecoration(
@@ -802,200 +700,6 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                 ),
               ],
             ),
-    );
-  }
-}
-
-// ─── Violation Card ────────────────────────────────────────────────────────
-class _ViolationCard extends StatelessWidget {
-  final String schoolId;
-  final String studentId;
-  final bool isDark;
-  final Color textColor;
-  final Color subTextColor;
-  final Color cardBg;
-  final Color cardBorder;
-
-  const _ViolationCard({
-    required this.schoolId,
-    required this.studentId,
-    required this.isDark,
-    required this.textColor,
-    required this.subTextColor,
-    required this.cardBg,
-    required this.cardBorder,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (studentId.isEmpty) {
-      return _emptyCard('Data pelanggaran belum tersedia.');
-    }
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('schools')
-          .doc(schoolId)
-          .collection('violations')
-          .where('studentId', isEqualTo: studentId)
-          .orderBy('date', descending: true)
-          .limit(10)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: cardBorder),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded,
-                    color: Color(0xFF10B981), size: 32),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Tidak Ada Pelanggaran',
-                          style: TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14)),
-                      const SizedBox(height: 4),
-                      Text('Anak Anda memiliki catatan pelanggaran yang bersih.',
-                          style:
-                              TextStyle(color: subTextColor, fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cardBorder),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${docs.length} Pelanggaran',
-                      style: const TextStyle(
-                          color: Color(0xFFEF4444),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              ...docs.map((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                final date = data['date'] != null
-                    ? (data['date'] as Timestamp).toDate()
-                    : null;
-                final dateStr = date != null
-                    ? '${date.day}/${date.month}/${date.year}'
-                    : '-';
-                final poin = data['poin'] ?? data['points'] ?? 0;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.report_rounded,
-                          color: Color(0xFFEF4444), size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              data['jenis'] ?? data['type'] ?? 'Pelanggaran',
-                              style: TextStyle(
-                                  color: textColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13),
-                            ),
-                            if ((data['keterangan'] ?? data['description'] ?? '')
-                                .toString()
-                                .isNotEmpty)
-                              Text(
-                                data['keterangan'] ?? data['description'] ?? '',
-                                style: TextStyle(
-                                    color: subTextColor, fontSize: 11),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(dateStr,
-                              style: TextStyle(
-                                  color: subTextColor, fontSize: 10)),
-                          const SizedBox(height: 2),
-                          Text(
-                            '-$poin poin',
-                            style: const TextStyle(
-                                color: Color(0xFFEF4444),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _emptyCard(String msg) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cardBorder),
-      ),
-      child: Text(msg,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: subTextColor, fontSize: 13)),
     );
   }
 }

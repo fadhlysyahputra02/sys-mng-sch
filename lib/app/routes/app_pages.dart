@@ -13,9 +13,16 @@ import '../../features/schools/pages/dashboard/school_admin_dashboard.dart';
 import '../../features/teachers/pages/teacher_dashboard.dart';
 import '../../features/students/pages/student_dashboard.dart';
 import '../../features/parent/pages/parent_dashboard_page.dart';
+import '../../features/parent/pages/parent_attendance_page.dart';
+import '../../features/parent/pages/parent_grades_page.dart';
+import '../../features/parent/pages/parent_violation_page.dart';
 import '../../features/authentication/pages/parent_register_page.dart';
 import '../../features/schools/pages/notifications/notifications_page.dart';
 import '../../features/schools/pages/dashboard/premium_features_page.dart';
+import '../../features/officer/pages/officer_dashboard_page.dart';
+import '../../features/officer/pages/qr_scan_page.dart';
+import '../../features/officer/pages/manual_attendance_page.dart';
+import '../../features/officer/pages/daily_recap_page.dart';
 
 import 'app_routes.dart';
 
@@ -45,6 +52,18 @@ class AppPages {
     GetPage(name: AppRoutes.student, page: () => const StudentDashboard()),
     GetPage(name: AppRoutes.parent, page: () => const ParentDashboardPage()),
     GetPage(
+      name: AppRoutes.parentAttendance,
+      page: () => const ParentAttendancePage(),
+    ),
+    GetPage(
+      name: AppRoutes.parentGrades,
+      page: () => const ParentGradesPage(),
+    ),
+    GetPage(
+      name: AppRoutes.parentViolations,
+      page: () => const ParentViolationPage(),
+    ),
+    GetPage(
       name: AppRoutes.parentRegister,
       page: () => const ParentRegisterPage(),
     ),
@@ -71,6 +90,12 @@ class AppPages {
       name: AppRoutes.premiumFeatures,
       page: () => const PremiumFeaturesPage(),
     ),
+
+    // Route untuk officer
+    GetPage(name: AppRoutes.officerDashboard, page: () => const OfficerDashboardPage()),
+    GetPage(name: AppRoutes.officerScan, page: () => const QrScanPage()),
+    GetPage(name: AppRoutes.officerManual, page: () => const ManualAttendancePage()),
+    GetPage(name: AppRoutes.officerRecap, page: () => const DailyRecapPage()),
   ];
 }
 

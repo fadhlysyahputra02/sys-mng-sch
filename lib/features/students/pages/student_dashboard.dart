@@ -13,7 +13,7 @@ import '../../parent_link/pages/student_link_parent_page.dart';
 import '../../schools/services/school_service.dart';
 import '../../teachers/pages/teacher_settings_page.dart';
 import 'package:is_lock_screen2/is_lock_screen2.dart';
-
+import 'student_qr_identity_page.dart';
 import '../data/student_service.dart';
 import 'student_schedule_page.dart';
 import 'student_attendance_page.dart';
@@ -1135,6 +1135,11 @@ class _StudentDashboardState extends State<StudentDashboard>
         'color': const Color(0xFF8B5CF6),
       },
       {
+  'title': 'Kartu QR Saya',
+  'icon': Icons.qr_code_rounded,
+  'color': const Color(0xFF06B6D4),
+},
+      {
         'title': 'Jadwal Saya',
         'icon': Icons.calendar_month_rounded,
         'color': const Color(0xFFF59E0B),
@@ -1267,6 +1272,26 @@ class _StudentDashboardState extends State<StudentDashboard>
           );
         }
         break;
+        case 'Kartu QR Saya':
+  if (_studentDocId == null || _studentData == null) {
+    Get.snackbar(
+      'Informasi',
+      'Data murid belum lengkap. Hubungi admin sekolah.',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.amber,
+      colorText: Colors.black,
+      margin: const EdgeInsets.all(16),
+      borderRadius: 12,
+    );
+  } else {
+    Get.to(() => StudentQrIdentityPage(
+      studentDocId: _studentDocId!,
+      studentData: _studentData!,
+      schoolId: user.schoolId,
+      schoolName: _schoolName,
+    ));
+  }
+  break;
       case 'Jadwal Saya':
         if (_className == null || _className!.trim().isEmpty) {
           Get.snackbar(

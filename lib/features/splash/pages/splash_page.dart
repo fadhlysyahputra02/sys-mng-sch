@@ -99,6 +99,9 @@ class _SplashPageState extends State<SplashPage>
         case 'parent':
           Get.offAllNamed(AppRoutes.parent);
           break;
+        case 'officer':
+          Get.offAllNamed(AppRoutes.officerDashboard);
+          break;
         default:
           await FirebaseAuth.instance.signOut();
           Get.offAllNamed(AppRoutes.login);
