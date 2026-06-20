@@ -23,6 +23,7 @@ import '../../features/officer/pages/officer_dashboard_page.dart';
 import '../../features/officer/pages/qr_scan_page.dart';
 import '../../features/officer/pages/manual_attendance_page.dart';
 import '../../features/officer/pages/daily_recap_page.dart';
+import '../../features/officer/pages/monthly_recap_page.dart';
 
 import 'app_routes.dart';
 
@@ -96,6 +97,7 @@ class AppPages {
     GetPage(name: AppRoutes.officerScan, page: () => const QrScanPage()),
     GetPage(name: AppRoutes.officerManual, page: () => const ManualAttendancePage()),
     GetPage(name: AppRoutes.officerRecap, page: () => const DailyRecapPage()),
+    GetPage(name: AppRoutes.officerMonthlyRecap, page: () => const MonthlyRecapPage()),
   ];
 }
 

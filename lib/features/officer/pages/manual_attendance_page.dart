@@ -55,7 +55,7 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                   Text('Pilih Status:', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: selectedStatus,
+                    initialValue: selectedStatus,
                     dropdownColor: isDark ? const Color(0xFF1E1B4B) : Colors.white,
                     style: TextStyle(color: textColor),
                     decoration: InputDecoration(
@@ -207,9 +207,9 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                     Expanded(
                       child: StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
-                            .collection('users')
-                            .where('schoolId', isEqualTo: user.schoolId)
-                            .where('role', isEqualTo: 'student')
+                            .collection('schools')
+                            .doc(user.schoolId)
+                            .collection('students')
                             .snapshots(),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState == ConnectionState.waiting) {

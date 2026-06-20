@@ -15,6 +15,7 @@ import '../subjects/pages/subject_list_page.dart';
 import '../schedule/Page/class_schedule_overview_page.dart';
 import '../notifications/notifications_page.dart';
 import 'premium_features_page.dart';
+import '../officers/pages/officer_management_page.dart';
 
 class SchoolAdminDashboard extends StatefulWidget {
   const SchoolAdminDashboard({super.key});
@@ -77,6 +78,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('Notifikasi', Icons.notifications_rounded, Color(0xFF06B6D4)),
     _MenuData('Fitur Premium', Icons.workspace_premium_rounded, Color(0xFFF97316)),
     _MenuData('Pengaturan', Icons.settings_rounded, Color(0xFF64748B)),
+    _MenuData('Petugas', Icons.security_rounded, Color(0xFF8B5CF6)),
   ];
 
   void _onMenuTap(String title) async {
@@ -110,6 +112,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         if (updated == true) {
           _loadSchoolData();
         }
+        break;
+      case 'Petugas':
+        Get.to(() => const OfficerManagementPage());
         break;
     }
   }
@@ -520,7 +525,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   }
 
   Widget _buildMenuCard(_MenuData menu, bool isDark) {
-    final bool isActive = ['Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi', 'Fitur Premium', 'Pengaturan'].contains(menu.title);
+    final bool isActive = ['Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi', 'Fitur Premium', 'Pengaturan', 'Petugas'].contains(menu.title);
 
     final cardBg = isActive
         ? (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white)
@@ -742,6 +747,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 _buildSidebarItem('Fitur Premium', Icons.workspace_premium_rounded, 7, const Color(0xFFF97316), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Petugas', Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
               ],
             ),
           ),
@@ -904,6 +911,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         return PremiumFeaturesPage(hideBackButton: true);
       case 8:
         return SchoolSettingsPage(schoolId: schoolId, hideBackButton: true);
+      case 9:
+        return const OfficerManagementPage();
       default:
         return _buildDesktopDashboardHome(isDark);
     }

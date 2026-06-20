@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'scan_log_model.dart';
 
 class OfficerRepository {
@@ -69,8 +68,12 @@ class OfficerRepository {
   }) async {
     final batch = _firestore.batch();
     
-    // a. Simpan ke scan_logs (Global history log)
-    final logRef = _firestore.collection('scan_logs').doc();
+    // a. Simpan ke scan_logs (Sub-collection under schools)
+    final logRef = _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('scan_logs')
+        .doc();
     final logModel = ScanLogModel(
       logId: logRef.id,
       studentId: studentId,
@@ -116,8 +119,9 @@ class OfficerRepository {
     final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
     return _firestore
+        .collection('schools')
+        .doc(schoolId)
         .collection('scan_logs')
-        .where('schoolId', isEqualTo: schoolId)
         .where('timeScanned', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
         .where('timeScanned', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
         .orderBy('timeScanned', descending: true)

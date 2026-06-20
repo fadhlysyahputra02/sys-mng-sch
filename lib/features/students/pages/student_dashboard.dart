@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/session_service.dart';
@@ -837,6 +838,16 @@ class _StudentDashboardState extends State<StudentDashboard>
     String nis,
     bool isDark,
   ) {
+    final user = SessionService.currentUser!;
+    final qrPayload = jsonEncode({
+      'studentId': _studentDocId ?? '',
+      'schoolId': user.schoolId,
+      'nis': nis,
+      'nama': name,
+      'classId': _studentData?['classId'] ?? '',
+      'className': _className ?? '',
+    });
+
     final cardColor = isDark
         ? Colors.white.withValues(alpha: 0.06)
         : Colors.white;
@@ -871,37 +882,44 @@ class _StudentDashboardState extends State<StudentDashboard>
       child: Column(
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 70,
-                height: 70,
+                width: 120,
+                height: 120,
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                  border: Border.all(color: const Color(0xFF8B5CF6), width: 2),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child:
-                    _schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty
-                    ? ClipOval(
-                        child: Image.memory(
-                          base64Decode(_schoolLogoBase64!),
-                          fit: BoxFit.cover,
-                          width: 70,
-                          height: 70,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.person_rounded,
-                            size: 36,
-                            color: Color(0xFF8B5CF6),
-                          ),
-                        ),
-                      )
-                    : const Icon(
-                        Icons.person_rounded,
-                        size: 36,
-                        color: Color(0xFF8B5CF6),
-                      ),
+                child: QrImageView(
+                  data: qrPayload,
+                  version: QrVersions.auto,
+                  size: 120,
+                  backgroundColor: Colors.white,
+                  padding: EdgeInsets.zero,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Color(0xFF1E1B4B),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF1E1B4B),
+                  ),
+                ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 20),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1134,11 +1152,6 @@ class _StudentDashboardState extends State<StudentDashboard>
         'icon': Icons.qr_code_scanner_rounded,
         'color': const Color(0xFF8B5CF6),
       },
-      {
-  'title': 'Kartu QR Saya',
-  'icon': Icons.qr_code_rounded,
-  'color': const Color(0xFF06B6D4),
-},
       {
         'title': 'Jadwal Saya',
         'icon': Icons.calendar_month_rounded,

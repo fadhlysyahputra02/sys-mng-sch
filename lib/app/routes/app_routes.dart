@@ -25,6 +25,7 @@ class AppRoutes {
   static const officerScan = '/officer/scan';
   static const officerManual = '/officer/manual';
   static const officerRecap = '/officer/recap';
+  static const officerMonthlyRecap = '/officer/monthly-recap';
 
   // Route untuk fitur lainnya.
   static const classList = '/class-list';
