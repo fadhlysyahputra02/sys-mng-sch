@@ -30,6 +30,8 @@ class AuthBackground extends StatelessWidget {
       valueListenable: isDarkMode,
       builder: (context, isDark, _) {
         return Container(
+          width: double.infinity,
+          height: double.infinity,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topRight,

@@ -1180,15 +1180,30 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'icon': Icons.settings_remote_rounded,
         'color': const Color(0xFF84CC16),
       },
-      {
-        'title': 'Fitur Premium',
-        'icon': Icons.workspace_premium_rounded,
-        'color': const Color(0xFFF97316),
-      },
+
       {
         'title': 'Pengaturan Profil',
         'icon': Icons.manage_accounts_rounded,
         'color': const Color(0xFF64748B),
+        'badge': null,
+      },
+      {
+        'title': 'Bank Soal & Quiz',
+        'icon': Icons.quiz_rounded,
+        'color': const Color(0xFF14B8A6),
+        'badge': 'BASIC',
+      },
+      {
+        'title': 'Statistik Akademik',
+        'icon': Icons.analytics_rounded,
+        'color': const Color(0xFFEC4899),
+        'badge': 'BASIC',
+      },
+      {
+        'title': 'News Feed Sekolah',
+        'icon': Icons.newspaper_rounded,
+        'color': const Color(0xFF0EA5E9),
+        'badge': 'PRO',
       },
     ];
 
@@ -1223,124 +1238,180 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       itemBuilder: (context, index) {
         final menu = menus[index];
         final color = menu['color'] as Color;
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              final user = SessionService.currentUser!;
-              if (menu['title'] == 'Fitur Premium') {
-                Get.toNamed(
-                  AppRoutes.premiumFeatures,
-                  arguments: {'plan': _plan, 'schoolId': user.schoolId},
-                );
-              } else if (menu['title'] == 'Pengumuman') {
-                Get.toNamed(AppRoutes.notifications);
-              } else if (menu['title'] == 'Pengaturan Profil') {
-                Get.to(() => const TeacherSettingsPage());
-              } else if (menu['title'] == 'Jadwal Mengajar') {
-                Get.to(() => TeacherSchedulePage(teacherId: _teacherDocId!));
-              } else if (menu['title'] == 'Absensi Murid') {
-                Get.to(
-                  () =>
-                      TeacherAttendanceSchedulePage(teacherId: _teacherDocId!),
-                );
-              } else if (menu['title'] == 'Realtime Control') {
-                Get.to(
-                  () => TeacherBehaviorRecordsPage(teacherId: _teacherDocId!),
-                );
-              } else if (menu['title'] == 'Input Nilai') {
-                Get.to(() => TeacherGradesPage(teacherId: _teacherDocId!));
-              } else if (menu['title'] == 'Laporan & Rapor') {
-                Get.to(
-                  () => TeacherReportsPage(
-                    schoolId: user.schoolId,
-                    teacherId: _teacherDocId!,
-                  ),
-                );
-              } else if (menu['title'] == 'Chat') {
-                Get.to(
-                  () => TeacherChatSelectorPage(
-                    schoolId: user.schoolId,
-                    teacherDocId: _teacherDocId!,
-                    teacherName: _teacherData?['nama'] ?? user.nama,
-                  ),
-                );
-              } else {
-                Get.snackbar(
-                  'Info',
-                  'Fitur "${menu['title']}" sedang dalam pengembangan.',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.amber,
-                  colorText: Colors.black,
-                  margin: const EdgeInsets.all(16),
-                  borderRadius: 12,
-                  icon: const Icon(Icons.info_outline, color: Colors.black),
-                );
-              }
-            },
+        final badge = menu['badge'] as String?;
+        return Container(
+          decoration: BoxDecoration(
+            color: cardBg,
             borderRadius: BorderRadius.circular(20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: cardBorder),
-                boxShadow: isDark
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+            border: Border.all(color: cardBorder),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                final user = SessionService.currentUser!;
+                if (menu['title'] == 'Jadwal Mengajar') {
+                  Get.to(() => TeacherSchedulePage(teacherId: _teacherDocId!));
+                } else if (menu['title'] == 'Absensi Murid') {
+                  Get.to(
+                    () =>
+                        TeacherAttendanceSchedulePage(teacherId: _teacherDocId!),
+                  );
+                } else if (menu['title'] == 'Realtime Control') {
+                  Get.to(
+                    () => TeacherBehaviorRecordsPage(teacherId: _teacherDocId!),
+                  );
+                } else if (menu['title'] == 'Input Nilai') {
+                  Get.to(() => TeacherGradesPage(teacherId: _teacherDocId!));
+                } else if (menu['title'] == 'Laporan & Rapor') {
+                  Get.to(
+                    () => TeacherReportsPage(
+                      schoolId: user.schoolId,
+                      teacherId: _teacherDocId!,
+                    ),
+                  );
+                } else if (menu['title'] == 'Chat') {
+                  Get.to(
+                    () => TeacherChatSelectorPage(
+                      schoolId: user.schoolId,
+                      teacherDocId: _teacherDocId!,
+                      teacherName: _teacherData?['nama'] ?? user.nama,
+                    ),
+                  );
+                } else if (menu['title'] == 'Pengumuman') {
+                  Get.toNamed(AppRoutes.notifications);
+                } else if (menu['title'] == 'Pengaturan Profil') {
+                  Get.to(() => const TeacherSettingsPage());
+
+                } else if (menu['title'] == 'Bank Soal & Quiz') {
+                  Get.toNamed(AppRoutes.comingSoonBankSoalGuru);
+                } else if (menu['title'] == 'Statistik Akademik') {
+                  Get.toNamed(AppRoutes.comingSoonStatistikGuru);
+                } else if (menu['title'] == 'News Feed Sekolah') {
+                  Get.toNamed(AppRoutes.comingSoonNewsFeedGuru);
+                } else {
+                  Get.snackbar(
+                    'Info',
+                    'Fitur "${menu['title']}" sedang dalam pengembangan.',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.amber,
+                    colorText: Colors.black,
+                    margin: const EdgeInsets.all(16),
+                    borderRadius: 12,
+                    icon: const Icon(Icons.info_outline, color: Colors.black),
+                  );
+                }
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Builder(
+                          builder: (context) {
+                            final container = Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                menu['icon'] as IconData,
+                                color: color,
+                                size: 32,
+                              ),
+                            );
+
+                            if (menu['title'] == 'Chat' && _teacherDocId != null) {
+                              return ChatUnreadBadge(
+                                schoolId: SessionService.currentUser!.schoolId,
+                                userId: _teacherDocId!,
+                                role: 'teacher',
+                                top: -2,
+                                right: -2,
+                                child: container,
+                              );
+                            }
+                            return container;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          menu['title'] as String,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Builder(
-                    builder: (context) {
-                      final container = Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          menu['icon'] as IconData,
-                          color: color,
-                          size: 32,
-                        ),
-                      );
-
-                      if (menu['title'] == 'Chat' && _teacherDocId != null) {
-                        return ChatUnreadBadge(
-                          schoolId: SessionService.currentUser!.schoolId,
-                          userId: _teacherDocId!,
-                          role: 'teacher',
-                          top: -2,
-                          right: -2,
-                          child: container,
-                        );
-                      }
-                      return container;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    menu['title'] as String,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (badge != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _buildPackageBadge(badge),
+                    ),
                 ],
               ),
             ),
           ),
         );
       },
+
+    );
+  }
+
+  Widget _buildPackageBadge(String badge) {
+    final isBasic = badge == 'BASIC';
+    final gradient = isBasic
+        ? const LinearGradient(
+            colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : const LinearGradient(
+            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: (isBasic ? const Color(0xFF3B82F6) : const Color(0xFFF59E0B))
+                .withValues(alpha: 0.4),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        badge,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 8,
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 }

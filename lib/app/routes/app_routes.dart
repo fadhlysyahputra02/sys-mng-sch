@@ -36,5 +36,20 @@ class AppRoutes {
   static const schedule = '/schedule';
   static const notifications = '/notifications';
   static const premiumFeatures = '/premium-features';
+
+  // Route untuk fitur Coming Soon (placeholder)
+  static const comingSoonBankSoalGuru = '/coming-soon/bank-soal-guru';
+  static const comingSoonBankSoalMurid = '/coming-soon/bank-soal-murid';
+  static const comingSoonStatistikGuru = '/coming-soon/statistik-guru';
+  static const comingSoonStatistikAdmin = '/coming-soon/statistik-admin';
+  static const comingSoonExportAdmin = '/coming-soon/export-admin';
+  static const comingSoonExportTu = '/coming-soon/export-tu';
+  static const comingSoonSuratIzinOrtu = '/coming-soon/surat-izin-ortu';
+  static const comingSoonSuratIzinMurid = '/coming-soon/surat-izin-murid';
+  static const comingSoonNewsFeedAdmin = '/coming-soon/news-feed-admin';
+  static const comingSoonNewsFeedGuru = '/coming-soon/news-feed-guru';
+  static const comingSoonNewsFeedMurid = '/coming-soon/news-feed-murid';
+  static const comingSoonNewsFeedOrtu = '/coming-soon/news-feed-ortu';
+  static const comingSoonAnalitikAdmin = '/coming-soon/analitik-admin';
 }
 

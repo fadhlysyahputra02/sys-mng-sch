@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../core/services/session_service.dart';
 import '../data/officer_repository.dart';
+import 'package:flutter/services.dart';
 
 class QrScanPage extends StatefulWidget {
   const QrScanPage({super.key});
@@ -186,6 +187,10 @@ class _QrScanPageState extends State<QrScanPage>
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
     _scannerController.stop();
+
+    // Play beep sound (Native)
+    HapticFeedback.vibrate();
+    SystemSound.play(SystemSoundType.click);
 
     try {
       final data = jsonDecode(code) as Map<String, dynamic>;

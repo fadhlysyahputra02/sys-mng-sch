@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../schools/services/school_service.dart';
 
 class OfficerDashboardPage extends StatefulWidget {
   const OfficerDashboardPage({super.key});
@@ -13,6 +15,50 @@ class OfficerDashboardPage extends StatefulWidget {
 }
 
 class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
+  String get schoolId => SessionService.currentUser?.schoolId ?? '';
+  String get nama => SessionService.currentUser?.nama ?? '';
+  String get email => SessionService.currentUser?.email ?? '';
+
+  String? _schoolName;
+  String _plan = 'FREE';
+  String? _schoolLogoBase64;
+  bool _isLoadingSchool = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchoolData();
+  }
+
+  Future<void> _loadSchoolData() async {
+    try {
+      final schoolData = await SchoolService().getSchoolByDomain(schoolId);
+      if (schoolData != null && mounted) {
+        setState(() {
+          _schoolName = schoolData['namaSekolah'];
+          _plan = (schoolData['plan'] ?? 'FREE').toString().toUpperCase();
+          _schoolLogoBase64 = schoolData['logoBase64'];
+          _isLoadingSchool = false;
+        });
+      } else {
+        if (mounted) setState(() => _isLoadingSchool = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingSchool = false);
+    }
+  }
+
+  String _getFormattedDate() {
+    final now = DateTime.now();
+    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    final months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    final dayName = days[now.weekday % 7];
+    final monthName = months[now.month - 1];
+    return '$dayName, ${now.day} $monthName ${now.year}';
+  }
 
   void _logout() async {
     await FirebaseAuth.instance.signOut();
@@ -22,15 +68,15 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = SessionService.currentUser!;
+    final user = SessionService.currentUser;
+    if (user == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
         final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subTextColor = isDark
-            ? Colors.white.withValues(alpha: 0.5)
-            : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
         final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
         final cardBorder = isDark
             ? Colors.white.withValues(alpha: 0.1)
@@ -42,7 +88,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
             backgroundColor: Colors.transparent,
             elevation: 0,
             title: Text(
-              'Officer Dashboard',
+              'Dashboard Officer',
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
             ),
             actions: [
@@ -55,102 +101,75 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
           ),
           body: AuthBackground(
             child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Profile Header
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.2),
-                          child: const Icon(Icons.security_rounded, color: Color(0xFF6366F1), size: 30),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Halo,',
-                                style: TextStyle(color: subTextColor, fontSize: 14),
-                              ),
-                              Text(
-                                user.nama,
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Profile & School Header
+                      _buildMergedHeaderCard(nama, email, isDark),
+                      const SizedBox(height: 32),
 
-                    // Quick Actions Grid
-                    Text(
-                      'Menu Cepat',
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                      // Quick Actions Grid
+                      Text(
+                        'Menu Cepat',
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 1.1,
-                      children: [
-                        _buildMenuCard(
-                          title: 'Scan QR',
-                          icon: Icons.qr_code_scanner_rounded,
-                          color: const Color(0xFF10B981),
-                          onTap: () => Get.toNamed(AppRoutes.officerScan),
-                          textColor: textColor,
-                          cardBg: cardBg,
-                          cardBorder: cardBorder,
-                        ),
-                        _buildMenuCard(
-                          title: 'Absen Manual',
-                          icon: Icons.how_to_reg_rounded,
-                          color: const Color(0xFFF59E0B),
-                          onTap: () => Get.toNamed(AppRoutes.officerManual),
-                          textColor: textColor,
-                          cardBg: cardBg,
-                          cardBorder: cardBorder,
-                        ),
-                        _buildMenuCard(
-                          title: 'Rekap Harian',
-                          icon: Icons.bar_chart_rounded,
-                          color: const Color(0xFF6366F1),
-                          onTap: () => Get.toNamed(AppRoutes.officerRecap),
-                          textColor: textColor,
-                          cardBg: cardBg,
-                          cardBorder: cardBorder,
-                        ),
-                        _buildMenuCard(
-                          title: 'Rekap Bulanan',
-                          icon: Icons.calendar_month_rounded,
-                          color: const Color(0xFF8B5CF6),
-                          onTap: () => Get.toNamed(AppRoutes.officerMonthlyRecap),
-                          textColor: textColor,
-                          cardBg: cardBg,
-                          cardBorder: cardBorder,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-
-                  ],
+                      const SizedBox(height: 16),
+                      GridView.count(
+                        crossAxisCount: 2,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 1.1,
+                        children: [
+                          _buildMenuCard(
+                            title: 'Scan QR',
+                            icon: Icons.qr_code_scanner_rounded,
+                            color: const Color(0xFF10B981),
+                            onTap: () => Get.toNamed(AppRoutes.officerScan),
+                            textColor: textColor,
+                            cardBg: cardBg,
+                            cardBorder: cardBorder,
+                          ),
+                          _buildMenuCard(
+                            title: 'Absen Manual',
+                            icon: Icons.how_to_reg_rounded,
+                            color: const Color(0xFFF59E0B),
+                            onTap: () => Get.toNamed(AppRoutes.officerManual),
+                            textColor: textColor,
+                            cardBg: cardBg,
+                            cardBorder: cardBorder,
+                          ),
+                          _buildMenuCard(
+                            title: 'Rekap Harian',
+                            icon: Icons.bar_chart_rounded,
+                            color: const Color(0xFF6366F1),
+                            onTap: () => Get.toNamed(AppRoutes.officerRecap),
+                            textColor: textColor,
+                            cardBg: cardBg,
+                            cardBorder: cardBorder,
+                          ),
+                          _buildMenuCard(
+                            title: 'Rekap Bulanan',
+                            icon: Icons.calendar_month_rounded,
+                            color: const Color(0xFF8B5CF6),
+                            onTap: () => Get.toNamed(AppRoutes.officerMonthlyRecap),
+                            textColor: textColor,
+                            cardBg: cardBg,
+                            cardBorder: cardBorder,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -204,6 +223,245 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMergedHeaderCard(String adminNama, String adminEmail, bool isDark) {
+    final cardColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08);
+    final cardShadow = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final emailColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+    final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+    final dateColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: cardShadow,
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // School Logo / Avatar
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  gradient: _schoolLogoBase64 != null
+                      ? null
+                      : const LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF10B981)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08), width: 1.5),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: _schoolLogoBase64 != null
+                      ? Image.memory(
+                          base64Decode(_schoolLogoBase64!),
+                          fit: BoxFit.cover,
+                          width: 70,
+                          height: 70,
+                        )
+                      : const Icon(
+                          Icons.support_agent_rounded,
+                          color: Colors.white,
+                          size: 36,
+                        ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // School and Admin Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _isLoadingSchool
+                        ? SizedBox(
+                            height: 18,
+                            width: 140,
+                            child: LinearProgressIndicator(
+                              backgroundColor: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                            ),
+                          )
+                        : Text(
+                            _schoolName ?? 'Sekolah Baru',
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: titleColor),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Officer: $adminNama',
+                      style: TextStyle(
+                        fontSize: 13, 
+                        color: subtitleColor, 
+                        fontWeight: FontWeight.w500
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      adminEmail,
+                      style: TextStyle(
+                        fontSize: 11, 
+                        color: emailColor
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Row for Badges
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
+                ),
+                child: const Text(
+                  'Officer',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF6366F1)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildPlanBadge(),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Divider(color: dividerColor, height: 1),
+          const SizedBox(height: 16),
+          // Footer: Date and System Status
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.calendar_today_rounded, size: 14, color: dateColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    _getFormattedDate(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: dateColor,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF10B981),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Sistem Aktif',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanBadge() {
+    Color badgeColor;
+    Gradient badgeGradient;
+    IconData icon;
+    String label = _plan;
+
+    if (label == 'PRO') {
+      badgeColor = const Color(0xFFD97706);
+      badgeGradient = const LinearGradient(
+        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      icon = Icons.workspace_premium_rounded;
+    } else if (label == 'BASIC') {
+      badgeColor = const Color(0xFF2563EB);
+      badgeGradient = const LinearGradient(
+        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      icon = Icons.star_rounded;
+    } else {
+      badgeColor = const Color(0xFF4B5563);
+      badgeGradient = const LinearGradient(
+        colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      icon = Icons.shield_outlined;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: badgeGradient,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: badgeColor.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }

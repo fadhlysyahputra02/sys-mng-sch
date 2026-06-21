@@ -543,6 +543,21 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
         'icon': Icons.info_outline_rounded,
         'color': const Color(0xFF6366F1),
         'onTap': () => _scrollToSection(_infoKey),
+        'badge': null,
+      },
+      {
+        'title': 'Surat Izin Digital',
+        'icon': Icons.mark_email_read_rounded,
+        'color': const Color(0xFF8B5CF6),
+        'onTap': () => Get.toNamed(AppRoutes.comingSoonSuratIzinOrtu),
+        'badge': 'PRO',
+      },
+      {
+        'title': 'News Feed Sekolah',
+        'icon': Icons.newspaper_rounded,
+        'color': const Color(0xFF0EA5E9),
+        'onTap': () => Get.toNamed(AppRoutes.comingSoonNewsFeedOrtu),
+        'badge': 'PRO',
       },
     ];
 
@@ -560,73 +575,127 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
         final menu = menus[index];
         final color = menu['color'] as Color;
         final onTap = menu['onTap'] as VoidCallback;
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
+        final badge = menu['badge'] as String?;
+        return Container(
+          decoration: BoxDecoration(
+            color: cardBg,
             borderRadius: BorderRadius.circular(20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: cardBorder),
-                boxShadow: isDark
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+            border: Border.all(color: cardBorder),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Builder(
+                          builder: (context) {
+                            final container = Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                menu['icon'] as IconData,
+                                color: color,
+                                size: 32,
+                              ),
+                            );
+
+                            if (menu['title'] == 'Chat Guru' && SessionService.currentUser?.uid != null) {
+                              return ChatUnreadBadge(
+                                schoolId: schoolId,
+                                userId: SessionService.currentUser!.uid,
+                                role: 'parent',
+                                top: -2,
+                                right: -2,
+                                child: container,
+                              );
+                            }
+                            return container;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          menu['title'] as String,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Builder(
-                    builder: (context) {
-                      final container = Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          menu['icon'] as IconData,
-                          color: color,
-                          size: 32,
-                        ),
-                      );
-
-                      if (menu['title'] == 'Chat Guru' && SessionService.currentUser?.uid != null) {
-                        return ChatUnreadBadge(
-                          schoolId: schoolId,
-                          userId: SessionService.currentUser!.uid,
-                          role: 'parent',
-                          top: -2,
-                          right: -2,
-                          child: container,
-                        );
-                      }
-                      return container;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    menu['title'] as String,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (badge != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _buildPackageBadge(badge),
+                    ),
                 ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+
+  Widget _buildPackageBadge(String badge) {
+    final isBasic = badge == 'BASIC';
+    final gradient = isBasic
+        ? const LinearGradient(
+            colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : const LinearGradient(
+            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: (isBasic ? const Color(0xFF3B82F6) : const Color(0xFFF59E0B))
+                .withValues(alpha: 0.4),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        badge,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 8,
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 

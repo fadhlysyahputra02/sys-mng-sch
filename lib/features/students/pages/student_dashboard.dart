@@ -1210,10 +1210,24 @@ class _StudentDashboardState extends State<StudentDashboard>
             ? const Color(0xFF10B981)
             : const Color(0xFF6366F1),
       },
+
       {
-        'title': 'Fitur Premium',
-        'icon': Icons.workspace_premium_rounded,
-        'color': const Color(0xFFF97316),
+        'title': 'Bank Soal & Quiz',
+        'icon': Icons.quiz_rounded,
+        'color': const Color(0xFF14B8A6),
+        'badge': 'BASIC',
+      },
+      {
+        'title': 'Surat Izin Digital',
+        'icon': Icons.mark_email_read_rounded,
+        'color': const Color(0xFF8B5CF6),
+        'badge': 'PRO',
+      },
+      {
+        'title': 'News Feed Sekolah',
+        'icon': Icons.newspaper_rounded,
+        'color': const Color(0xFF0EA5E9),
+        'badge': 'PRO',
       },
     ];
     final cardBg = isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white;
@@ -1235,73 +1249,127 @@ class _StudentDashboardState extends State<StudentDashboard>
       itemBuilder: (context, index) {
         final menu = menus[index];
         final color = menu['color'] as Color;
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _handleMenuTap(menu['title'] as String),
+        final badge = menu['badge'] as String?;
+        return Container(
+          decoration: BoxDecoration(
+            color: cardBg,
             borderRadius: BorderRadius.circular(20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: cardBorder),
-                boxShadow: isDark
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+            border: Border.all(color: cardBorder),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _handleMenuTap(menu['title'] as String),
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Builder(
+                          builder: (context) {
+                            final container = Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                menu['icon'] as IconData,
+                                color: color,
+                                size: 32,
+                              ),
+                            );
+
+                            if (menu['title'] == 'Chat Guru' && _studentDocId != null) {
+                              return ChatUnreadBadge(
+                                schoolId: SessionService.currentUser!.schoolId,
+                                userId: _studentDocId!,
+                                role: 'student',
+                                top: -2,
+                                right: -2,
+                                child: container,
+                              );
+                            }
+                            return container;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          menu['title'] as String,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Builder(
-                    builder: (context) {
-                      final container = Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          menu['icon'] as IconData,
-                          color: color,
-                          size: 32,
-                        ),
-                      );
-
-                      if (menu['title'] == 'Chat Guru' && _studentDocId != null) {
-                        return ChatUnreadBadge(
-                          schoolId: SessionService.currentUser!.schoolId,
-                          userId: _studentDocId!,
-                          role: 'student',
-                          top: -2,
-                          right: -2,
-                          child: container,
-                        );
-                      }
-                      return container;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    menu['title'] as String,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (badge != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _buildPackageBadge(badge),
+                    ),
                 ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+
+  Widget _buildPackageBadge(String badge) {
+    final isBasic = badge == 'BASIC';
+    final gradient = isBasic
+        ? const LinearGradient(
+            colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : const LinearGradient(
+            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: (isBasic ? const Color(0xFF3B82F6) : const Color(0xFFF59E0B))
+                .withValues(alpha: 0.4),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        badge,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 8,
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 
@@ -1480,11 +1548,14 @@ class _StudentDashboardState extends State<StudentDashboard>
           icon: const Icon(Icons.verified_rounded, color: Colors.white),
         );
         break;
-      case 'Fitur Premium':
-        Get.toNamed(
-          AppRoutes.premiumFeatures,
-          arguments: {'plan': _plan, 'schoolId': user.schoolId},
-        );
+      case 'Bank Soal & Quiz':
+        Get.toNamed(AppRoutes.comingSoonBankSoalMurid);
+        break;
+      case 'Surat Izin Digital':
+        Get.toNamed(AppRoutes.comingSoonSuratIzinMurid);
+        break;
+      case 'News Feed Sekolah':
+        Get.toNamed(AppRoutes.comingSoonNewsFeedMurid);
         break;
       default:
         break;

@@ -324,6 +324,16 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                             cardBg: cardBg,
                             cardBorder: cardBorder,
                           ),
+                          _buildMenuCard(
+                            title: 'Export Laporan',
+                            icon: Icons.file_download_rounded,
+                            color: const Color(0xFF10B981),
+                            badge: 'BASIC',
+                            onTap: () => Get.toNamed(AppRoutes.comingSoonExportTu),
+                            textColor: textColor,
+                            cardBg: cardBg,
+                            cardBorder: cardBorder,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 32),
@@ -347,41 +357,95 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
     required Color textColor,
     required Color cardBg,
     required Color cardBorder,
+    String? badge,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cardBorder),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+        border: Border.all(color: cardBorder),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: color, size: 32),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Icon(icon, color: color, size: 32),
               ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+              if (badge != null)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: _buildPackageBadge(badge),
                 ),
-              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildPackageBadge(String badge) {
+    final isBasic = badge == 'BASIC';
+    final gradient = isBasic
+        ? const LinearGradient(
+            colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : const LinearGradient(
+            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: (isBasic ? const Color(0xFF3B82F6) : const Color(0xFFF59E0B))
+                .withValues(alpha: 0.4),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        badge,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 8,
+          letterSpacing: 0.5,
         ),
       ),
     );

@@ -657,10 +657,15 @@ class ClassInfoPage extends StatelessWidget {
         .collection('classes')
         .get();
 
-    final assignedTeacherIds = classesSnapshot.docs
-        .map((doc) => doc.data()['teacherId'] as String?)
-        .where((id) => id != null && id.isNotEmpty)
-        .toSet();
+    final assignedTeacherClasses = <String, List<String>>{};
+    for (var doc in classesSnapshot.docs) {
+      final data = doc.data();
+      final tId = data['teacherId'] as String?;
+      final classNameStr = data['namaKelas'] as String?;
+      if (tId != null && tId.isNotEmpty && classNameStr != null) {
+        assignedTeacherClasses.putIfAbsent(tId, () => []).add(classNameStr);
+      }
+    }
 
     if (context.mounted) Navigator.pop(context);
     if (!context.mounted) return;
@@ -718,11 +723,8 @@ class ClassInfoPage extends StatelessWidget {
                 }
 
                 final allDocs = snapshot.data!.docs;
-                final availableDocs = allDocs
-                    .where((doc) => !assignedTeacherIds.contains(doc.id))
-                    .toList();
 
-                if (availableDocs.isEmpty) {
+                if (allDocs.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -730,7 +732,7 @@ class ClassInfoPage extends StatelessWidget {
                         Icon(Icons.person_off_rounded, size: 48, color: emptyIconColor),
                         const SizedBox(height: 16),
                         Text(
-                          'Tidak ada guru yang tersedia\n(semua sudah menjadi wali kelas)',
+                          'Tidak ada guru yang terdaftar',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: emptyTextColor),
                         ),
@@ -740,12 +742,15 @@ class ClassInfoPage extends StatelessWidget {
                 }
 
                 return ListView.builder(
-                  itemCount: availableDocs.length,
+                  itemCount: allDocs.length,
                   itemBuilder: (_, index) {
-                    final doc = availableDocs[index];
+                    final doc = allDocs[index];
                     final teacher = doc.data();
                     final teacherName = teacher['nama'] ?? '';
                     final inisial = teacherName.isNotEmpty ? teacherName[0].toUpperCase() : '?';
+
+                    final existingClasses = assignedTeacherClasses[doc.id] ?? [];
+                    final isAlreadyWali = existingClasses.isNotEmpty;
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
@@ -776,9 +781,22 @@ class ClassInfoPage extends StatelessWidget {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: Text(
-                                teacherName,
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: teacherNameColor),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    teacherName,
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: teacherNameColor),
+                                  ),
+                                  if (isAlreadyWali)
+                                    Text(
+                                      'Wali Kelas: ${existingClasses.join(', ')}',
+                                      style: const TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.w500),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                ],
                               ),
                             ),
                             ElevatedButton(
@@ -790,6 +808,41 @@ class ClassInfoPage extends StatelessWidget {
                                 minimumSize: const Size(60, 34),
                               ),
                               onPressed: () async {
+                                if (isAlreadyWali) {
+                                  // Tampilkan konfirmasi
+                                  final classesStr = existingClasses.join(', ');
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (confirmCtx) {
+                                      return AlertDialog(
+                                        backgroundColor: dialogBgColor,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                          side: BorderSide(color: dialogBorderColor, width: 1.5),
+                                        ),
+                                        title: Text('Konfirmasi', style: TextStyle(color: titleTextColor)),
+                                        content: Text(
+                                          'Guru $teacherName sudah menjadi walikelas $classesStr apakah ingin menambahkan lagi?',
+                                          style: TextStyle(color: titleTextColor.withValues(alpha: 0.8)),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(confirmCtx, false),
+                                            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
+                                            onPressed: () => Navigator.pop(confirmCtx, true),
+                                            child: const Text('Ya, Tambahkan', style: TextStyle(color: Colors.white)),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+
+                                  if (confirm != true) return;
+                                }
+
                                 await _classService.assignWaliKelas(
                                   classId: classId,
                                   teacherId: doc.id,

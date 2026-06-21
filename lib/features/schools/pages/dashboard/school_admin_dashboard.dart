@@ -8,6 +8,7 @@ import '../../../../core/services/session_service.dart';
 import '../../../authentication/widgets/auth_background.dart';
 import '../../services/school_service.dart';
 import '../classes/pages/class_list_page.dart';
+import '../grades/school_admin_grades_page.dart';
 import '../settings/school_settings_page.dart';
 import '../teachers/pages/teacher_list_admin_page.dart';
 import '../students/pages/student_admin_list_page.dart';
@@ -79,10 +80,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('Absensi', Icons.fact_check_rounded, Color(0xFF8B5CF6)),
     _MenuData('Nilai', Icons.grade_rounded, Color(0xFFEF4444)),
     _MenuData('Notifikasi', Icons.notifications_rounded, Color(0xFF06B6D4)),
-    _MenuData('Fitur Premium', Icons.workspace_premium_rounded, Color(0xFFF97316)),
     _MenuData('Pengaturan', Icons.settings_rounded, Color(0xFF64748B)),
     _MenuData('Petugas', Icons.security_rounded, Color(0xFF8B5CF6)),
     _MenuData('Tata Usaha', Icons.support_agent_rounded, Color(0xFF3B82F6)),
+    _MenuData('Export Laporan', Icons.file_download_rounded, Color(0xFF10B981), badge: 'BASIC'),
+    _MenuData('Statistik Akademik', Icons.bar_chart_rounded, Color(0xFF6366F1), badge: 'BASIC'),
+    _MenuData('News Feed Sekolah', Icons.newspaper_rounded, Color(0xFF0EA5E9), badge: 'PRO'),
+    _MenuData('Analitik Sekolah', Icons.analytics_rounded, Color(0xFFEC4899), badge: 'PRO'),
   ];
 
   void _onMenuTap(String title) async {
@@ -105,11 +109,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       case 'Notifikasi':
         Get.toNamed(AppRoutes.notifications);
         break;
-      case 'Fitur Premium':
-        Get.toNamed(AppRoutes.premiumFeatures, arguments: {
-          'plan': _plan,
-          'schoolId': schoolId,
-        });
+      case 'Nilai':
+        Get.to(() => const SchoolAdminGradesPage());
         break;
       case 'Pengaturan':
         final updated = await Get.to(() => SchoolSettingsPage(schoolId: schoolId));
@@ -125,6 +126,18 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         break;
       case 'Absensi':
         _showAbsensiSelectionDialog();
+        break;
+      case 'Export Laporan':
+        Get.toNamed(AppRoutes.comingSoonExportAdmin);
+        break;
+      case 'Statistik Akademik':
+        Get.toNamed(AppRoutes.comingSoonStatistikAdmin);
+        break;
+      case 'News Feed Sekolah':
+        Get.toNamed(AppRoutes.comingSoonNewsFeedAdmin);
+        break;
+      case 'Analitik Sekolah':
+        Get.toNamed(AppRoutes.comingSoonAnalitikAdmin);
         break;
     }
   }
@@ -535,7 +548,12 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   }
 
   Widget _buildMenuCard(_MenuData menu, bool isDark) {
-    final bool isActive = ['Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi', 'Fitur Premium', 'Pengaturan', 'Petugas', 'Tata Usaha', 'Absensi'].contains(menu.title);
+    final bool isActive = [
+      'Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi',
+      'Pengaturan', 'Petugas', 'Tata Usaha', 'Absensi', 'Nilai',
+      // Menu Coming Soon baru (tetap aktif karena punya route)
+      'Export Laporan', 'Statistik Akademik', 'News Feed Sekolah', 'Analitik Sekolah',
+    ].contains(menu.title);
 
     final cardBg = isActive
         ? (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white)
@@ -552,71 +570,131 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     final upcomingBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05);
     final upcomingText = isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.4);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: isActive ? () => _onMenuTap(menu.title) : null,
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cardBorder),
-            boxShadow: isDark
-                ? []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isActive ? menu.color.withValues(alpha: 0.15) : Colors.grey.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  menu.icon, 
-                  color: isActive ? menu.color : (isDark ? Colors.white24 : Colors.black26), 
-                  size: 28
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                menu.title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: titleColor, 
-                  fontSize: 13, 
-                  fontWeight: FontWeight.w600
-                ),
-              ),
-              if (!isActive) ...[
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: upcomingBg,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Segera Hadir',
-                    style: TextStyle(
-                      color: upcomingText,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+        border: Border.all(color: cardBorder),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isActive ? () => _onMenuTap(menu.title) : null,
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? menu.color.withValues(alpha: 0.15)
+                            : Colors.grey.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        menu.icon,
+                        color: isActive
+                            ? menu.color
+                            : (isDark ? Colors.white24 : Colors.black26),
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      menu.title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: titleColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (!isActive) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: upcomingBg,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Segera Hadir',
+                          style: TextStyle(
+                            color: upcomingText,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              // Badge paket (BASIC / PRO) di pojok kanan atas
+              if (menu.badge != null)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: _buildPackageBadge(menu.badge!),
+                ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+
+
+  Widget _buildPackageBadge(String badge) {
+    final isBasic = badge == 'BASIC';
+    final gradient = isBasic
+        ? const LinearGradient(
+            colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : const LinearGradient(
+            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: (isBasic ? const Color(0xFF3B82F6) : const Color(0xFFF59E0B))
+                .withValues(alpha: 0.4),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        badge,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 8,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -756,9 +834,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 7, const Color(0xFF06B6D4), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Fitur Premium', Icons.workspace_premium_rounded, 8, const Color(0xFFF97316), isDark),
-                const SizedBox(height: 4),
-                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 9, const Color(0xFF64748B), isDark),
+                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Petugas', Icons.security_rounded, 10, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
@@ -1708,5 +1784,6 @@ class _MenuData {
   final String title;
   final IconData icon;
   final Color color;
-  const _MenuData(this.title, this.icon, this.color);
+  final String? badge;
+  const _MenuData(this.title, this.icon, this.color, {this.badge});
 }

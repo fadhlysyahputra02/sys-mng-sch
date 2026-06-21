@@ -285,8 +285,6 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
                                           child: Text(
                                             item['studentName'] ?? '-',
                                             style: TextStyle(color: textColor, fontWeight: FontWeight.w500),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                         Expanded(
