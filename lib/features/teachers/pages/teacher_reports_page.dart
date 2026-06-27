@@ -767,7 +767,7 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
       _isModified.clear();
 
       for (var student in studentDocs) {
-        final studentId = student.id;
+        final studentId = student.data()['studentId'] ?? student.id;
         final existingDesc = descMap[studentId] ?? '';
         final controller = TextEditingController(text: existingDesc);
         _descControllers[studentId] = controller;
@@ -846,7 +846,10 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
 
   String studentName(String studentId) {
     try {
-      final doc = _students.firstWhere((element) => element.id == studentId);
+      final doc = _students.firstWhere((element) {
+        final elId = element.data()?['studentId'] ?? element.id;
+        return elId == studentId;
+      });
       return doc.data()?['nama'] ?? 'siswa';
     } catch (_) {
       return 'siswa';
@@ -929,7 +932,7 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
                           itemCount: _students.length,
                           itemBuilder: (context, index) {
                             final studentDoc = _students[index];
-                            final studentId = studentDoc.id;
+                            final studentId = studentDoc.data()?['studentId'] ?? studentDoc.id;
                             final studentData = studentDoc.data();
                             final studentNameStr = studentData?['nama']?.toString() ?? 'Siswa';
                             final nis = studentData?['nis'] ?? '-';

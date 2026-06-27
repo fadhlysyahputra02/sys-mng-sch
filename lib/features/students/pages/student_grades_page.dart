@@ -34,6 +34,18 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
   bool _isLoading = true;
   String? _error;
 
+  late String _selectedTahunAjaran;
+  late String _selectedSemester;
+  late String _classId;
+  late String _className;
+
+  List<String> _tahunAjaranOptions = [];
+
+  final List<String> _semesterOptions = [
+    'Semester 1',
+    'Semester 2',
+  ];
+
   void _toggleExpand(String subjectName) {
     setState(() {
       if (_expandedSubjects.contains(subjectName)) {
@@ -47,7 +59,27 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
   @override
   void initState() {
     super.initState();
+    _selectedTahunAjaran = widget.tahunAjaran;
+    _selectedSemester = widget.semester;
+    _classId = widget.classId;
+    _className = widget.className;
+
+    _generateTahunAjaranOptions();
+
+    if (!_tahunAjaranOptions.contains(_selectedTahunAjaran)) {
+      _tahunAjaranOptions.add(_selectedTahunAjaran);
+    }
     _loadGrades();
+  }
+
+  void _generateTahunAjaranOptions() {
+    int currentYear = DateTime.now().year;
+    int currentMonth = DateTime.now().month;
+    int maxStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
+    
+    for (int i = maxStartYear - 5; i <= maxStartYear + 1; i++) {
+      _tahunAjaranOptions.add('$i/${i + 1}');
+    }
   }
 
   Future<void> _loadGrades() async {
@@ -64,55 +96,86 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
       final gradeTemplates =
           schoolDoc.data()?['grade_templates'] as Map<String, dynamic>?;
 
-      final snapshot = await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(user.schoolId)
-          .collection('grades')
-          .where('classId', isEqualTo: widget.classId)
-          .where('tahunAjaran', isEqualTo: widget.tahunAjaran)
-          .where('semester', isEqualTo: widget.semester)
-          .get();
+      // Dapatkan classId & className berdasarkan enrollment jika filter berubah atau jika widget.classId kosong (siswa lulus)
+      if (_selectedTahunAjaran != widget.tahunAjaran || _selectedSemester != widget.semester || widget.classId.isEmpty) {
+        final cleanYear = _selectedTahunAjaran.replaceAll('/', '_');
+        final enrollmentId = '${widget.studentDocId}_${cleanYear}_$_selectedSemester';
+        final enrollmentDoc = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(user.schoolId)
+            .collection('class_enrollments')
+            .doc(enrollmentId)
+            .get();
+
+        if (enrollmentDoc.exists) {
+          _classId = enrollmentDoc.data()?['classId']?.toString() ?? '';
+          _className = enrollmentDoc.data()?['className']?.toString() ?? '';
+        } else {
+          _classId = '';
+          _className = '';
+        }
+      } else {
+        _classId = widget.classId;
+        _className = widget.className;
+      }
 
       final Map<String, Map<String, dynamic>> grouped = {};
 
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final scores = data['scores'] as Map<String, dynamic>? ?? {};
-        // Hanya ambil nilai yang ada untuk murid ini
-        if (!scores.containsKey(widget.studentDocId)) continue;
+      if (_classId.isNotEmpty) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(user.schoolId)
+            .collection('grades')
+            .where('classId', isEqualTo: _classId)
+            .where('tahunAjaran', isEqualTo: _selectedTahunAjaran)
+            .where('semester', isEqualTo: _selectedSemester)
+            .get();
 
-        final studentScoreData =
-            scores[widget.studentDocId] as Map<String, dynamic>? ?? {};
-        final double score = ((studentScoreData['score'] ?? 0.0) as num).toDouble();
-        final String notes = (studentScoreData['notes'] ?? '').toString();
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final scores = data['scores'] as Map<String, dynamic>? ?? {};
+          
+          final cleanYear = _selectedTahunAjaran.replaceAll('/', '_');
+          final fallbackKey = '${widget.studentDocId}_${cleanYear}_$_selectedSemester';
+          
+          final hasPlainKey = scores.containsKey(widget.studentDocId);
+          final hasFallbackKey = scores.containsKey(fallbackKey);
+          
+          if (!hasPlainKey && !hasFallbackKey) continue;
 
-        final String subjectName = data['subjectName'] ?? 'Mata Pelajaran';
-        final String subjectId = data['subjectId'] ?? '';
-        final String category = data['category'] ?? 'Tugas';
-        final String title = data['title'] ?? 'Penilaian';
-        final double maxScore = ((data['maxScore'] ?? 100.0) as num).toDouble();
-        final String date = data['date'] ?? '-';
+          final studentScoreData =
+              (scores[widget.studentDocId] ?? scores[fallbackKey]) as Map<String, dynamic>? ?? {};
+          final double score = ((studentScoreData['score'] ?? 0.0) as num).toDouble();
+          final String notes = (studentScoreData['notes'] ?? '').toString();
 
-        if (!grouped.containsKey(subjectName)) {
-          grouped[subjectName] = {
-            'subjectId': subjectId,
-            'subjectName': subjectName,
-            'categories': <String, List<Map<String, dynamic>>>{},
-          };
+          final String subjectName = data['subjectName'] ?? 'Mata Pelajaran';
+          final String subjectId = data['subjectId'] ?? '';
+          final String category = data['category'] ?? 'Tugas';
+          final String title = data['title'] ?? 'Penilaian';
+          final double maxScore = ((data['maxScore'] ?? 100.0) as num).toDouble();
+          final String date = data['date'] ?? '-';
+
+          if (!grouped.containsKey(subjectName)) {
+            grouped[subjectName] = {
+              'subjectId': subjectId,
+              'subjectName': subjectName,
+              'categories': <String, List<Map<String, dynamic>>>{},
+            };
+          }
+          final categories =
+              grouped[subjectName]!['categories']
+                  as Map<String, List<Map<String, dynamic>>>;
+          if (!categories.containsKey(category)) {
+            categories[category] = [];
+          }
+          categories[category]!.add({
+            'title': title,
+            'score': score,
+            'maxScore': maxScore,
+            'date': date,
+            'notes': notes,
+          });
         }
-        final categories =
-            grouped[subjectName]!['categories']
-                as Map<String, List<Map<String, dynamic>>>;
-        if (!categories.containsKey(category)) {
-          categories[category] = [];
-        }
-        categories[category]!.add({
-          'title': title,
-          'score': score,
-          'maxScore': maxScore,
-          'date': date,
-          'notes': notes,
-        });
       }
 
       // Hitung nilai rata-rata per mapel (dengan mempertimbangkan bobot jika ada)
@@ -129,7 +192,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
         try {
           final user = SessionService.currentUser!;
           final docId =
-              '${widget.classId}_${subjectId}_${widget.tahunAjaran.replaceAll('/', '_')}_${widget.semester}';
+              '${_classId}_${subjectId}_${_selectedTahunAjaran.replaceAll('/', '_')}_$_selectedSemester';
           final weightDoc = await FirebaseFirestore.instance
               .collection('schools')
               .doc(user.schoolId)
@@ -320,7 +383,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                         ),
                       ),
                       Text(
-                        '${widget.tahunAjaran}  •  ${widget.semester}',
+                        '$_selectedTahunAjaran  •  $_selectedSemester',
                         style: TextStyle(fontSize: 11, color: subTextColor),
                       ),
                     ],
@@ -343,6 +406,113 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                       ),
                     ),
                   ],
+                ),
+
+                // Filter Card
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: cardBorder),
+                        boxShadow: isDark ? [] : [
+                          BoxShadow(
+                            color: shadowColor,
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.filter_alt_rounded, color: Color(0xFF8B5CF6), size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Filter Nilai',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  value: _selectedTahunAjaran,
+                                  dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                  decoration: InputDecoration(
+                                    labelText: 'Tahun Ajaran',
+                                    labelStyle: TextStyle(color: subTextColor, fontSize: 11),
+                                    fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.03),
+                                    filled: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: cardBorder),
+                                    ),
+                                  ),
+                                  style: TextStyle(color: titleColor, fontSize: 13),
+                                  items: _tahunAjaranOptions.map((tahun) {
+                                    return DropdownMenuItem<String>(
+                                      value: tahun,
+                                      child: Text(tahun),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() => _selectedTahunAjaran = val);
+                                      _loadGrades();
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  value: _selectedSemester,
+                                  dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                  decoration: InputDecoration(
+                                    labelText: 'Semester',
+                                    labelStyle: TextStyle(color: subTextColor, fontSize: 11),
+                                    fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.03),
+                                    filled: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: cardBorder),
+                                    ),
+                                  ),
+                                  style: TextStyle(color: titleColor, fontSize: 13),
+                                  items: _semesterOptions.map((sem) {
+                                    return DropdownMenuItem<String>(
+                                      value: sem,
+                                      child: Text(sem),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() => _selectedSemester = val);
+                                      _loadGrades();
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
 
                 // Content
@@ -417,7 +587,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Belum Ada Nilai',
+                            _classId.isEmpty ? 'Tidak Terdaftar Kelas' : 'Belum Ada Nilai',
                             style: TextStyle(
                               color: titleColor,
                               fontSize: 18,
@@ -426,7 +596,9 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Nilai Anda akan tampil di sini\nsetelah guru memasukkan nilai.',
+                            _classId.isEmpty
+                                ? 'Anda tidak terdaftar di kelas manapun\npada tahun ajaran dan semester ini.'
+                                : 'Nilai Anda akan tampil di sini\nsetelah guru memasukkan nilai.',
                             textAlign: TextAlign.center,
                             style: TextStyle(color: subTextColor, fontSize: 13),
                           ),
@@ -541,7 +713,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                               ),
                                               const SizedBox(height: 2),
                                               Text(
-                                                widget.className,
+                                                _className,
                                                 style: TextStyle(
                                                   color: subTextColor,
                                                   fontSize: 12,

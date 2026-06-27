@@ -17,6 +17,8 @@ class _AddStudentPageState extends State<AddStudentPage> {
   final namaController = TextEditingController();
   final nisController = TextEditingController();
   final addressController = TextEditingController();
+  final tanggalLahirController = TextEditingController();
+  final angkatanController = TextEditingController();
   String? _selectedGender;
 
   bool isLoading = false;
@@ -35,6 +37,8 @@ class _AddStudentPageState extends State<AddStudentPage> {
         nama: namaController.text.trim(),
         gender: _selectedGender ?? '',
         alamat: addressController.text.trim(),
+        tanggalLahir: tanggalLahirController.text.trim(),
+        angkatan: angkatanController.text.trim(),
       );
 
       if (!mounted) return;
@@ -65,6 +69,8 @@ class _AddStudentPageState extends State<AddStudentPage> {
     namaController.dispose();
     nisController.dispose();
     addressController.dispose();
+    tanggalLahirController.dispose();
+    angkatanController.dispose();
     super.dispose();
   }
 
@@ -227,6 +233,56 @@ class _AddStudentPageState extends State<AddStudentPage> {
                             cardBgColor: cardBgColor,
                             borderColor: borderColor,
                             maxLines: 3,
+                          ),
+                          const SizedBox(height: 14),
+                          GestureDetector(
+                            onTap: () async {
+                              final pickedDate = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime(2010),
+                                firstDate: DateTime(1990),
+                                lastDate: DateTime.now(),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: ColorScheme.fromSeed(
+                                        seedColor: const Color(0xFF0EA5E9),
+                                        brightness: isDark ? Brightness.dark : Brightness.light,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (pickedDate != null) {
+                                tanggalLahirController.text = "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
+                              }
+                            },
+                            child: AbsorbPointer(
+                              child: _buildField(
+                                controller: tanggalLahirController,
+                                label: 'Tanggal Lahir',
+                                icon: Icons.calendar_month_rounded,
+                                isDark: isDark,
+                                textColor: textColor,
+                                subTextColor: subTextColor,
+                                cardBgColor: cardBgColor,
+                                borderColor: borderColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _buildField(
+                            controller: angkatanController,
+                            label: 'Angkatan Masuk (Tahun)',
+                            icon: Icons.calendar_today_rounded,
+                            keyboardType: TextInputType.number,
+                            isDark: isDark,
+                            textColor: textColor,
+                            subTextColor: subTextColor,
+                            cardBgColor: cardBgColor,
+                            borderColor: borderColor,
+                            validator: (v) => (v != null && v.isNotEmpty && int.tryParse(v) == null) ? 'Angkatan harus berupa tahun (angka)' : null,
                           ),
 
                           const SizedBox(height: 32),

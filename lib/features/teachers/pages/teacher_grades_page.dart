@@ -694,7 +694,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
   bool _isLoadingWeights = false;
   bool _isSaving = false;
 
-  String? _selectedClassId;
+  final Set<String> _selectedClassIds = {};
   String? _selectedSubjectId;
 
   // Controllers untuk bobot
@@ -713,19 +713,33 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
     return t + k + u + uts + uas;
   }
 
+  /// Kumpulkan semua mata pelajaran unik dari kelas-kelas yang dipilih
+  Map<String, String> get _availableSubjects {
+    final Map<String, String> subjects = {};
+    for (final classId in _selectedClassIds) {
+      final classData = widget.classMap[classId];
+      if (classData != null && classData['subjects'] != null) {
+        subjects.addAll(Map<String, String>.from(classData['subjects'] as Map));
+      }
+    }
+    return subjects;
+  }
+
   @override
   void initState() {
     super.initState();
   }
 
   Future<void> _loadExistingWeights() async {
-    if (_selectedClassId == null || _selectedSubjectId == null) return;
+    if (_selectedClassIds.isEmpty || _selectedSubjectId == null) return;
     setState(() {
       _isLoadingWeights = true;
     });
 
     try {
-      final docId = '${_selectedClassId}_${_selectedSubjectId}_${widget.tahunAjaran.replaceAll('/', '_')}_${widget.semester}';
+      // Ambil bobot dari kelas pertama yang dipilih sebagai referensi
+      final firstClassId = _selectedClassIds.first;
+      final docId = '${firstClassId}_${_selectedSubjectId}_${widget.tahunAjaran.replaceAll('/', '_')}_${widget.semester}';
       final doc = await FirebaseFirestore.instance
           .collection('schools')
           .doc(widget.schoolId)
@@ -762,9 +776,9 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
 
   Future<void> _saveWeights() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedClassId == null || _selectedSubjectId == null) {
+    if (_selectedClassIds.isEmpty || _selectedSubjectId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih Kelas & Mapel terlebih dahulu'), backgroundColor: Colors.redAccent),
+        const SnackBar(content: Text('Pilih minimal satu Kelas & Mapel terlebih dahulu'), backgroundColor: Colors.redAccent),
       );
       return;
     }
@@ -790,19 +804,25 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
         'UAS': double.tryParse(_uasController.text) ?? 20.0,
       };
 
-      await _gradeService.saveCategoryWeights(
-        schoolId: widget.schoolId,
-        classId: _selectedClassId!,
-        subjectId: _selectedSubjectId!,
-        teacherId: widget.teacherId,
-        weights: wMap,
-        tahunAjaran: widget.tahunAjaran,
-        semester: widget.semester,
-      );
+      // Simpan bobot untuk setiap kelas yang dipilih
+      for (final classId in _selectedClassIds) {
+        await _gradeService.saveCategoryWeights(
+          schoolId: widget.schoolId,
+          classId: classId,
+          subjectId: _selectedSubjectId!,
+          teacherId: widget.teacherId,
+          weights: wMap,
+          tahunAjaran: widget.tahunAjaran,
+          semester: widget.semester,
+        );
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bobot kategori berhasil disimpan'), backgroundColor: Color(0xFF10B981)),
+        SnackBar(
+          content: Text('Bobot kategori berhasil disimpan untuk ${_selectedClassIds.length} kelas'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
       );
       Navigator.pop(context);
     } catch (e) {
@@ -825,13 +845,20 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
     final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
     final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
 
-    Map<String, String> subjectsList = {};
-    if (_selectedClassId != null) {
-      final classData = widget.classMap[_selectedClassId];
-      if (classData != null && classData['subjects'] != null) {
-        subjectsList = Map<String, String>.from(classData['subjects'] as Map);
-      }
+    final subjectsList = _availableSubjects;
+
+    // Pastikan _selectedSubjectId masih valid di dalam list mapel saat ini
+    if (_selectedSubjectId != null && !subjectsList.containsKey(_selectedSubjectId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedSubjectId = null;
+          });
+        }
+      });
     }
+
+    final bool hasSelection = _selectedClassIds.isNotEmpty && _selectedSubjectId != null;
 
     return AlertDialog(
       backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
@@ -841,7 +868,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
       ),
       title: Row(
         children: [
-          Icon(Icons.percent_rounded, color: const Color(0xFF8B5CF6)),
+          const Icon(Icons.percent_rounded, color: Color(0xFF8B5CF6)),
           const SizedBox(width: 10),
           Text(
             'Atur Bobot Kategori',
@@ -849,48 +876,96 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
           ),
         ],
       ),
-      content: Container(
+      content: SizedBox(
               width: double.maxFinite,
               child: SingleChildScrollView(
                 child: Form(
                   key: _formKey,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Dropdown Kelas
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        value: _selectedClassId,
-                        dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-                        decoration: InputDecoration(
-                          labelText: 'Pilih Kelas',
-                          labelStyle: TextStyle(color: subTextColor, fontSize: 13),
-                          fillColor: inputFillColor,
-                          filled: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: cardBorderColor),
+                      // Multi-select Kelas (Checkbox)
+                      Text(
+                        'Pilih Kelas (bisa lebih dari satu)',
+                        style: TextStyle(color: subTextColor, fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 160),
+                        decoration: BoxDecoration(
+                          color: inputFillColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: cardBorderColor),
+                        ),
+                        child: widget.classMap.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Text('Tidak ada kelas tersedia', style: TextStyle(color: subTextColor, fontSize: 12)),
+                              )
+                            : ListView(
+                                shrinkWrap: true,
+                                padding: EdgeInsets.zero,
+                                children: widget.classMap.keys.map((classId) {
+                                  final className = widget.classMap[classId]?['className']?.toString() ?? '';
+                                  final isSelected = _selectedClassIds.contains(classId);
+                                  return CheckboxListTile(
+                                    value: isSelected,
+                                    dense: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                    controlAffinity: ListTileControlAffinity.leading,
+                                    activeColor: const Color(0xFF8B5CF6),
+                                    title: Text(
+                                      className,
+                                      style: TextStyle(color: titleColor, fontSize: 13, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+                                    ),
+                                    onChanged: (val) {
+                                      setState(() {
+                                        if (val == true) {
+                                          _selectedClassIds.add(classId);
+                                        } else {
+                                          _selectedClassIds.remove(classId);
+                                        }
+                                        // Reset mapel jika sudah tidak relevan
+                                        if (_selectedSubjectId != null && !_availableSubjects.containsKey(_selectedSubjectId)) {
+                                          _selectedSubjectId = null;
+                                        }
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                      ),
+                      if (_selectedClassIds.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6, bottom: 4),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: _selectedClassIds.map((classId) {
+                              final className = widget.classMap[classId]?['className']?.toString() ?? '';
+                              return Chip(
+                                label: Text(className, style: const TextStyle(fontSize: 11, color: Colors.white)),
+                                backgroundColor: const Color(0xFF8B5CF6),
+                                deleteIconColor: Colors.white70,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                                onDeleted: () {
+                                  setState(() {
+                                    _selectedClassIds.remove(classId);
+                                    if (_selectedSubjectId != null && !_availableSubjects.containsKey(_selectedSubjectId)) {
+                                      _selectedSubjectId = null;
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
                           ),
                         ),
-                        style: TextStyle(color: titleColor, fontSize: 14),
-                        items: widget.classMap.keys.map((classId) {
-                          return DropdownMenuItem(
-                            value: classId,
-                            child: Text(widget.classMap[classId]?['className']?.toString() ?? ''),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedClassId = val;
-                            _selectedSubjectId = null;
-                          });
-                        },
-                      ),
+                      ],
                       const SizedBox(height: 12),
 
-                      // Dropdown Mapel
+                      // Dropdown Mapel (berdasarkan gabungan semua kelas terpilih)
                       DropdownButtonFormField<String>(
                         isExpanded: true,
                         value: _selectedSubjectId,
@@ -923,7 +998,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                       ),
                       const SizedBox(height: 16),
 
-                      if (_selectedClassId != null && _selectedSubjectId != null) ...[
+                      if (hasSelection) ...[
                         if (_isLoadingWeights)
                           const SizedBox(
                             height: 100,
@@ -984,6 +1059,31 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                               );
                             },
                           ),
+
+                          // Info jumlah kelas
+                          if (_selectedClassIds.length > 1) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF3B82F6)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Bobot akan diterapkan ke ${_selectedClassIds.length} kelas sekaligus.',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF3B82F6), fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ]
                       ] else ...[
                         Padding(
@@ -1008,7 +1108,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
             style: TextStyle(color: subTextColor, fontWeight: FontWeight.w600),
           ),
         ),
-        if (_selectedClassId != null && _selectedSubjectId != null && !_isLoadingWeights)
+        if (hasSelection && !_isLoadingWeights)
           ElevatedButton(
             onPressed: _isSaving ? null : _saveWeights,
             style: ElevatedButton.styleFrom(
@@ -1022,7 +1122,10 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                     height: 20,
                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                   )
-                : const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                : Text(
+                    _selectedClassIds.length > 1 ? 'Simpan (${_selectedClassIds.length} Kelas)' : 'Simpan',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
           ),
       ],
     );
@@ -1078,3 +1181,4 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
     );
   }
 }
+

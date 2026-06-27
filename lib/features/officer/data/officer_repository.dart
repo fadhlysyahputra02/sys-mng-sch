@@ -17,10 +17,14 @@ class OfficerRepository {
     
     // Ambil jamMasuk dari database sekolah
     String jamMasukLimit = '07:15';
+    String tahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
+    String semester = 'Semester 1';
     try {
       final schoolDoc = await _firestore.collection('schools').doc(schoolId).get();
       if (schoolDoc.exists) {
         jamMasukLimit = schoolDoc.data()?['jamMasuk'] ?? '07:15';
+        tahunAjaran = schoolDoc.data()?['tahunAjaran'] ?? tahunAjaran;
+        semester = schoolDoc.data()?['semester'] ?? semester;
       }
     } catch (_) {}
 
@@ -55,6 +59,8 @@ class OfficerRepository {
       status: status,
       method: 'qr_scan',
       timeScanned: now,
+      tahunAjaran: tahunAjaran,
+      semester: semester,
     );
     
     return isLate;
@@ -70,6 +76,16 @@ class OfficerRepository {
     required String officerId,
     required String status,
   }) async {
+    String tahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
+    String semester = 'Semester 1';
+    try {
+      final schoolDoc = await _firestore.collection('schools').doc(schoolId).get();
+      if (schoolDoc.exists) {
+        tahunAjaran = schoolDoc.data()?['tahunAjaran'] ?? tahunAjaran;
+        semester = schoolDoc.data()?['semester'] ?? semester;
+      }
+    } catch (_) {}
+
     await _saveAttendance(
       schoolId: schoolId,
       studentId: studentId,
@@ -80,6 +96,8 @@ class OfficerRepository {
       status: status,
       method: 'manual',
       timeScanned: DateTime.now(),
+      tahunAjaran: tahunAjaran,
+      semester: semester,
     );
   }
 
@@ -94,6 +112,8 @@ class OfficerRepository {
     required String status,
     required String method,
     required DateTime timeScanned,
+    required String tahunAjaran,
+    required String semester,
   }) async {
     final batch = _firestore.batch();
     
@@ -116,6 +136,8 @@ class OfficerRepository {
       schoolId: schoolId,
     );
     final logData = logModel.toMap();
+    logData['tahunAjaran'] = tahunAjaran;
+    logData['semester'] = semester;
     logData['expireAt'] = Timestamp.fromDate(
       DateTime.now().add(const Duration(days: 365 * 5)),
     );
@@ -140,6 +162,8 @@ class OfficerRepository {
       'status': status,
       'method': method,
       'officerId': officerId,
+      'tahunAjaran': tahunAjaran,
+      'semester': semester,
       'expireAt': Timestamp.fromDate(
         DateTime.now().add(const Duration(days: 365 * 5)),
       ),
@@ -194,5 +218,164 @@ class OfficerRepository {
         
     final doc = await docRef.get();
     return doc.exists;
+  }
+
+  // 6. Catat absensi Guru via QR Scan (Harian)
+  Future<Map<String, dynamic>> scanTeacherAttendance({
+    required String schoolId,
+    required String teacherId,
+    required String teacherName,
+    required String nip,
+    required String officerId,
+  }) async {
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    
+    final docRef = _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('teacher_daily_attendance')
+        .doc('${dateStr}_$teacherId');
+        
+    final doc = await docRef.get();
+    
+    String jamMasukLimit = '07:15';
+    String tahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
+    String semester = 'Semester 1';
+    try {
+      final schoolDoc = await _firestore.collection('schools').doc(schoolId).get();
+      if (schoolDoc.exists) {
+        jamMasukLimit = schoolDoc.data()?['jamMasuk'] ?? '07:15';
+        tahunAjaran = schoolDoc.data()?['tahunAjaran'] ?? tahunAjaran;
+        semester = schoolDoc.data()?['semester'] ?? semester;
+      }
+    } catch (_) {}
+
+    // Hitung apakah terlambat berdasarkan jamMasukLimit
+    bool isLate = false;
+    try {
+      final parts = jamMasukLimit.split(':');
+      if (parts.length == 2) {
+        final limitHour = int.parse(parts[0]);
+        final limitMinute = int.parse(parts[1]);
+        
+        final currentMinutes = now.hour * 60 + now.minute;
+        final limitMinutes = limitHour * 60 + limitMinute;
+        
+        isLate = currentMinutes > limitMinutes;
+      } else {
+        isLate = now.hour > 7 || (now.hour == 7 && now.minute > 15);
+      }
+    } catch (_) {
+      isLate = now.hour > 7 || (now.hour == 7 && now.minute > 15);
+    }
+
+    final status = isLate ? 'terlambat' : 'hadir';
+
+    if (!doc.exists) {
+      // 1. Belum check-in hari ini -> Lakukan Check-In
+      final checkInTime = Timestamp.fromDate(now);
+      await docRef.set({
+        'teacherId': teacherId,
+        'teacherName': teacherName,
+        'nip': nip,
+        'date': dateStr,
+        'checkInTime': checkInTime,
+        'checkOutTime': null,
+        'status': status,
+        'method': 'qr_scan',
+        'officerId': officerId,
+        'tahunAjaran': tahunAjaran,
+        'semester': semester,
+        'expireAt': Timestamp.fromDate(DateTime.now().add(const Duration(days: 365 * 3))),
+      }, SetOptions(merge: true));
+      
+      return {
+        'action': 'check_in',
+        'isLate': isLate,
+        'status': status,
+        'time': now,
+      };
+    } else {
+      final data = doc.data()!;
+      final checkInTime = data['checkInTime'] as Timestamp?;
+      final checkOutTime = data['checkOutTime'] as Timestamp?;
+      
+      if (checkOutTime != null) {
+        throw ('$teacherName sudah melakukan absen masuk dan pulang hari ini.');
+      }
+      
+      // 2. Sudah check-in tapi belum check-out -> Lakukan Check-Out
+      final newCheckOutTime = Timestamp.fromDate(now);
+      await docRef.update({
+        'checkOutTime': newCheckOutTime,
+      });
+      
+      return {
+        'action': 'check_out',
+        'isLate': data['status'] == 'terlambat',
+        'status': data['status'] ?? 'hadir',
+        'time': now,
+        'checkInTime': checkInTime?.toDate(),
+      };
+    }
+  }
+
+  // 7. Ambil status absensi guru hari ini
+  Future<Map<String, dynamic>?> getTeacherTodayAttendance(String schoolId, String teacherId) async {
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    
+    final doc = await _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('teacher_daily_attendance')
+        .doc('${dateStr}_$teacherId')
+        .get();
+        
+    return doc.exists ? doc.data() : null;
+  }
+
+  // 8. Catat absensi Guru Manual oleh Admin
+  Future<void> markTeacherAttendanceManual({
+    required String schoolId,
+    required String teacherId,
+    required String teacherName,
+    required String nip,
+    required String dateStr,
+    required String status, // 'hadir', 'terlambat', 'sakit', 'izin', 'alfa'
+    DateTime? checkInTime,
+    DateTime? checkOutTime,
+  }) async {
+    String tahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
+    String semester = 'Semester 1';
+    try {
+      final schoolDoc = await _firestore.collection('schools').doc(schoolId).get();
+      if (schoolDoc.exists) {
+        tahunAjaran = schoolDoc.data()?['tahunAjaran'] ?? tahunAjaran;
+        semester = schoolDoc.data()?['semester'] ?? semester;
+      }
+    } catch (_) {}
+
+    final docRef = _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('teacher_daily_attendance')
+        .doc('${dateStr}_$teacherId');
+
+    await docRef.set({
+      'teacherId': teacherId,
+      'teacherName': teacherName,
+      'nip': nip,
+      'date': dateStr,
+      'checkInTime': checkInTime != null ? Timestamp.fromDate(checkInTime) : null,
+      'checkOutTime': checkOutTime != null ? Timestamp.fromDate(checkOutTime) : null,
+      'status': status,
+      'method': 'manual',
+      'officerId': 'admin',
+      'tahunAjaran': tahunAjaran,
+      'semester': semester,
+      'expireAt': Timestamp.fromDate(DateTime.now().add(const Duration(days: 365 * 3))),
+    }, SetOptions(merge: true));
   }
 }

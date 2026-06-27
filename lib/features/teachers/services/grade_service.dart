@@ -139,8 +139,20 @@ class GradeService {
   /// Mendapatkan data siswa berdasarkan kelas untuk proses penilaian
   Stream<QuerySnapshot<Map<String, dynamic>>> getStudentsByClass(
     String schoolId,
-    String classId,
-  ) {
+    String classId, {
+    String? tahunAjaran,
+    String? semester,
+  }) {
+    if (tahunAjaran != null && semester != null && tahunAjaran.isNotEmpty && semester.isNotEmpty) {
+      return _firestore
+          .collection('schools')
+          .doc(schoolId)
+          .collection('class_enrollments')
+          .where('classId', isEqualTo: classId)
+          .where('tahunAjaran', isEqualTo: tahunAjaran)
+          .where('semester', isEqualTo: semester)
+          .snapshots();
+    }
     return _firestore
         .collection('schools')
         .doc(schoolId)

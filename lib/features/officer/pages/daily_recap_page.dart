@@ -139,7 +139,7 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
       }
 
       final bytes = excelFile.save();
-      if (bytes == null) throw Exception('Gagal generate file Excel');
+      if (bytes == null) throw ('Gagal generate file Excel');
       
       // Simpan ke direktori dokumen
       final dir = await getApplicationDocumentsDirectory();

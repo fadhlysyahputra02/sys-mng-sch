@@ -91,10 +91,20 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
     _activeSemester = data['semester']?.toString();
 
     final scores = data['scores'] as Map<String, dynamic>? ?? {};
-    scores.forEach((studentId, detail) {
+    scores.forEach((key, detail) {
       if (detail is Map) {
         final scoreVal = detail['score'] ?? '';
         final notesVal = detail['notes'] ?? '';
+        
+        String studentId = key;
+        if (key.contains('_') && _tahunAjaran != null && _activeSemester != null) {
+          final cleanYear = _tahunAjaran!.replaceAll('/', '_');
+          final suffix = '_${cleanYear}_$_activeSemester';
+          if (key.endsWith(suffix)) {
+            studentId = key.substring(0, key.length - suffix.length);
+          }
+        }
+        
         _scoreControllers[studentId] = TextEditingController(text: scoreVal.toString());
         _noteControllers[studentId] = TextEditingController(text: notesVal.toString());
       }
@@ -591,7 +601,12 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                         // Student List Section
                         if (_selectedClassId != null)
                           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                            stream: _gradeService.getStudentsByClass(user.schoolId, _selectedClassId!),
+                            stream: _gradeService.getStudentsByClass(
+                              user.schoolId,
+                              _selectedClassId!,
+                              tahunAjaran: _tahunAjaran,
+                              semester: _activeSemester,
+                            ),
                             builder: (context, snapshot) {
                               if (snapshot.hasError) {
                                 return SliverToBoxAdapter(
@@ -643,9 +658,9 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
                                       final student = students[index];
-                                      final studentId = student.id;
-                                      final studentName = student.data()['nama'] ?? 'Siswa';
-                                      final nis = student.data()['nis'] ?? '-';
+                                      final studentId = student.data()?['studentId'] ?? student.id;
+                                      final studentName = student.data()?['nama'] ?? 'Siswa';
+                                      final nis = student.data()?['nis'] ?? '-';
 
                                       // Inisialisasi controller jika belum ada
                                       if (!_scoreControllers.containsKey(studentId)) {

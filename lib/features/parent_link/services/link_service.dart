@@ -56,7 +56,7 @@ class LinkService {
   Map<String, dynamic> decodePayload(String raw) {
     final decoded = jsonDecode(raw);
     if (decoded is! Map<String, dynamic>) {
-      throw Exception('Format QR tidak valid.');
+      throw ('Format QR tidak valid.');
     }
     return decoded;
   }
@@ -76,26 +76,26 @@ class LinkService {
     final token = (payload['token'] ?? '').toString();
 
     if (schoolId.isEmpty || studentId.isEmpty || token.isEmpty) {
-      throw Exception('Data QR tidak lengkap.');
+      throw ('Data QR tidak lengkap.');
     }
 
     final tokenDoc = await _tokensRef(schoolId).doc(token).get();
     if (!tokenDoc.exists) {
-      throw Exception('Token tidak ditemukan atau sudah tidak berlaku.');
+      throw ('Token tidak ditemukan atau sudah tidak berlaku.');
     }
 
     final tokenData = tokenDoc.data()!;
     if (tokenData['used'] == true) {
-      throw Exception('QR Code sudah digunakan.');
+      throw ('QR Code sudah digunakan.');
     }
 
     final expiresAt = tokenData['expiresAt'] as Timestamp?;
     if (expiresAt == null || expiresAt.toDate().isBefore(DateTime.now())) {
-      throw Exception('QR Code sudah kedaluwarsa. Minta anak buat QR baru.');
+      throw ('QR Code sudah kedaluwarsa. Minta anak buat QR baru.');
     }
 
     if (tokenData['studentId'] != studentId) {
-      throw Exception('Token tidak cocok dengan data murid.');
+      throw ('Token tidak cocok dengan data murid.');
     }
 
     final studentRef = _firestore
@@ -106,12 +106,12 @@ class LinkService {
 
     final studentDoc = await studentRef.get();
     if (!studentDoc.exists) {
-      throw Exception('Data murid tidak ditemukan.');
+      throw ('Data murid tidak ditemukan.');
     }
 
     final studentData = studentDoc.data()!;
     if (studentData['parentLinked'] == true) {
-      throw Exception('Murid ini sudah terhubung dengan orang tua.');
+      throw ('Murid ini sudah terhubung dengan orang tua.');
     }
 
     final parentDocRef = _parentsRef(schoolId).doc(parentUid);

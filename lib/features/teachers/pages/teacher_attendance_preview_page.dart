@@ -104,7 +104,7 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
           .toSet();
 
       // Rekap absensi untuk kombinasi ini
-      final classStudents = widget.students.where((s) => s['classId'] == classId).toList();
+      final classStudents = widget.students.where((s) => s['classId'] == classId || (s['className'] == className && className.isNotEmpty && className != 'Kelas')).toList();
       classStudents.sort((a, b) {
         final nameA = a['nama']?.toString() ?? '';
         final nameB = b['nama']?.toString() ?? '';
@@ -326,13 +326,7 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
             ),
           ),
 
-          // Chart Section
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: _buildSummaryChart(group, isDark),
-          ),
 
-          Divider(color: cardBorder, height: 1),
 
           // Table Section
           Padding(
@@ -354,62 +348,7 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
     );
   }
 
-  Widget _buildSummaryChart(_AttendanceGroup group, bool isDark) {
-    final int total = group.totalHadir + group.totalIzin + group.totalSakit + group.totalAlpa;
-    if (total == 0) {
-      return Text('Belum ada data absensi', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54));
-    }
 
-    final double hadirPct = group.totalHadir / total;
-    final double izinPct = group.totalIzin / total;
-    final double sakitPct = group.totalSakit / total;
-    final double alpaPct = group.totalAlpa / total;
-
-    Widget legend(String label, Color color, int count) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-          const SizedBox(width: 6),
-          Text('$label ($count)', style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w500)),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Bar Chart
-        Container(
-          height: 24,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              if (hadirPct > 0) Expanded(flex: (hadirPct * 1000).toInt(), child: Container(color: const Color(0xFF10B981))),
-              if (izinPct > 0) Expanded(flex: (izinPct * 1000).toInt(), child: Container(color: const Color(0xFF3B82F6))),
-              if (sakitPct > 0) Expanded(flex: (sakitPct * 1000).toInt(), child: Container(color: const Color(0xFFF59E0B))),
-              if (alpaPct > 0) Expanded(flex: (alpaPct * 1000).toInt(), child: Container(color: const Color(0xFFEF4444))),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Legends
-        Wrap(
-          spacing: 16,
-          runSpacing: 8,
-          children: [
-            legend('Hadir', const Color(0xFF10B981), group.totalHadir),
-            legend('Izin', const Color(0xFF3B82F6), group.totalIzin),
-            legend('Sakit', const Color(0xFFF59E0B), group.totalSakit),
-            legend('Alpa', const Color(0xFFEF4444), group.totalAlpa),
-          ],
-        ),
-      ],
-    );
-  }
 
   Widget _buildDataTable(_AttendanceGroup group, bool isDark) {
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1);

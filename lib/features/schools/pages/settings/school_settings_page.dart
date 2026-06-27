@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../authentication/widgets/auth_background.dart';
+import '../../../../core/services/session_service.dart';
 
 class SchoolSettingsPage extends StatefulWidget {
   final String schoolId;
@@ -425,12 +426,62 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
         ? Colors.white.withValues(alpha: 0.45)
         : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
+    final user = SessionService.currentUser;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 4),
+          if (user != null) ...[
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: cardBorder),
+                boxShadow: isDark
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: cardShadow,
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person_rounded, color: Color(0xFF6366F1), size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.nama,
+                          style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user.email,
+                          style: TextStyle(color: textSecondary, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
 
           // ── Logo ─────────────────────────────────────────────────
           _sectionLabel('Logo Sekolah', Icons.image_outlined, isDark),

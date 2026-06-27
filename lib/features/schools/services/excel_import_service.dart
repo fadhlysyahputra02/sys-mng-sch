@@ -235,6 +235,8 @@ class ExcelImportService {
           final genderRaw = row.length > 2 ? _cleanValue(row[2]?.value) : '';
           final gender = _parseGender(genderRaw);
           final alamat = row.length > 3 ? _cleanValue(row[3]?.value) : '';
+          final tanggalLahir = row.length > 4 ? _cleanValue(row[4]?.value) : '';
+          final angkatan = row.length > 5 ? _cleanValue(row[5]?.value) : '';
 
           // Skip completely empty rows silently (don't treat as failure)
           if (nama.isEmpty && nis.isEmpty) {
@@ -276,6 +278,8 @@ class ExcelImportService {
             'nama': nama,
             'gender': gender,
             'alamat': alamat,
+            'tanggalLahir': tanggalLahir,
+            'angkatan': angkatan,
             'classId': null,
             'aktif': true,
             'sudahRegister': false,
@@ -331,12 +335,16 @@ class ExcelImportService {
           TextCellValue('NIS'),
           TextCellValue('Jenis Kelamin (L/P)'),
           TextCellValue('Alamat'),
+          TextCellValue('Tanggal Lahir (DD-MM-YYYY)'),
+          TextCellValue('Angkatan (Tahun)'),
         ]);
         sheetObject.appendRow([
           TextCellValue('Adi Pratama'),
           TextCellValue('12345'),
           TextCellValue('L'),
           TextCellValue('Jl. Pahlawan No. 2'),
+          TextCellValue('15-05-2010'),
+          TextCellValue('2024'),
         ]);
       }
 

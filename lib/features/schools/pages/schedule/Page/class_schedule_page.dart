@@ -45,9 +45,16 @@ class ClassSchedulePage extends StatelessWidget {
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFFEC4899);
 
-    return Scaffold(
-      body: AuthBackground(
-        child: Column(
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final textMainColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: Column(
           children: [
             SafeArea(
               bottom: false,
@@ -57,13 +64,39 @@ class ClassSchedulePage extends StatelessWidget {
                   children: [
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonColor, size: 20),
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         'Jadwal $className',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                      ),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _showDeleteByClassConfirmationDialog(context),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.delete_sweep_rounded, color: Colors.red, size: 18),
+                                SizedBox(width: 6),
+                                Text('Hapus', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     Container(
@@ -125,7 +158,7 @@ class ClassSchedulePage extends StatelessWidget {
                     child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Terjadi kesalahan memuat jadwal.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text('Terjadi kesalahan memuat jadwal.', style: TextStyle(color: textMainColor, fontWeight: FontWeight.bold)),
                 ],
               ),
             );
@@ -149,11 +182,15 @@ class ClassSchedulePage extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.06),
+                      color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08)),
                     ),
-                    child: Icon(Icons.calendar_today_rounded, size: 52, color: Colors.white.withValues(alpha: 0.4)),
+                    child: Icon(
+                      Icons.calendar_today_rounded,
+                      size: 52,
+                      color: isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.45),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Text(
@@ -161,13 +198,16 @@ class ClassSchedulePage extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Tap tombol "Tambah" untuk mulai mengisi.',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
+                    style: TextStyle(
+                      color: isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5),
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -194,50 +234,59 @@ class ClassSchedulePage extends StatelessWidget {
                   children: [
                     // Day header
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
-                        color: dayDocs.isEmpty
-                            ? Colors.white.withValues(alpha: 0.04)
-                            : primaryColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
+                        color: isDark
+                            ? (dayDocs.isEmpty
+                                ? Colors.white.withValues(alpha: 0.04)
+                                : const Color(0xFFEC4899).withValues(alpha: 0.1))
+                            : (dayDocs.isEmpty
+                                ? Colors.black.withValues(alpha: 0.03)
+                                : const Color(0xFFEC4899).withValues(alpha: 0.08)),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: dayDocs.isEmpty
-                              ? Colors.white.withValues(alpha: 0.07)
-                              : primaryColor.withValues(alpha: 0.4),
+                          color: isDark
+                              ? (dayDocs.isEmpty
+                                  ? Colors.white.withValues(alpha: 0.1)
+                                  : const Color(0xFFEC4899).withValues(alpha: 0.3))
+                              : (dayDocs.isEmpty
+                                  ? Colors.black.withValues(alpha: 0.08)
+                                  : const Color(0xFFEC4899).withValues(alpha: 0.25)),
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            dayDocs.isEmpty ? Icons.remove_circle_outline : Icons.check_circle_rounded,
+                            Icons.calendar_month_rounded,
                             size: 16,
-                            color: dayDocs.isEmpty ? Colors.white.withValues(alpha: 0.3) : primaryColor,
+                            color: isDark
+                                ? (dayDocs.isEmpty ? Colors.white54 : const Color(0xFFEC4899))
+                                : (dayDocs.isEmpty ? const Color(0xFF1E1B4B).withValues(alpha: 0.5) : const Color(0xFFEC4899)),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           Text(
                             day,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: dayDocs.isEmpty ? Colors.white.withValues(alpha: 0.35) : Colors.white,
+                              color: isDark
+                                  ? (dayDocs.isEmpty ? Colors.white70 : Colors.white)
+                                  : (dayDocs.isEmpty ? const Color(0xFF1E1B4B).withValues(alpha: 0.6) : const Color(0xFF1E1B4B)),
                             ),
                           ),
                           if (dayDocs.isNotEmpty) ...[
                             const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: primaryColor,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                '${dayDocs.length}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
+                            InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () => _showDeleteByDayConfirmationDialog(context, day),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
                                 ),
+                                child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 14),
                               ),
                             ),
                           ],
@@ -253,7 +302,7 @@ class ClassSchedulePage extends StatelessWidget {
                           'Tidak ada jadwal pada hari ini',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.3),
+                            color: isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.45),
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -262,81 +311,139 @@ class ClassSchedulePage extends StatelessWidget {
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                          border: Border.all(
+                            color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08),
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
+                              color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
                               blurRadius: 10,
                               offset: const Offset(0, 3),
                             ),
                           ],
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            headingRowColor: WidgetStateProperty.all(Colors.white.withValues(alpha: 0.04)),
-                            headingTextStyle: TextStyle(fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.8)),
-                            dataTextStyle: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 13),
-                            dividerThickness: 0.5,
-                            horizontalMargin: 16,
-                            columnSpacing: 24,
-                            columns: const [
-                              DataColumn(label: Text('Jam')),
-                              DataColumn(label: Text('Mata Pelajaran')),
-                              DataColumn(label: Text('Guru')),
-                              DataColumn(label: Text('Aksi')),
-                            ],
-                            rows: dayDocs.map((doc) {
+                        child: Table(
+                          columnWidths: const {
+                            0: FlexColumnWidth(1.2), // Jam
+                            1: FlexColumnWidth(2.5), // Mata Pelajaran
+                            2: FlexColumnWidth(2.5), // Guru
+                            3: FlexColumnWidth(1.2), // Aksi
+                          },
+                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                          children: [
+                            // Header Row
+                            TableRow(
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
+                              ),
+                              children: [
+                                _buildTableCell('Jam', isHeader: true, isDark: isDark),
+                                _buildTableCell('Mata Pelajaran', isHeader: true, isDark: isDark),
+                                _buildTableCell('Guru', isHeader: true, isDark: isDark),
+                                _buildTableCell('Aksi', isHeader: true, isDark: isDark, isCenter: true),
+                              ],
+                            ),
+                            // Data Rows
+                            ...dayDocs.map((doc) {
                               final data = doc.data();
                               final isIstirahat = data['jenisJadwal'] == 'istirahat';
                               final scheduleId = doc.id;
 
-                              return DataRow(
-                                color: WidgetStateProperty.all(
-                                  isIstirahat
+                              return TableRow(
+                                decoration: BoxDecoration(
+                                  color: isIstirahat
                                       ? const Color(0xFFF59E0B).withValues(alpha: 0.08)
                                       : Colors.transparent,
-                                ),
-                                cells: [
-                                  DataCell(
-                                    Text(
-                                      '${data['jamMulai'] ?? ''} - ${data['jamSelesai'] ?? ''}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: isIstirahat ? const Color(0xFFF59E0B) : primaryColor,
-                                      ),
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                                      width: 0.5,
                                     ),
                                   ),
-                                  DataCell(
-                                    isIstirahat
-                                        ? Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
-                                            ),
-                                            child: const Text('Istirahat', style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 11)),
-                                          )
-                                        : Text(data['subjectName'] ?? '-', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                                ),
+                                children: [
+                                  // Jam Cell
+                                  _buildTableCell(
+                                    '${data['jamMulai'] ?? ''} - ${data['jamSelesai'] ?? ''}',
+                                    isHeader: false,
+                                    isDark: isDark,
+                                    textStyle: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: isIstirahat ? const Color(0xFFF59E0B) : primaryColor,
+                                    ),
                                   ),
-                                  DataCell(Text(isIstirahat ? '-' : (data['teacherName'] ?? '-'))),
-                                  DataCell(
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
-                                      onPressed: () => _deleteSchedule(context, scheduleId),
-                                      tooltip: 'Hapus Jadwal',
+                                  // Mata Pelajaran Cell
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    child: isIstirahat
+                                        ? Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                                              ),
+                                              child: const Text(
+                                                'Istirahat',
+                                                style: TextStyle(
+                                                  color: Color(0xFFF59E0B),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        : Text(
+                                            data['subjectName'] ?? '-',
+                                            style: TextStyle(
+                                              color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                  ),
+                                  // Guru Cell
+                                  _buildTableCell(
+                                    isIstirahat ? '-' : (data['teacherName'] ?? '-'),
+                                    isHeader: false,
+                                    isDark: isDark,
+                                  ),
+                                  // Aksi Cell
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_rounded, color: Colors.blue, size: 20),
+                                          onPressed: () => _showAddScheduleDialog(context, existingSchedule: data, scheduleId: scheduleId),
+                                          tooltip: 'Edit Jadwal',
+                                          constraints: const BoxConstraints(),
+                                          padding: EdgeInsets.zero,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                                          onPressed: () => _deleteSchedule(context, scheduleId),
+                                          tooltip: 'Hapus Jadwal',
+                                          constraints: const BoxConstraints(),
+                                          padding: EdgeInsets.zero,
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               );
-                            }).toList(),
-                          ),
+                            }),
+                          ],
                         ),
-                      ),
+                      )
                   ],
                 ),
               );
@@ -348,6 +455,8 @@ class ClassSchedulePage extends StatelessWidget {
           ],
         ),
       ),
+    );
+      },
     );
   }
 
@@ -433,15 +542,15 @@ class ClassSchedulePage extends StatelessWidget {
     }
   }
 
-  void _showAddScheduleDialog(BuildContext context) {
-    String? hari;
-    String jenisJadwal = 'pelajaran';
-    String? selectedSubjectId;
-    String? selectedTeacherId;
-    String? selectedSubjectName;
-    String? selectedTeacherName;
-    String jamMulai = '';
-    String jamSelesai = '';
+  void _showAddScheduleDialog(BuildContext context, {Map<String, dynamic>? existingSchedule, String? scheduleId}) {
+    String? hari = existingSchedule?['hari'];
+    String jenisJadwal = existingSchedule?['jenisJadwal'] ?? 'pelajaran';
+    String? selectedSubjectId = existingSchedule?['subjectId'];
+    String? selectedTeacherId = existingSchedule?['teacherId'];
+    String? selectedSubjectName = existingSchedule?['subjectName'];
+    String? selectedTeacherName = existingSchedule?['teacherName'];
+    String jamMulai = existingSchedule?['jamMulai'] ?? '';
+    String jamSelesai = existingSchedule?['jamSelesai'] ?? '';
     const primaryColor = Color(0xFFEC4899);
 
     Widget buildTimeInput({
@@ -489,13 +598,13 @@ class ClassSchedulePage extends StatelessWidget {
               ),
               titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
               contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.schedule_rounded, color: Color(0xFFEC4899), size: 24),
-                  SizedBox(width: 10),
+                  const Icon(Icons.schedule_rounded, color: Color(0xFFEC4899), size: 24),
+                  const SizedBox(width: 10),
                   Text(
-                    'Tambah Jadwal',
-                    style: TextStyle(
+                    scheduleId != null ? 'Edit Jadwal' : 'Tambah Jadwal',
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                       fontSize: 18,
@@ -573,7 +682,7 @@ class ClassSchedulePage extends StatelessWidget {
 
                     // Hari dropdown
                     DropdownButtonFormField<String>(
-                      initialValue: hari,
+                      value: hari,
                       dropdownColor: const Color(0xFF0F0C20),
                       style: const TextStyle(color: Colors.white, fontSize: 14),
                       decoration: InputDecoration(
@@ -619,7 +728,7 @@ class ClassSchedulePage extends StatelessWidget {
                             }
                             final docs = snapshot.data!.docs;
                             return DropdownButtonFormField<String>(
-                              initialValue: selectedSubjectId,
+                              value: selectedSubjectId,
                               dropdownColor: const Color(0xFF0F0C20),
                               style: const TextStyle(color: Colors.white, fontSize: 14),
                               decoration: InputDecoration(
@@ -670,7 +779,7 @@ class ClassSchedulePage extends StatelessWidget {
                             }
                             final docs = snapshot.data!.docs;
                             return DropdownButtonFormField<String>(
-                              initialValue: selectedTeacherId,
+                              value: selectedTeacherId,
                               dropdownColor: const Color(0xFF0F0C20),
                               style: const TextStyle(color: Colors.white, fontSize: 14),
                               decoration: InputDecoration(
@@ -804,11 +913,12 @@ class ClassSchedulePage extends StatelessWidget {
                                 hari: selectedHari,
                                 jamMulai: jamMulai,
                                 jamSelesai: jamSelesai,
+                                scheduleId: scheduleId,
                               );
                               if (dialogContext.mounted) {
                                 Navigator.pop(dialogContext);
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Jadwal berhasil ditambahkan')),
+                                  SnackBar(content: Text(scheduleId != null ? 'Jadwal berhasil diupdate' : 'Jadwal berhasil ditambahkan')),
                                 );
                               }
                             } catch (e) {
@@ -835,10 +945,10 @@ class ClassSchedulePage extends StatelessWidget {
                                           child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
                                         ),
                                         const SizedBox(height: 16),
-                                        const Text(
-                                          'Gagal Menambahkan Jadwal',
+                                        Text(
+                                          scheduleId != null ? 'Gagal Mengupdate Jadwal' : 'Gagal Menambahkan Jadwal',
                                           textAlign: TextAlign.center,
-                                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+                                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
                                         ),
                                         const SizedBox(height: 12),
                                         Text(
@@ -881,6 +991,243 @@ class ClassSchedulePage extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  void _showDeleteByClassConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0F0C20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.red.withValues(alpha: 0.3), width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Hapus Jadwal Kelas?',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Apakah Anda yakin ingin menghapus seluruh jadwal untuk kelas $className?',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13, height: 1.5),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                          ),
+                        ),
+                      );
+
+                      try {
+                        await _service.deleteSchedulesByClass(SessionService.currentUser!.schoolId, classId);
+                        if (context.mounted) {
+                          Navigator.pop(context); // close loading
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Jadwal kelas berhasil dihapus.')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          Navigator.pop(context); // close loading
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Gagal menghapus jadwal: $e')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteByDayConfirmationDialog(BuildContext context, String hari) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0F0C20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.red.withValues(alpha: 0.3), width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Hapus Jadwal $hari?',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Apakah Anda yakin ingin menghapus jadwal $className pada hari $hari?',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13, height: 1.5),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                          ),
+                        ),
+                      );
+
+                      try {
+                        await _service.deleteSchedulesByClassAndDay(SessionService.currentUser!.schoolId, classId, hari);
+                        if (context.mounted) {
+                          Navigator.pop(context); // close loading
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Jadwal $hari berhasil dihapus.')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          Navigator.pop(context); // close loading
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Gagal menghapus jadwal: $e')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTableCell(
+    String text, {
+    required bool isHeader,
+    required bool isDark,
+    bool isCenter = false,
+    TextStyle? textStyle,
+  }) {
+    final defaultStyle = isHeader
+        ? TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B),
+            fontSize: 13,
+          )
+        : TextStyle(
+            color: isDark ? Colors.white.withValues(alpha: 0.65) : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
+            fontSize: 13,
+          );
+
+    return TableCell(
+      verticalAlignment: TableCellVerticalAlignment.middle,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Align(
+          alignment: isCenter ? Alignment.center : Alignment.centerLeft,
+          child: Text(
+            text,
+            style: textStyle ?? defaultStyle,
+          ),
+        ),
+      ),
     );
   }
 }

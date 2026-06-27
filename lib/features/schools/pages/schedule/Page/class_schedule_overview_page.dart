@@ -6,6 +6,7 @@ import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import '../../classes/data/class_service.dart';
 import '../Service/class_schedule_service.dart';
+import 'auto_schedule_generator_page.dart';
 import 'class_schedule_page.dart';
 
 class ClassScheduleOverviewPage extends StatelessWidget {
@@ -19,9 +20,15 @@ class ClassScheduleOverviewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final schoolId = SessionService.currentUser!.schoolId;
 
-    return Scaffold(
-      body: AuthBackground(
-        child: Column(
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: Column(
           children: [
             // AppBar Area
             SafeArea(
@@ -33,13 +40,13 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                     if (!hideBackButton)
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonColor, size: 20),
                       ),
                     const SizedBox(width: 4),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Jadwal Kelas',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                       ),
                     ),
                   ],
@@ -66,10 +73,10 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                             child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
                           ),
                           const SizedBox(height: 16),
-                          const Text(
-                            'Terjadi kesalahan memuat data kelas.',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
+                           Text(
+                             'Terjadi kesalahan memuat data kelas.',
+                             style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
+                           ),
                         ],
                       ),
                     );
@@ -89,7 +96,7 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                     stream: _scheduleService.getSchedulesBySchool(schoolId),
                     builder: (context, scheduleSnapshot) {
                       if (scheduleSnapshot.hasError) {
-                        return const Center(child: Text('Gagal memuat jadwal.', style: TextStyle(color: Colors.white)));
+                        return Center(child: Text('Gagal memuat jadwal.', style: TextStyle(color: titleColor)));
                       }
 
                       if (!scheduleSnapshot.hasData) {
@@ -113,10 +120,20 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                       final classesWithSchedule = classDocs
                           .where((doc) => scheduleMap.containsKey(doc.id))
                           .toList();
+                      classesWithSchedule.sort((a, b) {
+                        final nameA = (a.data()['namaKelas'] ?? '').toString().toLowerCase();
+                        final nameB = (b.data()['namaKelas'] ?? '').toString().toLowerCase();
+                        return nameA.compareTo(nameB);
+                      });
 
                       final classesWithoutSchedule = classDocs
                           .where((doc) => !scheduleMap.containsKey(doc.id))
                           .toList();
+                      classesWithoutSchedule.sort((a, b) {
+                        final nameA = (a.data()['namaKelas'] ?? '').toString().toLowerCase();
+                        final nameB = (b.data()['namaKelas'] ?? '').toString().toLowerCase();
+                        return nameA.compareTo(nameB);
+                      });
 
                       return ListView(
                         padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -153,6 +170,109 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                             ],
                           ),
 
+                          const SizedBox(height: 20),
+
+                          // Action Buttons
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF8B5CF6), Color(0xFFC084FC)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(16),
+                                      onTap: () => _handleGenerateTap(context),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
+                                            const SizedBox(width: 8),
+                                            const Text(
+                                              'Generate',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(alpha: 0.2),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                'BASIC',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 1,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(16),
+                                      onTap: () => _showFormatConfirmationDialog(context, schoolId),
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 16),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.delete_sweep_rounded, color: Colors.red, size: 20),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'Format',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
                           const SizedBox(height: 28),
 
                           // Section: Classes with schedule
@@ -163,6 +283,7 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                             _emptyStateCard(
                               icon: Icons.event_note_rounded,
                               message: 'Belum ada kelas yang memiliki jadwal.',
+                              isDark: isDark,
                             )
                           else
                             ...classesWithSchedule.map((doc) {
@@ -196,6 +317,7 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                             _emptyStateCard(
                               icon: Icons.celebration_rounded,
                               message: 'Semua kelas sudah memiliki jadwal. 🎉',
+                              isDark: isDark,
                             )
                           else
                             ...classesWithoutSchedule.map((doc) {
@@ -226,6 +348,8 @@ class ClassScheduleOverviewPage extends StatelessWidget {
           ],
         ),
       ),
+    );
+      },
     );
   }
 
@@ -292,22 +416,27 @@ class ClassScheduleOverviewPage extends StatelessWidget {
     );
   }
 
-  Widget _emptyStateCard({required IconData icon, required String message}) {
+  Widget _emptyStateCard({required IconData icon, required String message, required bool isDark}) {
+    final emptyBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03);
+    final emptyBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+    final emptyIconColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+    final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.45) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: emptyBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: emptyBorder),
       ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.white.withValues(alpha: 0.3), size: 28),
+          Icon(icon, color: emptyIconColor, size: 28),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontWeight: FontWeight.w500),
+              style: TextStyle(color: emptyTextColor, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -326,12 +455,12 @@ class ClassScheduleOverviewPage extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -363,12 +492,12 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                     children: [
                       Text(
                         classname,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E1B4B)),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
-                        style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -389,12 +518,243 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.3)),
+                const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF)),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _handleGenerateTap(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+        ),
+      ),
+    );
+
+    try {
+      final schoolId = SessionService.currentUser!.schoolId;
+      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(schoolId).get();
+      if (context.mounted) {
+        Navigator.pop(context); // Tutup loading dialog
+      }
+
+      final plan = (schoolDoc.data()?['plan'] ?? 'FREE').toString().toUpperCase();
+
+      if (plan == 'FREE') {
+        if (context.mounted) {
+          _showPremiumDialog(context, 'Fitur generate jadwal otomatis hanya tersedia untuk sekolah dengan Paket BASIC atau PRO.');
+        }
+      } else {
+        Get.to(() => const AutoScheduleGeneratorPage());
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Tutup loading dialog jika error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memeriksa status paket: $e')),
+        );
+      }
+    }
+  }
+
+  void _showPremiumDialog(BuildContext context, String message) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+    final mutedColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+    final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final dialogBorder = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.08);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: dialogBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: dialogBorder, width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: Colors.amber,
+                  size: 36,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Fitur Premium 🌟',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: subtitleColor,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Silakan hubungi administrator/sales untuk melakukan upgrade paket sekolah Anda.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: mutedColor,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showFormatConfirmationDialog(BuildContext context, String schoolId) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0F0C20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.red.withValues(alpha: 0.3), width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Format Jadwal?',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Apakah Anda yakin ingin menghapus SELURUH jadwal kelas di sekolah ini? Aksi ini tidak dapat dibatalkan.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13, height: 1.5),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                          ),
+                        ),
+                      );
+
+                      try {
+                        await _scheduleService.deleteAllSchedules(schoolId);
+                        if (context.mounted) {
+                          Navigator.pop(context); // close loading
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Seluruh jadwal berhasil diformat (dihapus).')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          Navigator.pop(context); // close loading
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Gagal format jadwal: $e')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Format', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 }

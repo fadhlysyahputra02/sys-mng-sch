@@ -18,7 +18,7 @@ class StudentService {
         .get();
 
     if (existing.docs.isNotEmpty) {
-      throw Exception('NIS $nis sudah terdaftar di sekolah ini');
+      throw ('NIS $nis sudah terdaftar di sekolah ini');
     }
 
     await _firestore

@@ -6,6 +6,7 @@ import '../../../app/routes/app_routes.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
+import '../../teachers/pages/teacher_settings_page.dart';
 
 class OfficerDashboardPage extends StatefulWidget {
   const OfficerDashboardPage({super.key});
@@ -92,6 +93,11 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
             ),
             actions: [
+              IconButton(
+                icon: Icon(Icons.settings_rounded, color: textColor),
+                onPressed: () => Get.to(() => const TeacherSettingsPage()),
+                tooltip: 'Pengaturan',
+              ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.red),
                 onPressed: _logout,
@@ -233,7 +239,6 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
     final cardShadow = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-    final emailColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
     final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
     final dateColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
@@ -315,15 +320,6 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                         fontSize: 13, 
                         color: subtitleColor, 
                         fontWeight: FontWeight.w500
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      adminEmail,
-                      style: TextStyle(
-                        fontSize: 11, 
-                        color: emailColor
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

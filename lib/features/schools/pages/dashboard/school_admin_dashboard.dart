@@ -12,14 +12,18 @@ import '../grades/school_admin_grades_page.dart';
 import '../settings/school_settings_page.dart';
 import '../teachers/pages/teacher_list_admin_page.dart';
 import '../students/pages/student_admin_list_page.dart';
+import '../students/data/student_admin_service.dart';
 import '../subjects/pages/subject_list_page.dart';
 import '../schedule/Page/class_schedule_overview_page.dart';
 import '../notifications/notifications_page.dart';
-import 'premium_features_page.dart';
 import '../officers/pages/officer_management_page.dart';
 import '../tu/pages/tu_management_page.dart';
 import '../../../officer/pages/daily_recap_page.dart';
 import '../../../officer/pages/monthly_recap_page.dart';
+import '../teaching_reports/admin_teaching_reports_page.dart';
+import '../teachers/pages/admin_teacher_attendance_page.dart';
+
+import '../rapor/school_admin_rapor_page.dart';
 
 class SchoolAdminDashboard extends StatefulWidget {
   const SchoolAdminDashboard({super.key});
@@ -55,6 +59,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
           _schoolLogoBase64 = schoolData['logoBase64'];
           _isLoadingSchool = false;
         });
+        // Backfill data histori kelas secara asinkronus agar data nilai sebelumnya termigrasi ke class_enrollments
+        StudentService().backfillClassEnrollments(schoolId);
       } else {
         if (mounted) {
           setState(() {
@@ -78,19 +84,23 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('Kelas', Icons.class_rounded, Color(0xFFF59E0B)),
     _MenuData('Jadwal', Icons.calendar_month_rounded, Color(0xFFEC4899)),
     _MenuData('Absensi', Icons.fact_check_rounded, Color(0xFF8B5CF6)),
-    _MenuData('Nilai', Icons.grade_rounded, Color(0xFFEF4444)),
+    _MenuData('Rekap Nilai', Icons.grade_rounded, Color(0xFFEF4444)),
+    _MenuData('Laporan Mengajar', Icons.edit_document, Color(0xFFF59E0B)),
     _MenuData('Notifikasi', Icons.notifications_rounded, Color(0xFF06B6D4)),
     _MenuData('Pengaturan', Icons.settings_rounded, Color(0xFF64748B)),
     _MenuData('Petugas', Icons.security_rounded, Color(0xFF8B5CF6)),
     _MenuData('Tata Usaha', Icons.support_agent_rounded, Color(0xFF3B82F6)),
+    _MenuData('E-Rapor', Icons.description_rounded, Color(0xFF8B5CF6)),
     _MenuData('Export Laporan', Icons.file_download_rounded, Color(0xFF10B981), badge: 'BASIC'),
     _MenuData('Statistik Akademik', Icons.bar_chart_rounded, Color(0xFF6366F1), badge: 'BASIC'),
-    _MenuData('News Feed Sekolah', Icons.newspaper_rounded, Color(0xFF0EA5E9), badge: 'PRO'),
     _MenuData('Analitik Sekolah', Icons.analytics_rounded, Color(0xFFEC4899), badge: 'PRO'),
   ];
 
   void _onMenuTap(String title) async {
     switch (title) {
+      case 'E-Rapor':
+        Get.to(() => const SchoolAdminRaporPage());
+        break;
       case 'Guru':
         Get.toNamed(AppRoutes.teacherlist);
         break;
@@ -109,7 +119,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       case 'Notifikasi':
         Get.toNamed(AppRoutes.notifications);
         break;
-      case 'Nilai':
+      case 'Rekap Nilai':
         Get.to(() => const SchoolAdminGradesPage());
         break;
       case 'Pengaturan':
@@ -127,14 +137,14 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       case 'Absensi':
         _showAbsensiSelectionDialog();
         break;
+      case 'Laporan Mengajar':
+        Get.to(() => const AdminTeachingReportsPage());
+        break;
       case 'Export Laporan':
         Get.toNamed(AppRoutes.comingSoonExportAdmin);
         break;
       case 'Statistik Akademik':
         Get.toNamed(AppRoutes.comingSoonStatistikAdmin);
-        break;
-      case 'News Feed Sekolah':
-        Get.toNamed(AppRoutes.comingSoonNewsFeedAdmin);
         break;
       case 'Analitik Sekolah':
         Get.toNamed(AppRoutes.comingSoonAnalitikAdmin);
@@ -295,7 +305,6 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     final cardShadow = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-    final emailColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
     final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
     final dateColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
@@ -378,15 +387,6 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                         color: subtitleColor, 
                         fontWeight: FontWeight.w500
                       ),
-                    ),
-                    Text(
-                      adminEmail,
-                      style: TextStyle(
-                        fontSize: 11, 
-                        color: emailColor
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -550,9 +550,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   Widget _buildMenuCard(_MenuData menu, bool isDark) {
     final bool isActive = [
       'Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi',
-      'Pengaturan', 'Petugas', 'Tata Usaha', 'Absensi', 'Nilai',
+      'Pengaturan', 'Petugas', 'Tata Usaha', 'Absensi', 'Rekap Nilai', 'Laporan Mengajar',
+      'E-Rapor',
       // Menu Coming Soon baru (tetap aktif karena punya route)
-      'Export Laporan', 'Statistik Akademik', 'News Feed Sekolah', 'Analitik Sekolah',
+      'Export Laporan', 'Statistik Akademik', 'Analitik Sekolah',
     ].contains(menu.title);
 
     final cardBg = isActive
@@ -836,9 +837,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Petugas', Icons.security_rounded, 10, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem('Petugas', Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Tata Usaha', Icons.support_agent_rounded, 11, const Color(0xFF3B82F6), isDark),
+                _buildSidebarItem('Tata Usaha', Icons.support_agent_rounded, 10, const Color(0xFF3B82F6), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Rekap Nilai', Icons.grade_rounded, 11, const Color(0xFFEF4444), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('E-Rapor', Icons.description_rounded, 12, const Color(0xFF8B5CF6), isDark),
               ],
             ),
           ),
@@ -1000,11 +1005,15 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       case 7:
         return NotificationsPage(hideBackButton: true);
       case 8:
-        return PremiumFeaturesPage(hideBackButton: true);
-      case 9:
         return SchoolSettingsPage(schoolId: schoolId, hideBackButton: true);
-      case 10:
+      case 9:
         return const OfficerManagementPage();
+      case 10:
+        return const TuManagementPage();
+      case 11:
+        return const SchoolAdminGradesPage();
+      case 12:
+        return const SchoolAdminRaporPage(hideBackButton: true);
       default:
         return _buildDesktopDashboardHome(isDark);
     }
@@ -1018,7 +1027,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
 
     Get.bottomSheet(
       Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF0F0C20) : Colors.white,
           borderRadius: const BorderRadius.only(
@@ -1029,33 +1038,35 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             top: BorderSide(color: cardBorder),
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Rekap Absensi',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Rekap Absensi',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Pilih skala rekapan absensi yang ingin Anda lihat:',
-              style: TextStyle(
-                color: textColor.withValues(alpha: 0.6),
-                fontSize: 14,
+              const SizedBox(height: 8),
+              Text(
+                'Pilih skala rekapan absensi yang ingin Anda lihat:',
+                style: TextStyle(
+                  color: textColor.withValues(alpha: 0.6),
+                  fontSize: 14,
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSelectionCard(
-                    title: 'Rekap Harian',
-                    description: 'Laporan kehadiran per tanggal',
+              const SizedBox(height: 24),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildSelectionCard(
+                    title: 'Rekap Harian Siswa',
+                    description: 'Laporan kehadiran siswa per tanggal',
                     icon: Icons.calendar_today_rounded,
                     color: const Color(0xFF8B5CF6),
                     onTap: () {
@@ -1066,12 +1077,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     cardBg: cardBg,
                     cardBorder: cardBorder,
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildSelectionCard(
-                    title: 'Rekap Bulanan',
-                    description: 'Statistik kehadiran per kelas',
+                  const SizedBox(height: 12),
+                  _buildSelectionCard(
+                    title: 'Rekap Bulanan Siswa',
+                    description: 'Statistik kehadiran bulanan siswa per kelas',
                     icon: Icons.calendar_month_rounded,
                     color: const Color(0xFF10B981),
                     onTap: () {
@@ -1082,12 +1091,27 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     cardBg: cardBg,
                     cardBorder: cardBorder,
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(height: 12),
+                  _buildSelectionCard(
+                    title: 'Absensi Harian Guru',
+                    description: 'Rekap kehadiran & jam kerja harian guru',
+                    icon: Icons.co_present_rounded,
+                    color: const Color(0xFF6366F1),
+                    onTap: () {
+                      Get.back();
+                      Get.to(() => const AdminTeacherAttendancePage());
+                    },
+                    isDark: isDark,
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
+      isScrollControlled: true,
     );
   }
 
@@ -1157,63 +1181,81 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
 
     return AuthBackground(
       child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(40.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                'Rekap Absensi Sekolah',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Pilih jenis rekap absensi yang ingin Anda tinjau atau cetak laporan.',
-                style: TextStyle(
-                  color: subTextColor,
-                  fontSize: 15,
-                ),
-              ),
-              const SizedBox(height: 48),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 280,
-                    child: _buildSelectionCard(
-                      title: 'Rekap Harian',
-                      description: 'Laporan kehadiran per tanggal sekolah',
-                      icon: Icons.calendar_today_rounded,
-                      color: const Color(0xFF8B5CF6),
-                      onTap: () => Get.to(() => const DailyRecapPage()),
-                      isDark: isDark,
-                      cardBg: cardBg,
-                      cardBorder: cardBorder,
-                    ),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(40.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Rekap Absensi School',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
                   ),
-                  const SizedBox(width: 32),
-                  SizedBox(
-                    width: 280,
-                    child: _buildSelectionCard(
-                      title: 'Rekap Bulanan',
-                      description: 'Statistik kehadiran bulanan per kelas siswa',
-                      icon: Icons.calendar_month_rounded,
-                      color: const Color(0xFF10B981),
-                      onTap: () => Get.to(() => const MonthlyRecapPage()),
-                      isDark: isDark,
-                      cardBg: cardBg,
-                      cardBorder: cardBorder,
-                    ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Pilih jenis rekap absensi yang ingin Anda tinjau atau cetak laporan.',
+                  style: TextStyle(
+                    color: subTextColor,
+                    fontSize: 15,
                   ),
-                ],
-              ),
-            ],
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 24,
+                  runSpacing: 24,
+                  children: [
+                    SizedBox(
+                      width: 280,
+                      child: _buildSelectionCard(
+                        title: 'Rekap Harian',
+                        description: 'Laporan kehadiran per tanggal sekolah',
+                        icon: Icons.calendar_today_rounded,
+                        color: const Color(0xFF8B5CF6),
+                        onTap: () => Get.to(() => const DailyRecapPage()),
+                        isDark: isDark,
+                        cardBg: cardBg,
+                        cardBorder: cardBorder,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 280,
+                      child: _buildSelectionCard(
+                        title: 'Rekap Bulanan',
+                        description: 'Statistik kehadiran bulanan per kelas siswa',
+                        icon: Icons.calendar_month_rounded,
+                        color: const Color(0xFF10B981),
+                        onTap: () => Get.to(() => const MonthlyRecapPage()),
+                        isDark: isDark,
+                        cardBg: cardBg,
+                        cardBorder: cardBorder,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 280,
+                      child: _buildSelectionCard(
+                        title: 'Absensi Harian Guru',
+                        description: 'Rekap kehadiran & jam kerja harian guru',
+                        icon: Icons.co_present_rounded,
+                        color: const Color(0xFF6366F1),
+                        onTap: () => Get.to(() => const AdminTeacherAttendancePage()),
+                        isDark: isDark,
+                        cardBg: cardBg,
+                        cardBorder: cardBorder,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1357,15 +1399,14 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             // Fitur Lainnya (Segera Hadir)
             _buildSectionTitle('Fitur Lainnya (Segera Hadir)', Icons.extension_rounded, isDark),
             const SizedBox(height: 16),
-            GridView.count(
+             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 4,
+              crossAxisCount: 3,
               crossAxisSpacing: 20,
               mainAxisSpacing: 20,
               childAspectRatio: 1.6,
               children: [
-                _buildUpcomingFeatureCard('E-Raport Siswa', Icons.description_rounded, const Color(0xFF8B5CF6), isDark),
                 _buildUpcomingFeatureCard('Manajemen Nilai', Icons.grade_rounded, const Color(0xFFEF4444), isDark),
                 _buildUpcomingFeatureCard('Keuangan & SPP', Icons.account_balance_wallet_rounded, const Color(0xFFEC4899), isDark),
                 _buildUpcomingFeatureCard('WhatsApp Gateway', Icons.chat_bubble_rounded, const Color(0xFF10B981), isDark),
@@ -1385,7 +1426,6 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
     final bulletColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.3);
-    final emailColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -1454,31 +1494,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                         style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: titleColor),
                       ),
                 const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Text(
-                      'School ID: $schoolId',
-                      style: TextStyle(
-                        fontSize: 13, 
-                        color: subtitleColor, 
-                        fontWeight: FontWeight.w500
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(color: bulletColor, shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 16),
-                    Text(
-                      email,
-                      style: TextStyle(
-                        fontSize: 13, 
-                        color: emailColor
-                      ),
-                    ),
-                  ],
+                Text(
+                  'School ID: $schoolId',
+                  style: TextStyle(
+                    fontSize: 13, 
+                    color: subtitleColor, 
+                    fontWeight: FontWeight.w500
+                  ),
                 ),
               ],
             ),

@@ -39,33 +39,43 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
   Widget build(BuildContext context) {
     final schoolId = SessionService.currentUser!.schoolId;
 
-    return Scaffold(
-      body: AuthBackground(
-        child: Column(
-          children: [
-            // ── AppBar ────────────────────────────────────────────────────
-            SafeArea(
-              bottom: false,
-              child: Padding(
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+        final hintBgColor = isDark ? const Color(0xFF6366F1).withValues(alpha: 0.08) : const Color(0xFF6366F1).withValues(alpha: 0.06);
+        final hintBorderColor = isDark ? const Color(0xFF6366F1).withValues(alpha: 0.25) : const Color(0xFF6366F1).withValues(alpha: 0.2);
+        final hintTextColor = isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.75);
+
+        return Scaffold(
+          body: AuthBackground(
+            child: Column(
+              children: [
+                // ── AppBar ────────────────────────────────────────────────────
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
                 child: Row(
                   children: [
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonColor, size: 20),
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Mata Pelajaran',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                           ),
                           Text(
                             widget.teacherName,
-                            style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                            style: TextStyle(fontSize: 12, color: subtitleColor),
                           ),
                         ],
                       ),
@@ -81,9 +91,9 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+                  color: hintBgColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.25)),
+                  border: Border.all(color: hintBorderColor),
                 ),
                 child: Row(
                   children: [
@@ -94,7 +104,7 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
                         'Centang mata pelajaran yang diampu oleh ${widget.teacherName}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.7),
+                          color: hintTextColor,
                           height: 1.4,
                         ),
                       ),
@@ -130,6 +140,11 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
                         final docs = snapshot.data!.docs;
 
                         if (docs.isEmpty) {
+                          final emptyStateBgColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03);
+                          final emptyStateBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+                          final emptyStateIconColor = isDark ? Colors.white.withValues(alpha: 0.35) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+                          final emptyStateTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
+
                           return Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -137,17 +152,17 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
                                 Container(
                                   padding: const EdgeInsets.all(24),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.06),
+                                    color: emptyStateBgColor,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                    border: Border.all(color: emptyStateBorderColor),
                                   ),
-                                  child: Icon(Icons.menu_book_outlined, size: 48, color: Colors.white.withValues(alpha: 0.35)),
+                                  child: Icon(Icons.menu_book_outlined, size: 48, color: emptyStateIconColor),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'Belum ada mata pelajaran',
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.5),
+                                    color: emptyStateTextColor,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -165,25 +180,32 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
                             final subjectId = subject['subjectId'];
                             final isChecked = assigned.contains(subjectId);
 
+                            final cardBgColor = isChecked
+                                ? (isDark ? const Color(0xFF10B981).withValues(alpha: 0.08) : const Color(0xFF10B981).withValues(alpha: 0.06))
+                                : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white);
+                            final cardBorderColor = isChecked
+                                ? (isDark ? const Color(0xFF10B981).withValues(alpha: 0.35) : const Color(0xFF10B981).withValues(alpha: 0.3))
+                                : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08));
+                            final cardShadow = isDark
+                                ? const <BoxShadow>[]
+                                : [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.03),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ];
+                            final subjectNameColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+                            final subjectCodeColor = isDark ? Colors.white.withValues(alpha: 0.45) : const Color(0xFF1E1B4B).withValues(alpha: 0.55);
+                            final checkboxBorderColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.3);
+
                             return Container(
                               margin: const EdgeInsets.only(bottom: 10),
                               decoration: BoxDecoration(
-                                color: isChecked
-                                    ? const Color(0xFF10B981).withValues(alpha: 0.08)
-                                    : Colors.white.withValues(alpha: 0.05),
+                                color: cardBgColor,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isChecked
-                                      ? const Color(0xFF10B981).withValues(alpha: 0.35)
-                                      : Colors.white.withValues(alpha: 0.08),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.10),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
+                                border: Border.all(color: cardBorderColor),
+                                boxShadow: cardShadow,
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -211,8 +233,8 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
                                         children: [
                                           Text(
                                             subject['namaMapel'] ?? '-',
-                                            style: const TextStyle(
-                                              color: Colors.white,
+                                            style: TextStyle(
+                                              color: subjectNameColor,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 14,
                                             ),
@@ -222,7 +244,7 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
                                             subject['kodeMapel'] ?? '-',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.white.withValues(alpha: 0.45),
+                                              color: subjectCodeColor,
                                             ),
                                           ),
                                         ],
@@ -261,7 +283,7 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
                                           border: Border.all(
                                             color: isChecked
                                                 ? const Color(0xFF10B981)
-                                                : Colors.white.withValues(alpha: 0.3),
+                                                : checkboxBorderColor,
                                             width: 2,
                                           ),
                                         ),
@@ -282,6 +304,8 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
           ],
         ),
       ),
+    );
+      },
     );
   }
 }

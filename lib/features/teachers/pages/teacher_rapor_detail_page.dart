@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
 import '../services/grade_service.dart';
@@ -59,6 +60,13 @@ class AttitudeAspectItem {
 class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
   final _raporService = RaporService();
   final _gradeService = GradeService();
+
+  bool get _isEditable {
+    final user = SessionService.currentUser;
+    if (user == null) return false;
+    if (user.role != 'teacher') return false;
+    return user.uid == widget.teacherId;
+  }
 
   // Controllers
   final _sakitController = TextEditingController(text: '0');
@@ -311,8 +319,12 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       subjectCategoryGrades.putIfAbsent(subjectId, () => {});
       subjectCategoryGrades[subjectId]!.putIfAbsent(category, () => []);
 
+      final cleanYear = _tahunAjaran.replaceAll('/', '_');
+      final fallbackKey = '${widget.studentId}_${cleanYear}_$_activeSemester';
+      final detail = scores[widget.studentId] ?? scores[fallbackKey];
+
       subjectCategoryGrades[subjectId]![category]!.add({
-        widget.studentId: scores[widget.studentId],
+        widget.studentId: detail,
       });
     }
 
@@ -519,24 +531,25 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     _buildSectionHeader('1. Penilaian Sikap', titleColor),
-                                    TextButton.icon(
-                                      onPressed: () {
-                                        setState(() {
-                                          _attitudeAspects.add(
-                                            AttitudeAspectItem(
-                                              name: '',
-                                              desc: '',
-                                              predikat: 'B',
-                                            ),
-                                          );
-                                        });
-                                      },
-                                      icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: Color(0xFF8B5CF6)),
-                                      label: const Text(
-                                        'Tambah Aspek',
-                                        style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold),
+                                    if (_isEditable)
+                                      TextButton.icon(
+                                        onPressed: () {
+                                          setState(() {
+                                            _attitudeAspects.add(
+                                              AttitudeAspectItem(
+                                                name: '',
+                                                desc: '',
+                                                predikat: 'B',
+                                              ),
+                                            );
+                                          });
+                                        },
+                                        icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: Color(0xFF8B5CF6)),
+                                        label: const Text(
+                                          'Tambah Aspek',
+                                          style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold),
+                                        ),
                                       ),
-                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 12),
@@ -558,6 +571,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                             Expanded(
                                               child: TextField(
                                                 controller: item.nameController,
+                                                enabled: _isEditable,
                                                 style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
                                                 decoration: InputDecoration(
                                                   hintText: 'Nama Aspek Sikap (misal: Spiritual, Sosial, Kedisiplinan)',
@@ -575,7 +589,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                                 ),
                                               ),
                                             ),
-                                            if (_attitudeAspects.length > 1) ...[
+                                            if (_isEditable && _attitudeAspects.length > 1) ...[
                                               const SizedBox(width: 8),
                                               Container(
                                                 decoration: BoxDecoration(
@@ -599,6 +613,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                         const SizedBox(height: 12),
                                         _buildPredikatDropdown(
                                           value: item.predikat,
+                                          enabled: _isEditable,
                                           onChanged: (val) => setState(() => item.predikat = val!),
                                           isDark: isDark,
                                           cardBg: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01),
@@ -608,6 +623,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                         const SizedBox(height: 12),
                                         _buildDescriptionTextField(
                                           controller: item.descController,
+                                          enabled: _isEditable,
                                           hint: 'Deskripsikan sikap tersebut untuk siswa...',
                                           isDark: isDark,
                                           cardBg: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01),
@@ -630,6 +646,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                     Expanded(
                                       child: _buildNumberInputField(
                                         controller: _sakitController,
+                                        enabled: _isEditable,
                                         label: 'Sakit (Hari)',
                                         isDark: isDark,
                                         cardBg: cardBgColor,
@@ -641,6 +658,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                     Expanded(
                                       child: _buildNumberInputField(
                                         controller: _izinController,
+                                        enabled: _isEditable,
                                         label: 'Izin (Hari)',
                                         isDark: isDark,
                                         cardBg: cardBgColor,
@@ -652,6 +670,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                     Expanded(
                                       child: _buildNumberInputField(
                                         controller: _alpaController,
+                                        enabled: _isEditable,
                                         label: 'Alpa (Hari)',
                                         isDark: isDark,
                                         cardBg: cardBgColor,
@@ -669,6 +688,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                 const SizedBox(height: 12),
                                 _buildDescriptionTextField(
                                   controller: _catatanController,
+                                  enabled: _isEditable,
                                   hint: 'Berikan motivasi atau catatan saran bagi perkembangan siswa ke depan...',
                                   isDark: isDark,
                                   cardBg: cardBgColor,
@@ -681,28 +701,32 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                 const SizedBox(height: 32),
 
                                 // Tombol Simpan Rapor
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 54,
-                                  child: ElevatedButton(
-                                    onPressed: _isSaving ? null : _saveReport,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF8B5CF6),
-                                      foregroundColor: Colors.white,
-                                      disabledBackgroundColor: const Color(0xFF8B5CF6).withValues(alpha: 0.5),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
+                                if (_isEditable) ...[
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 54,
+                                    child: ElevatedButton(
+                                      onPressed: _isSaving ? null : _saveReport,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF8B5CF6),
+                                        foregroundColor: Colors.white,
+                                        disabledBackgroundColor: const Color(0xFF8B5CF6).withValues(alpha: 0.5),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
                                       ),
+                                      child: _isSaving
+                                          ? const CircularProgressIndicator(color: Colors.white)
+                                          : const Text(
+                                              'Simpan E-Rapor',
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                            ),
                                     ),
-                                    child: _isSaving
-                                        ? const CircularProgressIndicator(color: Colors.white)
-                                        : const Text(
-                                            'Simpan E-Rapor',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                          ),
                                   ),
-                                ),
-                                const SizedBox(height: 48),
+                                  const SizedBox(height: 48),
+                                ] else ...[
+                                  const SizedBox(height: 24),
+                                ],
                               ]),
                             ),
                           ),
@@ -730,6 +754,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
     required Color cardBg,
     required Color border,
     required Color textColor,
+    bool enabled = true,
   }) {
     return DropdownButtonFormField<String>(
       initialValue: value,
@@ -749,7 +774,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
           child: Text('Predikat $p'),
         );
       }).toList(),
-      onChanged: onChanged,
+      onChanged: enabled ? onChanged : null,
     );
   }
 
@@ -762,10 +787,12 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
     required Color textColor,
     required Color subText,
     int maxLines = 3,
+    bool enabled = true,
   }) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
+      enabled: enabled,
       style: TextStyle(color: textColor),
       decoration: InputDecoration(
         hintText: hint,
@@ -789,10 +816,12 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
     required Color cardBg,
     required Color border,
     required Color textColor,
+    bool enabled = true,
   }) {
     return TextField(
       controller: controller,
       keyboardType: TextInputType.number,
+      enabled: enabled,
       style: TextStyle(color: textColor),
       decoration: InputDecoration(
         labelText: label,

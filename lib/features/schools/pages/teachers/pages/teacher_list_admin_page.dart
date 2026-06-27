@@ -5,7 +5,7 @@ import '../../../services/excel_import_service.dart';
 import 'add_teacher_admin_page.dart';
 import 'teacher_detail_admin_page.dart';
 
-class TeacherListPage extends StatelessWidget {
+class TeacherListPage extends StatefulWidget {
   final String schoolId;
   final bool hideBackButton;
 
@@ -16,6 +16,20 @@ class TeacherListPage extends StatelessWidget {
   });
 
   @override
+  State<TeacherListPage> createState() => _TeacherListPageState();
+}
+
+class _TeacherListPageState extends State<TeacherListPage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
@@ -23,8 +37,8 @@ class TeacherListPage extends StatelessWidget {
         final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
         final mutedColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
-        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFF1E1B4B).withValues(alpha: 0.04);
-        final borderCol = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.08);
+        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+        final borderCol = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
 
         return Scaffold(
           body: AuthBackground(
@@ -37,7 +51,7 @@ class TeacherListPage extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
                     child: Row(
                       children: [
-                        if (!hideBackButton)
+                        if (!widget.hideBackButton)
                           IconButton(
                             onPressed: () => Navigator.pop(context),
                             icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
@@ -117,7 +131,7 @@ class TeacherListPage extends StatelessWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => AddTeacherPage(schoolId: schoolId),
+                                    builder: (_) => AddTeacherPage(schoolId: widget.schoolId),
                                   ),
                                 );
                               },
@@ -147,12 +161,49 @@ class TeacherListPage extends StatelessWidget {
                   ),
                 ),
 
+                // Search Field
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.toLowerCase();
+                      });
+                    },
+                    style: TextStyle(color: textColor, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama guru atau NIP...',
+                      hintStyle: TextStyle(color: mutedColor, fontSize: 14),
+                      prefixIcon: Icon(Icons.search_rounded, color: mutedColor, size: 20),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear_rounded, color: mutedColor, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = '';
+                                });
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    ),
+                  ),
+                ),
+
                 // Body
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('schools')
-                        .doc(schoolId)
+                        .doc(widget.schoolId)
                         .collection('teachers')
                         .snapshots(),
                     builder: (context, snapshot) {
@@ -187,7 +238,45 @@ class TeacherListPage extends StatelessWidget {
                         );
                       }
 
-                      final docs = snapshot.data?.docs ?? [];
+                      var docs = snapshot.data?.docs ?? [];
+                      
+                      if (docs.isNotEmpty) {
+                        docs.sort((a, b) {
+                          final dataA = a.data() as Map<String, dynamic>;
+                          final dataB = b.data() as Map<String, dynamic>;
+                          final nameA = (dataA['nama'] ?? '').toString().toLowerCase();
+                          final nameB = (dataB['nama'] ?? '').toString().toLowerCase();
+                          
+                          // Natural sort comparison
+                          final regExp = RegExp(r'(\d+|\D+)');
+                          final aMatches = regExp.allMatches(nameA).map((m) => m.group(0)!).toList();
+                          final bMatches = regExp.allMatches(nameB).map((m) => m.group(0)!).toList();
+
+                          for (int i = 0; i < aMatches.length && i < bMatches.length; i++) {
+                            final aPart = aMatches[i];
+                            final bPart = bMatches[i];
+                            final aInt = int.tryParse(aPart);
+                            final bInt = int.tryParse(bPart);
+
+                            if (aInt != null && bInt != null) {
+                              if (aInt != bInt) return aInt.compareTo(bInt);
+                            } else {
+                              final comp = aPart.compareTo(bPart);
+                              if (comp != 0) return comp;
+                            }
+                          }
+                          return aMatches.length.compareTo(bMatches.length);
+                        });
+                        
+                        if (_searchQuery.isNotEmpty) {
+                          docs = docs.where((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            final nama = (data['nama'] ?? '').toString().toLowerCase();
+                            final nip = (data['nip'] ?? '').toString().toLowerCase();
+                            return nama.contains(_searchQuery) || nip.contains(_searchQuery);
+                          }).toList();
+                        }
+                      }
 
                       if (docs.isEmpty) {
                         return Center(
@@ -385,7 +474,7 @@ class TeacherListPage extends StatelessWidget {
     );
 
     try {
-      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(schoolId).get();
+      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).get();
       if (context.mounted) {
         Navigator.pop(context); // Tutup loading dialog
       }
@@ -680,7 +769,7 @@ class TeacherListPage extends StatelessWidget {
     final dialogBorder = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.08);
 
     final result = await ExcelImportService().importTeachers(
-      schoolId,
+      widget.schoolId,
       onFileSelected: () {
         if (!context.mounted) return;
         // Tampilkan progress dialog hanya setelah file berhasil dipilih

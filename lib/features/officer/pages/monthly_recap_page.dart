@@ -27,11 +27,15 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
 
   // Selected date parameters
   int _selectedMonth = DateTime.now().month;
-  int _selectedYear = DateTime.now().year;
 
   // Process states
   bool _isLoadingClasses = true;
   bool _isLoadingData = false;
+
+  String? _selectedTahunAjaran;
+  String? _selectedSemester;
+  List<String> _tahunAjaranOptions = [];
+  final List<String> _semesterOptions = ['Semester 1', 'Semester 2'];
 
   // Data maps
   List<Map<String, dynamic>> _students = [];
@@ -53,18 +57,46 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
     'Desember'
   ];
 
-  final List<int> _years = List<int>.generate(7, (i) => DateTime.now().year - 3 + i);
-
   @override
   void initState() {
     super.initState();
+    _initTahunAjaranList();
     _fetchClasses();
+  }
+
+  void _initTahunAjaranList() {
+    final currentYear = DateTime.now().year;
+    final currentMonth = DateTime.now().month;
+    int maxStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
+    
+    for (int i = maxStartYear - 5; i <= maxStartYear + 1; i++) {
+      _tahunAjaranOptions.add('$i/${i + 1}');
+    }
   }
 
   Future<void> _fetchClasses() async {
     setState(() => _isLoadingClasses = true);
     try {
       final user = SessionService.currentUser!;
+      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(user.schoolId).get();
+      if (schoolDoc.exists) {
+        final tA = schoolDoc.data()?['tahunAjaran'];
+        final sem = schoolDoc.data()?['semester'];
+        if (tA != null) {
+          _selectedTahunAjaran = tA;
+          if (!_tahunAjaranOptions.contains(tA)) _tahunAjaranOptions.add(tA);
+        }
+        if (sem != null) _selectedSemester = sem;
+      }
+
+      if (_selectedTahunAjaran == null) {
+        final currentYear = DateTime.now().year;
+        final currentMonth = DateTime.now().month;
+        int maxStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
+        _selectedTahunAjaran = '$maxStartYear/${maxStartYear + 1}';
+      }
+      if (_selectedSemester == null) _selectedSemester = 'Semester 1';
+
       final query = await FirebaseFirestore.instance
           .collection('schools')
           .doc(user.schoolId)
@@ -102,18 +134,31 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
       final user = SessionService.currentUser!;
       final schoolId = user.schoolId;
 
-      // 1. Fetch all students in the selected class
-      final studentsQuery = await FirebaseFirestore.instance
+      // 1. Query class_enrollments first for historical correctness
+      var studentsQuery = await FirebaseFirestore.instance
           .collection('schools')
           .doc(schoolId)
-          .collection('students')
+          .collection('class_enrollments')
           .where('classId', isEqualTo: _selectedClassId)
+          .where('tahunAjaran', isEqualTo: _selectedTahunAjaran)
+          .where('semester', isEqualTo: _selectedSemester)
           .get();
+
+      // If empty, fall back to active students collection
+      bool isFallback = studentsQuery.docs.isEmpty;
+      if (isFallback) {
+        studentsQuery = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('students')
+            .where('classId', isEqualTo: _selectedClassId)
+            .get();
+      }
 
       final studentsList = studentsQuery.docs.map((doc) {
         final data = doc.data();
         return {
-          'id': doc.id,
+          'id': isFallback ? doc.id : (data['studentId'] ?? doc.id),
           'nama': data['nama'] ?? '-',
           'className': data['className'] ?? '-',
         };
@@ -122,8 +167,18 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
       studentsList.sort((a, b) => a['nama'].toString().compareTo(b['nama'].toString()));
 
       // 2. Fetch monthly attendance data safely
+      final parts = (_selectedTahunAjaran ?? '').split('/');
+      int computedYear = DateTime.now().year;
+      if (parts.length == 2) {
+        if (_selectedSemester == 'Semester 1') {
+          computedYear = int.tryParse(parts[0]) ?? computedYear;
+        } else {
+          computedYear = int.tryParse(parts[1]) ?? computedYear;
+        }
+      }
+
       // Start of month: YYYY-MM-01, End of month: YYYY-MM-31
-      final monthPrefix = '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}';
+      final monthPrefix = '$computedYear-${_selectedMonth.toString().padLeft(2, '0')}';
       final startOfDate = '$monthPrefix-01';
       final endOfDate = '$monthPrefix-31';
 
@@ -208,13 +263,23 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
     };
   }
 
-  int _getDaysInMonth() {
-    return DateTime(_selectedYear, _selectedMonth + 1, 0).day;
+  int _getDaysInMonth(int year) {
+    return DateTime(year, _selectedMonth + 1, 0).day;
   }
 
   Future<void> _exportPdf() async {
     final pdf = pw.Document();
     final monthName = _monthNames[_selectedMonth - 1];
+    
+    final parts = (_selectedTahunAjaran ?? '').split('/');
+    int computedYear = DateTime.now().year;
+    if (parts.length == 2) {
+      if (_selectedSemester == 'Semester 1') {
+        computedYear = int.tryParse(parts[0]) ?? computedYear;
+      } else {
+        computedYear = int.tryParse(parts[1]) ?? computedYear;
+      }
+    }
 
     pdf.addPage(
       pw.MultiPage(
@@ -227,7 +292,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
             ),
             pw.SizedBox(height: 4),
             pw.Text(
-              'Kelas: ${_selectedClassName ?? '-'}  |  Bulan: $monthName $_selectedYear',
+              'Kelas: ${_selectedClassName ?? '-'}  |  Bulan: $monthName $computedYear',
               style: const pw.TextStyle(fontSize: 12),
             ),
             pw.SizedBox(height: 16),
@@ -267,7 +332,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Rekap_Bulanan_${_selectedClassName}_${_selectedYear}_${_selectedMonth.toString().padLeft(2, '0')}.pdf',
+      name: 'Rekap_Bulanan_${_selectedClassName}_${computedYear}_${_selectedMonth.toString().padLeft(2, '0')}.pdf',
     );
   }
 
@@ -275,7 +340,18 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
     try {
       final excelFile = Excel.createExcel();
       final sheetObject = excelFile['Sheet1'];
-      final daysInMonth = _getDaysInMonth();
+      
+      final parts = (_selectedTahunAjaran ?? '').split('/');
+      int computedYear = DateTime.now().year;
+      if (parts.length == 2) {
+        if (_selectedSemester == 'Semester 1') {
+          computedYear = int.tryParse(parts[0]) ?? computedYear;
+        } else {
+          computedYear = int.tryParse(parts[1]) ?? computedYear;
+        }
+      }
+
+      final daysInMonth = _getDaysInMonth(computedYear);
       final monthName = _monthNames[_selectedMonth - 1];
 
       // Sheet title
@@ -283,7 +359,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
         TextCellValue('Laporan Kehadiran Bulanan Kelas ${_selectedClassName ?? "-"}'),
       ]);
       sheetObject.appendRow([
-        TextCellValue('Periode: $monthName $_selectedYear'),
+        TextCellValue('Periode: $monthName $computedYear'),
       ]);
       sheetObject.appendRow([]); // Empty spacer row
 
@@ -318,7 +394,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
 
         // Populate days
         for (int d = 1; d <= daysInMonth; d++) {
-          final dateKey = '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+          final dateKey = '$computedYear-${_selectedMonth.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
           final status = studentRecords[dateKey];
 
           String code = '-';
@@ -357,10 +433,10 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
       }
 
       final bytes = excelFile.save();
-      if (bytes == null) throw Exception('Gagal generate file Excel');
+      if (bytes == null) throw ('Gagal generate file Excel');
 
       final dir = await getApplicationDocumentsDirectory();
-      final fileName = 'Rekap_Bulanan_${_selectedClassName}_${_selectedYear}_${_selectedMonth.toString().padLeft(2, '0')}.xlsx';
+      final fileName = 'Rekap_Bulanan_${_selectedClassName}_${computedYear}_${_selectedMonth.toString().padLeft(2, '0')}.xlsx';
       final file = File('${dir.path}/$fileName');
       await file.writeAsBytes(bytes);
 
@@ -418,8 +494,10 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                child: Column(
-                  children: [
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
                     // Selectors Container
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -479,12 +557,11 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                                     ),
                           const SizedBox(height: 16),
 
-                          // Month and Year selector
+                          // Month selector
                           Row(
                             children: [
                               // Month Dropdown
                               Expanded(
-                                flex: 3,
                                 child: DropdownButtonFormField<int>(
                                   initialValue: _selectedMonth,
                                   dropdownColor:
@@ -518,18 +595,23 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                                   },
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
 
-                              // Year Dropdown
+                          // Tahun Ajaran and Semester selector
+                          Row(
+                            children: [
+                              // Tahun Ajaran Dropdown
                               Expanded(
-                                flex: 2,
-                                child: DropdownButtonFormField<int>(
-                                  initialValue: _selectedYear,
+                                flex: 1,
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: _selectedTahunAjaran,
                                   dropdownColor:
                                       isDark ? const Color(0xFF1E1B4B) : Colors.white,
                                   style: TextStyle(color: textColor),
                                   decoration: InputDecoration(
-                                    labelText: 'Tahun',
+                                    labelText: 'Tahun Ajaran',
                                     labelStyle: TextStyle(color: subTextColor),
                                     contentPadding:
                                         const EdgeInsets.symmetric(horizontal: 12),
@@ -542,15 +624,53 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                                       borderSide: BorderSide(color: cardBorder),
                                     ),
                                   ),
-                                  items: _years.map((yr) {
+                                  items: _tahunAjaranOptions.map((tahun) {
                                     return DropdownMenuItem(
-                                      value: yr,
-                                      child: Text(yr.toString()),
+                                      value: tahun,
+                                      child: Text(tahun),
                                     );
                                   }).toList(),
                                   onChanged: (val) {
                                     if (val != null) {
-                                      setState(() => _selectedYear = val);
+                                      setState(() => _selectedTahunAjaran = val);
+                                      _fetchMonthlyData();
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+
+                              // Semester Dropdown
+                              Expanded(
+                                flex: 1,
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: _selectedSemester,
+                                  dropdownColor:
+                                      isDark ? const Color(0xFF1E1B4B) : Colors.white,
+                                  style: TextStyle(color: textColor),
+                                  decoration: InputDecoration(
+                                    labelText: 'Semester',
+                                    labelStyle: TextStyle(color: subTextColor),
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(horizontal: 12),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: cardBorder),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: cardBorder),
+                                    ),
+                                  ),
+                                  items: _semesterOptions.map((sem) {
+                                    return DropdownMenuItem(
+                                      value: sem,
+                                      child: Text(sem),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() => _selectedSemester = val);
                                       _fetchMonthlyData();
                                     }
                                   },
@@ -564,107 +684,114 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                     const SizedBox(height: 20),
 
                     // Results table/list
-                    Expanded(
-                      child: _isLoadingData
-                          ? const Center(child: CircularProgressIndicator())
-                          : _students.isEmpty
-                              ? Center(
+                    _isLoadingData
+                        ? const SizedBox(
+                            height: 200,
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        : _students.isEmpty
+                            ? SizedBox(
+                                height: 200,
+                                child: Center(
                                   child: Text(
                                     'Tidak ada data siswa atau absensi.',
                                     style: TextStyle(color: subTextColor),
                                   ),
-                                )
-                              : ListView.separated(
-                                  itemCount: _students.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(height: 12),
-                                  itemBuilder: (context, index) {
-                                    final student = _students[index];
-                                    final studentId = student['id'] ?? '';
-                                    final counts = _calculateCounts(studentId);
-
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 14),
-                                      decoration: BoxDecoration(
-                                        color: cardBg,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: cardBorder),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          // Student Name
-                                          Text(
-                                            student['nama'] ?? '-',
-                                            style: TextStyle(
-                                              color: textColor,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-
-                                          // Green, Yellow, Red badge info
-                                          SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: Row(
-                                              children: [
-                                                // Green (Hadir)
-                                                _buildInfoPill(
-                                                  label: 'Hadir',
-                                                  count: counts['hadir']!,
-                                                  color: const Color(0xFF10B981),
-                                                ),
-                                                const SizedBox(width: 8),
-
-                                                // Yellow (Terlambat)
-                                                _buildInfoPill(
-                                                  label: 'Terlambat',
-                                                  count: counts['terlambat']!,
-                                                  color: const Color(0xFFF59E0B),
-                                                ),
-                                                const SizedBox(width: 8),
-
-                                                // Blue (Izin)
-                                                _buildInfoPill(
-                                                  label: 'Izin',
-                                                  count: counts['izin']!,
-                                                  color: const Color(0xFF3B82F6),
-                                                ),
-                                                const SizedBox(width: 8),
-
-                                                // Purple (Sakit)
-                                                _buildInfoPill(
-                                                  label: 'Sakit',
-                                                  count: counts['sakit']!,
-                                                  color: const Color(0xFF8B5CF6),
-                                                ),
-                                                const SizedBox(width: 8),
-
-                                                // Red (Alpha)
-                                                _buildInfoPill(
-                                                  label: 'Alpha',
-                                                  count: counts['alpha']!,
-                                                  color: const Color(0xFFEF4444),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
                                 ),
-                    ),
+                              )
+                            : ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: _students.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final student = _students[index];
+                                  final studentId = student['id'] ?? '';
+                                  final counts = _calculateCounts(studentId);
+
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: cardBg,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: cardBorder),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Student Name
+                                        Text(
+                                          student['nama'] ?? '-',
+                                          style: TextStyle(
+                                            color: textColor,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+
+                                        // Green, Yellow, Red badge info
+                                        SingleChildScrollView(
+                                          scrollDirection: Axis.horizontal,
+                                          child: Row(
+                                            children: [
+                                              // Green (Hadir)
+                                              _buildInfoPill(
+                                                label: 'Hadir',
+                                                count: counts['hadir']!,
+                                                color: const Color(0xFF10B981),
+                                              ),
+                                              const SizedBox(width: 8),
+
+                                              // Yellow (Terlambat)
+                                              _buildInfoPill(
+                                                label: 'Terlambat',
+                                                count: counts['terlambat']!,
+                                                color: const Color(0xFFF59E0B),
+                                              ),
+                                              const SizedBox(width: 8),
+
+                                              // Blue (Izin)
+                                              _buildInfoPill(
+                                                label: 'Izin',
+                                                count: counts['izin']!,
+                                                color: const Color(0xFF3B82F6),
+                                              ),
+                                              const SizedBox(width: 8),
+
+                                              // Purple (Sakit)
+                                              _buildInfoPill(
+                                                label: 'Sakit',
+                                                count: counts['sakit']!,
+                                                color: const Color(0xFF8B5CF6),
+                                              ),
+                                              const SizedBox(width: 8),
+
+                                              // Red (Alpha)
+                                              _buildInfoPill(
+                                                label: 'Alpha',
+                                                count: counts['alpha']!,
+                                                color: const Color(0xFFEF4444),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                   ],
                 ),
               ),
             ),
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 
   Widget _buildInfoPill({

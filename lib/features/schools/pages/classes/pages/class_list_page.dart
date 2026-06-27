@@ -3,12 +3,15 @@ import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import '../data/class_service.dart';
 import 'class_info_page.dart';
+import '../../students/data/student_admin_service.dart';
 
 class ClassListPage extends StatelessWidget {
   final bool hideBackButton;
   ClassListPage({super.key, this.hideBackButton = false});
 
   final ClassService _service = ClassService();
+  final StudentService _studentService = StudentService();
+
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +57,44 @@ class ClassListPage extends StatelessWidget {
                           child: Text(
                             'Data Kelas',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                          ),
+                        ),
+                        // Format Button
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFEF4444), Color(0xFFF87171)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => _showFormatAllClassesConfirmation(context, schoolId),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.delete_sweep_rounded, color: Colors.white, size: 18),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Format',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                         Container(
@@ -134,7 +175,8 @@ class ClassListPage extends StatelessWidget {
                         );
                       }
 
-                      final docs = snapshot.data!.docs;
+                      final docs = snapshot.data!.docs.toList();
+                      docs.sort((a, b) => (a.data()['namaKelas'] ?? '').toString().toLowerCase().compareTo((b.data()['namaKelas'] ?? '').toString().toLowerCase()));
 
                       if (docs.isEmpty) {
                         return Center(
@@ -258,6 +300,10 @@ class ClassListPage extends StatelessWidget {
                                           ],
                                         ),
                                       ),
+                                      IconButton(
+                                        onPressed: () => _showDeleteConfirmationDialog(context, docs[index].id, data['namaKelas'] ?? ''),
+                                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 22),
+                                      ),
                                       Icon(Icons.chevron_right_rounded, color: arrowColor, size: 22),
                                     ],
                                   ),
@@ -372,13 +418,24 @@ class ClassListPage extends StatelessWidget {
                       final namaKelas = controller.text.trim();
                       if (namaKelas.isEmpty) return;
 
-                      await _service.addClass(schoolId: schoolId, namaKelas: namaKelas);
+                      try {
+                        await _service.addClass(schoolId: schoolId, namaKelas: namaKelas);
 
-                      if (dialogContext.mounted) {
-                        Navigator.pop(dialogContext);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Kelas berhasil ditambahkan')),
-                        );
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Kelas berhasil ditambahkan')),
+                          );
+                        }
+                      } catch (e) {
+                        if (dialogContext.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e.toString().replaceAll('Exception: ', '')),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
                       }
                     },
                     child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -391,4 +448,216 @@ class ClassListPage extends StatelessWidget {
       },
     );
   }
+
+  void _showDeleteConfirmationDialog(BuildContext context, String classId, String className) {
+    final isDark = AuthBackground.isDarkMode.value;
+    
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.red.withValues(alpha: 0.3), width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Hapus Kelas?',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E1B4B), fontSize: 18),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Apakah Anda yakin ingin menghapus kelas $className?',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.7), fontSize: 13, height: 1.5),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text('Batal', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E1B4B))),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                          ),
+                        ),
+                      );
+
+                      try {
+                        await _service.deleteClass(classId);
+                        if (context.mounted) {
+                          Navigator.pop(context); // close loading
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Kelas berhasil dihapus.')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          Navigator.pop(context); // close loading
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Gagal menghapus kelas: $e')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showFormatAllClassesConfirmation(BuildContext context, String schoolId) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final dialogBgColor = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final dialogBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final titleTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: dialogBgColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: dialogBorderColor, width: 1.5),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.warning_rounded, color: Colors.red, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Format Seluruh Kelas?',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Apakah Anda yakin ingin mengeluarkan seluruh murid dari semua kelas? Tindakan ini bertujuan untuk pergantian semester baru. Seluruh kelas akan dikosongkan (tanpa murid), tetapi data murid dan histori nilai semester lalu tetap tersimpan di sistem.',
+            style: TextStyle(fontSize: 14),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text('Batal', style: TextStyle(color: titleTextColor)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      
+                      // Show loading dialog
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => const Center(child: CircularProgressIndicator()),
+                      );
+
+                      try {
+                        await _studentService.formatAllClasses(schoolId);
+                        
+                        if (context.mounted) {
+                          Navigator.pop(context); // close loading dialog
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Seluruh kelas berhasil dikosongkan (diformat).'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          Navigator.pop(context); // close loading dialog
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Gagal memformat kelas: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Format', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
+

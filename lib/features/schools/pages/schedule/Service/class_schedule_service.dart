@@ -112,6 +112,7 @@ class ClassScheduleService {
     required String hari,
     required String jamMulai,
     required String jamSelesai,
+    String? scheduleId, // Optional parameter for editing
   }) async {
     final newStart = _timeToMinutes(jamMulai);
     final newEnd = _timeToMinutes(jamSelesai);
@@ -119,6 +120,10 @@ class ClassScheduleService {
     final existingSchedules = await _schedulesRef(schoolId).get();
 
     for (final doc in existingSchedules.docs) {
+      if (scheduleId != null && doc.id == scheduleId) {
+        continue; // Lewati pengecekan bentrok dengan diri sendiri
+      }
+
       final data = doc.data();
 
       if ((data['hari'] ?? '') != hari) {
@@ -139,7 +144,7 @@ class ClassScheduleService {
       }
 
       if (data['classId'] == classId) {
-        throw Exception('jadwal bentrok');
+        throw ('jadwal bentrok');
       }
 
       // Bypass pengecekan konflik guru jika jenis jadwal adalah istirahat
@@ -152,16 +157,18 @@ class ClassScheduleService {
           data['teacherId'].toString().isNotEmpty &&
           data['teacherId'].toString() != '-' &&
           data['teacherId'] == teacherId) {
-        throw Exception(
+        throw (
           'Guru sudah mengajar di kelas lain pada hari dan jam yang sama',
         );
       }
 
     }
 
-    final doc = _schedulesRef(schoolId).doc();
+    final doc = scheduleId != null 
+        ? _schedulesRef(schoolId).doc(scheduleId) 
+        : _schedulesRef(schoolId).doc();
 
-    await doc.set({
+    final dataToSave = {
       'scheduleId': doc.id,
 
       'schoolId': schoolId,
@@ -182,7 +189,119 @@ class ClassScheduleService {
       'jamSelesai': jamSelesai,
 
       'aktif': true,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+      'createdAt': scheduleId != null ? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+    };
+
+    if (scheduleId != null) {
+      dataToSave.remove('createdAt');
+      dataToSave['updatedAt'] = FieldValue.serverTimestamp();
+      await doc.update(dataToSave);
+    } else {
+      await doc.set(dataToSave);
+    }
+  }
+
+  // Hapus semua jadwal lama dan masukkan yang baru (Batch Write)
+  Future<void> replaceAllSchedulesBySchool({
+    required String schoolId,
+    required List<Map<String, dynamic>> schedules,
+  }) async {
+    final existingSchedules = await _schedulesRef(schoolId).get();
+    
+    WriteBatch batch = _db.batch();
+    int opsCount = 0;
+
+    // Delete existing
+    for (final doc in existingSchedules.docs) {
+      batch.delete(doc.reference);
+      opsCount++;
+      if (opsCount >= 400) {
+        await batch.commit();
+        batch = _db.batch();
+        opsCount = 0;
+      }
+    }
+
+    // Add new
+    for (final schedule in schedules) {
+      final doc = _schedulesRef(schoolId).doc();
+      batch.set(doc, {
+        'scheduleId': doc.id,
+        'schoolId': schoolId,
+        'classId': schedule['classId'],
+        'className': schedule['className'],
+        'jenisJadwal': schedule['jenisJadwal'] ?? 'pelajaran',
+        'subjectId': schedule['subjectId'],
+        'subjectName': schedule['subjectName'],
+        'teacherId': schedule['teacherId'],
+        'teacherName': schedule['teacherName'],
+        'hari': schedule['hari'],
+        'jamMulai': schedule['jamMulai'],
+        'jamSelesai': schedule['jamSelesai'],
+        'aktif': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      opsCount++;
+      if (opsCount >= 400) {
+        await batch.commit();
+        batch = _db.batch();
+        opsCount = 0;
+      }
+    }
+
+    if (opsCount > 0) {
+      await batch.commit();
+    }
+  }
+
+  Future<void> deleteAllSchedules(String schoolId) async {
+    final existingSchedules = await _schedulesRef(schoolId).get();
+    WriteBatch batch = _db.batch();
+    int opsCount = 0;
+    for (final doc in existingSchedules.docs) {
+      batch.delete(doc.reference);
+      opsCount++;
+      if (opsCount >= 400) {
+        await batch.commit();
+        batch = _db.batch();
+        opsCount = 0;
+      }
+    }
+    if (opsCount > 0) await batch.commit();
+  }
+
+  Future<void> deleteSchedulesByClass(String schoolId, String classId) async {
+    final existingSchedules = await _schedulesRef(schoolId).where('classId', isEqualTo: classId).get();
+    WriteBatch batch = _db.batch();
+    int opsCount = 0;
+    for (final doc in existingSchedules.docs) {
+      batch.delete(doc.reference);
+      opsCount++;
+      if (opsCount >= 400) {
+        await batch.commit();
+        batch = _db.batch();
+        opsCount = 0;
+      }
+    }
+    if (opsCount > 0) await batch.commit();
+  }
+
+  Future<void> deleteSchedulesByClassAndDay(String schoolId, String classId, String hari) async {
+    final existingSchedules = await _schedulesRef(schoolId)
+        .where('classId', isEqualTo: classId)
+        .where('hari', isEqualTo: hari)
+        .get();
+    WriteBatch batch = _db.batch();
+    int opsCount = 0;
+    for (final doc in existingSchedules.docs) {
+      batch.delete(doc.reference);
+      opsCount++;
+      if (opsCount >= 400) {
+        await batch.commit();
+        batch = _db.batch();
+        opsCount = 0;
+      }
+    }
+    if (opsCount > 0) await batch.commit();
   }
 }

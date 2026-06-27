@@ -19,7 +19,9 @@ import 'student_qr_identity_page.dart';
 import '../data/student_service.dart';
 import 'student_schedule_page.dart';
 import 'student_attendance_page.dart';
+import 'student_attendance_history_page.dart';
 import 'student_grades_page.dart';
+import 'student_tasks_page.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -147,6 +149,7 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   Future<void> _checkAndReportBehaviorViolation({bool isLocked = false}) async {
     if (_plan == 'FREE') return;
+    if (_studentData?['lulus'] == true) return;
     final user = SessionService.currentUser;
     debugPrint(
       'Behavior violation check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className',
@@ -250,6 +253,7 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   Future<void> _checkAndReportBehaviorReturn() async {
     if (_plan == 'FREE') return;
+    if (_studentData?['lulus'] == true) return;
     final user = SessionService.currentUser;
     debugPrint(
       'Behavior return check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className',
@@ -346,6 +350,7 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   Future<void> _reportLogoutBehavior() async {
     if (_plan == 'FREE') return;
+    if (_studentData?['lulus'] == true) return;
     final user = SessionService.currentUser;
     if (user == null || _studentDocId == null || _className == null) {
       return;
@@ -498,7 +503,7 @@ class _StudentDashboardState extends State<StudentDashboard>
         _isLoadingSchool = false;
       });
 
-      if (_studentDocId != null && _className != null) {
+      if (_studentDocId != null && _className != null && _studentData?['lulus'] != true) {
         _loadTodaySchedulesAndStartAttendanceListener(user.schoolId);
       }
     }
@@ -593,33 +598,135 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   void _showFullScreenQr(BuildContext context, String qrData) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                QrImageView(
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    String? studentId;
+    String? schoolId;
+    try {
+      final decoded = jsonDecode(qrData);
+      studentId = decoded['studentId'];
+      schoolId = decoded['schoolId'];
+    } catch (_) {}
+
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? listener;
+
+    if (schoolId != null && studentId != null) {
+      final dateStr = _getTodayDateStr();
+      final docRef = FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('daily_attendance')
+          .doc('${dateStr}_$studentId');
+
+      bool isFirstEmit = true;
+      Timestamp? initialTimestamp;
+
+      listener = docRef.snapshots().listen((snapshot) {
+        if (isFirstEmit) {
+          isFirstEmit = false;
+          if (snapshot.exists && snapshot.data() != null) {
+            final data = snapshot.data()!;
+            initialTimestamp = data['timestamp'] as Timestamp?;
+          }
+          return;
+        }
+
+        if (snapshot.exists && snapshot.data() != null) {
+          final data = snapshot.data()!;
+          final currentTimestamp = data['timestamp'] as Timestamp?;
+          final status = data['status'] ?? 'hadir';
+
+          if (currentTimestamp != null && currentTimestamp != initialTimestamp) {
+            if (Get.isDialogOpen ?? false) {
+              Get.back();
+            }
+            Get.snackbar(
+              'Absensi Berhasil',
+              'Anda berhasil melakukan absensi (Status: ${status.toString().toUpperCase()}).',
+              backgroundColor: const Color(0xFF10B981),
+              colorText: Colors.white,
+              snackPosition: SnackPosition.TOP,
+              margin: const EdgeInsets.all(16),
+              borderRadius: 12,
+            );
+            listener?.cancel();
+          }
+        }
+      });
+    }
+
+    Get.dialog(
+      Dialog(
+        backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'QR Absensi Siswa',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 15,
+                    ),
+                  ],
+                ),
+                child: QrImageView(
                   data: qrData,
                   version: QrVersions.auto,
-                  size: MediaQuery.of(context).size.width * 0.65,
+                  size: 240,
                   backgroundColor: Colors.white,
                   gapless: false,
-                  foregroundColor: const Color(0xFF0F0C20),
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Color(0xFF0F0C20),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF0F0C20),
+                  ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text(
+                    'Tutup',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ),
+            ],
           ),
-        );
-      },
-    );
+        ),
+      ),
+    ).then((_) {
+      listener?.cancel();
+    });
   }
 
   @override
@@ -889,9 +996,6 @@ class _StudentDashboardState extends State<StudentDashboard>
         ? Colors.black.withValues(alpha: 0.2)
         : Colors.black.withValues(alpha: 0.05);
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final subtitleColor = isDark
-        ? Colors.white.withValues(alpha: 0.7)
-        : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
     final emailColor = isDark
         ? Colors.white.withValues(alpha: 0.5)
         : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
@@ -915,44 +1019,80 @@ class _StudentDashboardState extends State<StudentDashboard>
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                width: 120,
-                height: 120,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-                    width: 1.5,
+              if (_studentData?['lulus'] == true)
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: GestureDetector(
-                  onTap: () => _showFullScreenQr(context, qrPayload),
-                  child: QrImageView(
-                    data: qrPayload,
-                    version: QrVersions.auto,
-                    size: 120,
-                    backgroundColor: Colors.white,
-                    padding: EdgeInsets.zero,
-                    eyeStyle: const QrEyeStyle(
-                      eyeShape: QrEyeShape.square,
-                      color: Color(0xFF1E1B4B),
-                    ),
-                    dataModuleStyle: const QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.square,
-                      color: Color(0xFF1E1B4B),
+                  child: const Center(
+                    child: Icon(
+                      Icons.school_rounded,
+                      color: Colors.white,
+                      size: 50,
                     ),
                   ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(4), // gradient frame thickness
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                        blurRadius: 15,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Container(
+                    width: 112,
+                    height: 112,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: GestureDetector(
+                        onTap: () => _showFullScreenQr(context, qrPayload),
+                        child: QrImageView(
+                          data: qrPayload,
+                          version: QrVersions.auto,
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.all(8.0),
+                          eyeStyle: const QrEyeStyle(
+                            eyeShape: QrEyeShape.square,
+                            color: Color(0xFF1E1B4B),
+                          ),
+                          dataModuleStyle: const QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.square,
+                            color: Color(0xFF1E1B4B),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
               const SizedBox(width: 20),
               Expanded(
                 child: Column(
@@ -965,11 +1105,6 @@ class _StudentDashboardState extends State<StudentDashboard>
                         fontWeight: FontWeight.bold,
                         color: titleColor,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      email,
-                      style: TextStyle(fontSize: 13, color: subtitleColor),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -1003,7 +1138,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                         Expanded(
                           child: Text(
                             _className != null
-                                ? 'Kelas: $_className'
+                                ? (_studentData?['lulus'] == true ? 'Kelas: $_className (Alumni)' : 'Kelas: $_className')
                                 : 'Belum masuk kelas',
                             style: TextStyle(
                               fontSize: 12,
@@ -1035,9 +1170,9 @@ class _StudentDashboardState extends State<StudentDashboard>
                               ).withValues(alpha: 0.5),
                             ),
                           ),
-                          child: const Text(
-                            'Murid',
-                            style: TextStyle(
+                          child: Text(
+                            _studentData?['lulus'] == true ? 'Alumni' : 'Murid',
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF6366F1),
@@ -1180,12 +1315,26 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   Widget _buildMenuGrid(bool isDark) {
     final parentLinked = _studentData?['parentLinked'] == true;
-    final menus = [
-      {
-        'title': 'Absensi',
-        'icon': Icons.qr_code_scanner_rounded,
-        'color': const Color(0xFF8B5CF6),
-      },
+    final isLulus = _studentData?['lulus'] == true;
+    final menus = isLulus
+        ? [
+            {
+              'title': 'Absensi',
+              'icon': Icons.qr_code_scanner_rounded,
+              'color': const Color(0xFF8B5CF6),
+            },
+            {
+              'title': 'Nilai',
+              'icon': Icons.grade_rounded,
+              'color': const Color(0xFF10B981),
+            },
+          ]
+        : [
+            {
+              'title': 'Absensi',
+              'icon': Icons.qr_code_scanner_rounded,
+              'color': const Color(0xFF8B5CF6),
+            },
       {
         'title': 'Jadwal Saya',
         'icon': Icons.calendar_month_rounded,
@@ -1202,6 +1351,11 @@ class _StudentDashboardState extends State<StudentDashboard>
         'color': const Color(0xFFF97316),
       },
       {
+        'title': 'Tugas Saya',
+        'icon': Icons.assignment_rounded,
+        'color': const Color(0xFF6366F1),
+      },
+      {
         'title': parentLinked ? 'Sudah Terhubung' : 'Sambungkan ke Orang Tua',
         'icon': parentLinked
             ? Icons.verified_rounded
@@ -1216,12 +1370,6 @@ class _StudentDashboardState extends State<StudentDashboard>
         'icon': Icons.quiz_rounded,
         'color': const Color(0xFF14B8A6),
         'badge': 'BASIC',
-      },
-      {
-        'title': 'Surat Izin Digital',
-        'icon': Icons.mark_email_read_rounded,
-        'color': const Color(0xFF8B5CF6),
-        'badge': 'PRO',
       },
       {
         'title': 'News Feed Sekolah',
@@ -1302,6 +1450,93 @@ class _StudentDashboardState extends State<StudentDashboard>
                                 child: container,
                               );
                             }
+
+                            if (menu['title'] == 'Tugas Saya' &&
+                                _studentDocId != null &&
+                                _studentData?['classId'] != null) {
+                              final studentClassId = _studentData!['classId'] as String;
+                              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('schools')
+                                    .doc(SessionService.currentUser!.schoolId)
+                                    .collection('tasks')
+                                    .where('classId', isEqualTo: studentClassId)
+                                    .snapshots(),
+                                builder: (context, tasksSnapshot) {
+                                  final tasks = tasksSnapshot.data?.docs ?? [];
+                                  if (tasks.isEmpty) return container;
+
+                                  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('schools')
+                                        .doc(SessionService.currentUser!.schoolId)
+                                        .collection('task_submissions')
+                                        .where('studentId', isEqualTo: _studentDocId)
+                                        .snapshots(),
+                                    builder: (context, submissionsSnapshot) {
+                                      final submissions = submissionsSnapshot.data?.docs ?? [];
+                                      final submittedTaskIds = submissions
+                                          .map((doc) => doc.data()['taskId']?.toString())
+                                          .toSet();
+
+                                      final pendingCount = tasks.where((taskDoc) {
+                                        final taskId = taskDoc.id;
+                                        final taskData = taskDoc.data();
+                                        final status = taskData['status']?.toString() ?? 'active';
+                                        final taskTahunAjaran = taskData['tahunAjaran']?.toString();
+                                        final taskSemester = taskData['semester']?.toString();
+
+                                        if (status != 'active') return false;
+                                        if (taskTahunAjaran != _tahunAjaran ||
+                                            taskSemester != _activeSemester) return false;
+
+                                        return !submittedTaskIds.contains(taskId);
+                                      }).length;
+
+                                      if (pendingCount > 0) {
+                                        return Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            container,
+                                            Positioned(
+                                              top: -4,
+                                              right: -4,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.redAccent,
+                                                  borderRadius: BorderRadius.circular(10),
+                                                  border: Border.all(
+                                                    color: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                                    width: 1.5,
+                                                  ),
+                                                ),
+                                                constraints: const BoxConstraints(
+                                                  minWidth: 18,
+                                                  minHeight: 18,
+                                                ),
+                                                child: Center(
+                                                  child: Text(
+                                                    '$pendingCount',
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }
+                                      return container;
+                                    },
+                                  );
+                                },
+                              );
+                            }
+
                             return container;
                           },
                         ),
@@ -1377,10 +1612,26 @@ class _StudentDashboardState extends State<StudentDashboard>
     final user = SessionService.currentUser!;
     switch (title) {
       case 'Absensi':
-        if (_studentDocId == null ||
-            _studentData == null ||
-            _className == null ||
-            _className!.trim().isEmpty) {
+        if (_studentDocId == null || _studentData == null) {
+          Get.snackbar(
+            'Informasi',
+            'Data murid belum lengkap. Hubungi admin sekolah.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.amber,
+            colorText: Colors.black,
+            margin: const EdgeInsets.all(16),
+            borderRadius: 12,
+            icon: const Icon(Icons.info_outline, color: Colors.black),
+          );
+        } else if (_studentData?['lulus'] == true) {
+          Get.to(
+            () => StudentAttendanceHistoryPage(
+              studentDocId: _studentDocId!,
+              className: _className ?? '-',
+              studentName: _studentData?['nama'] ?? 'Murid',
+            ),
+          );
+        } else if (_className == null || _className!.trim().isEmpty) {
           Get.snackbar(
             'Informasi',
             'Anda belum terhubung ke kelas manapun. Hubungi admin sekolah.',
@@ -1437,6 +1688,33 @@ class _StudentDashboardState extends State<StudentDashboard>
           );
         } else {
           Get.to(() => StudentSchedulePage(className: _className!));
+        }
+        break;
+      case 'Tugas Saya':
+        if (_studentDocId == null ||
+            _studentData == null ||
+            _className == null ||
+            _className!.trim().isEmpty) {
+          Get.snackbar(
+            'Informasi',
+            'Anda belum terhubung ke kelas manapun. Hubungi admin sekolah.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.amber,
+            colorText: Colors.black,
+            margin: const EdgeInsets.all(16),
+            borderRadius: 12,
+            icon: const Icon(Icons.info_outline, color: Colors.black),
+          );
+        } else {
+          Get.to(
+            () => StudentTasksPage(
+              studentDocId: _studentDocId!,
+              studentData: _studentData!,
+              className: _className!,
+              tahunAjaran: _tahunAjaran ?? '-',
+              semester: _activeSemester ?? '-',
+            ),
+          );
         }
         break;
       case 'Nilai':

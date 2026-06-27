@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onNotificationCreated = void 0;
+exports.onUserDocumentDeleted = exports.onNotificationCreated = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
 const app_1 = require("firebase-admin/app");
 const messaging_1 = require("firebase-admin/messaging");
+const auth_1 = require("firebase-admin/auth");
 (0, app_1.initializeApp)();
 /**
  * Triggered setiap kali dokumen baru dibuat di:
@@ -106,5 +107,27 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
     });
     await Promise.all(sendPromises);
     console.log("[onNotificationCreated] All FCM messages dispatched.");
+});
+/**
+ * Triggered setiap kali dokumen pengguna di hapus di:
+ * /users/{userId}
+ *
+ * Menghapus akun autentikasi dari Firebase Auth.
+ */
+exports.onUserDocumentDeleted = (0, firestore_1.onDocumentDeleted)("users/{userId}", async (event) => {
+    const userId = event.params.userId;
+    console.log(`[onUserDocumentDeleted] Memulai penghapusan auth untuk userId=${userId}`);
+    try {
+        await (0, auth_1.getAuth)().deleteUser(userId);
+        console.log(`✅ Berhasil menghapus pengguna dari Firebase Auth: userId=${userId}`);
+    }
+    catch (error) {
+        if (error.code === "auth/user-not-found") {
+            console.log(`ℹ️ Pengguna tidak ditemukan di Firebase Auth (mungkin sudah dihapus manual): userId=${userId}`);
+        }
+        else {
+            console.error(`❌ Gagal menghapus pengguna dari Firebase Auth: userId=${userId}`, error);
+        }
+    }
 });
 //# sourceMappingURL=index.js.map

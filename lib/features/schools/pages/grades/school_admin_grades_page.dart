@@ -30,12 +30,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
   bool _isLoadingMetaData = true;
   List<Map<String, dynamic>> _classesList = [];
 
-  final List<String> _tahunAjaranOptions = [
-    '2023/2024',
-    '2024/2025',
-    '2025/2026',
-    '2026/2027',
-  ];
+  List<String> _tahunAjaranOptions = [];
 
   final List<String> _semesterOptions = [
     'Semester 1',
@@ -45,7 +40,20 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
   @override
   void initState() {
     super.initState();
+    _generateTahunAjaranOptions();
     _loadMetaData();
+  }
+
+  void _generateTahunAjaranOptions() {
+    int currentYear = DateTime.now().year;
+    int currentMonth = DateTime.now().month;
+    // Tahun ajaran biasanya dimulai bulan Juli. Jika belum Juli, kita masih di tahun ajaran tahun sebelumnya.
+    int maxStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
+    
+    // Generate dari 5 tahun ke belakang sampai 1 tahun ke depan
+    for (int i = maxStartYear - 5; i <= maxStartYear + 1; i++) {
+      _tahunAjaranOptions.add('$i/${i + 1}');
+    }
   }
 
   Future<void> _loadMetaData() async {
@@ -65,7 +73,10 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
         setState(() {
           if (schoolData != null) {
             _schoolName = schoolData['namaSekolah'] ?? 'Sekolah';
-            _tahunAjaranFilter = schoolData['tahunAjaran'] ?? '2024/2025';
+            int currYear = DateTime.now().year;
+            int currMonth = DateTime.now().month;
+            int maxYear = currMonth >= 7 ? currYear : currYear - 1;
+            _tahunAjaranFilter = schoolData['tahunAjaran'] ?? '$maxYear/${maxYear + 1}';
             _semesterFilter = schoolData['semester'] ?? 'Semester 1';
           }
 
@@ -117,7 +128,10 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
         double sum = 0.0;
         int count = 0;
         for (final scores in listScores) {
-          final detail = scores[studentId];
+          final cleanYear = _tahunAjaranFilter.replaceAll('/', '_');
+          final fallbackKey = '${studentId}_${cleanYear}_$_semesterFilter';
+          final detail = scores[studentId] ?? scores[fallbackKey];
+          debugPrint('DEBUG: _calculateFinalGradesForStudent studentId=$studentId, category=$category, scoresKeys=${scores.keys.toList()}, detail=$detail');
           if (detail != null && detail is Map) {
             final scoreVal = (detail['score'] ?? 0.0) as num;
             sum += scoreVal.toDouble();
@@ -255,7 +269,10 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                         double sum = 0.0;
                         int count = 0;
                         for (final scores in listScores) {
-                          final detail = scores[student['studentId']];
+                          final studentId = student['studentId']?.toString() ?? '';
+                          final cleanYear = _tahunAjaranFilter.replaceAll('/', '_');
+                          final fallbackKey = '${studentId}_${cleanYear}_$_semesterFilter';
+                          final detail = scores[studentId] ?? scores[fallbackKey];
                           if (detail != null && detail is Map) {
                             final scoreVal = (detail['score'] ?? 0.0) as num;
                             sum += scoreVal.toDouble();
@@ -579,7 +596,12 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                     )
                   else
                     StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _gradeService.getStudentsByClass(user.schoolId, _selectedClassId!),
+                      stream: _gradeService.getStudentsByClass(
+                        user.schoolId,
+                        _selectedClassId!,
+                        tahunAjaran: _tahunAjaranFilter,
+                        semester: _semesterFilter,
+                      ),
                       builder: (context, studentsSnapshot) {
                         if (studentsSnapshot.connectionState == ConnectionState.waiting) {
                           return SliverFillRemaining(
@@ -590,7 +612,11 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                         }
 
                         final studentDocs = studentsSnapshot.data?.docs ?? [];
-                        final List<Map<String, dynamic>> studentsList = studentDocs.map((doc) => doc.data()).toList();
+                        final List<Map<String, dynamic>> studentsList = studentDocs.map((doc) {
+                          final data = doc.data();
+                          data['studentId'] ??= doc.id;
+                          return data;
+                        }).toList();
 
                         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                           stream: _gradeService.getGradesByClass(
@@ -609,11 +635,13 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                             }
 
                             final gradeDocs = gradesSnapshot.data?.docs ?? [];
+                            debugPrint('DEBUG: Loaded ${gradeDocs.length} grade documents');
                             final Map<String, Map<String, List<Map<String, dynamic>>>> subjectCategoryGrades = {};
                             final Map<String, String> subjectIdToName = {};
 
                             for (final doc in gradeDocs) {
                               final data = doc.data();
+                              debugPrint('DEBUG: Grade Doc ID=${doc.id}, classId=${data['classId']}, tahun=${data['tahunAjaran']}, sem=${data['semester']}, scoresKeys=${data['scores']?.keys.toList()}');
                               final subjectId = data['subjectId'] as String?;
                               final subjectName = data['subjectName'] as String?;
                               final category = data['category'] as String?;
@@ -659,8 +687,10 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                 final Map<String, Map<String, double>> studentGradesCalculated = {};
                                 final Map<String, double> studentRerataAkhir = {};
 
+                                debugPrint('DEBUG: Students in list count=${studentsList.length}');
                                 for (final student in studentsList) {
                                   final studentId = student['studentId']?.toString() ?? '';
+                                  debugPrint('DEBUG: Checking student name=${student['nama']}, studentId=$studentId');
                                   final grades = _calculateFinalGradesForStudent(
                                     studentId: studentId,
                                     subjectIdToName: subjectIdToName,

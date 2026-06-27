@@ -46,12 +46,16 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
   Future<void> _loadMetaData() async {
     try {
       final schoolFuture = SchoolService().getSchoolByDomain(widget.schoolId);
-      final teacherFuture = FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .collection('teachers')
-          .doc(widget.teacherId)
-          .get();
+      Future<DocumentSnapshot<Map<String, dynamic>>?> teacherFuture = Future.value(null);
+      
+      if (widget.teacherId.isNotEmpty) {
+        teacherFuture = FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('teachers')
+            .doc(widget.teacherId)
+            .get();
+      }
 
       final results = await Future.wait([schoolFuture, teacherFuture]);
       final schoolData = results[0] as Map<String, dynamic>?;
@@ -104,7 +108,9 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
         double sum = 0.0;
         int count = 0;
         for (final scores in listScores) {
-          final detail = scores[studentId];
+          final cleanYear = _tahunAjaran.replaceAll('/', '_');
+          final fallbackKey = '${studentId}_${cleanYear}_$_activeSemester';
+          final detail = scores[studentId] ?? scores[fallbackKey];
           if (detail != null && detail is Map) {
             final scoreVal = (detail['score'] ?? 0.0) as num;
             sum += scoreVal.toDouble();
@@ -252,7 +258,10 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                         double sum = 0.0;
                         int count = 0;
                         for (final scores in listScores) {
-                          final detail = scores[student['studentId']];
+                          final studentId = student['studentId']?.toString() ?? '';
+                          final cleanYear = _tahunAjaran.replaceAll('/', '_');
+                          final fallbackKey = '${studentId}_${cleanYear}_$_activeSemester';
+                          final detail = scores[studentId] ?? scores[fallbackKey];
                           if (detail != null && detail is Map) {
                             final scoreVal = (detail['score'] ?? 0.0) as num;
                             sum += scoreVal.toDouble();
@@ -383,7 +392,12 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
         return Scaffold(
           body: AuthBackground(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _gradeService.getStudentsByClass(widget.schoolId, widget.classId),
+              stream: _gradeService.getStudentsByClass(
+                widget.schoolId,
+                widget.classId,
+                tahunAjaran: _tahunAjaran,
+                semester: _activeSemester,
+              ),
               builder: (context, studentsSnapshot) {
                 if (studentsSnapshot.connectionState == ConnectionState.waiting || _isLoadingMetaData) {
                   return Center(
@@ -394,9 +408,11 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                 }
 
                 final studentDocs = studentsSnapshot.data?.docs ?? [];
-                final List<Map<String, dynamic>> studentsList = studentDocs
-                    .map((doc) => doc.data())
-                    .toList();
+                final List<Map<String, dynamic>> studentsList = studentDocs.map((doc) {
+                  final data = doc.data();
+                  data['studentId'] ??= doc.id;
+                  return data;
+                }).toList();
 
                 // Urutkan Murid berdasarkan nama A-Z
                 studentsList.sort((a, b) {

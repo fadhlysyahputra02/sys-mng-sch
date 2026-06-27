@@ -5,6 +5,7 @@ import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../schools/services/school_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import 'school_users_detail_page.dart';
 
 class RegisterSchoolPage extends StatefulWidget {
   const RegisterSchoolPage({super.key});
@@ -26,6 +27,13 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
   bool _isLoading = false;
   int _currentTab = 0; // 0 for Registration, 1 for Management
   String _searchQuery = '';
+
+  bool get _isDark => AuthBackground.isDarkMode.value;
+  Color get _textColor => _isDark ? Colors.white : Colors.black;
+  Color get _subTextColor => _isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.6);
+  Color get _cardBgColor => _isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+  Color get _borderColor => _isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+  Color get _inputFillColor => _isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.03);
 
   @override
   void dispose() {
@@ -477,6 +485,10 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
 
   Widget _buildTabButton(int index, String label, IconData icon) {
     final isSelected = _currentTab == index;
+    final activeTabBg = _isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final activeTabBorder = _isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1);
+    final tabTextColor = isSelected ? _textColor : _textColor.withValues(alpha: 0.5);
+
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _currentTab = index),
@@ -484,10 +496,10 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withValues(alpha: 0.08) : Colors.transparent,
+            color: isSelected ? activeTabBg : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected ? Colors.white.withValues(alpha: 0.15) : Colors.transparent,
+              color: isSelected ? activeTabBorder : Colors.transparent,
               width: 1.5,
             ),
           ),
@@ -496,14 +508,14 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
             children: [
               Icon(
                 icon,
-                color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
+                color: tabTextColor,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
+                  color: tabTextColor,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   fontSize: 13,
                 ),
@@ -517,6 +529,9 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
 
   Widget _planCard(String plan, String label, IconData icon, Color activeColor) {
     final isSelected = selectedPlan == plan;
+    final cardBorder = _isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    final unselectedBg = _isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01);
+
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => selectedPlan = plan),
@@ -524,10 +539,10 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: isSelected ? activeColor.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.02),
+            color: isSelected ? activeColor.withValues(alpha: 0.15) : unselectedBg,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected ? activeColor : Colors.white.withValues(alpha: 0.1),
+              color: isSelected ? activeColor : cardBorder,
               width: 1.5,
             ),
           ),
@@ -536,14 +551,14 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
             children: [
               Icon(
                 icon,
-                color: isSelected ? activeColor : Colors.white.withValues(alpha: 0.5),
+                color: isSelected ? activeColor : _textColor.withValues(alpha: 0.5),
                 size: 28,
               ),
               const SizedBox(height: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
+                  color: isSelected ? _textColor : _textColor.withValues(alpha: 0.5),
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   fontSize: 13,
                 ),
@@ -568,7 +583,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
         label = 'Basic';
         break;
       default:
-        badgeColor = Colors.white54;
+        badgeColor = _isDark ? Colors.white54 : Colors.grey;
         label = 'Free';
     }
 
@@ -592,132 +607,137 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1B4B),
-        elevation: 0,
-        title: const Text(
-          'SUPER ADMIN PANEL',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF1E1B4B),
+            elevation: 0,
+            title: const Text(
+              'SUPER ADMIN PANEL',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                onPressed: () async {
+                  await AppAuthService.logout();
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.white),
-            onPressed: () async {
-              await AppAuthService.logout();
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Stack(
-        children: [
-          AuthBackground(
-            child: Center(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Header Icon
-                    Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                            blurRadius: 20,
-                            spreadRadius: 1,
+          body: Stack(
+            children: [
+              AuthBackground(
+                child: Center(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Header Icon
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: _isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _borderColor,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                                blurRadius: 20,
+                                spreadRadius: 1,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Icon(
-                        _currentTab == 0 ? Icons.domain_add_rounded : Icons.list_alt_rounded,
-                        size: 44,
-                        color: Colors.white,
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    Text(
-                      _currentTab == 0 ? 'REGISTER SEKOLAH' : 'KELOLA SEKOLAH',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 2.0,
-                      ),
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    Text(
-                      _currentTab == 0
-                          ? 'Daftarkan institusi sekolah baru ke dalam sistem'
-                          : 'Kelola langganan, reset password admin, atau hapus sekolah terdaftar',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // Custom Sliding Tab Selector
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
+                          child: Icon(
+                            _currentTab == 0 ? Icons.domain_add_rounded : Icons.list_alt_rounded,
+                            size: 44,
+                            color: _textColor,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildTabButton(0, 'Pendaftaran', Icons.domain_add_rounded),
-                          const SizedBox(width: 8),
-                          _buildTabButton(1, 'Kelola Sekolah', Icons.list_alt_rounded),
-                        ],
-                      ),
-                    ),
 
-                    const SizedBox(height: 20),
+                        const SizedBox(height: 16),
 
-                    // Content based on tab
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: _currentTab == 0 ? _buildRegistrationForm() : _buildManagementList(),
+                        Text(
+                          _currentTab == 0 ? 'REGISTER SEKOLAH' : 'KELOLA SEKOLAH',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: _textColor,
+                            letterSpacing: 2.0,
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          _currentTab == 0
+                              ? 'Daftarkan institusi sekolah baru ke dalam sistem'
+                              : 'Kelola langganan, reset password admin, atau hapus sekolah terdaftar',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _subTextColor,
+                          ),
+                        ),
+
+                        const SizedBox(height: 28),
+
+                        // Custom Sliding Tab Selector
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: _isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: _borderColor,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              _buildTabButton(0, 'Pendaftaran', Icons.domain_add_rounded),
+                              const SizedBox(width: 8),
+                              _buildTabButton(1, 'Kelola Sekolah', Icons.list_alt_rounded),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Content based on tab
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _currentTab == 0 ? _buildRegistrationForm() : _buildManagementList(),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              if (_isLoading)
+                Container(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                    ),
+                  ),
+                ),
+            ],
           ),
-          if (_isLoading)
-            Container(
-              color: Colors.black.withValues(alpha: 0.5),
-              child: const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
-                ),
-              ),
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -726,14 +746,14 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
       key: const ValueKey(0),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: _cardBgColor,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
+          color: _borderColor,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
+            color: _isDark ? Colors.black.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -745,19 +765,19 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
           // Nama Sekolah
           TextField(
             controller: namaSekolahController,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: _textColor),
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
               labelText: 'Nama Sekolah',
-              labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+              labelStyle: TextStyle(color: _subTextColor),
               prefixIcon: Icon(
                 Icons.account_balance_rounded,
-                color: Colors.white.withValues(alpha: 0.6),
+                color: _subTextColor,
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: _borderColor,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -768,7 +788,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                 ),
               ),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.02),
+              fillColor: _inputFillColor,
             ),
           ),
 
@@ -777,20 +797,20 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
           // School ID
           TextField(
             controller: schoolIdController,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: _textColor),
             decoration: InputDecoration(
               labelText: 'School ID (Domain)',
               hintText: 'ex: smpn1jakarta',
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-              labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+              hintStyle: TextStyle(color: _subTextColor.withValues(alpha: 0.5)),
+              labelStyle: TextStyle(color: _subTextColor),
               prefixIcon: Icon(
                 Icons.link_rounded,
-                color: Colors.white.withValues(alpha: 0.6),
+                color: _subTextColor,
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: _borderColor,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -801,7 +821,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                 ),
               ),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.02),
+              fillColor: _inputFillColor,
             ),
           ),
 
@@ -812,7 +832,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
             child: Text(
               'Paket Langganan',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
+                color: _subTextColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -821,7 +841,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
 
           Row(
             children: [
-              _planCard('free', 'Free', Icons.star_outline_rounded, Colors.white70),
+              _planCard('free', 'Free', Icons.star_outline_rounded, _isDark ? Colors.white70 : Colors.grey),
               const SizedBox(width: 8),
               _planCard('basic', 'Basic', Icons.star_half_rounded, const Color(0xFF3B82F6)),
               const SizedBox(width: 8),
@@ -898,8 +918,8 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                     children: [
                       SelectableText(
                         generatedAdminCode!,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: _textColor,
                           fontSize: 24,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 1.5,
@@ -907,7 +927,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        icon: const Icon(Icons.copy_rounded, color: Colors.white70, size: 20),
+                        icon: Icon(Icons.copy_rounded, color: _subTextColor, size: 20),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: generatedAdminCode!));
                           _showNotification(
@@ -924,7 +944,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                     'Berikan kode ini kepada Admin Sekolah untuk mendaftar',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: _subTextColor,
                       fontSize: 12,
                     ),
                   ),
@@ -946,14 +966,14 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
           // Search Field
           TextField(
             controller: _searchController,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: _textColor),
             decoration: InputDecoration(
               hintText: 'Cari nama sekolah atau domain...',
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-              prefixIcon: const Icon(Icons.search_rounded, color: Colors.white70),
+              hintStyle: TextStyle(color: _subTextColor),
+              prefixIcon: Icon(Icons.search_rounded, color: _subTextColor),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear_rounded, color: Colors.white70),
+                      icon: Icon(Icons.clear_rounded, color: _subTextColor),
                       onPressed: () {
                         _searchController.clear();
                         setState(() {
@@ -965,7 +985,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: _borderColor,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -976,7 +996,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                 ),
               ),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.02),
+              fillColor: _inputFillColor,
             ),
             onChanged: (val) {
               setState(() {
@@ -1030,13 +1050,13 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                         Icon(
                           Icons.search_off_rounded,
                           size: 48,
-                          color: Colors.white.withValues(alpha: 0.2),
+                          color: _subTextColor.withValues(alpha: 0.4),
                         ),
                         const SizedBox(height: 12),
                         Text(
                           'Sekolah tidak ditemukan',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
+                            color: _subTextColor,
                             fontSize: 13,
                           ),
                         ),
@@ -1062,128 +1082,137 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                       final school = displayedSchools[index];
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
+                          color: _cardBgColor,
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.08),
+                            color: _borderColor,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
+                              color: _isDark ? Colors.black.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.04),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    school['namaSekolah'] ?? '',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(24),
+                            onTap: () => Get.to(() => SchoolUsersDetailPage(school: school)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          school['namaSekolah'] ?? '',
+                                          style: TextStyle(
+                                            color: _textColor,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ),
+                                      _buildPlanBadge(school['plan'] ?? 'free'),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Domain: ${school['domain'] ?? ''}',
+                                    style: TextStyle(
+                                      color: _subTextColor,
+                                      fontSize: 13,
                                     ),
                                   ),
-                                ),
-                                _buildPlanBadge(school['plan'] ?? 'free'),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Domain: ${school['domain'] ?? ''}',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                fontSize: 13,
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Kode Admin: ',
+                                        style: TextStyle(
+                                          color: _subTextColor,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      Text(
+                                        school['kodeAdmin'] ?? '',
+                                        style: const TextStyle(
+                                          color: Color(0xFF10B981),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      // Edit Plan button (Icon Only)
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                                          ),
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 20),
+                                          tooltip: 'Atur Paket Langganan',
+                                          onPressed: () => _showPlanDialog(school),
+                                          constraints: const BoxConstraints(),
+                                          padding: const EdgeInsets.all(8),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      // Reset Password Admin button (Icon Only)
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                                          ),
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(Icons.vpn_key_rounded, color: Color(0xFF6366F1), size: 20),
+                                          tooltip: 'Reset Password Admin',
+                                          onPressed: () => _handleResetPassword(school),
+                                          constraints: const BoxConstraints(),
+                                          padding: const EdgeInsets.all(8),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      // Delete school button (Icon Only)
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                                          ),
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444), size: 20),
+                                          tooltip: 'Hapus Sekolah',
+                                          onPressed: () => _confirmDeleteSchool(school),
+                                          constraints: const BoxConstraints(),
+                                          padding: const EdgeInsets.all(8),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Text(
-                                  'Kode Admin: ',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.5),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                Text(
-                                  school['kodeAdmin'] ?? '',
-                                  style: const TextStyle(
-                                    color: Color(0xFF10B981),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                // Edit Plan button (Icon Only)
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                                    ),
-                                  ),
-                                  child: IconButton(
-                                    icon: const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 20),
-                                    tooltip: 'Atur Paket Langganan',
-                                    onPressed: () => _showPlanDialog(school),
-                                    constraints: const BoxConstraints(),
-                                    padding: const EdgeInsets.all(8),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                // Reset Password Admin button (Icon Only)
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(0xFF6366F1).withValues(alpha: 0.2),
-                                    ),
-                                  ),
-                                  child: IconButton(
-                                    icon: const Icon(Icons.vpn_key_rounded, color: Color(0xFF6366F1), size: 20),
-                                    tooltip: 'Reset Password Admin',
-                                    onPressed: () => _handleResetPassword(school),
-                                    constraints: const BoxConstraints(),
-                                    padding: const EdgeInsets.all(8),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                // Delete school button (Icon Only)
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(0xFFEF4444).withValues(alpha: 0.2),
-                                    ),
-                                  ),
-                                  child: IconButton(
-                                    icon: const Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444), size: 20),
-                                    tooltip: 'Hapus Sekolah',
-                                    onPressed: () => _confirmDeleteSchool(school),
-                                    constraints: const BoxConstraints(),
-                                    padding: const EdgeInsets.all(8),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
                       );
                     },
@@ -1193,17 +1222,17 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.03),
+                        color: _isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.06),
+                          color: _borderColor,
                         ),
                       ),
                       child: Text(
                         'Menampilkan 3 dari ${filteredSchools.length} sekolah. Gunakan pencarian untuk menemukan sekolah lainnya.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
+                          color: _subTextColor,
                           fontSize: 12,
                         ),
                       ),
@@ -1218,3 +1247,4 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
     );
   }
 }
+

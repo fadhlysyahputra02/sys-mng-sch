@@ -76,10 +76,17 @@ class _ParentStudentGradesSectionState extends State<ParentStudentGradesSection>
       for (final doc in snapshot.docs) {
         final data = doc.data();
         final scores = data['scores'] as Map<String, dynamic>? ?? {};
-        if (!scores.containsKey(widget.studentId)) continue;
+        
+        final cleanYear = widget.tahunAjaran.replaceAll('/', '_');
+        final fallbackKey = '${widget.studentId}_${cleanYear}_${widget.semester}';
+        
+        final hasPlainKey = scores.containsKey(widget.studentId);
+        final hasFallbackKey = scores.containsKey(fallbackKey);
+        
+        if (!hasPlainKey && !hasFallbackKey) continue;
 
         final studentScoreData =
-            scores[widget.studentId] as Map<String, dynamic>? ?? {};
+            (scores[widget.studentId] ?? scores[fallbackKey]) as Map<String, dynamic>? ?? {};
         final double score = (studentScoreData['score'] ?? 0.0) as double;
         final String notes = (studentScoreData['notes'] ?? '').toString();
         final String subjectName = data['subjectName'] ?? 'Mata Pelajaran';

@@ -8,6 +8,7 @@ import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../chat/widgets/chat_unread_badge.dart';
 import '../../schools/services/school_service.dart';
+import '../../students/pages/student_tasks_page.dart';
 
 class ParentDashboardPage extends StatefulWidget {
   const ParentDashboardPage({super.key});
@@ -26,6 +27,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
   String? _semester;
   String? _studentClassId;
   String? _waliKelas;
+  String? _waliKelasId;
   bool _isLoading = true;
 
   @override
@@ -60,6 +62,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
 
       String? classId;
       String? waliKelas;
+      String? waliKelasId;
       if (studentId.isNotEmpty) {
         final studentDoc = await FirebaseFirestore.instance
             .collection('schools')
@@ -79,6 +82,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
           // Field yang tersimpan adalah 'teacherId' dan 'teacherName'
           // (bukan 'waliKelasId') — lihat class_service.dart assignWaliKelas()
           final teacherId = classDoc.data()?['teacherId'] as String?;
+          waliKelasId = teacherId;
           // Gunakan teacherName dari class doc sebagai nilai cepat
           waliKelas = classDoc.data()?['teacherName'] as String?;
           // Jika teacherName kosong, ambil dari koleksi teachers berdasarkan teacherId
@@ -104,6 +108,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
           _semester = schoolData?['semester'] as String?;
           _studentClassId = classId;
           _waliKelas = waliKelas;
+          _waliKelasId = waliKelasId;
           _isLoading = false;
         });
       }
@@ -527,6 +532,24 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
             }),
       },
       {
+        'title': 'Tugas Anak',
+        'icon': Icons.assignment_rounded,
+        'color': const Color(0xFF6366F1),
+        'onTap': () => Get.to(
+              () => StudentTasksPage(
+                studentDocId: studentId,
+                studentData: {
+                  'classId': classId ?? '',
+                  'nama': studentName ?? 'Anak',
+                },
+                className: className ?? '',
+                tahunAjaran: tahunAjaran ?? '-',
+                semester: semester ?? '-',
+                isParent: true,
+              ),
+            ),
+      },
+      {
         'title': 'Chat Guru',
         'icon': Icons.chat_bubble_outline_rounded,
         'color': const Color(0xFFF97316),
@@ -549,7 +572,17 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
         'title': 'Surat Izin Digital',
         'icon': Icons.mark_email_read_rounded,
         'color': const Color(0xFF8B5CF6),
-        'onTap': () => Get.toNamed(AppRoutes.comingSoonSuratIzinOrtu),
+        'onTap': () => Get.toNamed(
+              AppRoutes.parentPermit,
+              arguments: {
+                'studentId': studentId,
+                'studentName': studentName,
+                'classId': classId,
+                'className': className,
+                'waliKelasId': _waliKelasId ?? '',
+                'waliKelasName': _waliKelas ?? 'Wali Kelas',
+              },
+            ),
         'badge': 'PRO',
       },
       {
@@ -628,6 +661,93 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                 child: container,
                               );
                             }
+
+                            if (menu['title'] == 'Tugas Anak' &&
+                                studentId.isNotEmpty &&
+                                classId != null &&
+                                classId.isNotEmpty) {
+                              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('schools')
+                                    .doc(schoolId)
+                                    .collection('tasks')
+                                    .where('classId', isEqualTo: classId)
+                                    .snapshots(),
+                                builder: (context, tasksSnapshot) {
+                                  final tasks = tasksSnapshot.data?.docs ?? [];
+                                  if (tasks.isEmpty) return container;
+
+                                  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('schools')
+                                        .doc(schoolId)
+                                        .collection('task_submissions')
+                                        .where('studentId', isEqualTo: studentId)
+                                        .snapshots(),
+                                    builder: (context, submissionsSnapshot) {
+                                      final submissions = submissionsSnapshot.data?.docs ?? [];
+                                      final submittedTaskIds = submissions
+                                          .map((doc) => doc.data()['taskId']?.toString())
+                                          .toSet();
+
+                                      final pendingCount = tasks.where((taskDoc) {
+                                        final taskId = taskDoc.id;
+                                        final taskData = taskDoc.data();
+                                        final status = taskData['status']?.toString() ?? 'active';
+                                        final taskTahunAjaran = taskData['tahunAjaran']?.toString();
+                                        final taskSemester = taskData['semester']?.toString();
+
+                                        if (status != 'active') return false;
+                                        if (taskTahunAjaran != tahunAjaran ||
+                                            taskSemester != semester) return false;
+
+                                        return !submittedTaskIds.contains(taskId);
+                                      }).length;
+
+                                      if (pendingCount > 0) {
+                                        return Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            container,
+                                            Positioned(
+                                              top: -4,
+                                              right: -4,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.redAccent,
+                                                  borderRadius: BorderRadius.circular(10),
+                                                  border: Border.all(
+                                                    color: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                                    width: 1.5,
+                                                  ),
+                                                ),
+                                                constraints: const BoxConstraints(
+                                                  minWidth: 18,
+                                                  minHeight: 18,
+                                                ),
+                                                child: Center(
+                                                  child: Text(
+                                                    '$pendingCount',
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }
+                                      return container;
+                                    },
+                                  );
+                                },
+                              );
+                            }
+
                             return container;
                           },
                         ),

@@ -181,7 +181,7 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
       );
 
       final userData = await _userService.getUserById(_parentUid!);
-      if (userData == null) throw Exception('Data user tidak ditemukan.');
+      if (userData == null) throw ('Data user tidak ditemukan.');
 
       SessionService.currentUser = UserModel.fromMap(_parentUid!, userData);
       NotificationListenerService().startListening();

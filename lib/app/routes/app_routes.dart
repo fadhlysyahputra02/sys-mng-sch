@@ -20,6 +20,8 @@ class AppRoutes {
   static const parentGrades = '/parent-grades';
   static const parentViolations = '/parent-violations';
   static const parentChat = '/parent-chat';
+  static const parentPermit = '/parent-permit';
+  static const teacherPermits = '/teacher-permits';
 
   // Route untuk officer
   static const officerDashboard = '/officer/dashboard';

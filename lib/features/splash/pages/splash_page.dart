@@ -79,7 +79,12 @@ class _SplashPageState extends State<SplashPage>
         userData,
       );
 
-      final role = userData['role'] as String?;
+      String role = (userData['role'] ?? '').toString().trim().toLowerCase();
+      if (role == 'superadmin' || role == 'super-admin' || role == 'super_admin') {
+        role = 'super_admin';
+      } else if (role == 'schooladmin' || role == 'school-admin' || role == 'school_admin') {
+        role = 'school_admin';
+      }
 
       if (!mounted) return;
 
@@ -105,6 +110,9 @@ class _SplashPageState extends State<SplashPage>
           break;
         case 'officer':
           Get.offAllNamed(AppRoutes.officerDashboard);
+          break;
+        case 'tu':
+          Get.offAllNamed(AppRoutes.tuDashboard);
           break;
         default:
           await FirebaseAuth.instance.signOut();

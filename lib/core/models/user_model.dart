@@ -16,11 +16,17 @@ class UserModel {
   });
 
   factory UserModel.fromMap(String uid, Map<String, dynamic> map) {
+    String roleVal = (map['role'] ?? '').toString().trim().toLowerCase();
+    if (roleVal == 'superadmin' || roleVal == 'super-admin' || roleVal == 'super_admin') {
+      roleVal = 'super_admin';
+    } else if (roleVal == 'schooladmin' || roleVal == 'school-admin' || roleVal == 'school_admin') {
+      roleVal = 'school_admin';
+    }
     return UserModel(
       uid: uid,
       nama: map['nama'] ?? '',
       email: map['email'] ?? '',
-      role: map['role'] ?? '',
+      role: roleVal,
       schoolId: map['schoolId'] ?? '',
       aktif: map['aktif'] ?? false,
     );

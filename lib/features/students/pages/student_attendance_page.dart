@@ -246,58 +246,65 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
     final todayHari = _getTodayHariIndonesian();
 
     return Scaffold(
-      body: AuthBackground(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // AppBar
-            SliverAppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              pinned: true,
-              iconTheme: const IconThemeData(color: Colors.white),
-              leading: Container(
-                margin: const EdgeInsets.only(left: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-              title: const Text(
-                'Absensi Hari Ini',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-              ),
-              actions: [
-                Container(
-                  margin: const EdgeInsets.only(right: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+      body: ValueListenableBuilder<bool>(
+        valueListenable: AuthBackground.isDarkMode,
+        builder: (context, isDark, _) {
+          final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+          final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+          final btnBg = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+
+          return AuthBackground(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // AppBar
+                SliverAppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  pinned: true,
+                  iconTheme: IconThemeData(color: iconColor),
+                  leading: Container(
+                    margin: const EdgeInsets.only(left: 16),
+                    decoration: BoxDecoration(
+                      color: btnBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
+                      onPressed: () => Navigator.pop(context),
+                    ),
                   ),
-                  child: IconButton(
-                    icon: const Icon(Icons.history_rounded, color: Colors.white, size: 20),
-                    tooltip: 'Riwayat Absensi',
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => StudentAttendanceHistoryPage(
-                            studentDocId: widget.studentDocId,
-                            className: widget.className,
-                            studentName: (widget.studentData['nama'] ?? 'Murid')
-                                .toString(),
-                          ),
-                        ),
-                      );
-                    },
+                  title: Text(
+                    'Absensi Hari Ini',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
                   ),
+                  actions: [
+                    Container(
+                      margin: const EdgeInsets.only(right: 16),
+                      decoration: BoxDecoration(
+                        color: btnBg,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.history_rounded, color: iconColor, size: 20),
+                        tooltip: 'Riwayat Absensi',
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => StudentAttendanceHistoryPage(
+                                studentDocId: widget.studentDocId,
+                                className: widget.className,
+                                studentName: (widget.studentData['nama'] ?? 'Murid')
+                                    .toString(),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
 
             SliverToBoxAdapter(
               child: Padding(
@@ -319,10 +326,11 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                           return _buildInfoBox('Gagal memuat jadwal', isError: true);
                         }
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(
+                          final isDark = AuthBackground.isDarkMode.value;
+                          return Center(
                             child: Padding(
-                              padding: EdgeInsets.all(40),
-                              child: CircularProgressIndicator(color: Colors.white),
+                              padding: const EdgeInsets.all(40),
+                              child: CircularProgressIndicator(color: isDark ? Colors.white : const Color(0xFF1E1B4B)),
                             ),
                           );
                         }
@@ -413,11 +421,17 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
             ),
           ],
         ),
+      );
+      },
       ),
     );
   }
 
   Widget _buildHistoryButton(BuildContext context) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white54 : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -458,23 +472,23 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Riwayat Absensi',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: textColor,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'Lihat absensi per bulan',
                       style: TextStyle(
-                        color: Colors.white54,
+                        color: subTextColor,
                         fontSize: 11,
                       ),
                     ),
@@ -493,15 +507,23 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
   }
 
   Widget _buildDateAndClassHeader() {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.45) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+    final cardColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+    final shadowColor = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
+    final dividerColor = isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(color: cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: shadowColor,
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -527,12 +549,12 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                   children: [
                     Text(
                       _getFormattedIndonesianDate(),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       'Absensi harian berbasis QR Code',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
+                      style: TextStyle(color: subTextColor, fontSize: 12),
                     ),
                   ],
                 ),
@@ -540,7 +562,7 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
             ],
           ),
           const SizedBox(height: 18),
-          const Divider(color: Colors.white10, height: 1),
+          Divider(color: dividerColor, height: 1),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -566,7 +588,7 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
               const Spacer(),
               Text(
                 'Hari ini',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12, fontWeight: FontWeight.w500),
+                style: TextStyle(color: subTextColor, fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -576,32 +598,41 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
   }
 
   Widget _buildSectionLabel(String label) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final iconColor = isDark ? Colors.white54 : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
     return Row(
       children: [
-        const Icon(Icons.list_alt_rounded, color: Colors.white54, size: 16),
+        Icon(Icons.list_alt_rounded, color: iconColor, size: 16),
         const SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.4),
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.4),
         ),
       ],
     );
   }
 
   Widget _buildInfoBox(String message, {bool isError = false}) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white.withValues(alpha: 0.45) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+    final bgColor = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: bgColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: borderColor),
       ),
       child: Center(
         child: Text(
           message,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: isError ? Colors.redAccent.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.45),
+            color: isError ? Colors.redAccent.withValues(alpha: 0.8) : textColor,
             fontSize: 13,
             fontStyle: FontStyle.italic,
           ),
@@ -622,6 +653,10 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
     required bool expired,
     required bool isActive,
   }) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subColor = isDark ? Colors.white.withValues(alpha: 0.45) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
     // Tentukan state visual
     Color borderColor;
     Color bgColor;
@@ -629,24 +664,24 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
     IconData statusIcon;
 
     if (isCheckedIn) {
-      borderColor = const Color(0xFF10B981).withValues(alpha: 0.4);
-      bgColor = const Color(0xFF10B981).withValues(alpha: 0.07);
+      borderColor = isDark ? const Color(0xFF10B981).withValues(alpha: 0.4) : const Color(0xFF10B981).withValues(alpha: 0.3);
+      bgColor = isDark ? const Color(0xFF10B981).withValues(alpha: 0.07) : const Color(0xFFECFDF5);
       iconColor = const Color(0xFF10B981);
       statusIcon = Icons.check_circle_rounded;
     } else if (expired) {
-      borderColor = const Color(0xFFEF4444).withValues(alpha: 0.3);
-      bgColor = const Color(0xFFEF4444).withValues(alpha: 0.05);
+      borderColor = isDark ? const Color(0xFFEF4444).withValues(alpha: 0.3) : const Color(0xFFEF4444).withValues(alpha: 0.3);
+      bgColor = isDark ? const Color(0xFFEF4444).withValues(alpha: 0.05) : const Color(0xFFFEF2F2);
       iconColor = const Color(0xFFEF4444);
       statusIcon = Icons.cancel_rounded;
     } else if (isActive) {
-      borderColor = const Color(0xFF10B981).withValues(alpha: 0.5);
-      bgColor = const Color(0xFF10B981).withValues(alpha: 0.08);
+      borderColor = isDark ? const Color(0xFF10B981).withValues(alpha: 0.5) : const Color(0xFF10B981).withValues(alpha: 0.4);
+      bgColor = isDark ? const Color(0xFF10B981).withValues(alpha: 0.08) : const Color(0xFFF0FDF4);
       iconColor = const Color(0xFF10B981);
       statusIcon = Icons.sensors_rounded;
     } else {
-      borderColor = Colors.white.withValues(alpha: 0.1);
-      bgColor = Colors.white.withValues(alpha: 0.03);
-      iconColor = Colors.white30;
+      borderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+      bgColor = isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF9FAFB);
+      iconColor = isDark ? Colors.white30 : const Color(0xFF1E1B4B).withValues(alpha: 0.3);
       statusIcon = Icons.radio_button_unchecked_rounded;
     }
 
@@ -678,18 +713,18 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                   children: [
                     Text(
                       subjectName,
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: titleColor, fontSize: 15),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 3),
                     Row(
                       children: [
-                        Icon(Icons.schedule_rounded, color: Colors.white.withValues(alpha: 0.4), size: 12),
+                        Icon(Icons.schedule_rounded, color: subColor, size: 12),
                         const SizedBox(width: 4),
                         Text(
                           '$jamMulai – $jamSelesai',
-                          style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.45)),
+                          style: TextStyle(fontSize: 12, color: subColor),
                         ),
                       ],
                     ),
@@ -809,16 +844,16 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.hourglass_empty_rounded, color: Colors.white.withValues(alpha: 0.4), size: 14),
+                    Icon(Icons.hourglass_empty_rounded, color: subColor, size: 14),
                     const SizedBox(width: 6),
                     Text(
                       'Belum dimulai',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.w500),
+                      style: TextStyle(color: subColor, fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),

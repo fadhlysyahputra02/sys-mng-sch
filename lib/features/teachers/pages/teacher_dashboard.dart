@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/session_service.dart';
@@ -18,6 +20,8 @@ import 'teacher_attendance_schedule_page.dart';
 import 'teacher_behavior_records_page.dart';
 import 'teacher_grades_page.dart';
 import 'teacher_reports_page.dart';
+import 'teacher_daily_attendance_page.dart';
+import 'teacher_tasks_page.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -564,6 +568,139 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
+  void _showFullScreenQr(BuildContext context, String qrData) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    String? teacherId;
+    String? schoolId;
+    try {
+      final decoded = jsonDecode(qrData);
+      teacherId = decoded['teacherId'];
+      schoolId = decoded['schoolId'];
+    } catch (_) {}
+
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? listener;
+
+    if (schoolId != null && teacherId != null) {
+      final now = DateTime.now();
+      final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final docRef = FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('teacher_daily_attendance')
+          .doc('${dateStr}_$teacherId');
+
+      bool isFirstEmit = true;
+      Timestamp? initialCheckIn;
+      Timestamp? initialCheckOut;
+
+      listener = docRef.snapshots().listen((snapshot) {
+        if (isFirstEmit) {
+          isFirstEmit = false;
+          if (snapshot.exists && snapshot.data() != null) {
+            final data = snapshot.data()!;
+            initialCheckIn = data['checkInTime'] as Timestamp?;
+            initialCheckOut = data['checkOutTime'] as Timestamp?;
+          }
+          return;
+        }
+
+        if (snapshot.exists && snapshot.data() != null) {
+          final data = snapshot.data()!;
+          final currentCheckIn = data['checkInTime'] as Timestamp?;
+          final currentCheckOut = data['checkOutTime'] as Timestamp?;
+
+          bool isNewCheckIn = initialCheckIn == null && currentCheckIn != null;
+          bool isNewCheckOut = initialCheckOut == null && currentCheckOut != null;
+
+          if (isNewCheckIn || isNewCheckOut) {
+            if (Get.isDialogOpen ?? false) {
+              Get.back();
+            }
+            final titleStr = isNewCheckOut ? 'Berhasil Absen Pulang' : 'Berhasil Absen Masuk';
+            final messageStr = isNewCheckOut
+                ? 'Anda berhasil melakukan absensi pulang.'
+                : 'Anda berhasil melakukan absensi masuk.';
+            Get.snackbar(
+              titleStr,
+              messageStr,
+              backgroundColor: const Color(0xFF10B981),
+              colorText: Colors.white,
+              snackPosition: SnackPosition.TOP,
+              margin: const EdgeInsets.all(16),
+              borderRadius: 12,
+            );
+            listener?.cancel();
+          }
+        }
+      });
+    }
+
+    Get.dialog(
+      Dialog(
+        backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'QR Absensi Guru',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 15,
+                    ),
+                  ],
+                ),
+                child: QrImageView(
+                  data: qrData,
+                  version: QrVersions.auto,
+                  size: 240,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text(
+                    'Tutup',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).then((_) {
+      listener?.cancel();
+    });
+  }
+
   // --- WIDGETS ---
 
   Widget _buildProfileHeader(
@@ -587,12 +724,18 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         ? Colors.black.withValues(alpha: 0.2)
         : Colors.black.withValues(alpha: 0.05);
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final subtitleColor = isDark
-        ? Colors.white.withValues(alpha: 0.7)
-        : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
     final nipColor = isDark
         ? Colors.white.withValues(alpha: 0.5)
         : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+
+    final user = SessionService.currentUser!;
+    final qrPayload = jsonEncode({
+      'teacherId': _teacherDocId ?? '',
+      'schoolId': user.schoolId,
+      'nip': nip,
+      'nama': nama,
+      'role': 'teacher',
+    });
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -611,37 +754,55 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       child: Column(
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 70,
-                height: 70,
+                padding: const EdgeInsets.all(4), // gradient frame thickness
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                  border: Border.all(color: const Color(0xFF8B5CF6), width: 2),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                      blurRadius: 15,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-                child:
-                    _schoolLogoBase64 != null && _schoolLogoBase64!.isNotEmpty
-                    ? ClipOval(
-                        child: Image.memory(
-                          base64Decode(_schoolLogoBase64!),
-                          fit: BoxFit.cover,
-                          width: 70,
-                          height: 70,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.person_rounded,
-                            size: 36,
-                            color: Color(0xFF8B5CF6),
-                          ),
+                child: Container(
+                  width: 102,
+                  height: 102,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: GestureDetector(
+                      onTap: () => _showFullScreenQr(context, qrPayload),
+                      child: QrImageView(
+                        data: qrPayload,
+                        version: QrVersions.auto,
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.all(8.0),
+                        eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: Color(0xFF1E1B4B),
                         ),
-                      )
-                    : const Icon(
-                        Icons.person_rounded,
-                        size: 36,
-                        color: Color(0xFF8B5CF6),
+                        dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: Color(0xFF1E1B4B),
+                        ),
                       ),
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 20),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -653,11 +814,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         fontWeight: FontWeight.bold,
                         color: titleColor,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      email,
-                      style: TextStyle(fontSize: 13, color: subtitleColor),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -1141,6 +1297,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'color': const Color(0xFF10B981),
       },
       {
+        'title': 'Absensi Harian',
+        'icon': Icons.co_present_rounded,
+        'color': const Color(0xFF6366F1),
+      },
+      {
         'title': 'Input Nilai',
         'icon': Icons.grade_rounded,
         'color': const Color(0xFF8B5CF6),
@@ -1159,6 +1320,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'title': 'Laporan & Rapor',
         'icon': Icons.bar_chart_rounded,
         'color': const Color(0xFFEC4899),
+      },
+      {
+        'title': 'Surat Izin Siswa',
+        'icon': Icons.mark_email_read_rounded,
+        'color': const Color(0xFF8B5CF6),
       },
       {
         'title': 'Pengumuman',
@@ -1266,12 +1432,22 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     () =>
                         TeacherAttendanceSchedulePage(teacherId: _teacherDocId!),
                   );
+                } else if (menu['title'] == 'Absensi Harian') {
+                  Get.to(
+                    () => TeacherDailyAttendancePage(
+                      teacherId: _teacherDocId!,
+                      teacherName: _teacherData?['nama'] ?? user.nama,
+                      nip: _teacherData?['nip'] ?? '',
+                    ),
+                  );
                 } else if (menu['title'] == 'Realtime Control') {
                   Get.to(
                     () => TeacherBehaviorRecordsPage(teacherId: _teacherDocId!),
                   );
                 } else if (menu['title'] == 'Input Nilai') {
                   Get.to(() => TeacherGradesPage(teacherId: _teacherDocId!));
+                } else if (menu['title'] == 'Manajemen Tugas') {
+                  Get.to(() => TeacherTasksPage(teacherId: _teacherDocId!));
                 } else if (menu['title'] == 'Laporan & Rapor') {
                   Get.to(
                     () => TeacherReportsPage(
@@ -1279,6 +1455,19 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       teacherId: _teacherDocId!,
                     ),
                   );
+                } else if (menu['title'] == 'Surat Izin Siswa') {
+                  if (_teacherDocId == null) {
+                    Get.snackbar('Error', 'Data guru belum dimuat sepenuhnya.',
+                        backgroundColor: Colors.redAccent, colorText: Colors.white);
+                  } else {
+                    Get.toNamed(
+                      AppRoutes.teacherPermits,
+                      arguments: {
+                        'teacherDocId': _teacherDocId,
+                        'schoolId': user.schoolId,
+                      },
+                    );
+                  }
                 } else if (menu['title'] == 'Chat') {
                   Get.to(
                     () => TeacherChatSelectorPage(
@@ -1342,6 +1531,62 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                 top: -2,
                                 right: -2,
                                 child: container,
+                              );
+                            }
+
+                            if (menu['title'] == 'Surat Izin Siswa' && _teacherDocId != null) {
+                              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('schools')
+                                    .doc(SessionService.currentUser!.schoolId)
+                                    .collection('permits')
+                                    .where('teacherId', isEqualTo: _teacherDocId)
+                                    .snapshots(),
+                                builder: (context, snapshot) {
+                                  final docs = snapshot.data?.docs ?? [];
+                                  final pendingCount = docs
+                                      .where((d) => d.data()['status'] == 'Pending')
+                                      .length;
+
+                                  if (pendingCount > 0) {
+                                    return Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        container,
+                                        Positioned(
+                                          top: -4,
+                                          right: -4,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.redAccent,
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                            constraints: const BoxConstraints(
+                                              minWidth: 18,
+                                              minHeight: 18,
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                '$pendingCount',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }
+                                  return container;
+                                },
                               );
                             }
                             return container;

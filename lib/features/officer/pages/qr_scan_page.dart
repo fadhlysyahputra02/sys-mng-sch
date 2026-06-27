@@ -195,24 +195,63 @@ class _QrScanPageState extends State<QrScanPage>
     try {
       final data = jsonDecode(code) as Map<String, dynamic>;
       final user = SessionService.currentUser!;
-
-      final String studentId = data['studentId'] ?? '';
-      final String studentName = data['nama'] ?? '';
       final String schoolId = data['schoolId'] ?? '';
-      final String className = data['className'] ?? '';
-
-      if (studentId.isEmpty) {
-        _showErrorDialog(
-          'QR Tidak Valid',
-          'Format QR Code tidak dikenali. Pastikan siswa menggunakan kartu QR dari aplikasi ini.',
-        );
-        return;
-      }
 
       if (schoolId != user.schoolId) {
         _showErrorDialog(
           'Sekolah Berbeda',
           'QR Code ini berasal dari sekolah lain dan tidak dapat diproses.',
+        );
+        return;
+      }
+
+      final String role = data['role'] ?? '';
+      final String teacherId = data['teacherId'] ?? '';
+
+      // --- ABSENSI GURU ---
+      if (role == 'teacher' || teacherId.isNotEmpty) {
+        final String teacherName = data['nama'] ?? 'Guru';
+        final String nip = data['nip'] ?? '';
+
+        if (teacherId.isEmpty) {
+          _showErrorDialog(
+            'QR Guru Tidak Valid',
+            'Data ID Guru tidak ditemukan di QR payload.',
+          );
+          return;
+        }
+
+        final result = await _repo.scanTeacherAttendance(
+          schoolId: user.schoolId,
+          teacherId: teacherId,
+          teacherName: teacherName,
+          nip: nip,
+          officerId: user.uid,
+        );
+
+        final now = DateTime.now();
+        final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+        final String action = result['action'] ?? 'check_in';
+        final bool isLate = result['isLate'] ?? false;
+
+        _showSuccessToast(_ToastData(
+          isLate: isLate,
+          studentName: teacherName,
+          className: 'Guru (NIP: $nip) - ${action == 'check_in' ? 'Masuk' : 'Pulang'}',
+          time: timeStr,
+        ));
+        return;
+      }
+
+      // --- ABSENSI SISWA ---
+      final String studentId = data['studentId'] ?? '';
+      final String studentName = data['nama'] ?? '';
+      final String className = data['className'] ?? '';
+
+      if (studentId.isEmpty) {
+        _showErrorDialog(
+          'QR Tidak Valid',
+          'Format QR Code tidak dikenali. Pastikan siswa atau guru menggunakan kartu QR dari aplikasi ini.',
         );
         return;
       }
@@ -341,7 +380,7 @@ class _QrScanPageState extends State<QrScanPage>
                       SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          'Arahkan ke QR Code siswa.',
+                          'Arahkan ke QR Code siswa atau guru.',
                           style: TextStyle(color: Colors.white70, fontSize: 12),
                           textAlign: TextAlign.center,
                         ),

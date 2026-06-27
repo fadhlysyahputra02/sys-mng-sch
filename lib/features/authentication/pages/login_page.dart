@@ -124,8 +124,8 @@ class _LoginPageState extends State<LoginPage> {
 
     if (email.isEmpty || password.isEmpty) {
       _showNotification(
-        title: 'Incomplete Form',
-        message: 'Please fill in both email and password fields.',
+        title: 'Formulir Tidak Lengkap',
+        message: 'Silakan isi kolom email dan password.',
         isSuccess: false,
       );
       return;
@@ -190,7 +190,7 @@ class _LoginPageState extends State<LoginPage> {
       final userData = await userService.getUserById(uid);
 
       if (userData == null) {
-        throw Exception('User data not found');
+        throw ('User data not found');
       }
 
       SessionService.currentUser = UserModel.fromMap(
@@ -218,18 +218,23 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       debugPrint('USER DATA: $userData');
-      final role = userData['role'];
+      String role = (userData['role'] ?? '').toString().trim().toLowerCase();
+      if (role == 'superadmin' || role == 'super-admin' || role == 'super_admin') {
+        role = 'super_admin';
+      } else if (role == 'schooladmin' || role == 'school-admin' || role == 'school_admin') {
+        role = 'school_admin';
+      }
 
       if (kIsWeb && role != 'super_admin' && role != 'school_admin' && role != 'teacher' && role != 'officer' && role != 'tu') {
         await FirebaseAuth.instance.signOut();
-        throw Exception('Website access is only permitted for Admins, Teachers, Officers, and TU.');
+        throw ('Website access is only permitted for Admins, Teachers, Officers, and TU.');
       }
 
       if (!mounted) return;
 
       _showNotification(
-        title: 'Login Successful',
-        message: 'Welcome back to the application!',
+        title: 'Login Berhasil',
+        message: 'Selamat datang kembali di aplikasi!',
         isSuccess: true,
       );
 
@@ -265,23 +270,23 @@ class _LoginPageState extends State<LoginPage> {
           Get.offAllNamed(AppRoutes.tuDashboard);
           break;
         default:
-          throw Exception('Unknown role');
+          throw ('Unknown role');
       }
     } catch (e) {
       debugPrint('LOGIN ERROR: $e');
-      String errorMessage = 'Incorrect email or password.';
+      String errorMessage = 'Email atau password salah.';
       if (e.toString().contains('user-not-found')) {
-        errorMessage = 'Account not found.';
+        errorMessage = 'Akun tidak ditemukan.';
       } else if (e.toString().contains('wrong-password')) {
-        errorMessage = 'Incorrect password.';
+        errorMessage = 'Password salah.';
       } else if (e.toString().contains('invalid-email')) {
-        errorMessage = 'Invalid email format.';
+        errorMessage = 'Format email tidak valid.';
       } else if (e.toString().contains('Exception:')) {
         errorMessage = e.toString().replaceFirst('Exception: ', '');
       }
 
       _showNotification(
-        title: 'Login Failed',
+        title: 'Login Gagal',
         message: errorMessage,
         isSuccess: false,
       );
@@ -345,7 +350,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Enter your registered email to receive a password reset link.',
+                      'Masukkan email terdaftar Anda untuk menerima tautan reset password.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: subtitleColor,
@@ -394,7 +399,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                             child: Text(
-                              'Cancel',
+                              'Batal',
                               style: TextStyle(
                                 color: cancelBtnText,
                                 fontWeight: FontWeight.bold,
@@ -424,8 +429,8 @@ class _LoginPageState extends State<LoginPage> {
                                         if (dialogContext.mounted) {
                                           Navigator.pop(dialogContext);
                                           _showNotification(
-                                            title: 'Email Sent',
-                                            message: 'Password reset link has been sent to $email',
+                                            title: 'Email Terkirim',
+                                            message: 'Tautan reset password telah dikirim ke $email',
                                             isSuccess: true,
                                           );
                                         }
@@ -433,7 +438,7 @@ class _LoginPageState extends State<LoginPage> {
                                         if (dialogContext.mounted) {
                                           setState(() => isResetting = false);
                                           _showNotification(
-                                            title: 'Failed',
+                                            title: 'Gagal',
                                             message: e.toString().replaceFirst('Exception: ', ''),
                                             isSuccess: false,
                                           );
@@ -458,7 +463,7 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     )
                                   : const Text(
-                                      'Send',
+                                      'Kirim',
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -586,7 +591,7 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 8),
                     
                     Text(
-                      'Modern School Management System',
+                      'Sistem Manajemen Sekolah Modern',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -617,7 +622,7 @@ class _LoginPageState extends State<LoginPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'LOGIN TO ACCOUNT',
+                            'MASUK KE AKUN',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 16,
@@ -724,7 +729,7 @@ class _LoginPageState extends State<LoginPage> {
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               child: Text(
-                                'Forgot Password?',
+                                'Lupa Password?',
                                 style: TextStyle(
                                   color: isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
                                   fontSize: 13,
@@ -774,7 +779,7 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     )
                                   : const Text(
-                                      'LOGIN',
+                                      'MASUK',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -797,14 +802,14 @@ class _LoginPageState extends State<LoginPage> {
                       },
                       child: RichText(
                         text: TextSpan(
-                          text: "Don't have an account? ",
+                          text: "Belum punya akun? ",
                           style: TextStyle(
                             color: isDark ? Colors.white.withOpacity(0.6) : const Color(0xFF1E1B4B).withOpacity(0.6),
                             fontSize: 14,
                           ),
                           children: const [
                             TextSpan(
-                              text: 'Register Now',
+                              text: 'Daftar Sekarang',
                               style: TextStyle(
                                 color: Color(0xFF8B5CF6),
                                 fontWeight: FontWeight.bold,

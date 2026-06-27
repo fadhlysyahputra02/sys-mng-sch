@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../authentication/widgets/auth_background.dart';
+import '../../../../teachers/pages/teacher_daily_attendance_page.dart';
 import 'teacher_subject_admin_page.dart';
 
 class TeacherDetailPage extends StatefulWidget {
@@ -835,6 +836,46 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                                   builder: (_) => TeacherSubjectPage(
                                     teacherId: teacher['teacherId'],
                                     teacherName: teacher['nama'],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // ── Lihat Riwayat Absensi Button ──────────────────────────
+                        Container(
+                          width: double.infinity,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            color: cardBgColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(
+                              foregroundColor: textColor,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            icon: Icon(Icons.co_present_rounded, color: textColor),
+                            label: Text(
+                              'Lihat Riwayat Absensi',
+                              style: TextStyle(
+                                color: textColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TeacherDailyAttendancePage(
+                                    teacherId: teacher['teacherId'] ?? '',
+                                    teacherName: teacher['nama'] ?? '',
+                                    nip: teacher['nip'] ?? '',
                                   ),
                                 ),
                               );

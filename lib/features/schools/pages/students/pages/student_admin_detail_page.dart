@@ -27,6 +27,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     final namaController = TextEditingController(text: student['nama']);
     final nisController = TextEditingController(text: student['nis']);
     final alamatController = TextEditingController(text: student['alamat']);
+    final tanggalLahirController = TextEditingController(text: student['tanggalLahir'] ?? '');
+    final angkatanController = TextEditingController(text: student['angkatan'] ?? '');
     String? selectedGender = (student['gender'] == 'Laki-laki' || student['gender'] == 'Perempuan') ? student['gender'] : null;
     final isDark = AuthBackground.isDarkMode.value;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
@@ -117,6 +119,45 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 icon: Icons.home_outlined,
                 capitalization: TextCapitalization.sentences,
               ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () async {
+                  final pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime(2010),
+                    firstDate: DateTime(1990),
+                    lastDate: DateTime.now(),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: ColorScheme.fromSeed(
+                            seedColor: const Color(0xFF0EA5E9),
+                            brightness: isDark ? Brightness.dark : Brightness.light,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (pickedDate != null) {
+                    tanggalLahirController.text = "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
+                  }
+                },
+                child: AbsorbPointer(
+                  child: _buildDialogField(
+                    controller: tanggalLahirController,
+                    label: 'Tanggal Lahir',
+                    icon: Icons.calendar_month_rounded,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildDialogField(
+                controller: angkatanController,
+                label: 'Angkatan Masuk (Tahun)',
+                icon: Icons.calendar_today_rounded,
+                keyboardType: TextInputType.number,
+              ),
             ],
           );
         }),
@@ -149,6 +190,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                       final newNis = nisController.text.trim();
                       final newAlamat = alamatController.text.trim();
                       final newGender = selectedGender ?? '';
+                      final newTanggalLahir = tanggalLahirController.text.trim();
+                      final newAngkatan = angkatanController.text.trim();
                       if (newNama.isEmpty || newNis.isEmpty) return;
 
                       await _studentService.updateStudent(
@@ -157,6 +200,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                         nis: newNis,
                         gender: newGender,
                         alamat: newAlamat,
+                        tanggalLahir: newTanggalLahir,
+                        angkatan: newAngkatan,
                       );
 
                       setState(() {
@@ -164,6 +209,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                         student['nis'] = newNis;
                         student['gender'] = newGender;
                         student['alamat'] = newAlamat;
+                        student['tanggalLahir'] = newTanggalLahir;
+                        student['angkatan'] = newAngkatan;
                       });
 
                       if (ctx.mounted) {
@@ -699,12 +746,44 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                                                   color: Colors.white,
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          if (student['lulus'] == true) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: const Color(0xFF6366F1).withValues(alpha: 0.5),
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.school_rounded,
+                                                    size: 11,
+                                                    color: Colors.white,
+                                                  ),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'Lulus (Alumni)',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                     ),
                                   ],
                                 ),
@@ -802,6 +881,30 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                                 showDivider: true,
                                 dividerColor: dividerColor,
                               ),
+                              // Tanggal Lahir
+                              _infoTile(
+                                icon: Icons.calendar_month_rounded,
+                                iconColor: const Color(0xFFEC4899),
+                                label: 'Tanggal Lahir',
+                                value: (student['tanggalLahir'] ?? '').toString().isEmpty ? '-' : student['tanggalLahir'],
+                                valueColor: textColor,
+                                textColor: textColor,
+                                subTextColor: subTextColor,
+                                showDivider: true,
+                                dividerColor: dividerColor,
+                              ),
+                              // Angkatan
+                              _infoTile(
+                                icon: Icons.calendar_today_rounded,
+                                iconColor: const Color(0xFF10B981),
+                                label: 'Angkatan',
+                                value: (student['angkatan'] ?? '').toString().isEmpty ? '-' : student['angkatan'],
+                                valueColor: textColor,
+                                textColor: textColor,
+                                subTextColor: subTextColor,
+                                showDivider: true,
+                                dividerColor: dividerColor,
+                              ),
                               // Email
                               _infoTile(
                                 icon: Icons.email_outlined,
@@ -816,11 +919,19 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                               ),
                               // Status Keaktifan
                               _infoTile(
-                                icon: isAktif ? Icons.check_circle_outline_rounded : Icons.cancel_outlined,
-                                iconColor: isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                icon: student['lulus'] == true
+                                    ? Icons.school_rounded
+                                    : (isAktif ? Icons.check_circle_outline_rounded : Icons.cancel_outlined),
+                                iconColor: student['lulus'] == true
+                                    ? const Color(0xFF6366F1)
+                                    : (isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
                                 label: 'Status Keaktifan',
-                                value: isAktif ? 'Aktif' : 'Tidak Aktif',
-                                valueColor: isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                value: student['lulus'] == true
+                                    ? 'Alumni (Lulus)'
+                                    : (isAktif ? 'Aktif' : 'Tidak Aktif'),
+                                valueColor: student['lulus'] == true
+                                    ? const Color(0xFF6366F1)
+                                    : (isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
                                 textColor: textColor,
                                 subTextColor: subTextColor,
                                 showDivider: false,

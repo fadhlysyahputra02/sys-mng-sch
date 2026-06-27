@@ -89,7 +89,7 @@ class SchoolService {
     final doc = await docRef.get();
 
     if (doc.exists) {
-      throw Exception('Domain sudah digunakan');
+      throw ('Domain sudah digunakan');
     }
 
     await docRef.set({

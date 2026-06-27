@@ -9,6 +9,7 @@ import '../../schools/services/school_service.dart';
 
 import '../../officer/pages/daily_recap_page.dart';
 import '../../officer/pages/monthly_recap_page.dart';
+import '../../teachers/pages/teacher_settings_page.dart';
 
 class TuDashboardPage extends StatefulWidget {
   const TuDashboardPage({super.key});
@@ -77,7 +78,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
 
     Get.bottomSheet(
       Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF0F0C20) : Colors.white,
           borderRadius: const BorderRadius.only(
@@ -88,65 +89,68 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
             top: BorderSide(color: cardBorder),
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Rekap Absensi',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Pilih skala rekapan absensi yang ingin Anda lihat:',
-              style: TextStyle(
-                color: textColor.withValues(alpha: 0.6),
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSelectionCard(
-                    title: 'Rekap Harian',
-                    description: 'Laporan kehadiran per tanggal',
-                    icon: Icons.calendar_today_rounded,
-                    color: const Color(0xFF8B5CF6),
-                    onTap: () {
-                      Get.back();
-                      Get.to(() => const DailyRecapPage());
-                    },
-                    isDark: isDark,
-                    cardBg: cardBg,
-                    cardBorder: cardBorder,
-                    textColor: textColor,
-                  ),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Rekap Absensi',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildSelectionCard(
-                    title: 'Rekap Bulanan',
-                    description: 'Statistik kehadiran per kelas',
-                    icon: Icons.calendar_month_rounded,
-                    color: const Color(0xFF10B981),
-                    onTap: () {
-                      Get.back();
-                      Get.to(() => const MonthlyRecapPage());
-                    },
-                    isDark: isDark,
-                    cardBg: cardBg,
-                    cardBorder: cardBorder,
-                    textColor: textColor,
-                  ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Pilih skala rekapan absensi yang ingin Anda lihat:',
+                style: TextStyle(
+                  color: textColor.withValues(alpha: 0.6),
+                  fontSize: 14,
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSelectionCard(
+                      title: 'Rekap Harian',
+                      description: 'Laporan kehadiran per tanggal',
+                      icon: Icons.calendar_today_rounded,
+                      color: const Color(0xFF8B5CF6),
+                      onTap: () {
+                        Get.back();
+                        Get.to(() => const DailyRecapPage());
+                      },
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      cardBorder: cardBorder,
+                      textColor: textColor,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildSelectionCard(
+                      title: 'Rekap Bulanan',
+                      description: 'Statistik kehadiran per kelas',
+                      icon: Icons.calendar_month_rounded,
+                      color: const Color(0xFF10B981),
+                      onTap: () {
+                        Get.back();
+                        Get.to(() => const MonthlyRecapPage());
+                      },
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      cardBorder: cardBorder,
+                      textColor: textColor,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
       isScrollControlled: true,
@@ -239,6 +243,11 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
             ),
             actions: [
+              IconButton(
+                icon: Icon(Icons.settings_rounded, color: textColor),
+                onPressed: () => Get.to(() => const TeacherSettingsPage()),
+                tooltip: 'Pengaturan',
+              ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.red),
                 onPressed: _logout,
@@ -457,7 +466,6 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
     final cardShadow = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-    final emailColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
     final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
     final dateColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
@@ -539,15 +547,6 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                         fontSize: 13, 
                         color: subtitleColor, 
                         fontWeight: FontWeight.w500
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      adminEmail,
-                      style: TextStyle(
-                        fontSize: 11, 
-                        color: emailColor
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

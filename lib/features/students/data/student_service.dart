@@ -94,6 +94,47 @@ class StudentService {
       'classId': null,
     });
   }
+
+  /// Menghapus (mengosongkan) seluruh murid dari suatu kelas sekaligus menggunakan WriteBatch
+  Future<void> emptyClass({
+    required String classId,
+    required String schoolId,
+  }) async {
+    final querySnapshot = await _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('students')
+        .where('classId', isEqualTo: classId)
+        .get();
+
+    if (querySnapshot.docs.isEmpty) return;
+
+    final batch = _firestore.batch();
+    for (var doc in querySnapshot.docs) {
+      batch.update(doc.reference, {'classId': null});
+    }
+    await batch.commit();
+  }
+
+  /// Menambahkan sekumpulan murid ke suatu kelas sekaligus menggunakan WriteBatch
+  Future<void> assignMultipleStudentsToClass({
+    required List<String> studentIds,
+    required String classId,
+    required String schoolId,
+  }) async {
+    if (studentIds.isEmpty) return;
+    
+    final batch = _firestore.batch();
+    for (var studentId in studentIds) {
+      final docRef = _firestore
+          .collection('schools')
+          .doc(schoolId)
+          .collection('students')
+          .doc(studentId);
+      batch.update(docRef, {'classId': classId});
+    }
+    await batch.commit();
+  }
   /// Fetch student document by UID within a specific school subcollection (returns Future<DocumentSnapshot>)
   Future<DocumentSnapshot<Map<String, dynamic>>?> getStudentDocByUidInSchool(String schoolId, String uid) async {
     final querySnapshot = await _firestore

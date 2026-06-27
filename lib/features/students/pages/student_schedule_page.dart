@@ -37,53 +37,61 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
 
     return DefaultTabController(
       length: _days.length,
-      child: Scaffold(
-        body: AuthBackground(
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              iconTheme: const IconThemeData(color: Colors.white),
-              leading: Container(
-                margin: const EdgeInsets.only(left: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: AuthBackground.isDarkMode,
+        builder: (context, isDark, _) {
+          final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+          final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+          final btnBg = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+          final tabUnselectedColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.38);
+
+          return Scaffold(
+            body: AuthBackground(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  iconTheme: IconThemeData(color: iconColor),
+                  leading: Container(
+                    margin: const EdgeInsets.only(left: 16),
+                    decoration: BoxDecoration(
+                      color: btnBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  title: Text(
+                    'Jadwal Kelas ${widget.className}',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
+                  ),
+                  bottom: TabBar(
+                    isScrollable: true,
+                    indicatorColor: primaryIndigo,
+                    indicatorWeight: 3,
+                    labelColor: textColor,
+                    unselectedLabelColor: tabUnselectedColor,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
+                    tabs: _days.map((day) => Tab(text: day)).toList(),
+                  ),
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-              title: Text(
-                'Jadwal Kelas ${widget.className}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-              ),
-              bottom: TabBar(
-                isScrollable: true,
-                indicatorColor: primaryIndigo,
-                indicatorWeight: 3,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white38,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
-                tabs: _days.map((day) => Tab(text: day)).toList(),
-              ),
-            ),
             body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: _scheduleService.getSchedulesByClassName(user.schoolId, widget.className),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
-                        SizedBox(height: 12),
+                        const Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
+                        const SizedBox(height: 12),
                         Text(
                           'Terjadi kesalahan memuat jadwal',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -91,9 +99,9 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                 }
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
+                  return Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      valueColor: AlwaysStoppedAnimation<Color>(iconColor),
                     ),
                   );
                 }
@@ -109,19 +117,26 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                       return _timeToMinutes(a['jamMulai'] ?? '').compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
                     });
 
-                    return _buildScheduleListForDay(daySchedules, day);
+                    return _buildScheduleListForDay(daySchedules, day, isDark);
                   }).toList(),
                 );
               },
             ),
           ),
         ),
+      );
+      },
       ),
     );
   }
 
-  Widget _buildScheduleListForDay(List<Map<String, dynamic>> schedules, String day) {
+  Widget _buildScheduleListForDay(List<Map<String, dynamic>> schedules, String day, bool isDark) {
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF9FAFB);
+    final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05);
     if (schedules.isEmpty) {
+      final emptyIconColor = isDark ? Colors.white.withValues(alpha: 0.15) : const Color(0xFF1E1B4B).withValues(alpha: 0.15);
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -129,14 +144,14 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
             Icon(
               Icons.calendar_today_rounded,
               size: 64,
-              color: Colors.white.withValues(alpha: 0.15),
+              color: emptyIconColor,
             ),
             const SizedBox(height: 16),
             Text(
               'Tidak ada jadwal pelajaran pada hari $day',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.5),
+                color: subTextColor,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -162,9 +177,18 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.04),
+            color: cardBgColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(color: cardBorderColor),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
@@ -187,8 +211,8 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                       children: [
                         Text(
                           jamMulai,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: textColor,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -197,7 +221,7 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                         Text(
                           jamSelesai,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.4),
+                            color: subTextColor,
                             fontSize: 12,
                           ),
                         ),
@@ -209,7 +233,7 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     width: 1,
-                    color: Colors.white.withValues(alpha: 0.08),
+                    color: cardBorderColor,
                   ),
                   
                   // Subject and Teacher Info
@@ -225,8 +249,8 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                               Expanded(
                                 child: Text(
                                   subjectName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: textColor,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -259,7 +283,7 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                               children: [
                                 Icon(
                                   Icons.person_outline_rounded,
-                                  color: Colors.white.withValues(alpha: 0.4),
+                                  color: subTextColor,
                                   size: 14,
                                 ),
                                 const SizedBox(width: 6),
@@ -267,7 +291,7 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                                   child: Text(
                                     'Guru: $teacherName',
                                     style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.7),
+                                      color: isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -281,7 +305,7 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                             Text(
                               'Waktunya Istirahat & Santai',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.4),
+                                color: subTextColor,
                                 fontSize: 12,
                                 fontStyle: FontStyle.italic,
                               ),

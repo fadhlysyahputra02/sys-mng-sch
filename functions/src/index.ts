@@ -1,6 +1,7 @@
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
+import { getAuth } from "firebase-admin/auth";
 
 initializeApp();
 
@@ -113,5 +114,29 @@ export const onNotificationCreated = onDocumentCreated(
 
     await Promise.all(sendPromises);
     console.log("[onNotificationCreated] All FCM messages dispatched.");
+  }
+);
+
+/**
+ * Triggered setiap kali dokumen pengguna di hapus di:
+ * /users/{userId}
+ *
+ * Menghapus akun autentikasi dari Firebase Auth.
+ */
+export const onUserDocumentDeleted = onDocumentDeleted(
+  "users/{userId}",
+  async (event) => {
+    const userId = event.params.userId;
+    console.log(`[onUserDocumentDeleted] Memulai penghapusan auth untuk userId=${userId}`);
+    try {
+      await getAuth().deleteUser(userId);
+      console.log(`✅ Berhasil menghapus pengguna dari Firebase Auth: userId=${userId}`);
+    } catch (error: any) {
+      if (error.code === "auth/user-not-found") {
+        console.log(`ℹ️ Pengguna tidak ditemukan di Firebase Auth (mungkin sudah dihapus manual): userId=${userId}`);
+      } else {
+        console.error(`❌ Gagal menghapus pengguna dari Firebase Auth: userId=${userId}`, error);
+      }
+    }
   }
 );

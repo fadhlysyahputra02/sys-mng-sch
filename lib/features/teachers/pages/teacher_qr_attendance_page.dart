@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../students/data/student_service.dart';
+import '../services/teaching_report_service.dart';
 
 class TeacherQrAttendancePage extends StatefulWidget {
   final Map<String, dynamic> scheduleData;
@@ -642,6 +643,21 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
               ],
             ),
           ),
+          floatingActionButton: isPassed ? null : FloatingActionButton.extended(
+            onPressed: () => _showTeachingReportDialog(
+              user.schoolId,
+              user.uid,
+              user.nama,
+              classId,
+              className,
+              subjectName,
+              scheduleId,
+              dateStr,
+            ),
+            backgroundColor: const Color(0xFF8B5CF6),
+            icon: const Icon(Icons.edit_document, color: Colors.white),
+            label: const Text('Isi Laporan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
         );
       },
     );
@@ -769,10 +785,122 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
     );
   }
 
+  void _showTeachingReportDialog(
+    String schoolId,
+    String teacherId,
+    String teacherName,
+    String classId,
+    String className,
+    String subjectName,
+    String scheduleId,
+    String dateStr,
+  ) {
+    final materiController = TextEditingController();
+    final catatanController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Laporan Mengajar', style: TextStyle(fontWeight: FontWeight.bold)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: materiController,
+                      decoration: InputDecoration(
+                        labelText: 'Materi yang diajarkan',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: catatanController,
+                      decoration: InputDecoration(
+                        labelText: 'Catatan tambahan (Opsional)',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                if (!isSubmitting)
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                  ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (materiController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Materi tidak boleh kosong')),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSubmitting = true);
+
+                          try {
+                            final reportService = TeachingReportService();
+                            await reportService.submitReport(
+                              schoolId: schoolId,
+                              teacherId: teacherId,
+                              teacherName: teacherName,
+                              classId: classId,
+                              className: className,
+                              subjectName: subjectName,
+                              scheduleId: scheduleId,
+                              dateStr: dateStr,
+                              tahunAjaran: _tahunAjaran,
+                              semester: _semester,
+                              materi: materiController.text.trim(),
+                              catatan: catatanController.text.trim(),
+                            );
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Laporan berhasil disimpan')),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() => isSubmitting = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Simpan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _attendanceSubscription?.cancel();
     super.dispose();
   }
 }
-

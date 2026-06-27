@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 import '../data/student_service.dart';
@@ -44,6 +45,8 @@ class _MonthlyAttendanceTableSectionState
 
   late DateTime _selectedMonth;
   late List<DateTime> _monthOptions;
+  String? _resolvedClassName;
+  bool _isResolvingClass = false;
 
   @override
   void initState() {
@@ -54,6 +57,55 @@ class _MonthlyAttendanceTableSectionState
       12,
       (i) => DateTime(now.year, now.month - i, 1),
     );
+    _resolvedClassName = widget.className;
+    _resolveClassForSelectedMonth();
+  }
+
+  Future<void> _resolveClassForSelectedMonth() async {
+    setState(() => _isResolvingClass = true);
+    try {
+      String calculatedTahunAjaran;
+      String calculatedSemester;
+      if (_selectedMonth.month >= 7 && _selectedMonth.month <= 12) {
+        calculatedTahunAjaran = '${_selectedMonth.year}/${_selectedMonth.year + 1}';
+        calculatedSemester = 'Semester 1';
+      } else {
+        calculatedTahunAjaran = '${_selectedMonth.year - 1}/${_selectedMonth.year}';
+        calculatedSemester = 'Semester 2';
+      }
+
+      final cleanYear = calculatedTahunAjaran.replaceAll('/', '_');
+      final enrollmentId = '${widget.studentId}_${cleanYear}_$calculatedSemester';
+      final doc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('class_enrollments')
+          .doc(enrollmentId)
+          .get();
+
+      if (doc.exists) {
+        if (mounted) {
+          setState(() {
+            _resolvedClassName = doc.data()?['className']?.toString() ?? widget.className;
+            _isResolvingClass = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _resolvedClassName = widget.className;
+            _isResolvingClass = false;
+          });
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _resolvedClassName = widget.className;
+          _isResolvingClass = false;
+        });
+      }
+    }
   }
 
   String _monthName(int month) {
@@ -132,75 +184,93 @@ class _MonthlyAttendanceTableSectionState
                 );
               }).toList(),
               onChanged: (value) {
-                if (value != null) setState(() => _selectedMonth = value);
+                if (value != null) {
+                  setState(() => _selectedMonth = value);
+                  _resolveClassForSelectedMonth();
+                }
               },
             ),
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          '${widget.studentName} • Kelas ${widget.className}',
+          '${widget.studentName} • Kelas ${_resolvedClassName ?? widget.className}',
           style: TextStyle(color: widget.subTextColor, fontSize: 12),
         ),
         const SizedBox(height: 16),
-        StreamBuilder(
-          stream: _scheduleService.getSchedulesByClassName(
-            widget.schoolId,
-            widget.className,
-          ),
-          builder: (context, scheduleSnap) {
-            return StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _studentService.getStudentAttendanceHistoryStream(
-                schoolId: widget.schoolId,
-                studentId: widget.studentId,
-                year: _selectedMonth.year,
-                month: _selectedMonth.month,
-              ),
-              builder: (context, recordSnap) {
-                if (scheduleSnap.connectionState == ConnectionState.waiting ||
-                    recordSnap.connectionState == ConnectionState.waiting) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 32),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: widget.isDark
-                            ? Colors.white
-                            : const Color(0xFF8B5CF6),
-                      ),
+        _isResolvingClass
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: widget.isDark
+                        ? Colors.white
+                        : const Color(0xFF8B5CF6),
+                  ),
+                ),
+              )
+            : (_resolvedClassName ?? '').isEmpty
+                ? _emptyBox(
+                    'Siswa tidak terdaftar di kelas manapun pada periode ${_monthName(_selectedMonth.month)} ${_selectedMonth.year}.',
+                  )
+                : StreamBuilder(
+                    stream: _scheduleService.getSchedulesByClassName(
+                      widget.schoolId,
+                      _resolvedClassName!,
                     ),
-                  );
-                }
+                    builder: (context, scheduleSnap) {
+                      return StreamBuilder<List<Map<String, dynamic>>>(
+                        stream: _studentService.getStudentAttendanceHistoryStream(
+                          schoolId: widget.schoolId,
+                          studentId: widget.studentId,
+                          year: _selectedMonth.year,
+                          month: _selectedMonth.month,
+                        ),
+                        builder: (context, recordSnap) {
+                          if (scheduleSnap.connectionState == ConnectionState.waiting ||
+                              recordSnap.connectionState == ConnectionState.waiting) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 32),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: widget.isDark
+                                      ? Colors.white
+                                      : const Color(0xFF8B5CF6),
+                                ),
+                              ),
+                            );
+                          }
 
-                final schedules =
-                    scheduleSnap.data?.docs.map((e) => e.data()).toList() ??
-                        [];
-                final records = recordSnap.data ?? [];
+                          final schedules =
+                              scheduleSnap.data?.docs.map((e) => e.data()).toList() ??
+                                  [];
+                          final records = recordSnap.data ?? [];
 
-                final recaps = StudentAttendanceRecapHelper.buildRecaps(
-                  className: widget.className,
-                  year: _selectedMonth.year,
-                  month: _selectedMonth.month,
-                  schedules: schedules,
-                  records: records,
-                );
+                          final recaps = StudentAttendanceRecapHelper.buildRecaps(
+                            className: _resolvedClassName!,
+                            year: _selectedMonth.year,
+                            month: _selectedMonth.month,
+                            schedules: schedules,
+                            records: records,
+                          );
 
-                if (recaps.isEmpty) {
-                  return _emptyBox(
-                    'Belum ada data absensi ${_monthName(_selectedMonth.month)} ${_selectedMonth.year}.',
-                  );
-                }
+                          if (recaps.isEmpty) {
+                            return _emptyBox(
+                              'Belum ada data absensi ${_monthName(_selectedMonth.month)} ${_selectedMonth.year}.',
+                            );
+                          }
 
-                return Column(
-                  children: recaps
-                      .map(
-                        (recap) => _buildSubjectCard(recap),
-                      )
-                      .toList(),
-                );
-              },
-            );
-          },
-        ),
+                          return Column(
+                            children: recaps
+                                .map(
+                                  (recap) => _buildSubjectCard(recap),
+                                )
+                                .toList(),
+                          );
+                        },
+                      );
+                    },
+                  ),
       ],
     );
   }

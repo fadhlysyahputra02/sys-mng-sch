@@ -429,21 +429,6 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
         }
       }
 
-      // Fetch all students in the school
-      final studentsSnapshot = await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(user.schoolId)
-          .collection('students')
-          .get();
-
-      final List<Map<String, dynamic>> allStudents = studentsSnapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          ...data,
-          'studentId': doc.id,
-        };
-      }).toList();
-
       // Dapatkan semua kelas dan mata pelajaran yang diajar oleh guru ini
       final teacherClassNames = allSchedules
           .map((s) => s['className'] as String?)
@@ -471,11 +456,100 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
               teacherSubjectNames.contains(r['subjectName'] as String?))
           .toList();
 
-      final List<Map<String, dynamic>> targetStudents = allStudents.where((student) {
-        final sClassId = student['classId']?.toString() ?? '';
-        final sClassName = classIdToName[sClassId] ?? '';
-        return targetClasses.contains(sClassName);
-      }).toList();
+      // Gunakan tahun ajaran dan semester dari data absensi yang difetch, jika tersedia
+      String recordTahunAjaran = tahunAjaran;
+      String recordSemester = semester;
+      if (filteredRecords.isNotEmpty) {
+        // Ambil dari record pertama yang valid
+        final firstValid = filteredRecords.firstWhere(
+          (r) => r['tahunAjaran'] != null && r['tahunAjaran'] != '-', 
+          orElse: () => <String, dynamic>{}
+        );
+        if (firstValid.isNotEmpty) {
+          recordTahunAjaran = firstValid['tahunAjaran']?.toString() ?? tahunAjaran;
+          recordSemester = firstValid['semester']?.toString() ?? semester;
+        }
+      } else {
+        // Fallback to calculated term from the month/year
+        if (start.month >= 7 && start.month <= 12) {
+          recordTahunAjaran = '${start.year}/${start.year + 1}';
+          recordSemester = 'Semester 1';
+        } else {
+          recordTahunAjaran = '${start.year - 1}/${start.year}';
+          recordSemester = 'Semester 2';
+        }
+      }
+
+      final activeTahunAjaran = schoolData?['tahunAjaran']?.toString() ?? '';
+      final activeSemester = schoolData?['semester']?.toString() ?? '';
+
+      List<Map<String, dynamic>> targetStudents = [];
+
+      if (recordTahunAjaran == activeTahunAjaran && recordSemester == activeSemester) {
+        // Fetch active students in the school
+        final studentsSnapshot = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(user.schoolId)
+            .collection('students')
+            .get();
+
+        final List<Map<String, dynamic>> allStudents = studentsSnapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            ...data,
+            'studentId': doc.id,
+          };
+        }).toList();
+
+        targetStudents = allStudents.where((student) {
+          final sClassId = student['classId']?.toString() ?? '';
+          final sClassName = classIdToName[sClassId] ?? '';
+          return targetClasses.contains(sClassName);
+        }).toList();
+      } else {
+        // Query class_enrollments for the historical term
+        final enrollmentSnapshot = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(user.schoolId)
+            .collection('class_enrollments')
+            .where('tahunAjaran', isEqualTo: recordTahunAjaran)
+            .where('semester', isEqualTo: recordSemester)
+            .get();
+
+        targetStudents = enrollmentSnapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            ...data,
+            'studentId': data['studentId'] ?? doc.id, // clean studentId
+          };
+        }).where((student) {
+          final sClassName = student['className']?.toString() ?? '';
+          return targetClasses.contains(sClassName);
+        }).toList();
+
+        // Fallback to active students if historical enrollments are empty
+        if (targetStudents.isEmpty) {
+          final studentsSnapshot = await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(user.schoolId)
+              .collection('students')
+              .get();
+
+          final List<Map<String, dynamic>> allStudents = studentsSnapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              ...data,
+              'studentId': doc.id,
+            };
+          }).toList();
+
+          targetStudents = allStudents.where((student) {
+            final sClassId = student['classId']?.toString() ?? '';
+            final sClassName = classIdToName[sClassId] ?? '';
+            return targetClasses.contains(sClassName);
+          }).toList();
+        }
+      }
 
       // Tutup loading dialog
       Get.back();
@@ -491,21 +565,6 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
           borderRadius: 12,
         );
         return;
-      }
-
-      // Gunakan tahun ajaran dan semester dari data absensi yang difetch, jika tersedia
-      String recordTahunAjaran = tahunAjaran;
-      String recordSemester = semester;
-      if (filteredRecords.isNotEmpty) {
-        // Ambil dari record pertama yang valid
-        final firstValid = filteredRecords.firstWhere(
-          (r) => r['tahunAjaran'] != null && r['tahunAjaran'] != '-', 
-          orElse: () => <String, dynamic>{}
-        );
-        if (firstValid.isNotEmpty) {
-          recordTahunAjaran = firstValid['tahunAjaran']?.toString() ?? tahunAjaran;
-          recordSemester = firstValid['semester']?.toString() ?? semester;
-        }
       }
 
       if (isPreview) {

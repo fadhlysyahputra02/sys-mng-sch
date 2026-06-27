@@ -18,6 +18,8 @@ import '../../features/parent/pages/parent_attendance_page.dart';
 import '../../features/parent/pages/parent_grades_page.dart';
 import '../../features/parent/pages/parent_violation_page.dart';
 import '../../features/parent/pages/parent_chat_list_page.dart';
+import '../../features/parent/pages/parent_permit_page.dart';
+import '../../features/teachers/pages/teacher_permits_page.dart';
 import '../../features/authentication/pages/parent_register_page.dart';
 import '../../features/schools/pages/notifications/notifications_page.dart';
 import '../../features/schools/pages/dashboard/premium_features_page.dart';
@@ -80,6 +82,14 @@ class AppPages {
           className: args['className'] ?? '',
         );
       },
+    ),
+    GetPage(
+      name: AppRoutes.parentPermit,
+      page: () => const ParentPermitPage(),
+    ),
+    GetPage(
+      name: AppRoutes.teacherPermits,
+      page: () => const TeacherPermitsPage(),
     ),
     GetPage(
       name: AppRoutes.parentRegister,

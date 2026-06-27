@@ -173,7 +173,12 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
 
                 // Stream List Murid
                 StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _gradeService.getStudentsByClass(widget.schoolId, widget.classId),
+                  stream: _gradeService.getStudentsByClass(
+                    widget.schoolId,
+                    widget.classId,
+                    tahunAjaran: _tahunAjaran,
+                    semester: _activeSemester,
+                  ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const SliverFillRemaining(
@@ -232,7 +237,7 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             final studentDoc = filteredStudents[index];
-                            final studentId = studentDoc.id;
+                            final studentId = studentDoc.data()?['studentId'] ?? studentDoc.id;
                             final studentData = studentDoc.data();
                             final name = studentData['nama'] ?? 'Murid';
                             final nis = studentData['nis'] ?? '-';

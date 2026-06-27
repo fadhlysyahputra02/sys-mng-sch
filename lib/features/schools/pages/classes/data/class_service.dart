@@ -12,6 +12,11 @@ class ClassService {
     required String schoolId,
     required String namaKelas,
   }) async {
+    final existing = await _classesRef(schoolId).where('namaKelas', isEqualTo: namaKelas).get();
+    if (existing.docs.isNotEmpty) {
+      throw ('Kelas dengan nama "$namaKelas" sudah terdaftar.');
+    }
+
     await _classesRef(schoolId).add({
       'schoolId': schoolId,
       'namaKelas': namaKelas,
@@ -27,6 +32,11 @@ class ClassService {
     required String namaKelas,
   }) async {
     final schoolId = SessionService.currentUser!.schoolId;
+    final existing = await _classesRef(schoolId).where('namaKelas', isEqualTo: namaKelas).get();
+    if (existing.docs.any((doc) => doc.id != classId)) {
+      throw ('Kelas dengan nama "$namaKelas" sudah terdaftar.');
+    }
+
     await _classesRef(schoolId).doc(classId).update({'namaKelas': namaKelas});
   }
 
@@ -64,5 +74,16 @@ class ClassService {
       'teacherId': null,
       'teacherName': null,
     });
+  }
+
+  Future<void> updateSubjectQuotas({
+    required String classId,
+    required Map<String, int> quotas,
+  }) async {
+    final schoolId = SessionService.currentUser!.schoolId;
+    await _classesRef(schoolId).doc(classId).set(
+      {'subjectQuotas': quotas},
+      SetOptions(merge: true),
+    );
   }
 }

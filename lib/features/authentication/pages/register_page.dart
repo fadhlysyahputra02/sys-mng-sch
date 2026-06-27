@@ -138,7 +138,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   void _showError(String message) {
     _showNotification(
-      title: 'Registration Failed',
+      title: 'Registrasi Gagal',
       message: message,
       isSuccess: false,
     );
@@ -185,7 +185,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'SELECT SCHOOL',
+                        'PILIH SEKOLAH',
                         style: TextStyle(
                           color: titleColor,
                           fontSize: 16,
@@ -204,7 +204,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   TextField(
                     style: TextStyle(color: inputStyleColor),
                     decoration: InputDecoration(
-                      hintText: 'Search school name...',
+                      hintText: 'Cari nama sekolah...',
                       hintStyle: TextStyle(color: hintTextColor),
                       prefixIcon: Icon(Icons.search_rounded, color: searchIconColor),
                       enabledBorder: OutlineInputBorder(
@@ -244,7 +244,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     size: 48, color: notFoundIconColor),
                                 const SizedBox(height: 12),
                                 Text(
-                                  'School not found',
+                                  'Sekolah tidak ditemukan',
                                   style: TextStyle(color: notFoundTextColor),
                                 ),
                               ],
@@ -332,27 +332,27 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     if (kIsWeb && selectedRole != 'school_admin') {
-      _showError('Website registration access is only permitted for School Administrators.');
+      _showError('Akses pendaftaran website hanya diizinkan untuk Admin Sekolah.');
       return;
     }
 
     // Validasi form dasar
     if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
-      _showError('Email and password are required.');
+      _showError('Email dan password wajib diisi.');
       return;
     }
 
     final password = passwordController.text;
     final confirmPassword = confirmPasswordController.text;
     if (password != confirmPassword) {
-      _showError('Passwords do not match.');
+      _showError('Password tidak cocok.');
       return;
     }
 
     // ── KODE RAHASIA SUPER ADMIN ──
     if (selectedRole == 'school_admin' && kodeController.text.trim() == '081987') {
       if (namaController.text.trim().isEmpty) {
-        _showError('Full name is required.');
+        _showError('Nama lengkap wajib diisi.');
         return;
       }
       setState(() => _isLoading = true);
@@ -365,22 +365,22 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     if (_selectedSekolah == null) {
-      _showError('Please select your school.');
+      _showError('Silakan pilih sekolah Anda.');
       return;
     }
 
     if (selectedRole == 'school_admin') {
       if (namaController.text.trim().isEmpty) {
-        _showError('Full name is required.');
+        _showError('Nama lengkap wajib diisi.');
         return;
       }
       if (kodeController.text.trim().isEmpty) {
-        _showError('Registration code is required.');
+        _showError('Kode registrasi wajib diisi.');
         return;
       }
     } else {
       if (nipNisController.text.trim().isEmpty) {
-        _showError('$_nipNisLabel is required.');
+        _showError('$_nipNisLabel wajib diisi.');
         return;
       }
     }
@@ -418,8 +418,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (mounted) {
         _showNotification(
-          title: 'Secret Access Successful',
-          message: 'Super Admin account successfully created!',
+          title: 'Akses Rahasia Berhasil',
+          message: 'Akun Super Admin berhasil dibuat!',
           isSuccess: true,
         );
         await Future.delayed(const Duration(milliseconds: 1000));
@@ -436,7 +436,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final school = _selectedSekolah!;
 
       if (school['kodeAdmin'] != kodeController.text.trim()) {
-        throw Exception('Invalid administrator code');
+        throw ('Kode administrator tidak valid');
       }
 
       final credential = await authService.register(
@@ -455,8 +455,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (mounted) {
         _showNotification(
-          title: 'Registration Successful',
-          message: 'School administrator registration was successful!',
+          title: 'Registrasi Berhasil',
+          message: 'Pendaftaran admin sekolah berhasil!',
           isSuccess: true,
         );
         await Future.delayed(const Duration(milliseconds: 1000));
@@ -480,15 +480,15 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       if (teacher == null) {
-        throw Exception('NIP not found at the selected school');
+        throw ('NIP tidak ditemukan di sekolah yang dipilih');
       }
 
       if (teacher['aktif'] != true) {
-        throw Exception('Teacher account is disabled by the school');
+        throw ('Akun guru dinonaktifkan oleh sekolah');
       }
 
       if (teacher['sudahRegister'] == true) {
-        throw Exception('Teacher NIP is already registered');
+        throw ('NIP Guru sudah terdaftar');
       }
 
       final credential = await authService.register(
@@ -518,8 +518,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (mounted) {
         _showNotification(
-          title: 'Registration Successful',
-          message: 'Teacher registration for ${teacher['nama']} was successful!',
+          title: 'Registrasi Berhasil',
+          message: 'Registrasi guru atas nama ${teacher['nama']} berhasil!',
           isSuccess: true,
         );
         await Future.delayed(const Duration(milliseconds: 1000));
@@ -543,15 +543,15 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       if (student == null) {
-        throw Exception('NIS not found at the selected school');
+        throw ('NIS tidak ditemukan di sekolah yang dipilih');
       }
 
       if (student['aktif'] != true) {
-        throw Exception('Student account is disabled by the school');
+        throw ('Akun murid dinonaktifkan oleh sekolah');
       }
 
       if (student['sudahRegister'] == true) {
-        throw Exception('Student NIS is already registered');
+        throw ('NIS Murid sudah terdaftar');
       }
 
       final credential = await authService.register(
@@ -581,8 +581,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (mounted) {
         _showNotification(
-          title: 'Registration Successful',
-          message: 'Student registration for ${student['nama']} was successful!',
+          title: 'Registrasi Berhasil',
+          message: 'Registrasi murid atas nama ${student['nama']} berhasil!',
           isSuccess: true,
         );
         await Future.delayed(const Duration(milliseconds: 1000));
@@ -746,7 +746,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     const SizedBox(height: 16),
 
                     Text(
-                      'REGISTRATION',
+                      'REGISTRASI',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -758,7 +758,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     const SizedBox(height: 6),
 
                     Text(
-                      'Register your account to access the system',
+                      'Daftarkan akun Anda untuk mengakses sistem',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 13,
@@ -796,7 +796,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 Padding(
                                   padding: const EdgeInsets.only(left: 4, bottom: 12),
                                   child: Text(
-                                    'Register As',
+                                    'Daftar Sebagai',
                                     style: TextStyle(
                                       color: labelColor,
                                       fontSize: 13,
@@ -813,7 +813,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     ),
                                     const SizedBox(width: 12),
                                     _buildRoleCard(
-                                      title: 'Teacher',
+                                      title: 'Guru',
                                       icon: Icons.school_rounded,
                                       value: 'teacher',
                                     ),
@@ -823,7 +823,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 Row(
                                   children: [
                                     _buildRoleCard(
-                                      title: 'Student',
+                                      title: 'Murid',
                                       icon: Icons.face_rounded,
                                       value: 'student',
                                     ),
@@ -854,7 +854,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   borderRadius: BorderRadius.circular(16),
                                   child: InputDecorator(
                                     decoration: InputDecoration(
-                                      labelText: 'Select School',
+                                      labelText: 'Pilih Sekolah',
                                       labelStyle: TextStyle(color: labelColor),
                                       prefixIcon: Icon(
                                         Icons.account_balance_rounded,
@@ -884,7 +884,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     child: Text(
                                       _selectedSekolah != null
                                           ? (_selectedSekolah!['namaSekolah'] ?? '')
-                                          : 'Select school name',
+                                          : 'Pilih nama sekolah',
                                       style: TextStyle(
                                         color: _selectedSekolah != null
                                             ? textColor
@@ -937,7 +937,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               style: TextStyle(color: textColor),
                               textCapitalization: TextCapitalization.words,
                               decoration: InputDecoration(
-                                labelText: 'Full Name',
+                                labelText: 'Nama Lengkap',
                                 labelStyle: TextStyle(color: labelColor),
                                 prefixIcon: Icon(
                                   Icons.person_pin_rounded,
@@ -967,7 +967,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               controller: kodeController,
                               style: TextStyle(color: textColor),
                               decoration: InputDecoration(
-                                labelText: 'Registration Code',
+                                labelText: 'Kode Registrasi',
                                 labelStyle: TextStyle(color: labelColor),
                                 prefixIcon: Icon(
                                   Icons.key_rounded,
@@ -1002,8 +1002,8 @@ class _RegisterPageState extends State<RegisterPage> {
                               decoration: InputDecoration(
                                 labelText: _nipNisLabel,
                                 hintText: selectedRole == 'teacher'
-                                    ? 'Enter your NIP'
-                                    : 'Enter your NIS',
+                                    ? 'Masukkan NIP Anda'
+                                    : 'Masukkan NIS Anda',
                                 hintStyle: TextStyle(color: isDark ? Colors.white.withOpacity(0.3) : const Color(0xFF1E1B4B).withOpacity(0.3), fontSize: 14),
                                 labelStyle: TextStyle(color: labelColor),
                                 prefixIcon: Icon(
@@ -1114,7 +1114,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             obscureText: _obscureConfirmPassword,
                             style: TextStyle(color: textColor),
                             decoration: InputDecoration(
-                              labelText: 'Confirm Password',
+                              labelText: 'Konfirmasi Password',
                               labelStyle: TextStyle(color: labelColor),
                               prefixIcon: Icon(
                                 Icons.lock_outline,
@@ -1196,7 +1196,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   : Text(
                                       selectedRole == 'parent'
                                           ? 'LANJUT DAFTAR ORANG TUA'
-                                          : 'REGISTER',
+                                          : 'DAFTAR',
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -1221,7 +1221,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                             child: Text(
-                              'BACK TO LOGIN',
+                              'KEMBALI KE LOGIN',
                               style: TextStyle(
                                 color: textColor,
                                 fontSize: 14,

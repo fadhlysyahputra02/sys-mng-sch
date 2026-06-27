@@ -46,7 +46,7 @@ class AttendancePdfHelper {
       // 1. Filter murid di kelas ini
       final classStudents = students.where((s) {
         final sClassId = s['classId']?.toString() ?? '';
-        final sClassName = classIdToName[sClassId] ?? '';
+        final sClassName = classIdToName[sClassId] ?? s['className']?.toString() ?? '';
         return sClassName == className;
       }).toList()..sort((a, b) => (a['nama']?.toString() ?? '').compareTo(b['nama']?.toString() ?? ''));
 
