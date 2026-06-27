@@ -7,7 +7,16 @@ import 'package:intl/intl.dart';
 import '../../authentication/widgets/auth_background.dart';
 
 class TeacherPermitsPage extends StatefulWidget {
-  const TeacherPermitsPage({super.key});
+  final String? teacherDocId;
+  final String? schoolId;
+  final bool hideBackButton;
+
+  const TeacherPermitsPage({
+    super.key,
+    this.teacherDocId,
+    this.schoolId,
+    this.hideBackButton = false,
+  });
 
   @override
   State<TeacherPermitsPage> createState() => _TeacherPermitsPageState();
@@ -29,9 +38,14 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_isArgumentsLoaded) {
-      final args = Get.arguments as Map<String, dynamic>? ?? {};
-      _teacherDocId = args['teacherDocId']?.toString() ?? '';
-      _schoolId = args['schoolId']?.toString() ?? '';
+      if (widget.teacherDocId != null && widget.schoolId != null) {
+        _teacherDocId = widget.teacherDocId!;
+        _schoolId = widget.schoolId!;
+      } else {
+        final args = Get.arguments as Map<String, dynamic>? ?? {};
+        _teacherDocId = args['teacherDocId']?.toString() ?? '';
+        _schoolId = args['schoolId']?.toString() ?? '';
+      }
       _isArgumentsLoaded = true;
     }
   }
@@ -462,16 +476,17 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
             child: SafeArea(
               child: Column(
                 children: [
-                  // App Bar
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
-                        ),
-                        const SizedBox(width: 4),
+                        if (!widget.hideBackButton) ...[
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

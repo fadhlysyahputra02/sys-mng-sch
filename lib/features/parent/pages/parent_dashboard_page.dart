@@ -9,6 +9,7 @@ import '../../authentication/widgets/auth_background.dart';
 import '../../chat/widgets/chat_unread_badge.dart';
 import '../../schools/services/school_service.dart';
 import '../../students/pages/student_tasks_page.dart';
+import '../../exams/pages/student_exams_page.dart';
 
 class ParentDashboardPage extends StatefulWidget {
   const ParentDashboardPage({super.key});
@@ -550,6 +551,24 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
             ),
       },
       {
+        'title': 'Ujian Online Anak',
+        'icon': Icons.quiz_rounded,
+        'color': const Color(0xFF8B5CF6),
+        'onTap': () {
+          if (classId == null || classId.isEmpty) {
+            Get.snackbar(
+              'Informasi',
+              'Anak Anda belum terdaftar di kelas manapun.',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.amber,
+              colorText: Colors.black,
+            );
+          } else {
+            Get.to(() => StudentExamsPage(classId: classId));
+          }
+        },
+      },
+      {
         'title': 'Chat Guru',
         'icon': Icons.chat_bubble_outline_rounded,
         'color': const Color(0xFFF97316),
@@ -699,7 +718,9 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
 
                                         if (status != 'active') return false;
                                         if (taskTahunAjaran != tahunAjaran ||
-                                            taskSemester != semester) return false;
+                                            taskSemester != semester) {
+                                          return false;
+                                        }
 
                                         return !submittedTaskIds.contains(taskId);
                                       }).length;

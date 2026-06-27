@@ -11,11 +11,13 @@ import 'teacher_rapor_page.dart';
 class TeacherReportsPage extends StatefulWidget {
   final String schoolId;
   final String teacherId;
+  final bool hideBackButton;
 
   const TeacherReportsPage({
     super.key,
     required this.schoolId,
     required this.teacherId,
+    this.hideBackButton = false,
   });
 
   @override
@@ -201,18 +203,21 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                     backgroundColor: Colors.transparent,
                     elevation: 0,
                     pinned: true,
+                    automaticallyImplyLeading: !widget.hideBackButton,
                     iconTheme: IconThemeData(color: iconColor),
-                    leading: Container(
-                      margin: const EdgeInsets.only(left: 16),
-                      decoration: BoxDecoration(
-                        color: iconBgColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
+                    leading: widget.hideBackButton
+                        ? null
+                        : Container(
+                            margin: const EdgeInsets.only(left: 16),
+                            decoration: BoxDecoration(
+                              color: iconBgColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ),
                     title: Text(
                       'Laporan & Rapor',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
@@ -286,18 +291,21 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                     backgroundColor: Colors.transparent,
                     elevation: 0,
                     pinned: true,
+                    automaticallyImplyLeading: !widget.hideBackButton,
                     iconTheme: IconThemeData(color: iconColor),
-                    leading: Container(
-                      margin: const EdgeInsets.only(left: 16),
-                      decoration: BoxDecoration(
-                        color: iconBgColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
+                    leading: widget.hideBackButton
+                        ? null
+                        : Container(
+                            margin: const EdgeInsets.only(left: 16),
+                            decoration: BoxDecoration(
+                              color: iconBgColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ),
                     title: Text(
                       'Laporan & Rapor',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),

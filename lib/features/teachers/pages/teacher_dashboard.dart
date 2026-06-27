@@ -22,6 +22,8 @@ import 'teacher_grades_page.dart';
 import 'teacher_reports_page.dart';
 import 'teacher_daily_attendance_page.dart';
 import 'teacher_tasks_page.dart';
+import 'teacher_permits_page.dart';
+import '../../exams/pages/teacher_exams_page.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -46,6 +48,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   String? _tahunAjaran;
   String? _activeSemester;
   String? _schoolLogoBase64;
+  int _selectedMenuIndex = 0;
 
   @override
   void initState() {
@@ -199,7 +202,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       Future.microtask(() => Get.offAllNamed(AppRoutes.login));
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final user = SessionService.currentUser!;
 
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
@@ -280,291 +282,304 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           );
         }
 
-        final teacherId = _teacherDocId!;
-        final teacherNama = _teacherData?['nama'] ?? user.nama;
-        final teacherNip = _teacherData?['nip'] ?? '-';
-        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final iconBgColor = isDark
-            ? Colors.white.withValues(alpha: 0.1)
-            : Colors.black.withValues(alpha: 0.05);
-        final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 850) {
+              return _buildMobileLayout(isDark);
+            } else {
+              return _buildDesktopLayout(isDark);
+            }
+          },
+        );
+      },
+    );
+  }
 
-        return Scaffold(
-          body: AuthBackground(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1000),
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _scheduleService.getSchedulesByTeacher(
+  Widget _buildMobileLayout(bool isDark) {
+    final user = SessionService.currentUser!;
+    final teacherId = _teacherDocId!;
+    final teacherNama = _teacherData?['nama'] ?? user.nama;
+    final teacherNip = _teacherData?['nip'] ?? '-';
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final iconBgColor = isDark
+        ? Colors.white.withValues(alpha: 0.1)
+        : Colors.black.withValues(alpha: 0.05);
+    final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    return Scaffold(
+      body: AuthBackground(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _scheduleService.getSchedulesByTeacher(
+                user.schoolId,
+                teacherId,
+              ),
+              builder: (context, scheduleSnapshot) {
+                final schedules =
+                    scheduleSnapshot.data?.docs
+                        .map((e) => e.data())
+                        .toList() ??
+                    [];
+
+                final Set<String> teacherClassIds = schedules
+                    .map((e) => (e['classId'] ?? '') as String)
+                    .where((id) => id.isNotEmpty)
+                    .toSet();
+
+                final currentDay = _getCurrentDay();
+                final todaySchedules = schedules
+                    .where((s) => s['hari'] == currentDay)
+                    .toList();
+                todaySchedules.sort((a, b) {
+                  return _timeToMinutes(
+                    a['jamMulai'] ?? '',
+                  ).compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
+                });
+
+                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _teacherService.getClassesByTeacher(
                     user.schoolId,
                     teacherId,
                   ),
-                  builder: (context, scheduleSnapshot) {
-                    final schedules =
-                        scheduleSnapshot.data?.docs
-                            .map((e) => e.data())
-                            .toList() ??
-                        [];
+                  builder: (context, classSnapshot) {
+                    final waliKelasClasses = classSnapshot.data?.docs ?? [];
 
-                    final Set<String> teacherClassIds = schedules
-                        .map((e) => (e['classId'] ?? '') as String)
-                        .where((id) => id.isNotEmpty)
-                        .toSet();
-
-                    final currentDay = _getCurrentDay();
-                    final todaySchedules = schedules
-                        .where((s) => s['hari'] == currentDay)
-                        .toList();
-                    todaySchedules.sort((a, b) {
-                      return _timeToMinutes(
-                        a['jamMulai'] ?? '',
-                      ).compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
-                    });
-
-                    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _teacherService.getClassesByTeacher(
+                    return StreamBuilder<
+                      QuerySnapshot<Map<String, dynamic>>
+                    >(
+                      stream: _teacherSubjectService.getSubjectsByTeacher(
                         user.schoolId,
                         teacherId,
                       ),
-                      builder: (context, classSnapshot) {
-                        final waliKelasClasses = classSnapshot.data?.docs ?? [];
+                      builder: (context, subjectSnapshot) {
+                        final teacherSubjects =
+                            subjectSnapshot.data?.docs
+                                .map((e) => e.data())
+                                .toList() ??
+                            [];
 
-                        return StreamBuilder<
-                          QuerySnapshot<Map<String, dynamic>>
-                        >(
-                          stream: _teacherSubjectService.getSubjectsByTeacher(
-                            user.schoolId,
-                            teacherId,
-                          ),
-                          builder: (context, subjectSnapshot) {
-                            final teacherSubjects =
-                                subjectSnapshot.data?.docs
-                                    .map((e) => e.data())
-                                    .toList() ??
-                                [];
-
-                            return RefreshIndicator(
-                              onRefresh: _resolveTeacherDocId,
-                              child: CustomScrollView(
-                                physics: const AlwaysScrollableScrollPhysics(
-                                  parent: BouncingScrollPhysics(),
-                                ),
-                                slivers: [
-                                  SliverAppBar(
-                                    backgroundColor: Colors.transparent,
-                                    elevation: 0,
-                                    pinned: true,
-                                    toolbarHeight: 56,
-                                    title: Row(
-                                      children: [
-                                        if (_schoolLogoBase64 != null &&
-                                            _schoolLogoBase64!.isNotEmpty) ...[
-                                          Container(
-                                            width: 32,
-                                            height: 32,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                color: const Color(
-                                                  0xFF8B5CF6,
-                                                ).withValues(alpha: 0.4),
-                                                width: 1.5,
-                                              ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: const Color(
-                                                    0xFF8B5CF6,
-                                                  ).withValues(alpha: 0.15),
-                                                  blurRadius: 8,
+                        return RefreshIndicator(
+                          onRefresh: _resolveTeacherDocId,
+                          child: CustomScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
+                            ),
+                            slivers: [
+                              SliverAppBar(
+                                backgroundColor: Colors.transparent,
+                                elevation: 0,
+                                pinned: true,
+                                toolbarHeight: 56,
+                                title: Row(
+                                  children: [
+                                    if (_schoolLogoBase64 != null &&
+                                        _schoolLogoBase64!.isNotEmpty) ...[
+                                      Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: const Color(
+                                              0xFF8B5CF6,
+                                            ).withValues(alpha: 0.4),
+                                            width: 1.5,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(
+                                                0xFF8B5CF6,
+                                              ).withValues(alpha: 0.15),
+                                              blurRadius: 8,
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipOval(
+                                          child: Image.memory(
+                                            base64Decode(
+                                              _schoolLogoBase64!,
+                                            ),
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) =>
+                                                Icon(
+                                                  Icons.school_rounded,
+                                                  size: 18,
+                                                  color: titleColor,
                                                 ),
-                                              ],
-                                            ),
-                                            child: ClipOval(
-                                              child: Image.memory(
-                                                base64Decode(
-                                                  _schoolLogoBase64!,
-                                                ),
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) =>
-                                                    Icon(
-                                                      Icons.school_rounded,
-                                                      size: 18,
-                                                      color: titleColor,
-                                                    ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                        ],
-                                        Expanded(
-                                          child: Text(
-                                            _getGreeting(),
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: titleColor,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    actions: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: iconBgColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: IconButton(
-                                          icon: Icon(
-                                            Icons.notifications_rounded,
-                                            color: iconColor,
-                                            size: 20,
-                                          ),
-                                          tooltip: 'Notifikasi',
-                                          onPressed: () => Get.toNamed(
-                                            AppRoutes.notifications,
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: iconBgColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: IconButton(
-                                          icon: Icon(
-                                            Icons.settings_rounded,
-                                            color: iconColor,
-                                            size: 20,
-                                          ),
-                                          tooltip: 'Pengaturan',
-                                          onPressed: () => Get.to(
-                                            () => const TeacherSettingsPage(),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        margin: const EdgeInsets.only(
-                                          right: 16,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: iconBgColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: IconButton(
-                                          icon: Icon(
-                                            Icons.logout_rounded,
-                                            color: iconColor,
-                                            size: 20,
-                                          ),
-                                          tooltip: 'Keluar',
-                                          onPressed: () =>
-                                              _confirmLogout(context),
-                                        ),
-                                      ),
+                                      const SizedBox(width: 10),
                                     ],
+                                    Expanded(
+                                      child: Text(
+                                        _getGreeting(),
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: titleColor,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: iconBgColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: IconButton(
+                                      icon: Icon(
+                                        Icons.notifications_rounded,
+                                        color: iconColor,
+                                        size: 20,
+                                      ),
+                                      tooltip: 'Notifikasi',
+                                      onPressed: () => Get.toNamed(
+                                        AppRoutes.notifications,
+                                      ),
+                                    ),
                                   ),
-
-                                  SliverToBoxAdapter(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 8,
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: iconBgColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: IconButton(
+                                      icon: Icon(
+                                        Icons.settings_rounded,
+                                        color: iconColor,
+                                        size: 20,
                                       ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          _buildProfileHeader(
-                                            teacherNama,
-                                            user.email,
-                                            teacherNip,
-                                            waliKelasClasses,
-                                            isDark,
-                                          ),
-                                          const SizedBox(height: 24),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: _buildStatCard(
-                                                  title: 'Kelas Mengajar',
-                                                  value: teacherClassIds.length
-                                                      .toString(),
-                                                  icon: Icons.class_rounded,
-                                                  color: const Color(
-                                                    0xFF6366F1,
-                                                  ),
-                                                  isDark: isDark,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: _buildStatCard(
-                                                  title: 'Mata Pelajaran',
-                                                  value: teacherSubjects.length
-                                                      .toString(),
-                                                  icon: Icons.menu_book_rounded,
-                                                  color: const Color(
-                                                    0xFF10B981,
-                                                  ),
-                                                  isDark: isDark,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 28),
-                                          _buildSectionTitle(
-                                            'Mata Pelajaran Saya',
-                                            Icons.menu_book_rounded,
-                                            isDark,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          _buildSubjectsList(
-                                            teacherSubjects,
-                                            isDark,
-                                          ),
-                                          const SizedBox(height: 28),
-                                          _buildSectionTitle(
-                                            'Jadwal Hari Ini ($currentDay)',
-                                            Icons.calendar_today_rounded,
-                                            isDark,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          _buildTodaySchedule(
-                                            todaySchedules,
-                                            isDark,
-                                          ),
-                                          const SizedBox(height: 28),
-                                          _buildSectionTitle(
-                                            'Menu Utama',
-                                            Icons.dashboard_rounded,
-                                            isDark,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          _buildMenuGrid(isDark),
-                                          const SizedBox(height: 40),
-                                        ],
+                                      tooltip: 'Pengaturan',
+                                      onPressed: () => Get.to(
+                                        () => const TeacherSettingsPage(),
                                       ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    margin: const EdgeInsets.only(
+                                      right: 16,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: iconBgColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: IconButton(
+                                      icon: Icon(
+                                        Icons.logout_rounded,
+                                        color: iconColor,
+                                        size: 20,
+                                      ),
+                                      tooltip: 'Keluar',
+                                      onPressed: () =>
+                                          _confirmLogout(context),
                                     ),
                                   ),
                                 ],
                               ),
-                            );
-                          },
+
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 8,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      _buildProfileHeader(
+                                        teacherNama,
+                                        user.email,
+                                        teacherNip,
+                                        waliKelasClasses,
+                                        isDark,
+                                      ),
+                                      const SizedBox(height: 24),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildStatCard(
+                                              title: 'Kelas Mengajar',
+                                              value: teacherClassIds.length
+                                                  .toString(),
+                                              icon: Icons.class_rounded,
+                                              color: const Color(
+                                                0xFF6366F1,
+                                              ),
+                                              isDark: isDark,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: _buildStatCard(
+                                              title: 'Mata Pelajaran',
+                                              value: teacherSubjects.length
+                                                  .toString(),
+                                              icon: Icons.menu_book_rounded,
+                                              color: const Color(
+                                                0xFF10B981,
+                                              ),
+                                              isDark: isDark,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 28),
+                                      _buildSectionTitle(
+                                        'Mata Pelajaran Saya',
+                                        Icons.menu_book_rounded,
+                                        isDark,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _buildSubjectsList(
+                                        teacherSubjects,
+                                        isDark,
+                                      ),
+                                      const SizedBox(height: 28),
+                                      _buildSectionTitle(
+                                        'Jadwal Hari Ini ($currentDay)',
+                                        Icons.calendar_today_rounded,
+                                        isDark,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _buildTodaySchedule(
+                                        todaySchedules,
+                                        isDark,
+                                      ),
+                                      const SizedBox(height: 28),
+                                      _buildSectionTitle(
+                                        'Menu Utama',
+                                        Icons.dashboard_rounded,
+                                        isDark,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _buildMenuGrid(isDark),
+                                      const SizedBox(height: 40),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       },
                     );
                   },
-                ),
-              ),
+                );
+              },
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -1312,6 +1327,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'color': const Color(0xFF3B82F6),
       },
       {
+        'title': 'Ujian Online',
+        'icon': Icons.quiz_rounded,
+        'color': const Color(0xFF8B5CF6),
+      },
+      {
         'title': 'Chat',
         'icon': Icons.chat_rounded,
         'color': const Color(0xFF8B5CF6),
@@ -1448,6 +1468,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   Get.to(() => TeacherGradesPage(teacherId: _teacherDocId!));
                 } else if (menu['title'] == 'Manajemen Tugas') {
                   Get.to(() => TeacherTasksPage(teacherId: _teacherDocId!));
+                } else if (menu['title'] == 'Ujian Online') {
+                  Get.to(() => TeacherExamsPage(teacherId: _teacherDocId!));
                 } else if (menu['title'] == 'Laporan & Rapor') {
                   Get.to(
                     () => TeacherReportsPage(
@@ -1657,6 +1679,542 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           letterSpacing: 0.5,
         ),
       ),
+    );
+  }
+
+  Widget _buildDesktopLayout(bool isDark) {
+    final panelBg = isDark ? const Color(0xFF0B081B) : const Color(0xFFF8FAFC);
+
+    return Scaffold(
+      body: Row(
+        children: [
+          // Sidebar
+          _buildTeacherSidebar(isDark),
+          // Main Panel Content
+          Expanded(
+            child: Container(
+              color: panelBg,
+              child: _buildDesktopContent(isDark),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeacherSidebar(bool isDark) {
+    final sidebarBg = isDark ? const Color(0xFF110E24) : Colors.white;
+    final borderRightColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final miniLogoBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06);
+    final schoolNameColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+
+    return Container(
+      width: 260,
+      decoration: BoxDecoration(
+        color: sidebarBg,
+        border: Border(
+          right: BorderSide(
+            color: borderRightColor,
+            width: 1,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Sidebar Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Row(
+              children: [
+                // Mini Logo
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: _schoolLogoBase64 != null
+                        ? null
+                        : const LinearGradient(
+                            colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: miniLogoBorder,
+                      width: 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: _schoolLogoBase64 != null
+                        ? Image.memory(
+                            base64Decode(_schoolLogoBase64!),
+                            fit: BoxFit.cover,
+                          )
+                        : const Icon(
+                            Icons.school_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _isLoadingSchool
+                          ? SizedBox(
+                              height: 12,
+                              width: 80,
+                              child: LinearProgressIndicator(
+                                backgroundColor: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                              ),
+                            )
+                          : Text(
+                              _schoolName ?? 'Sekolah Baru',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: schoolNameColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'GURU',
+                          style: TextStyle(
+                            color: Color(0xFF8B5CF6),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 8,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            color: dividerColor,
+            height: 1,
+          ),
+          // Sidebar Navigation Items
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              children: [
+                _buildSidebarItem('Dashboard', Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Jadwal Mengajar', Icons.calendar_month_rounded, 1, const Color(0xFFF59E0B), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Absensi Murid', Icons.fact_check_rounded, 2, const Color(0xFF10B981), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Absensi Harian', Icons.co_present_rounded, 3, const Color(0xFF6366F1), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Input Nilai', Icons.grade_rounded, 4, const Color(0xFF8B5CF6), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Manajemen Tugas', Icons.assignment_rounded, 5, const Color(0xFF3B82F6), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Ujian Online', Icons.quiz_rounded, 6, const Color(0xFF8B5CF6), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Chat', Icons.chat_rounded, 7, const Color(0xFF8B5CF6), isDark, isChat: true),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Laporan & Rapor', Icons.bar_chart_rounded, 8, const Color(0xFFEC4899), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Surat Izin Siswa', Icons.mark_email_read_rounded, 9, const Color(0xFF8B5CF6), isDark, isPermit: true),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Pengaturan Profil', Icons.settings_rounded, 10, const Color(0xFF64748B), isDark),
+              ],
+            ),
+          ),
+          Divider(
+            color: dividerColor,
+            height: 1,
+          ),
+          // Logout Item at the bottom
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _confirmLogout(context),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.logout_rounded,
+                        color: Colors.red.shade400,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Keluar',
+                        style: TextStyle(
+                          color: Colors.red.shade400,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarItem(String title, IconData icon, int index, Color color, bool isDark, {bool isChat = false, bool isPermit = false}) {
+    final bool isSelected = _selectedMenuIndex == index;
+    final itemBg = isSelected ? color.withValues(alpha: isDark ? 0.15 : 0.08) : Colors.transparent;
+    final itemBorder = isSelected ? color.withValues(alpha: isDark ? 0.3 : 0.2) : Colors.transparent;
+    final iconColor = isSelected ? color : (isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5));
+    final textColor = isSelected ? (isDark ? Colors.white : const Color(0xFF1E1B4B)) : (isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.7));
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedMenuIndex = index;
+          });
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: itemBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: itemBorder,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    icon,
+                    color: iconColor,
+                    size: 20,
+                  ),
+                  if (isChat && _teacherDocId != null)
+                    Positioned(
+                      top: -4,
+                      right: -4,
+                      child: ChatUnreadBadge(
+                        schoolId: SessionService.currentUser!.schoolId,
+                        userId: _teacherDocId!,
+                        role: 'teacher',
+                        top: 0,
+                        right: 0,
+                        child: const SizedBox(width: 8, height: 8),
+                      ),
+                    ),
+                  if (isPermit && _teacherDocId != null)
+                    Positioned(
+                      top: -4,
+                      right: -4,
+                      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: FirebaseFirestore.instance
+                            .collection('schools')
+                            .doc(SessionService.currentUser!.schoolId)
+                            .collection('permits')
+                            .where('teacherId', isEqualTo: _teacherDocId)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          final docs = snapshot.data?.docs ?? [];
+                          final pendingCount = docs.where((d) => d.data()['status'] == 'Pending').length;
+                          if (pendingCount > 0) {
+                            return Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.redAccent,
+                                shape: BoxShape.circle,
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              if (isPermit && _teacherDocId != null)
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('schools')
+                      .doc(SessionService.currentUser!.schoolId)
+                      .collection('permits')
+                      .where('teacherId', isEqualTo: _teacherDocId)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    final docs = snapshot.data?.docs ?? [];
+                    final pendingCount = docs.where((d) => d.data()['status'] == 'Pending').length;
+                    if (pendingCount > 0) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$pendingCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopContent(bool isDark) {
+    switch (_selectedMenuIndex) {
+      case 0:
+        return _buildDesktopDashboardHome(isDark);
+      case 1:
+        return TeacherSchedulePage(teacherId: _teacherDocId!, hideBackButton: true);
+      case 2:
+        return TeacherAttendanceSchedulePage(teacherId: _teacherDocId!, hideBackButton: true);
+      case 3:
+        return TeacherDailyAttendancePage(
+          teacherId: _teacherDocId!,
+          teacherName: _teacherData?['nama'] ?? SessionService.currentUser!.nama,
+          nip: _teacherData?['nip'] ?? '',
+          hideBackButton: true,
+        );
+      case 4:
+        return TeacherGradesPage(teacherId: _teacherDocId!, hideBackButton: true);
+      case 5:
+        return TeacherTasksPage(teacherId: _teacherDocId!, hideBackButton: true);
+      case 6:
+        return TeacherExamsPage(teacherId: _teacherDocId!, hideBackButton: true);
+      case 7:
+        return TeacherChatSelectorPage(
+          schoolId: SessionService.currentUser!.schoolId,
+          teacherDocId: _teacherDocId!,
+          teacherName: _teacherData?['nama'] ?? SessionService.currentUser!.nama,
+        );
+      case 8:
+        return TeacherReportsPage(
+          schoolId: SessionService.currentUser!.schoolId,
+          teacherId: _teacherDocId!,
+          hideBackButton: true,
+        );
+      case 9:
+        return TeacherPermitsPage(
+          teacherDocId: _teacherDocId!,
+          schoolId: SessionService.currentUser!.schoolId,
+          hideBackButton: true,
+        );
+      case 10:
+        return TeacherSettingsPage(hideBackButton: true);
+      default:
+        return _buildDesktopDashboardHome(isDark);
+    }
+  }
+
+  Widget _buildDesktopDashboardHome(bool isDark) {
+    final user = SessionService.currentUser!;
+    final teacherId = _teacherDocId!;
+    final teacherNama = _teacherData?['nama'] ?? user.nama;
+    final teacherNip = _teacherData?['nip'] ?? '-';
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _scheduleService.getSchedulesByTeacher(
+        user.schoolId,
+        teacherId,
+      ),
+      builder: (context, scheduleSnapshot) {
+        final schedules =
+            scheduleSnapshot.data?.docs.map((e) => e.data()).toList() ?? [];
+
+        final Set<String> teacherClassIds = schedules
+            .map((e) => (e['classId'] ?? '') as String)
+            .where((id) => id.isNotEmpty)
+            .toSet();
+
+        final currentDay = _getCurrentDay();
+        final todaySchedules = schedules
+            .where((s) => s['hari'] == currentDay)
+            .toList();
+        todaySchedules.sort((a, b) {
+          return _timeToMinutes(
+            a['jamMulai'] ?? '',
+          ).compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
+        });
+
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _teacherService.getClassesByTeacher(
+            user.schoolId,
+            teacherId,
+          ),
+          builder: (context, classSnapshot) {
+            final waliKelasClasses = classSnapshot.data?.docs ?? [];
+
+            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _teacherSubjectService.getSubjectsByTeacher(
+                user.schoolId,
+                teacherId,
+              ),
+              builder: (context, subjectSnapshot) {
+                final teacherSubjects =
+                    subjectSnapshot.data?.docs.map((e) => e.data()).toList() ?? [];
+
+                return Scaffold(
+                  backgroundColor: Colors.transparent,
+                  appBar: AppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    automaticallyImplyLeading: false,
+                    title: Text(
+                      _getGreeting(),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: titleColor,
+                      ),
+                    ),
+                  ),
+                  body: RefreshIndicator(
+                    onRefresh: _resolveTeacherDocId,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildProfileHeader(
+                            teacherNama,
+                            user.email,
+                            teacherNip,
+                            waliKelasClasses,
+                            isDark,
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatCard(
+                                  title: 'Kelas Mengajar',
+                                  value: teacherClassIds.length.toString(),
+                                  icon: Icons.class_rounded,
+                                  color: const Color(0xFF6366F1),
+                                  isDark: isDark,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _buildStatCard(
+                                  title: 'Mata Pelajaran',
+                                  value: teacherSubjects.length.toString(),
+                                  icon: Icons.menu_book_rounded,
+                                  color: const Color(0xFF10B981),
+                                  isDark: isDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 32),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionTitle(
+                                      'Jadwal Hari Ini ($currentDay)',
+                                      Icons.calendar_today_rounded,
+                                      isDark,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildTodaySchedule(
+                                      todaySchedules,
+                                      isDark,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 32),
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionTitle(
+                                      'Mata Pelajaran Saya',
+                                      Icons.menu_book_rounded,
+                                      isDark,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildSubjectsList(
+                                      teacherSubjects,
+                                      isDark,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 40),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

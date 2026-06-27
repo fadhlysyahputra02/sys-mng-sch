@@ -22,6 +22,7 @@ import 'student_attendance_page.dart';
 import 'student_attendance_history_page.dart';
 import 'student_grades_page.dart';
 import 'student_tasks_page.dart';
+import '../../exams/pages/student_exams_page.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -1356,6 +1357,11 @@ class _StudentDashboardState extends State<StudentDashboard>
         'color': const Color(0xFF6366F1),
       },
       {
+        'title': 'Ujian Online',
+        'icon': Icons.quiz_rounded,
+        'color': const Color(0xFF8B5CF6),
+      },
+      {
         'title': parentLinked ? 'Sudah Terhubung' : 'Sambungkan ke Orang Tua',
         'icon': parentLinked
             ? Icons.verified_rounded
@@ -1487,8 +1493,10 @@ class _StudentDashboardState extends State<StudentDashboard>
                                         final taskSemester = taskData['semester']?.toString();
 
                                         if (status != 'active') return false;
-                                        if (taskTahunAjaran != _tahunAjaran ||
-                                            taskSemester != _activeSemester) return false;
+                                         if (taskTahunAjaran != _tahunAjaran ||
+                                             taskSemester != _activeSemester) {
+                                           return false;
+                                         }
 
                                         return !submittedTaskIds.contains(taskId);
                                       }).length;
@@ -1715,6 +1723,25 @@ class _StudentDashboardState extends State<StudentDashboard>
               semester: _activeSemester ?? '-',
             ),
           );
+        }
+        break;
+      case 'Ujian Online':
+        if (_studentDocId == null ||
+            _studentData == null ||
+            _studentData?['classId'] == null) {
+          Get.snackbar(
+            'Informasi',
+            'Anda belum terhubung ke kelas manapun. Hubungi admin sekolah.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.amber,
+            colorText: Colors.black,
+            margin: const EdgeInsets.all(16),
+            borderRadius: 12,
+            icon: const Icon(Icons.info_outline, color: Colors.black),
+          );
+        } else {
+          final classId = _studentData!['classId'] as String;
+          Get.to(() => StudentExamsPage(classId: classId));
         }
         break;
       case 'Nilai':

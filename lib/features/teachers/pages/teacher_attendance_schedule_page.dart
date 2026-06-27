@@ -13,7 +13,12 @@ import '../../schools/services/school_service.dart';
 
 class TeacherAttendanceSchedulePage extends StatefulWidget {
   final String teacherId;
-  const TeacherAttendanceSchedulePage({super.key, required this.teacherId});
+  final bool hideBackButton;
+  const TeacherAttendanceSchedulePage({
+    super.key,
+    required this.teacherId,
+    this.hideBackButton = false,
+  });
 
   @override
   State<TeacherAttendanceSchedulePage> createState() => _TeacherAttendanceSchedulePageState();
@@ -680,18 +685,21 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                   appBar: AppBar(
                     backgroundColor: Colors.transparent,
                     elevation: 0,
+                    automaticallyImplyLeading: !widget.hideBackButton,
                     iconTheme: IconThemeData(color: backButtonIconColor),
-                    leading: Container(
-                      margin: const EdgeInsets.only(left: 16),
-                      decoration: BoxDecoration(
-                        color: backButtonBgColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonIconColor, size: 18),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
+                    leading: widget.hideBackButton
+                        ? null
+                        : Container(
+                            margin: const EdgeInsets.only(left: 16),
+                            decoration: BoxDecoration(
+                              color: backButtonBgColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonIconColor, size: 18),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ),
                     title: Text(
                       'Absensi Murid',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),

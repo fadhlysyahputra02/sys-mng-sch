@@ -6,7 +6,12 @@ import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 
 class TeacherSchedulePage extends StatefulWidget {
   final String teacherId;
-  const TeacherSchedulePage({super.key, required this.teacherId});
+  final bool hideBackButton;
+  const TeacherSchedulePage({
+    super.key,
+    required this.teacherId,
+    this.hideBackButton = false,
+  });
 
   @override
   State<TeacherSchedulePage> createState() => _TeacherSchedulePageState();
@@ -59,22 +64,25 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
                 appBar: AppBar(
                   backgroundColor: Colors.transparent,
                   elevation: 0,
+                  automaticallyImplyLeading: !widget.hideBackButton,
                   iconTheme: IconThemeData(color: backButtonIconColor),
-                  leading: Container(
-                    margin: const EdgeInsets.only(left: 16),
-                    decoration: BoxDecoration(
-                      color: backButtonBgColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: backButtonIconColor,
-                        size: 18,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
+                  leading: widget.hideBackButton
+                      ? null
+                      : Container(
+                          margin: const EdgeInsets.only(left: 16),
+                          decoration: BoxDecoration(
+                            color: backButtonBgColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              color: backButtonIconColor,
+                              size: 18,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
                   title: Text(
                     'Jadwal Mengajar',
                     style: TextStyle(

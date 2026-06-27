@@ -12,7 +12,12 @@ import 'teacher_task_detail_page.dart';
 
 class TeacherTasksPage extends StatefulWidget {
   final String teacherId;
-  const TeacherTasksPage({super.key, required this.teacherId});
+  final bool hideBackButton;
+  const TeacherTasksPage({
+    super.key,
+    required this.teacherId,
+    this.hideBackButton = false,
+  });
 
   @override
   State<TeacherTasksPage> createState() => _TeacherTasksPageState();
@@ -212,18 +217,21 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                   backgroundColor: Colors.transparent,
                   elevation: 0,
                   pinned: true,
+                  automaticallyImplyLeading: !widget.hideBackButton,
                   iconTheme: IconThemeData(color: iconColor),
-                  leading: Container(
-                    margin: const EdgeInsets.only(left: 16),
-                    decoration: BoxDecoration(
-                      color: iconBgColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
+                  leading: widget.hideBackButton
+                      ? null
+                      : Container(
+                          margin: const EdgeInsets.only(left: 16),
+                          decoration: BoxDecoration(
+                            color: iconBgColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 18),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
                   title: Text(
                     'Manajemen Tugas',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),

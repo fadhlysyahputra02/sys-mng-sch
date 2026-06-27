@@ -6,7 +6,8 @@ import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 
 class TeacherSettingsPage extends StatefulWidget {
-  const TeacherSettingsPage({super.key});
+  final bool hideBackButton;
+  const TeacherSettingsPage({super.key, this.hideBackButton = false});
 
   @override
   State<TeacherSettingsPage> createState() => _TeacherSettingsPageState();
@@ -163,17 +164,20 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
                   backgroundColor: Colors.transparent,
                   elevation: 0,
                   pinned: true,
-                  leading: Container(
-                    margin: const EdgeInsets.only(left: 16),
-                    decoration: BoxDecoration(
-                      color: backButtonBgColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonIconColor, size: 18),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
+                  automaticallyImplyLeading: !widget.hideBackButton,
+                  leading: widget.hideBackButton
+                      ? null
+                      : Container(
+                          margin: const EdgeInsets.only(left: 16),
+                          decoration: BoxDecoration(
+                            color: backButtonBgColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonIconColor, size: 18),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
                   title: Text(
                     'Pengaturan',
                     style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 20),

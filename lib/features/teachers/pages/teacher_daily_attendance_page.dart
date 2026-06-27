@@ -9,11 +9,13 @@ class TeacherDailyAttendancePage extends StatefulWidget {
   final String teacherId;
   final String teacherName;
   final String nip;
+  final bool hideBackButton;
   const TeacherDailyAttendancePage({
     super.key,
     required this.teacherId,
     required this.teacherName,
     required this.nip,
+    this.hideBackButton = false,
   });
 
   @override
@@ -173,10 +175,13 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor),
-              onPressed: () => Get.back(),
-            ),
+            automaticallyImplyLeading: !widget.hideBackButton,
+            leading: widget.hideBackButton
+                ? null
+                : IconButton(
+                    icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor),
+                    onPressed: () => Get.back(),
+                  ),
             title: Text(
               SessionService.currentUser?.role == 'teacher'
                   ? 'Absensi Harian Anda'
