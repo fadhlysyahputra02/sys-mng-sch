@@ -73,7 +73,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
     super.dispose();
   }
 
-  void _populateExistingData() {
+  Future<void> _populateExistingData() async {
     final data = widget.existingGradeData!;
     _selectedClassId = data['classId']?.toString();
     _selectedClassName = data['className']?.toString();
@@ -110,9 +110,50 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
       }
     });
 
-    setState(() {
-      _isLoadingSchedules = false;
-    });
+    // Resolusi backward-compatible: jika key scores berupa Auth UID (bukan
+    // student document ID), cari dokumen siswa yang sesuai dan remap
+    // controller ke document ID yang benar agar cocok dengan class_enrollments.
+    final schoolId = data['schoolId']?.toString() ?? '';
+    if (schoolId.isNotEmpty && _scoreControllers.isNotEmpty) {
+      final keysToCheck = List<String>.from(_scoreControllers.keys);
+      for (final key in keysToCheck) {
+        // Cek apakah key ini valid sebagai student document ID
+        final studentDoc = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('students')
+            .doc(key)
+            .get();
+
+        if (!studentDoc.exists) {
+          // Key bukan document ID — kemungkinan adalah Auth UID
+          final query = await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(schoolId)
+              .collection('students')
+              .where('uid', isEqualTo: key)
+              .limit(1)
+              .get();
+
+          if (query.docs.isNotEmpty) {
+            final actualDocId = query.docs.first.id;
+            if (actualDocId != key) {
+              // Remap controller dari Auth UID ke student document ID
+              final scoreCtrl = _scoreControllers.remove(key);
+              final noteCtrl = _noteControllers.remove(key);
+              if (scoreCtrl != null) _scoreControllers[actualDocId] = scoreCtrl;
+              if (noteCtrl != null) _noteControllers[actualDocId] = noteCtrl;
+            }
+          }
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingSchedules = false;
+      });
+    }
   }
 
   Future<void> _loadTeacherSchedules() async {
@@ -658,9 +699,18 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
                                       final student = students[index];
-                                      final studentId = student.data()?['studentId'] ?? student.id;
-                                      final studentName = student.data()?['nama'] ?? 'Siswa';
-                                      final nis = student.data()?['nis'] ?? '-';
+                                      String studentId = student.data()['studentId'] ?? student.id;
+                                      if (studentId.contains('_') && _tahunAjaran != null && _activeSemester != null) {
+                                        final cleanYear = _tahunAjaran!.replaceAll('/', '_');
+                                        final suffix = '_${cleanYear}_$_activeSemester';
+                                        if (studentId.endsWith(suffix)) {
+                                          studentId = studentId.substring(0, studentId.length - suffix.length);
+                                        }
+                                      }
+                                      final studentName = student.data()['nama'] ?? 'Siswa';
+                                      final nis = student.data()['nis'] ?? '-';
+
+
 
                                       // Inisialisasi controller jika belum ada
                                       if (!_scoreControllers.containsKey(studentId)) {

@@ -1065,8 +1065,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildSelectionCard(
-                    title: 'Rekap Harian Siswa',
-                    description: 'Laporan kehadiran siswa per tanggal',
+                    title: 'Rekap Harian Murid',
+                    description: 'Laporan kehadiran murid per tanggal',
                     icon: Icons.calendar_today_rounded,
                     color: const Color(0xFF8B5CF6),
                     onTap: () {
@@ -1079,8 +1079,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   ),
                   const SizedBox(height: 12),
                   _buildSelectionCard(
-                    title: 'Rekap Bulanan Siswa',
-                    description: 'Statistik kehadiran bulanan siswa per kelas',
+                    title: 'Rekap Bulanan Murid',
+                    description: 'Statistik kehadiran bulanan murid per kelas',
                     icon: Icons.calendar_month_rounded,
                     color: const Color(0xFF10B981),
                     onTap: () {
@@ -1093,13 +1093,27 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   ),
                   const SizedBox(height: 12),
                   _buildSelectionCard(
-                    title: 'Absensi Harian Guru',
+                    title: 'Rekap Harian Guru',
                     description: 'Rekap kehadiran & jam kerja harian guru',
                     icon: Icons.co_present_rounded,
                     color: const Color(0xFF6366F1),
                     onTap: () {
                       Get.back();
-                      Get.to(() => const AdminTeacherAttendancePage());
+                      Get.to(() => const AdminTeacherAttendancePage(isMonthly: false));
+                    },
+                    isDark: isDark,
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSelectionCard(
+                    title: 'Rekap Bulanan Guru',
+                    description: 'Statistik kehadiran bulanan guru',
+                    icon: Icons.calendar_month_rounded,
+                    color: const Color(0xFFF59E0B),
+                    onTap: () {
+                      Get.back();
+                      Get.to(() => const AdminTeacherAttendancePage(isMonthly: true));
                     },
                     isDark: isDark,
                     cardBg: cardBg,
@@ -1216,7 +1230,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     SizedBox(
                       width: 280,
                       child: _buildSelectionCard(
-                        title: 'Rekap Harian',
+                        title: 'Rekap Harian Murid',
                         description: 'Laporan kehadiran per tanggal sekolah',
                         icon: Icons.calendar_today_rounded,
                         color: const Color(0xFF8B5CF6),
@@ -1229,8 +1243,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     SizedBox(
                       width: 280,
                       child: _buildSelectionCard(
-                        title: 'Rekap Bulanan',
-                        description: 'Statistik kehadiran bulanan per kelas siswa',
+                        title: 'Rekap Bulanan Murid',
+                        description: 'Statistik kehadiran bulanan per kelas murid',
                         icon: Icons.calendar_month_rounded,
                         color: const Color(0xFF10B981),
                         onTap: () => Get.to(() => const MonthlyRecapPage()),
@@ -1242,11 +1256,24 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     SizedBox(
                       width: 280,
                       child: _buildSelectionCard(
-                        title: 'Absensi Harian Guru',
+                        title: 'Rekap Harian Guru',
                         description: 'Rekap kehadiran & jam kerja harian guru',
                         icon: Icons.co_present_rounded,
                         color: const Color(0xFF6366F1),
-                        onTap: () => Get.to(() => const AdminTeacherAttendancePage()),
+                        onTap: () => Get.to(() => const AdminTeacherAttendancePage(isMonthly: false)),
+                        isDark: isDark,
+                        cardBg: cardBg,
+                        cardBorder: cardBorder,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 280,
+                      child: _buildSelectionCard(
+                        title: 'Rekap Bulanan Guru',
+                        description: 'Statistik kehadiran bulanan guru',
+                        icon: Icons.calendar_month_rounded,
+                        color: const Color(0xFFF59E0B),
+                        onTap: () => Get.to(() => const AdminTeacherAttendancePage(isMonthly: true)),
                         isDark: isDark,
                         cardBg: cardBg,
                         cardBorder: cardBorder,

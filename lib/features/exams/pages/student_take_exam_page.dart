@@ -8,8 +8,9 @@ import '../services/exam_service.dart';
 
 class StudentTakeExamPage extends StatefulWidget {
   final Exam exam;
+  final String? studentDocId;
 
-  const StudentTakeExamPage({super.key, required this.exam});
+  const StudentTakeExamPage({super.key, required this.exam, this.studentDocId});
 
   @override
   State<StudentTakeExamPage> createState() => _StudentTakeExamPageState();
@@ -76,7 +77,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
       await _examService.submitExam(
         schoolId: user.schoolId,
         exam: widget.exam,
-        studentId: user.uid,
+        studentId: widget.studentDocId ?? user.uid,
         studentName: user.nama,
         answers: _selectedAnswers,
       );
@@ -139,7 +140,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
         await _examService.submitExam(
           schoolId: user.schoolId,
           exam: widget.exam,
-          studentId: user.uid,
+          studentId: widget.studentDocId ?? user.uid,
           studentName: user.nama,
           answers: _selectedAnswers,
         );

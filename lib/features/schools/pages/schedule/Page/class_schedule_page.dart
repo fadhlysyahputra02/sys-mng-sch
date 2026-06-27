@@ -551,7 +551,7 @@ class ClassSchedulePage extends StatelessWidget {
     String? selectedTeacherName = existingSchedule?['teacherName'];
     String jamMulai = existingSchedule?['jamMulai'] ?? '';
     String jamSelesai = existingSchedule?['jamSelesai'] ?? '';
-    const primaryColor = Color(0xFFEC4899);
+
 
     Widget buildTimeInput({
       required String label,
@@ -727,36 +727,94 @@ class ClassSchedulePage extends StatelessWidget {
                               return const LinearProgressIndicator(color: Color(0xFFEC4899));
                             }
                             final docs = snapshot.data!.docs;
-                            return DropdownButtonFormField<String>(
-                              value: selectedSubjectId,
-                              dropdownColor: const Color(0xFF0F0C20),
-                              style: const TextStyle(color: Colors.white, fontSize: 14),
-                              decoration: InputDecoration(
-                                labelText: 'Mata Pelajaran',
-                                labelStyle: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
-                                prefixIcon: const Icon(Icons.menu_book_rounded, color: Color(0xFFEC4899), size: 20),
-                                filled: true,
-                                fillColor: Colors.white.withOpacity(0.03),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: const BorderSide(color: Color(0xFFEC4899), width: 1.5),
+                            return InkWell(
+                              onTap: () async {
+                                List<Map<String, dynamic>> subjectItems = [];
+                                if (selectedTeacherId != null) {
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (context) => const Center(
+                                      child: CircularProgressIndicator(color: Color(0xFFEC4899)),
+                                    ),
+                                  );
+
+                                  try {
+                                    final schoolId = SessionService.currentUser!.schoolId;
+                                    final assignedDocs = await FirebaseFirestore.instance
+                                        .collection('schools')
+                                        .doc(schoolId)
+                                        .collection('teacher_subjects')
+                                        .where('teacherId', isEqualTo: selectedTeacherId)
+                                        .get();
+                                    final assignedSubjectIds = assignedDocs.docs
+                                        .map((doc) => doc.data()['subjectId'] as String)
+                                        .toSet();
+
+                                    subjectItems = docs.map((doc) => {
+                                      'id': doc.id,
+                                      'name': doc.data()['namaMapel']?.toString() ?? '',
+                                    }).where((item) => assignedSubjectIds.contains(item['id'])).toList();
+                                  } catch (e) {
+                                    subjectItems = docs.map((doc) => {
+                                      'id': doc.id,
+                                      'name': doc.data()['namaMapel']?.toString() ?? '',
+                                    }).toList();
+                                  } finally {
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                    }
+                                  }
+                                } else {
+                                  subjectItems = docs.map((doc) => {
+                                    'id': doc.id,
+                                    'name': doc.data()['namaMapel']?.toString() ?? '',
+                                  }).toList();
+                                }
+
+                                if (context.mounted) {
+                                  _showSearchableSelectDialog(
+                                    context: context,
+                                    title: 'Pilih Mata Pelajaran',
+                                    items: subjectItems,
+                                    selectedValue: selectedSubjectId,
+                                    onSelected: (id, name) {
+                                      setState(() {
+                                        if (id.isEmpty) {
+                                          selectedSubjectId = null;
+                                          selectedSubjectName = null;
+                                        } else {
+                                          selectedSubjectId = id;
+                                          selectedSubjectName = name;
+                                        }
+                                      });
+                                    },
+                                  );
+                                }
+                              },
+                              child: IgnorePointer(
+                                child: TextFormField(
+                                  key: ValueKey('subject_${selectedSubjectId ?? 'none'}'),
+                                  initialValue: selectedSubjectName ?? '',
+                                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                                  decoration: InputDecoration(
+                                    labelText: 'Mata Pelajaran',
+                                    labelStyle: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                                    prefixIcon: const Icon(Icons.menu_book_rounded, color: Color(0xFFEC4899), size: 20),
+                                    suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                                    filled: true,
+                                    fillColor: Colors.white.withOpacity(0.03),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: Color(0xFFEC4899), width: 1.5),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              items: docs.map((doc) {
-                                final data = doc.data();
-                                return DropdownMenuItem(
-                                  value: doc.id,
-                                  child: Text(data['namaMapel'] ?? '', style: const TextStyle(color: Colors.white)),
-                                );
-                              }).toList(),
-                              onChanged: (value) => setState(() {
-                                selectedSubjectId = value;
-                                selectedSubjectName = docs.firstWhere((e) => e.id == value).data()['namaMapel'];
-                              }),
                             );
                           },
                         ),
@@ -778,36 +836,94 @@ class ClassSchedulePage extends StatelessWidget {
                               return const LinearProgressIndicator(color: Color(0xFFEC4899));
                             }
                             final docs = snapshot.data!.docs;
-                            return DropdownButtonFormField<String>(
-                              value: selectedTeacherId,
-                              dropdownColor: const Color(0xFF0F0C20),
-                              style: const TextStyle(color: Colors.white, fontSize: 14),
-                              decoration: InputDecoration(
-                                labelText: 'Guru Pengajar',
-                                labelStyle: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
-                                prefixIcon: const Icon(Icons.person_rounded, color: Color(0xFFEC4899), size: 20),
-                                filled: true,
-                                fillColor: Colors.white.withOpacity(0.03),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: const BorderSide(color: Color(0xFFEC4899), width: 1.5),
+                            return InkWell(
+                              onTap: () async {
+                                List<Map<String, dynamic>> teacherItems = [];
+                                if (selectedSubjectId != null) {
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (context) => const Center(
+                                      child: CircularProgressIndicator(color: Color(0xFFEC4899)),
+                                    ),
+                                  );
+
+                                  try {
+                                    final schoolId = SessionService.currentUser!.schoolId;
+                                    final assignedDocs = await FirebaseFirestore.instance
+                                        .collection('schools')
+                                        .doc(schoolId)
+                                        .collection('teacher_subjects')
+                                        .where('subjectId', isEqualTo: selectedSubjectId)
+                                        .get();
+                                    final assignedTeacherIds = assignedDocs.docs
+                                        .map((doc) => doc.data()['teacherId'] as String)
+                                        .toSet();
+
+                                    teacherItems = docs.map((doc) => {
+                                      'id': doc.id,
+                                      'name': doc.data()['nama']?.toString() ?? '',
+                                    }).where((item) => assignedTeacherIds.contains(item['id'])).toList();
+                                  } catch (e) {
+                                    teacherItems = docs.map((doc) => {
+                                      'id': doc.id,
+                                      'name': doc.data()['nama']?.toString() ?? '',
+                                    }).toList();
+                                  } finally {
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                    }
+                                  }
+                                } else {
+                                  teacherItems = docs.map((doc) => {
+                                    'id': doc.id,
+                                    'name': doc.data()['nama']?.toString() ?? '',
+                                  }).toList();
+                                }
+
+                                if (context.mounted) {
+                                  _showSearchableSelectDialog(
+                                    context: context,
+                                    title: 'Pilih Guru Pengajar',
+                                    items: teacherItems,
+                                    selectedValue: selectedTeacherId,
+                                    onSelected: (id, name) {
+                                      setState(() {
+                                        if (id.isEmpty) {
+                                          selectedTeacherId = null;
+                                          selectedTeacherName = null;
+                                        } else {
+                                          selectedTeacherId = id;
+                                          selectedTeacherName = name;
+                                        }
+                                      });
+                                    },
+                                  );
+                                }
+                              },
+                              child: IgnorePointer(
+                                child: TextFormField(
+                                  key: ValueKey('teacher_${selectedTeacherId ?? 'none'}'),
+                                  initialValue: selectedTeacherName ?? '',
+                                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                                  decoration: InputDecoration(
+                                    labelText: 'Guru Pengajar',
+                                    labelStyle: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                                    prefixIcon: const Icon(Icons.person_rounded, color: Color(0xFFEC4899), size: 20),
+                                    suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                                    filled: true,
+                                    fillColor: Colors.white.withOpacity(0.03),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: Color(0xFFEC4899), width: 1.5),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              items: docs.map((doc) {
-                                final teacher = doc.data();
-                                return DropdownMenuItem<String>(
-                                  value: doc.id,
-                                  child: Text(teacher['nama'] ?? '', style: const TextStyle(color: Colors.white)),
-                                );
-                              }).toList(),
-                              onChanged: (value) => setState(() {
-                                selectedTeacherId = value;
-                                selectedTeacherName = docs.firstWhere((e) => e.id == value).data()['nama'];
-                              }),
                             );
                           },
                         ),
@@ -1228,6 +1344,137 @@ class ClassSchedulePage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showSearchableSelectDialog({
+    required BuildContext context,
+    required String title,
+    required List<Map<String, dynamic>> items,
+    required String? selectedValue,
+    required Function(String id, String name) onSelected,
+  }) {
+    String searchQuery = '';
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final filteredItems = items
+                .where((item) => item['name']!
+                    .toString()
+                    .toLowerCase()
+                    .contains(searchQuery.toLowerCase()))
+                .toList();
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF0F0C20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(color: Colors.white.withOpacity(0.08), width: 1.5),
+              ),
+              title: Text(
+                title,
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Cari...',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
+                        prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFFEC4899), size: 20),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.03),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFFEC4899), width: 1.5),
+                        ),
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          searchQuery = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Flexible(
+                      child: filteredItems.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24.0),
+                              child: Text(
+                                'Tidak ditemukan',
+                                style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: filteredItems.length,
+                              itemBuilder: (context, index) {
+                                final item = filteredItems[index];
+                                final id = item['id']?.toString() ?? '';
+                                final name = item['name']?.toString() ?? '';
+                                final isSelected = id == selectedValue;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 4),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? const Color(0xFFEC4899).withOpacity(0.15)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: ListTile(
+                                    title: Text(
+                                      name,
+                                      style: TextStyle(
+                                        color: isSelected ? const Color(0xFFEC4899) : Colors.white,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    trailing: isSelected
+                                        ? const Icon(Icons.check_circle_rounded, color: Color(0xFFEC4899), size: 20)
+                                        : null,
+                                    onTap: () {
+                                      onSelected(id, name);
+                                      Navigator.pop(dialogContext);
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                if (selectedValue != null && selectedValue.isNotEmpty)
+                  TextButton(
+                    onPressed: () {
+                      onSelected('', '');
+                      Navigator.pop(dialogContext);
+                    },
+                    child: const Text('Kosongkan Pilihan', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

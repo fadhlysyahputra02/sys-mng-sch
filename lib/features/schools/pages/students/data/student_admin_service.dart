@@ -142,7 +142,7 @@ class StudentService {
       'className': null,
     });
 
-    // 2. Hapus data enrollment aktif dari class_enrollments
+    // 2. Hapus data enrollment aktif dari class_enrollments HANYA jika tidak ada riwayat absensi atau nilai
     final schoolDoc = await _db.collection('schools').doc(_schoolId).get();
     final schoolData = schoolDoc.data() ?? {};
     final tahunAjaran = schoolData['tahunAjaran'] ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
@@ -150,12 +150,50 @@ class StudentService {
     final cleanYear = tahunAjaran.replaceAll('/', '_');
     final enrollmentId = '${studentId}_${cleanYear}_$semester';
 
-    await _db
+    // Cek data absensi
+    final attendanceQuery = await _db
         .collection('schools')
         .doc(_schoolId)
-        .collection('class_enrollments')
-        .doc(enrollmentId)
-        .delete();
+        .collection('attendance')
+        .where('studentId', isEqualTo: studentId)
+        .where('tahunAjaran', isEqualTo: tahunAjaran)
+        .where('semester', isEqualTo: semester)
+        .limit(1)
+        .get();
+
+    // Cek data nilai
+    final gradesQuery = await _db
+        .collection('schools')
+        .doc(_schoolId)
+        .collection('grades')
+        .where('tahunAjaran', isEqualTo: tahunAjaran)
+        .where('semester', isEqualTo: semester)
+        .get();
+
+    bool hasGrades = false;
+    for (final doc in gradesQuery.docs) {
+      final scores = doc.data()['scores'] as Map?;
+      if (scores != null) {
+        if (scores.containsKey(studentId)) {
+          hasGrades = true;
+          break;
+        }
+        final fallbackKey = '${studentId}_${cleanYear}_$semester';
+        if (scores.containsKey(fallbackKey)) {
+          hasGrades = true;
+          break;
+        }
+      }
+    }
+
+    if (attendanceQuery.docs.isEmpty && !hasGrades) {
+      await _db
+          .collection('schools')
+          .doc(_schoolId)
+          .collection('class_enrollments')
+          .doc(enrollmentId)
+          .delete();
+    }
   }
 
   Future<void> updateStudent({

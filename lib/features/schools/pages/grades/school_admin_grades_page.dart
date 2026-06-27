@@ -29,6 +29,8 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
 
   bool _isLoadingMetaData = true;
   List<Map<String, dynamic>> _classesList = [];
+  // Mapping dari Auth UID → Student Document ID untuk backward-compatibility
+  Map<String, String> _authUidToDocIdMap = {};
 
   List<String> _tahunAjaranOptions = [];
 
@@ -106,6 +108,31 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
     }
   }
 
+  Future<void> _loadAuthUidMap(String classId) async {
+    final user = SessionService.currentUser;
+    if (user == null) return;
+    try {
+      final studentsSnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(user.schoolId)
+          .collection('students')
+          .where('classId', isEqualTo: classId)
+          .get();
+      final Map<String, String> uidMap = {};
+      for (final doc in studentsSnapshot.docs) {
+        final uid = doc.data()['uid']?.toString();
+        if (uid != null && uid.isNotEmpty && uid != doc.id) {
+          uidMap[uid] = doc.id;
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _authUidToDocIdMap = uidMap;
+        });
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -130,8 +157,12 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
         for (final scores in listScores) {
           final cleanYear = _tahunAjaranFilter.replaceAll('/', '_');
           final fallbackKey = '${studentId}_${cleanYear}_$_semesterFilter';
-          final detail = scores[studentId] ?? scores[fallbackKey];
-          debugPrint('DEBUG: _calculateFinalGradesForStudent studentId=$studentId, category=$category, scoresKeys=${scores.keys.toList()}, detail=$detail');
+          // Cari key Auth UID yang mungkin merujuk ke studentId ini
+          final authUidKey = _authUidToDocIdMap.entries
+              .where((e) => e.value == studentId)
+              .map((e) => e.key)
+              .firstOrNull;
+          final detail = scores[studentId] ?? scores[fallbackKey] ?? (authUidKey != null ? scores[authUidKey] : null);
           if (detail != null && detail is Map) {
             final scoreVal = (detail['score'] ?? 0.0) as num;
             sum += scoreVal.toDouble();
@@ -272,7 +303,12 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                           final studentId = student['studentId']?.toString() ?? '';
                           final cleanYear = _tahunAjaranFilter.replaceAll('/', '_');
                           final fallbackKey = '${studentId}_${cleanYear}_$_semesterFilter';
-                          final detail = scores[studentId] ?? scores[fallbackKey];
+                          // Cari key Auth UID yang mungkin merujuk ke studentId ini
+                          final authUidKey = _authUidToDocIdMap.entries
+                              .where((e) => e.value == studentId)
+                              .map((e) => e.key)
+                              .firstOrNull;
+                          final detail = scores[studentId] ?? scores[fallbackKey] ?? (authUidKey != null ? scores[authUidKey] : null);
                           if (detail != null && detail is Map) {
                             final scoreVal = (detail['score'] ?? 0.0) as num;
                             sum += scoreVal.toDouble();
@@ -562,6 +598,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                   _selectedClassId = val;
                                   _selectedClassName = _classesList.firstWhere((c) => c['id'] == val)['namaKelas'];
                                 });
+                                if (val != null) _loadAuthUidMap(val);
                               },
                             ),
                           ],
@@ -635,13 +672,11 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                             }
 
                             final gradeDocs = gradesSnapshot.data?.docs ?? [];
-                            debugPrint('DEBUG: Loaded ${gradeDocs.length} grade documents');
                             final Map<String, Map<String, List<Map<String, dynamic>>>> subjectCategoryGrades = {};
                             final Map<String, String> subjectIdToName = {};
 
                             for (final doc in gradeDocs) {
                               final data = doc.data();
-                              debugPrint('DEBUG: Grade Doc ID=${doc.id}, classId=${data['classId']}, tahun=${data['tahunAjaran']}, sem=${data['semester']}, scoresKeys=${data['scores']?.keys.toList()}');
                               final subjectId = data['subjectId'] as String?;
                               final subjectName = data['subjectName'] as String?;
                               final category = data['category'] as String?;

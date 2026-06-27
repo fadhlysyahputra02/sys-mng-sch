@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/session_service.dart';
@@ -7,6 +8,7 @@ import '../models/exam_model.dart';
 import '../models/exam_submission_model.dart';
 import '../services/exam_service.dart';
 import 'student_take_exam_page.dart';
+import '../../students/data/student_service.dart';
 
 class StudentExamsPage extends StatefulWidget {
   final String classId;
@@ -24,6 +26,16 @@ class StudentExamsPage extends StatefulWidget {
 
 class _StudentExamsPageState extends State<StudentExamsPage> {
   final _examService = ExamService();
+  late final Future<String> _studentDocIdFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = SessionService.currentUser!;
+    _studentDocIdFuture = StudentService()
+        .getStudentDocByUid(user.schoolId, user.uid)
+        .then((doc) => doc?.id ?? user.uid);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,8 +76,16 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                 ),
               ),
-              body: StreamBuilder<List<Exam>>(
-                stream: _examService.getExamsForClass(user.schoolId, widget.classId),
+              body: FutureBuilder<String>(
+                future: _studentDocIdFuture,
+                builder: (context, docIdSnapshot) {
+                  if (docIdSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final studentDocId = docIdSnapshot.data ?? user.uid;
+
+                  return StreamBuilder<List<Exam>>(
+                    stream: _examService.getExamsForClass(user.schoolId, widget.classId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -114,7 +134,7 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                       final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(exam.dueDate);
 
                       return StreamBuilder<ExamSubmission?>(
-                        stream: _examService.getExamSubmissionStream(user.schoolId, exam.id, user.uid),
+                        stream: _examService.getExamSubmissionStream(user.schoolId, exam.id, studentDocId),
                         builder: (context, subSnapshot) {
                           final submission = subSnapshot.data;
                           final bool hasCompleted = submission != null;
@@ -242,8 +262,56 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                     SizedBox(
                                       width: double.infinity,
                                       child: ElevatedButton(
-                                        onPressed: () {
-                                          Get.to(() => StudentTakeExamPage(exam: exam));
+                                        onPressed: () async {
+                                          Get.dialog(
+                                            const Center(
+                                              child: CircularProgressIndicator(
+                                                color: Color(0xFF8B5CF6),
+                                              ),
+                                            ),
+                                            barrierDismissible: false,
+                                          );
+
+                                          try {
+                                            final now = DateTime.now();
+                                            final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+                                            
+                                            final attendanceSnapshot = await FirebaseFirestore.instance
+                                                .collection('schools')
+                                                .doc(user.schoolId)
+                                                .collection('attendance')
+                                                .where('studentId', isEqualTo: studentDocId)
+                                                .where('date', isEqualTo: dateStr)
+                                                .get();
+
+                                            Get.back(); // close loading dialog
+
+                                            if (attendanceSnapshot.docs.isEmpty) {
+                                              Get.snackbar(
+                                                'Absensi Diperlukan',
+                                                'Anda belum melakukan absensi hari ini. Silakan lakukan absensi terlebih dahulu sebelum dapat mengerjakan ujian online.',
+                                                snackPosition: SnackPosition.TOP,
+                                                backgroundColor: Colors.amber,
+                                                colorText: Colors.black,
+                                                margin: const EdgeInsets.all(16),
+                                                borderRadius: 12,
+                                                icon: const Icon(Icons.warning_amber_rounded, color: Colors.black),
+                                              );
+                                            } else {
+                                              Get.to(() => StudentTakeExamPage(
+                                                exam: exam,
+                                                studentDocId: studentDocId,
+                                              ));
+                                            }
+                                          } catch (e) {
+                                            Get.back(); // close loading dialog
+                                            Get.snackbar(
+                                              'Gagal Verifikasi',
+                                              'Gagal memeriksa status absensi: $e',
+                                              backgroundColor: Colors.redAccent,
+                                              colorText: Colors.white,
+                                            );
+                                          }
                                         },
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: const Color(0xFF8B5CF6),
@@ -267,10 +335,12 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                     },
                   );
                 },
-              ),
-            ),
+              );
+            },
           ),
-        );
+        ),
+      ),
+    );
       },
     );
   }

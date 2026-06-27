@@ -36,6 +36,8 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
   String _tahunAjaran = '';
   String _activeSemester = '';
   bool _isLoadingMetaData = true;
+  // Mapping dari Auth UID → Student Document ID untuk backward-compatibility
+  Map<String, String> _authUidToDocIdMap = {};
 
   @override
   void initState() {
@@ -61,8 +63,24 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
       final schoolData = results[0] as Map<String, dynamic>?;
       final teacherDoc = results[1] as DocumentSnapshot<Map<String, dynamic>>?;
 
+      // Build mapping Auth UID → Student Document ID
+      final studentsSnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('students')
+          .where('classId', isEqualTo: widget.classId)
+          .get();
+      final Map<String, String> uidMap = {};
+      for (final doc in studentsSnapshot.docs) {
+        final uid = doc.data()['uid']?.toString();
+        if (uid != null && uid.isNotEmpty && uid != doc.id) {
+          uidMap[uid] = doc.id;
+        }
+      }
+
       if (mounted) {
         setState(() {
+          _authUidToDocIdMap = uidMap;
           if (schoolData != null) {
             _schoolName = schoolData['namaSekolah'] ?? 'Sekolah';
             _tahunAjaran = schoolData['tahunAjaran'] ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
@@ -110,7 +128,12 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
         for (final scores in listScores) {
           final cleanYear = _tahunAjaran.replaceAll('/', '_');
           final fallbackKey = '${studentId}_${cleanYear}_$_activeSemester';
-          final detail = scores[studentId] ?? scores[fallbackKey];
+          // Cari key Auth UID yang mungkin merujuk ke studentId ini
+          final authUidKey = _authUidToDocIdMap.entries
+              .where((e) => e.value == studentId)
+              .map((e) => e.key)
+              .firstOrNull;
+          final detail = scores[studentId] ?? scores[fallbackKey] ?? (authUidKey != null ? scores[authUidKey] : null);
           if (detail != null && detail is Map) {
             final scoreVal = (detail['score'] ?? 0.0) as num;
             sum += scoreVal.toDouble();
@@ -261,7 +284,12 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                           final studentId = student['studentId']?.toString() ?? '';
                           final cleanYear = _tahunAjaran.replaceAll('/', '_');
                           final fallbackKey = '${studentId}_${cleanYear}_$_activeSemester';
-                          final detail = scores[studentId] ?? scores[fallbackKey];
+                          // Cari key Auth UID yang mungkin merujuk ke studentId ini
+                          final authUidKey = _authUidToDocIdMap.entries
+                              .where((e) => e.value == studentId)
+                              .map((e) => e.key)
+                              .firstOrNull;
+                          final detail = scores[studentId] ?? scores[fallbackKey] ?? (authUidKey != null ? scores[authUidKey] : null);
                           if (detail != null && detail is Map) {
                             final scoreVal = (detail['score'] ?? 0.0) as num;
                             sum += scoreVal.toDouble();

@@ -137,14 +137,17 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
           
           final cleanYear = _selectedTahunAjaran.replaceAll('/', '_');
           final fallbackKey = '${widget.studentDocId}_${cleanYear}_$_selectedSemester';
+          // Fallback ke Auth UID untuk data ujian online lama
+          final authUidKey = user.uid;
           
           final hasPlainKey = scores.containsKey(widget.studentDocId);
           final hasFallbackKey = scores.containsKey(fallbackKey);
+          final hasAuthUidKey = (authUidKey != widget.studentDocId) && scores.containsKey(authUidKey);
           
-          if (!hasPlainKey && !hasFallbackKey) continue;
+          if (!hasPlainKey && !hasFallbackKey && !hasAuthUidKey) continue;
 
           final studentScoreData =
-              (scores[widget.studentDocId] ?? scores[fallbackKey]) as Map<String, dynamic>? ?? {};
+              (scores[widget.studentDocId] ?? scores[fallbackKey] ?? scores[authUidKey]) as Map<String, dynamic>? ?? {};
           final double score = ((studentScoreData['score'] ?? 0.0) as num).toDouble();
           final String notes = (studentScoreData['notes'] ?? '').toString();
 

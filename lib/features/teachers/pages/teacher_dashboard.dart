@@ -1829,13 +1829,15 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Ujian Online', Icons.quiz_rounded, 6, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Chat', Icons.chat_rounded, 7, const Color(0xFF8B5CF6), isDark, isChat: true),
+                _buildSidebarItem('Realtime Control', Icons.settings_remote_rounded, 7, const Color(0xFF84CC16), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Laporan & Rapor', Icons.bar_chart_rounded, 8, const Color(0xFFEC4899), isDark),
+                _buildSidebarItem('Chat', Icons.chat_rounded, 8, const Color(0xFF8B5CF6), isDark, isChat: true),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Surat Izin Siswa', Icons.mark_email_read_rounded, 9, const Color(0xFF8B5CF6), isDark, isPermit: true),
+                _buildSidebarItem('Laporan & Rapor', Icons.bar_chart_rounded, 9, const Color(0xFFEC4899), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Pengaturan Profil', Icons.settings_rounded, 10, const Color(0xFF64748B), isDark),
+                _buildSidebarItem('Surat Izin Siswa', Icons.mark_email_read_rounded, 10, const Color(0xFF8B5CF6), isDark, isPermit: true),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Pengaturan Profil', Icons.settings_rounded, 11, const Color(0xFF64748B), isDark),
               ],
             ),
           ),
@@ -2033,24 +2035,26 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       case 6:
         return TeacherExamsPage(teacherId: _teacherDocId!, hideBackButton: true);
       case 7:
+        return TeacherBehaviorRecordsPage(teacherId: _teacherDocId!, hideBackButton: true);
+      case 8:
         return TeacherChatSelectorPage(
           schoolId: SessionService.currentUser!.schoolId,
           teacherDocId: _teacherDocId!,
           teacherName: _teacherData?['nama'] ?? SessionService.currentUser!.nama,
         );
-      case 8:
+      case 9:
         return TeacherReportsPage(
           schoolId: SessionService.currentUser!.schoolId,
           teacherId: _teacherDocId!,
           hideBackButton: true,
         );
-      case 9:
+      case 10:
         return TeacherPermitsPage(
           teacherDocId: _teacherDocId!,
           schoolId: SessionService.currentUser!.schoolId,
           hideBackButton: true,
         );
-      case 10:
+      case 11:
         return TeacherSettingsPage(hideBackButton: true);
       default:
         return _buildDesktopDashboardHome(isDark);

@@ -297,6 +297,7 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                                   classname: data['namaKelas'] ?? '-',
                                   subtitle: '${schedules.length} jadwal  •  ${firstSchedule['hari'] ?? ''}, ${firstSchedule['jamMulai'] ?? ''} – ${firstSchedule['jamSelesai'] ?? ''}',
                                   hasSchedule: true,
+                                  isDark: isDark,
                                   onTap: () {
                                     Get.to(() => ClassSchedulePage(
                                       classId: doc.id,
@@ -329,6 +330,7 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                                   classname: data['namaKelas'] ?? '-',
                                   subtitle: 'Tap untuk mulai isi jadwal kelas ini',
                                   hasSchedule: false,
+                                  isDark: isDark,
                                   onTap: () {
                                     Get.to(() => ClassSchedulePage(
                                       classId: doc.id,
@@ -449,18 +451,25 @@ class ClassScheduleOverviewPage extends StatelessWidget {
     required String subtitle,
     required bool hasSchedule,
     required VoidCallback onTap,
+    required bool isDark,
   }) {
     final badgeColor = hasSchedule ? const Color(0xFF10B981) : const Color(0xFFEF4444);
     final badgeText = hasSchedule ? 'Ada Jadwal' : 'Belum Ada';
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+    final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+    final shadowColor = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+    final textNameColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final textSubColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF6B7280);
+    final chevronColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF9CA3AF);
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+        border: Border.all(color: cardBorderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: shadowColor,
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -492,12 +501,12 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                     children: [
                       Text(
                         classname,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E1B4B)),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textNameColor),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                        style: TextStyle(fontSize: 12, color: textSubColor),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -518,7 +527,7 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF)),
+                Icon(Icons.chevron_right_rounded, color: chevronColor),
               ],
             ),
           ),

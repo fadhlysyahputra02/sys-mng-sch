@@ -249,20 +249,32 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                           ),
                         ),
                   title: Text(
-                    'Daftar Penilaian',
+                    'Buku Nilai',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                   ),
-                  actions: [
+                   actions: [
                     Container(
-                      margin: const EdgeInsets.only(right: 16),
+                      margin: const EdgeInsets.only(right: 16, top: 6, bottom: 6),
                       decoration: BoxDecoration(
                         color: iconBgColor,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      child: IconButton(
-                        icon: Icon(Icons.percent_rounded, color: iconColor, size: 20),
-                        tooltip: 'Atur Bobot Kategori',
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                         onPressed: () => _showWeightsConfigDialog(context),
+                        icon: Icon(Icons.scale_rounded, color: iconColor, size: 20),
+                        label: Text(
+                          'Atur Bobot',
+                          style: TextStyle(
+                            color: titleColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -876,7 +888,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
       ),
       title: Row(
         children: [
-          const Icon(Icons.percent_rounded, color: Color(0xFF8B5CF6)),
+          const Icon(Icons.scale_rounded, color: Color(0xFF8B5CF6)),
           const SizedBox(width: 10),
           Text(
             'Atur Bobot Kategori',
