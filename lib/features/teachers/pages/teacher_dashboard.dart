@@ -1356,11 +1356,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'icon': Icons.groups_rounded,
         'color': const Color(0xFF0EA5E9),
       },
-      {
-        'title': 'Bank Soal',
-        'icon': Icons.question_answer_rounded,
-        'color': const Color(0xFF14B8A6),
-      },
+
       {
         'title': 'Realtime Control',
         'icon': Icons.settings_remote_rounded,
@@ -1373,18 +1369,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'color': const Color(0xFF64748B),
         'badge': null,
       },
-      {
-        'title': 'Bank Soal & Quiz',
-        'icon': Icons.quiz_rounded,
-        'color': const Color(0xFF14B8A6),
-        'badge': 'BASIC',
-      },
-      {
-        'title': 'Statistik Akademik',
-        'icon': Icons.analytics_rounded,
-        'color': const Color(0xFFEC4899),
-        'badge': 'BASIC',
-      },
+
       {
         'title': 'News Feed Sekolah',
         'icon': Icons.newspaper_rounded,
@@ -1503,10 +1488,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 } else if (menu['title'] == 'Pengaturan Profil') {
                   Get.to(() => const TeacherSettingsPage());
 
-                } else if (menu['title'] == 'Bank Soal & Quiz') {
-                  Get.toNamed(AppRoutes.comingSoonBankSoalGuru);
-                } else if (menu['title'] == 'Statistik Akademik') {
-                  Get.toNamed(AppRoutes.comingSoonStatistikGuru);
+
                 } else if (menu['title'] == 'News Feed Sekolah') {
                   Get.toNamed(AppRoutes.comingSoonNewsFeedGuru);
                 } else {

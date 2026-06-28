@@ -24,7 +24,8 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
   }
 
   void _showEditDialog() {
-    final controller = TextEditingController(text: teacher['nama']);
+    final nameController = TextEditingController(text: teacher['nama']);
+    final nipController = TextEditingController(text: teacher['nip'] ?? '');
     final isDark = AuthBackground.isDarkMode.value;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
@@ -35,104 +36,243 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
     showDialog(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: dialogBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: borderColor, width: 1.5),
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Edit Nama Guru',
-                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                decoration: BoxDecoration(
-                  color: cardBgColor,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: borderColor),
-                ),
-                child: TextField(
-                  controller: controller,
-                  style: TextStyle(color: textColor),
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    labelText: 'Nama Baru',
-                    labelStyle: TextStyle(color: subTextColor),
-                    prefixIcon: Icon(Icons.person_outline_rounded, color: subTextColor),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: borderColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text('Batal', style: TextStyle(color: textColor)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () async {
-                      final newName = controller.text.trim();
-                      if (newName.isNotEmpty) {
-                        await FirebaseFirestore.instance
-                            .collection('schools')
-                            .doc(teacher['schoolId'])
-                            .collection('teachers')
-                            .doc(teacher['teacherId'])
-                            .update({'nama': newName});
+        String? errorMessage;
+        bool isLoading = false;
 
-                        setState(() => teacher['nama'] = newName);
-
-                        if (ctx.mounted) {
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Nama berhasil diubah')),
-                          );
-                        }
-                      }
-                    },
-                    child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(color: borderColor, width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
                   ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Edit Data Guru',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: cardBgColor,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: TextField(
+                      controller: nameController,
+                      style: TextStyle(color: textColor),
+                      textCapitalization: TextCapitalization.words,
+                      enabled: !isLoading,
+                      decoration: InputDecoration(
+                        labelText: 'Nama Baru',
+                        labelStyle: TextStyle(color: subTextColor),
+                        prefixIcon: Icon(Icons.person_outline_rounded, color: subTextColor),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: cardBgColor,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: TextField(
+                      controller: nipController,
+                      style: TextStyle(color: textColor),
+                      keyboardType: TextInputType.number,
+                      enabled: !isLoading,
+                      decoration: InputDecoration(
+                        labelText: 'NIP Baru',
+                        labelStyle: TextStyle(color: subTextColor),
+                        prefixIcon: Icon(Icons.badge_outlined, color: subTextColor),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                    ),
+                  ),
+                  if (errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              errorMessage!,
+                              style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          side: BorderSide(color: borderColor),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: isLoading ? null : () => Navigator.pop(ctx),
+                        child: Text('Batal', style: TextStyle(color: textColor)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                final newName = nameController.text.trim();
+                                final newNip = nipController.text.trim();
+
+                                setModalState(() {
+                                  errorMessage = null;
+                                });
+
+                                if (newName.isEmpty) {
+                                  setModalState(() {
+                                    errorMessage = 'Nama tidak boleh kosong';
+                                  });
+                                  return;
+                                }
+
+                                if (newNip.isEmpty) {
+                                  setModalState(() {
+                                    errorMessage = 'NIP tidak boleh kosong';
+                                  });
+                                  return;
+                                }
+
+                                final messenger = ScaffoldMessenger.of(context);
+
+                                setModalState(() {
+                                  isLoading = true;
+                                });
+
+                                try {
+                                  // Query as string NIP
+                                  final existingString = await FirebaseFirestore.instance
+                                      .collection('schools')
+                                      .doc(teacher['schoolId'])
+                                      .collection('teachers')
+                                      .where('nip', isEqualTo: newNip)
+                                      .get();
+
+                                  // Query as integer NIP (if parseable)
+                                  final parsedNipInt = int.tryParse(newNip);
+                                  final existingIntDocs = parsedNipInt != null
+                                      ? (await FirebaseFirestore.instance
+                                          .collection('schools')
+                                          .doc(teacher['schoolId'])
+                                          .collection('teachers')
+                                          .where('nip', isEqualTo: parsedNipInt)
+                                          .get()).docs
+                                      : <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+                                  final allMatches = [
+                                    ...existingString.docs,
+                                    ...existingIntDocs,
+                                  ];
+
+                                  // Filter out current teacher using teacherId
+                                  final otherMatches = allMatches.where((doc) {
+                                    final data = doc.data();
+                                    return data['teacherId'] != teacher['teacherId'];
+                                  }).toList();
+
+                                  if (otherMatches.isNotEmpty) {
+                                    final existingName = otherMatches.first.data()['nama'] ?? 'Guru Lain';
+                                    setModalState(() {
+                                      errorMessage = 'NIP sudah terdaftar atas nama "$existingName"';
+                                      isLoading = false;
+                                    });
+                                    return;
+                                  }
+
+                                  await FirebaseFirestore.instance
+                                      .collection('schools')
+                                      .doc(teacher['schoolId'])
+                                      .collection('teachers')
+                                      .doc(teacher['teacherId'])
+                                      .update({
+                                    'nama': newName,
+                                    'nip': newNip,
+                                  });
+
+                                  setState(() {
+                                    teacher['nama'] = newName;
+                                    teacher['nip'] = newNip;
+                                  });
+
+                                  if (context.mounted) {
+                                    Navigator.pop(ctx);
+                                    messenger.showSnackBar(
+                                      const SnackBar(content: Text('Data guru berhasil diubah')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  setModalState(() {
+                                    errorMessage = 'Gagal menyimpan data: $e';
+                                    isLoading = false;
+                                  });
+                                }
+                              },
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );

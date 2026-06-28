@@ -63,6 +63,42 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     });
   }
 
+  void _addOption(int qIndex) {
+    final q = _questionsData[qIndex];
+    final opts = q['options'] as List<TextEditingController>;
+    if (opts.length >= 10) {
+      Get.snackbar('Batas Maksimal', 'Pilihan jawaban maksimal 10 opsi.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.amber,
+          colorText: Colors.black);
+      return;
+    }
+    setState(() {
+      opts.add(TextEditingController());
+    });
+  }
+
+  void _removeOption(int qIndex, int optIdx) {
+    final q = _questionsData[qIndex];
+    final opts = q['options'] as List<TextEditingController>;
+    if (opts.length <= 2) {
+      Get.snackbar('Batas Minimal', 'Pilihan jawaban minimal 2 opsi.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.amber,
+          colorText: Colors.black);
+      return;
+    }
+    setState(() {
+      opts[optIdx].dispose();
+      opts.removeAt(optIdx);
+      // Clamp correctIndex jika melebihi jumlah opsi
+      final currentCorrect = q['correctIndex'] as int;
+      if (currentCorrect >= opts.length) {
+        q['correctIndex'] = opts.length - 1;
+      }
+    });
+  }
+
   void _removeQuestion(int index) {
     if (_questionsData.length <= 1) {
       Get.snackbar(
@@ -77,7 +113,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     setState(() {
       final q = _questionsData.removeAt(index);
       q['questionController'].dispose();
-      for (final ctrl in q['options']) {
+      for (final ctrl in (q['options'] as List<TextEditingController>)) {
         ctrl.dispose();
       }
     });
@@ -231,7 +267,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     _durationController.dispose();
     for (final q in _questionsData) {
       q['questionController'].dispose();
-      for (final ctrl in q['options']) {
+      for (final ctrl in (q['options'] as List<TextEditingController>)) {
         ctrl.dispose();
       }
     }
@@ -601,17 +637,6 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     'Soal Ujian Pilihan Ganda',
                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: titleColor),
                                   ),
-                                  ElevatedButton.icon(
-                                    onPressed: _addQuestion,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF8B5CF6),
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    ),
-                                    icon: const Icon(Icons.add_rounded, size: 18),
-                                    label: const Text('Tambah Soal', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                  ),
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -671,16 +696,54 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                         ),
                                         const SizedBox(height: 16),
 
-                                        // Input Pilihan Jawaban
-                                        Text(
-                                          'Pilihan Jawaban (Pilih salah satu sebagai jawaban benar)',
-                                          style: TextStyle(fontWeight: FontWeight.w600, color: subTextColor, fontSize: 11),
+                                        // Input Pilihan Jawaban (Dinamis)
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Pilihan Jawaban (tandai jawaban benar)',
+                                              style: TextStyle(fontWeight: FontWeight.w600, color: subTextColor, fontSize: 11),
+                                            ),
+                                            Row(
+                                              children: [
+                                                // Tombol hapus opsi
+                                                if (optCtrls.length > 2)
+                                                  GestureDetector(
+                                                    onTap: () => _removeOption(index, optCtrls.length - 1),
+                                                    child: Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.redAccent.withValues(alpha: 0.1),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                                                      ),
+                                                      child: const Icon(Icons.remove_rounded, size: 14, color: Colors.redAccent),
+                                                    ),
+                                                  ),
+                                                const SizedBox(width: 6),
+                                                // Tombol tambah opsi
+                                                if (optCtrls.length < 10)
+                                                  GestureDetector(
+                                                    onTap: () => _addOption(index),
+                                                    child: Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                                                      ),
+                                                      child: const Icon(Icons.add_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
                                         ),
                                         const SizedBox(height: 8),
 
                                         Column(
-                                          children: List.generate(4, (optIdx) {
-                                            final charLabel = String.fromCharCode(65 + optIdx); // A, B, C, D
+                                          children: List.generate(optCtrls.length, (optIdx) {
+                                            final charLabel = String.fromCharCode(65 + optIdx); // A, B, C, D, E, ...
                                             final isCorrect = qMap['correctIndex'] == optIdx;
 
                                             return Padding(
@@ -726,6 +789,14 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                                       validator: (val) => val == null || val.trim().isEmpty ? 'Pilihan tidak boleh kosong' : null,
                                                     ),
                                                   ),
+                                                  // Tombol hapus opsi individual
+                                                  if (optCtrls.length > 2)
+                                                    IconButton(
+                                                      icon: const Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
+                                                      onPressed: () => _removeOption(index, optIdx),
+                                                      padding: EdgeInsets.zero,
+                                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                    ),
                                                 ],
                                               ),
                                             );
@@ -735,6 +806,21 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     ),
                                   );
                                 },
+                              ),
+
+                              // Tombol Tambah Soal di bawah pertanyaan terakhir
+                              Center(
+                                child: OutlinedButton.icon(
+                                  onPressed: _addQuestion,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF8B5CF6),
+                                    side: const BorderSide(color: Color(0xFF8B5CF6)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  ),
+                                  icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+                                  label: const Text('Tambah Pertanyaan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                ),
                               ),
                               const SizedBox(height: 32),
 

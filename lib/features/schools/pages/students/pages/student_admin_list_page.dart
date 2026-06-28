@@ -774,142 +774,157 @@ class _StudentListPageState extends State<StudentListPage> {
   }
 
   Future<void> _startImporting(BuildContext context) async {
-    final progressNotifier = ValueNotifier<double>(0.0);
-    final statusNotifier = ValueNotifier<String>('Memproses file...');
     final isDark = AuthBackground.isDarkMode.value;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
     final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
     final dialogBorder = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.08);
 
-    final result = await ExcelImportService().importStudents(
-      widget.schoolId,
-      onFileSelected: () {
-        if (!context.mounted) return;
-        // Tampilkan progress dialog hanya setelah file berhasil dipilih
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (progressContext) {
+    String status = 'pilih_file';
+    double progress = 0.0;
+    String statusText = 'Memproses file...';
+    ExcelImportResult? importResult;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            if (status == 'pilih_file') {
+              status = 'memproses';
+              
+              ExcelImportService().importStudents(
+                widget.schoolId,
+                onFileSelected: () {
+                  setModalState(() {
+                    statusText = 'Membaca data dari Excel...';
+                  });
+                },
+                onProgress: (current, total) {
+                  setModalState(() {
+                    statusText = 'Mengimport $current dari $total data...';
+                    progress = total > 0 ? current / total : 0.0;
+                  });
+                },
+              ).then((result) {
+                setModalState(() {
+                  status = 'selesai';
+                  importResult = result;
+                });
+              }).catchError((err) {
+                setModalState(() {
+                  status = 'selesai';
+                  importResult = ExcelImportResult(
+                    successCount: 0,
+                    duplicateCount: 0,
+                    failedCount: 1,
+                    errors: ['Gagal memproses file: $err'],
+                  );
+                });
+              });
+            }
+
+            if (status == 'memproses') {
+              return AlertDialog(
+                backgroundColor: dialogBg,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(color: dialogBorder, width: 1.5),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 8),
+                    CircularProgressIndicator(
+                      value: progress > 0.0 ? progress : null,
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                      backgroundColor: isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.1),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      statusText,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    if (progress > 0.0) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(progress * 100).toInt()}%',
+                        style: TextStyle(color: subtitleColor, fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }
+
+            if (importResult == null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (ctx.mounted) Navigator.pop(dialogContext);
+              });
+              return const SizedBox.shrink();
+            }
+
             return AlertDialog(
               backgroundColor: dialogBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
                 side: BorderSide(color: dialogBorder, width: 1.5),
               ),
-              content: ValueListenableBuilder<double>(
-                valueListenable: progressNotifier,
-                builder: (context, progress, child) {
-                  return ValueListenableBuilder<String>(
-                    valueListenable: statusNotifier,
-                    builder: (context, statusText, child) {
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(height: 8),
-                          CircularProgressIndicator(
-                            value: progress > 0.0 ? progress : null,
-                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
-                            backgroundColor: isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.1),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            statusText,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          if (progress > 0.0) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              '${(progress * 100).toInt()}%',
-                              style: TextStyle(color: subtitleColor, fontSize: 12, fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ],
-                      );
-                    },
-                  );
-                },
+              title: Text(
+                'Hasil Import Excel',
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
               ),
-            );
-          },
-        );
-      },
-      onProgress: (current, total) {
-        statusNotifier.value = 'Mengimport $current dari $total data...';
-        progressNotifier.value = total > 0 ? current / total : 0.0;
-      },
-    );
-    
-    // Jika progress dialog sempat terbuka, tutup dialog tersebut
-    if (progressNotifier.value > 0.0 || statusNotifier.value != 'Memproses file...') {
-      if (context.mounted) {
-        Navigator.pop(context); 
-      }
-    }
-
-    if (result == null) return; // Batal memilih file
-
-    if (!context.mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (resultDialogContext) {
-        return AlertDialog(
-          backgroundColor: dialogBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: dialogBorder, width: 1.5),
-          ),
-          title: Text(
-            'Hasil Import Excel',
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildResultRow(Icons.check_circle_outline_rounded, Colors.green, 'Berhasil diimport: ${result.successCount} data', textColor),
-              const SizedBox(height: 10),
-              _buildResultRow(Icons.copy_rounded, Colors.orange, 'Duplikat (dilewati): ${result.duplicateCount} data', textColor),
-              const SizedBox(height: 10),
-              _buildResultRow(Icons.error_outline_rounded, Colors.red, 'Gagal diimport: ${result.failedCount} data', textColor),
-              if (result.errors.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Detail Error/Peringatan:',
-                  style: TextStyle(color: subtitleColor, fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 120),
-                  width: double.maxFinite,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFF1E1B4B).withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.all(8),
-                    itemCount: result.errors.length,
-                    itemBuilder: (context, idx) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        result.errors[idx],
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildResultRow(Icons.check_circle_outline_rounded, Colors.green, 'Berhasil diimport: ${importResult!.successCount} data', textColor),
+                  const SizedBox(height: 10),
+                  _buildResultRow(Icons.copy_rounded, Colors.orange, 'Duplikat (dilewati): ${importResult!.duplicateCount} data', textColor),
+                  const SizedBox(height: 10),
+                  _buildResultRow(Icons.error_outline_rounded, Colors.red, 'Gagal diimport: ${importResult!.failedCount} data', textColor),
+                  if (importResult!.errors.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Detail Error/Peringatan:',
+                      style: TextStyle(color: subtitleColor, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 120),
+                      width: double.maxFinite,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFF1E1B4B).withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.all(8),
+                        itemCount: importResult!.errors.length,
+                        itemBuilder: (context, idx) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            importResult!.errors[idx],
+                            style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ]
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    if (ctx.mounted) Navigator.pop(dialogContext);
+                  },
+                  child: const Text('OK', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold)),
                 ),
-              ]
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(resultDialogContext),
-              child: const Text('OK', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold)),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );

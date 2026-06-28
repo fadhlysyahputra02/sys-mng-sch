@@ -24,10 +24,14 @@ class TeacherDailyAttendancePage extends StatefulWidget {
 
 class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage> {
   bool _isLoadingSchoolConfig = true;
-  String _selectedTahunAjaran = '';
-  String _selectedSemester = '';
-  List<String> _tahunAjaranOptions = [];
-  final List<String> _semesterOptions = ['Semester 1', 'Semester 2'];
+
+  int _selectedMonth = DateTime.now().month;
+  int _selectedYear = DateTime.now().year;
+
+  final List<String> _monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
 
   @override
   void initState() {
@@ -36,47 +40,8 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
   }
 
   Future<void> _loadSchoolConfig() async {
-    try {
-      final user = SessionService.currentUser!;
-      final schoolDoc = await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(user.schoolId)
-          .get();
-
-      final data = schoolDoc.data();
-      final currentTahunAjaran = data?['tahunAjaran'] ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
-      final currentSemester = data?['semester'] ?? 'Semester 1';
-
-      _generateTahunAjaranOptions(currentTahunAjaran);
-
-      setState(() {
-        _selectedTahunAjaran = currentTahunAjaran;
-        _selectedSemester = currentSemester;
-        _isLoadingSchoolConfig = false;
-      });
-    } catch (e) {
-      _generateTahunAjaranOptions('${DateTime.now().year}/${DateTime.now().year + 1}');
-      setState(() {
-        _selectedTahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
-        _selectedSemester = 'Semester 1';
-        _isLoadingSchoolConfig = false;
-      });
-    }
-  }
-
-  void _generateTahunAjaranOptions(String currentVal) {
-    final options = <String>{};
-    int currentYear = DateTime.now().year;
-    int currentMonth = DateTime.now().month;
-    int maxStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
-    
-    for (int i = maxStartYear - 5; i <= maxStartYear + 1; i++) {
-      options.add('$i/${i + 1}');
-    }
-    options.add(currentVal);
-    
     setState(() {
-      _tahunAjaranOptions = options.toList()..sort((a, b) => b.compareTo(a));
+      _isLoadingSchoolConfig = false;
     });
   }
 
@@ -96,21 +61,36 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
     return '${DateFormat('HH:mm').format(date)} WIB';
   }
 
-  String _formatFullDate(String dateStr) {
-    try {
-      final parts = dateStr.split('-');
-      if (parts.length == 3) {
-        final year = int.parse(parts[0]);
-        final month = int.parse(parts[1]);
-        final day = int.parse(parts[2]);
-        final months = [
-          'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-          'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'
-        ];
-        return '$day ${months[month - 1]} $year';
-      }
-    } catch (_) {}
-    return dateStr;
+  String _getDayNameIndonesian(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return 'Senin';
+      case DateTime.tuesday:
+        return 'Selasa';
+      case DateTime.wednesday:
+        return 'Rabu';
+      case DateTime.thursday:
+        return 'Kamis';
+      case DateTime.friday:
+        return 'Jumat';
+      case DateTime.saturday:
+        return 'Sabtu';
+      case DateTime.sunday:
+        return 'Minggu';
+      default:
+        return '';
+    }
+  }
+
+  int _getDaysInMonth(int year, int month) {
+    return DateTime(year, month + 1, 0).day;
+  }
+
+  int _compareDateWithToday(int day) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final targetDate = DateTime(_selectedYear, _selectedMonth, day);
+    return targetDate.compareTo(today);
   }
 
   Widget _buildStatusBadge(String status) {
@@ -134,6 +114,10 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
         label = 'Izin';
         break;
       case 'alfa':
+        color = const Color(0xFFEF4444);
+        label = 'Alfa';
+        break;
+      case 'tanpa keterangan':
         color = const Color(0xFFEF4444);
         label = 'Alfa';
         break;
@@ -265,7 +249,6 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                 const SizedBox(height: 20),
                                 Row(
                                   children: [
-                                    // Check In Column
                                     Expanded(
                                       child: Container(
                                         padding: const EdgeInsets.all(16),
@@ -297,7 +280,6 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                       ),
                                     ),
                                     const SizedBox(width: 16),
-                                    // Check Out Column
                                     Expanded(
                                       child: Container(
                                         padding: const EdgeInsets.all(16),
@@ -358,10 +340,10 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.filter_alt_rounded, color: Color(0xFF8B5CF6), size: 18),
+                                const Icon(Icons.calendar_month_rounded, color: Color(0xFF8B5CF6), size: 18),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Filter Riwayat',
+                                  'Pilih Bulan & Tahun',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor),
                                 ),
                               ],
@@ -370,12 +352,12 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                             Row(
                               children: [
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: DropdownButtonFormField<int>(
                                     isExpanded: true,
-                                    initialValue: _selectedTahunAjaran,
+                                    initialValue: _selectedMonth,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Tahun Ajaran',
+                                      labelText: 'Bulan',
                                       labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                       fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.03),
                                       filled: true,
@@ -387,27 +369,27 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                       ),
                                     ),
                                     style: TextStyle(color: textColor, fontSize: 13),
-                                    items: _tahunAjaranOptions.map((tahun) {
-                                      return DropdownMenuItem<String>(
-                                        value: tahun,
-                                        child: Text(tahun),
+                                    items: List.generate(12, (index) {
+                                      return DropdownMenuItem<int>(
+                                        value: index + 1,
+                                        child: Text(_monthNames[index]),
                                       );
-                                    }).toList(),
+                                    }),
                                     onChanged: (val) {
                                       if (val != null) {
-                                        setState(() => _selectedTahunAjaran = val);
+                                        setState(() => _selectedMonth = val);
                                       }
                                     },
                                   ),
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: DropdownButtonFormField<int>(
                                     isExpanded: true,
-                                    initialValue: _selectedSemester,
+                                    initialValue: _selectedYear,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Semester',
+                                      labelText: 'Tahun',
                                       labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                       fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.03),
                                       filled: true,
@@ -419,15 +401,16 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                       ),
                                     ),
                                     style: TextStyle(color: textColor, fontSize: 13),
-                                    items: _semesterOptions.map((sem) {
-                                      return DropdownMenuItem<String>(
-                                        value: sem,
-                                        child: Text(sem),
+                                    items: List.generate(5, (index) {
+                                      final year = DateTime.now().year - 2 + index;
+                                      return DropdownMenuItem<int>(
+                                        value: year,
+                                        child: Text(year.toString()),
                                       );
-                                    }).toList(),
+                                    }),
                                     onChanged: (val) {
                                       if (val != null) {
-                                        setState(() => _selectedSemester = val);
+                                        setState(() => _selectedYear = val);
                                       }
                                     },
                                   ),
@@ -446,7 +429,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                           Icon(Icons.history_rounded, color: textColor.withValues(alpha: 0.8), size: 18),
                           const SizedBox(width: 8),
                           Text(
-                            'Riwayat Kehadiran',
+                            'Riwayat Kehadiran Bulanan',
                             style: TextStyle(
                               color: textColor,
                               fontWeight: FontWeight.bold,
@@ -467,7 +450,6 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                               .doc(schoolId)
                               .collection('teacher_daily_attendance')
                               .where('teacherId', isEqualTo: widget.teacherId)
-                              .limit(60)
                               .snapshots(),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -484,44 +466,34 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                               );
                             }
 
-                            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                              return Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.calendar_today_outlined, color: subTextColor, size: 48),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'Belum ada riwayat absensi harian.',
-                                      style: TextStyle(color: subTextColor, fontSize: 14),
-                                    ),
-                                  ],
-                                ),
-                              );
+                            final attendanceMap = <String, Map<String, dynamic>>{};
+                            if (snapshot.hasData) {
+                              for (final doc in snapshot.data!.docs) {
+                                final data = doc.data();
+                                final date = data['date'] as String?;
+                                if (date != null) {
+                                  attendanceMap[date] = data;
+                                }
+                              }
                             }
 
-                            // Sort descending in memory
-                            final sortedDocs = snapshot.data!.docs.toList()
-                              ..sort((a, b) {
-                                final dateA = a.data()['date'] ?? '';
-                                final dateB = b.data()['date'] ?? '';
-                                return dateB.compareTo(dateA);
-                              });
-
-                            // Filter by semester — if record has no tahunAjaran/semester, still include it
-                            final filteredDocs = sortedDocs.where((doc) {
-                              final data = doc.data();
-                              final tAjaran = data['tahunAjaran'] as String?;
-                              final sem = data['semester'] as String?;
-                              // If both fields are missing/empty, always show the record
-                              if ((tAjaran == null || tAjaran.isEmpty) &&
-                                  (sem == null || sem.isEmpty)) {
-                                return true;
+                            int maxDayToShow;
+                            final now = DateTime.now();
+                            if (_selectedYear < now.year) {
+                              maxDayToShow = _getDaysInMonth(_selectedYear, _selectedMonth);
+                            } else if (_selectedYear > now.year) {
+                              maxDayToShow = 0;
+                            } else {
+                              if (_selectedMonth < now.month) {
+                                maxDayToShow = _getDaysInMonth(_selectedYear, _selectedMonth);
+                              } else if (_selectedMonth > now.month) {
+                                maxDayToShow = 0;
+                              } else {
+                                maxDayToShow = now.day;
                               }
-                              return tAjaran == _selectedTahunAjaran && sem == _selectedSemester;
-                            }).toList();
+                            }
 
-                            if (filteredDocs.isEmpty) {
+                            if (maxDayToShow == 0) {
                               return Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -529,7 +501,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                     Icon(Icons.calendar_today_outlined, color: subTextColor, size: 48),
                                     const SizedBox(height: 12),
                                     Text(
-                                      'Tidak ada riwayat untuk $_selectedTahunAjaran - $_selectedSemester.',
+                                      'Tidak ada riwayat absensi untuk periode mendatang.',
                                       style: TextStyle(color: subTextColor, fontSize: 14),
                                       textAlign: TextAlign.center,
                                     ),
@@ -538,69 +510,239 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                               );
                             }
 
-                            return ListView.separated(
-                              itemCount: filteredDocs.length,
-                              physics: const BouncingScrollPhysics(),
-                              separatorBuilder: (context, index) => const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                final data = filteredDocs[index].data();
-                                final dateStr = data['date'] ?? '';
-                                final checkIn = data['checkInTime'] as Timestamp?;
-                                final checkOut = data['checkOutTime'] as Timestamp?;
-                                final status = data['status'] ?? 'hadir';
-                                final method = data['method'] ?? 'qr_scan';
+                            return StreamBuilder<DateTime>(
+                              stream: Stream.periodic(const Duration(seconds: 5), (_) => DateTime.now()),
+                              initialData: DateTime.now(),
+                              builder: (context, timeSnapshot) {
+                                final nowTime = timeSnapshot.data ?? DateTime.now();
 
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                  decoration: BoxDecoration(
-                                    color: cardColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: cardBorder),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                return ListView.separated(
+                                  itemCount: maxDayToShow,
+                                  physics: const BouncingScrollPhysics(),
+                                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                                  itemBuilder: (context, index) {
+                                    // Tampilkan dari tanggal paling baru (menurun)
+                                    final day = maxDayToShow - index;
+                                    final dateKey = '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+                                    final dateObj = DateTime(_selectedYear, _selectedMonth, day);
+                                    final weekdayStr = _getDayNameIndonesian(dateObj.weekday);
+                                    final hasAttendance = attendanceMap.containsKey(dateKey);
+                                    final dateText = '$day ${_monthNames[_selectedMonth - 1]} $_selectedYear';
+
+                                    if (hasAttendance) {
+                                      final data = attendanceMap[dateKey]!;
+                                      final checkIn = data['checkInTime'] as Timestamp?;
+                                      final checkOut = data['checkOutTime'] as Timestamp?;
+                                      final status = data['status'] ?? 'hadir';
+                                      final method = data['method'] ?? 'qr_scan';
+
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                        decoration: BoxDecoration(
+                                          color: cardColor,
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(color: cardBorder),
+                                        ),
+                                        child: Row(
                                           children: [
-                                            Text(
-                                              _formatFullDate(dateStr),
-                                              style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    '$dateText ($weekdayStr)',
+                                                    style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Row(
+                                                    children: [
+                                                      Icon(Icons.login_rounded, color: const Color(0xFF10B981).withValues(alpha: 0.8), size: 12),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        _formatTime(checkIn),
+                                                        style: TextStyle(color: subTextColor, fontSize: 12),
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Icon(Icons.logout_rounded, color: Colors.orange.withValues(alpha: 0.8), size: 12),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        checkOut != null ? _formatTime(checkOut) : 'Belum Pulang',
+                                                        style: TextStyle(color: subTextColor, fontSize: 12),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                            const SizedBox(height: 6),
-                                            Row(
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.end,
                                               children: [
-                                                Icon(Icons.login_rounded, color: const Color(0xFF10B981).withValues(alpha: 0.8), size: 12),
-                                                const SizedBox(width: 4),
+                                                _buildStatusBadge(status),
+                                                const SizedBox(height: 4),
                                                 Text(
-                                                  _formatTime(checkIn),
-                                                  style: TextStyle(color: subTextColor, fontSize: 12),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Icon(Icons.logout_rounded, color: Colors.orange.withValues(alpha: 0.8), size: 12),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  checkOut != null ? _formatTime(checkOut) : 'Belum Pulang',
-                                                  style: TextStyle(color: subTextColor, fontSize: 12),
+                                                  method == 'manual' ? 'Oleh Admin' : 'Scan QR',
+                                                  style: TextStyle(color: subTextColor.withValues(alpha: 0.8), fontSize: 10),
                                                 ),
                                               ],
                                             ),
                                           ],
                                         ),
-                                      ),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          _buildStatusBadge(status),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            method == 'manual' ? 'Oleh Admin' : 'Scan QR',
-                                            style: TextStyle(color: subTextColor.withValues(alpha: 0.8), fontSize: 10),
+                                      );
+                                    }
+
+                                    final dateCompare = _compareDateWithToday(day);
+
+                                    // No attendance recorded
+                                    if (dateCompare < 0) {
+                                      // Past date -> Alfa (Tanpa Keterangan)
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                        decoration: BoxDecoration(
+                                          color: cardColor,
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(color: cardBorder),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    '$dateText ($weekdayStr)',
+                                                    style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  const Text(
+                                                    'Tidak Hadir (Tanpa Keterangan)',
+                                                    style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            _buildStatusBadge('alfa'),
+                                          ],
+                                        ),
+                                      );
+                                    } else if (dateCompare == 0) {
+                                      // Today -> Check if past 18:21
+                                      final bool isAfter1821 = nowTime.hour > 18 || (nowTime.hour == 18 && nowTime.minute >= 30);
+                                      if (isAfter1821) {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                          decoration: BoxDecoration(
+                                            color: cardColor,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(color: cardBorder),
                                           ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      '$dateText ($weekdayStr)',
+                                                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    const Text(
+                                                      'Tidak Hadir (Batas Absen Lewat)',
+                                                      style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              _buildStatusBadge('alfa'),
+                                            ],
+                                          ),
+                                        );
+                                      } else {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                          decoration: BoxDecoration(
+                                            color: cardColor,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(color: cardBorder),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      '$dateText ($weekdayStr)',
+                                                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    Text(
+                                                      'Hari ini - Belum mencatat absensi (Batas 18:30)',
+                                                      style: TextStyle(color: subTextColor, fontSize: 12),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.orange.withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                                                ),
+                                                child: const Text(
+                                                  'Belum Absen',
+                                                  style: TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      // Future date -> Mendatang
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                        decoration: BoxDecoration(
+                                          color: cardColor,
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(color: cardBorder),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    '$dateText ($weekdayStr)',
+                                                    style: TextStyle(color: textColor.withValues(alpha: 0.6), fontWeight: FontWeight.bold, fontSize: 14),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    'Jadwal Mengajar Mendatang',
+                                                    style: TextStyle(color: subTextColor.withValues(alpha: 0.6), fontSize: 12),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                                              ),
+                                              child: Text(
+                                                'Mendatang',
+                                                style: TextStyle(color: Colors.blue.withValues(alpha: 0.6), fontSize: 11, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                  },
                                 );
                               },
                             );

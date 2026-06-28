@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
@@ -11,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../data/officer_repository.dart';
+import 'monthly_recap_page.dart';
 
 class DailyRecapPage extends StatefulWidget {
   const DailyRecapPage({super.key});
@@ -138,22 +141,35 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
         ]);
       }
 
-      final bytes = excelFile.save();
-      if (bytes == null) throw ('Gagal generate file Excel');
-      
-      // Simpan ke direktori dokumen
-      final dir = await getApplicationDocumentsDirectory();
-      final fileName = 'Rekap_Kehadiran_${DateFormat('yyyyMMdd').format(_selectedDate)}.xlsx';
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsBytes(bytes);
+      final user = SessionService.currentUser!;
+      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(user.schoolId).get();
+      final schoolName = schoolDoc.data()?['namaSekolah'] ?? 'Sekolah';
+      final fileName = 'rekap absensi harian siswa ($schoolName) tanggal ${DateFormat('yyyyMMdd').format(_selectedDate)}.xlsx';
 
-      Get.snackbar(
-        'Berhasil',
-        'File Excel disimpan di: ${file.path}',
-        backgroundColor: const Color(0xFF10B981),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 5),
-      );
+      if (kIsWeb) {
+        excelFile.save(fileName: fileName);
+        Get.snackbar(
+          'Berhasil',
+          'File Excel berhasil diunduh.',
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+        );
+      } else {
+        final bytes = excelFile.save();
+        if (bytes == null) throw ('Gagal generate file Excel');
+        final dir = await getApplicationDocumentsDirectory();
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+
+        Get.snackbar(
+          'Berhasil',
+          'File Excel disimpan di: ${file.path}',
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+        );
+      }
     } catch (e) {
       Get.snackbar('Error', 'Gagal export excel: $e', backgroundColor: Colors.red, colorText: Colors.white);
     }
@@ -180,7 +196,7 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
             elevation: 0,
             iconTheme: IconThemeData(color: textColor),
             title: Text(
-              'Rekap Harian',
+              'Rekap Harian Murid',
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
             ),
             actions: [
@@ -199,9 +215,66 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
           body: AuthBackground(
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
                 child: Column(
                   children: [
+                    // Pill segmented control
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: cardBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B5CF6),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Presensi Harian',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => Get.off(
+                                () => const MonthlyRecapPage(),
+                                transition: Transition.noTransition,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: const BoxDecoration(
+                                  color: Colors.transparent,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'Rekap Bulanan',
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     // Date picker bar
                     Container(
                       padding: const EdgeInsets.all(16),

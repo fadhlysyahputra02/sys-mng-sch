@@ -20,6 +20,9 @@ class _QrScanPageState extends State<QrScanPage>
   late final MobileScannerController _scannerController;
   bool _isProcessing = false;
 
+  String? _forcedRole;
+  String? _forcedAction;
+
   // Toast state
   _ToastData? _toastData;
   AnimationController? _toastController;
@@ -29,6 +32,11 @@ class _QrScanPageState extends State<QrScanPage>
   @override
   void initState() {
     super.initState();
+    final args = Get.arguments;
+    if (args is Map<String, dynamic>) {
+      _forcedRole = args['role'];
+      _forcedAction = args['action'];
+    }
     WidgetsBinding.instance.addObserver(this);
     _scannerController = MobileScannerController(
       detectionSpeed: DetectionSpeed.noDuplicates,
@@ -207,9 +215,26 @@ class _QrScanPageState extends State<QrScanPage>
 
       final String role = data['role'] ?? '';
       final String teacherId = data['teacherId'] ?? '';
+      final bool isTeacherQr = role == 'teacher' || teacherId.isNotEmpty;
+
+      // Validate scanned role matches forcedRole
+      if (_forcedRole == 'teacher' && !isTeacherQr) {
+        _showErrorDialog(
+          'Tipe QR Tidak Sesuai',
+          'Anda sedang berada di mode Scan Guru. Harap scan QR Code Guru.',
+        );
+        return;
+      }
+      if (_forcedRole == 'student' && isTeacherQr) {
+        _showErrorDialog(
+          'Tipe QR Tidak Sesuai',
+          'Anda sedang berada di mode Scan Murid. Harap scan QR Code Siswa.',
+        );
+        return;
+      }
 
       // --- ABSENSI GURU ---
-      if (role == 'teacher' || teacherId.isNotEmpty) {
+      if (isTeacherQr) {
         final String teacherName = data['nama'] ?? 'Guru';
         final String nip = data['nip'] ?? '';
 
@@ -227,6 +252,7 @@ class _QrScanPageState extends State<QrScanPage>
           teacherName: teacherName,
           nip: nip,
           officerId: user.uid,
+          forcedAction: _forcedAction,
         );
 
         final now = DateTime.now();
@@ -346,9 +372,11 @@ class _QrScanPageState extends State<QrScanPage>
                         icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
                         onPressed: () => Get.back(),
                       ),
-                      const Text(
-                        'Scan QR Kehadiran',
-                        style: TextStyle(
+                      Text(
+                        _forcedRole == 'teacher'
+                            ? (_forcedAction == 'check_in' ? 'Scan Masuk Guru' : 'Scan Pulang Guru')
+                            : (_forcedRole == 'student' ? 'Scan QR Murid' : 'Scan QR Kehadiran'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -373,15 +401,21 @@ class _QrScanPageState extends State<QrScanPage>
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.info_outline_rounded, color: Colors.white70, size: 16),
-                      SizedBox(width: 8),
+                      const Icon(Icons.info_outline_rounded, color: Colors.white70, size: 16),
+                      const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          'Arahkan ke QR Code siswa atau guru.',
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                          _forcedRole == 'teacher'
+                              ? (_forcedAction == 'check_in'
+                                  ? 'Arahkan ke QR Code Guru untuk absen masuk.'
+                                  : 'Arahkan ke QR Code Guru untuk absen pulang.')
+                              : (_forcedRole == 'student'
+                                  ? 'Arahkan ke QR Code Murid.'
+                                  : 'Arahkan ke QR Code siswa atau guru.'),
+                          style: const TextStyle(color: Colors.white70, fontSize: 12),
                           textAlign: TextAlign.center,
                         ),
                       ),

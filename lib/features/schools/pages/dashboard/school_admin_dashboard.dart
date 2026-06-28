@@ -19,7 +19,6 @@ import '../notifications/notifications_page.dart';
 import '../officers/pages/officer_management_page.dart';
 import '../tu/pages/tu_management_page.dart';
 import '../../../officer/pages/daily_recap_page.dart';
-import '../../../officer/pages/monthly_recap_page.dart';
 import '../teaching_reports/admin_teaching_reports_page.dart';
 import '../teachers/pages/admin_teacher_attendance_page.dart';
 
@@ -1065,9 +1064,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildSelectionCard(
-                    title: 'Rekap Harian Murid',
-                    description: 'Laporan kehadiran murid per tanggal',
-                    icon: Icons.calendar_today_rounded,
+                    title: 'Rekap Absensi Siswa',
+                    description: 'Laporan & statistik kehadiran harian dan bulanan siswa',
+                    icon: Icons.calendar_month_rounded,
                     color: const Color(0xFF8B5CF6),
                     onTap: () {
                       Get.back();
@@ -1079,41 +1078,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   ),
                   const SizedBox(height: 12),
                   _buildSelectionCard(
-                    title: 'Rekap Bulanan Murid',
-                    description: 'Statistik kehadiran bulanan murid per kelas',
-                    icon: Icons.calendar_month_rounded,
-                    color: const Color(0xFF10B981),
-                    onTap: () {
-                      Get.back();
-                      Get.to(() => const MonthlyRecapPage());
-                    },
-                    isDark: isDark,
-                    cardBg: cardBg,
-                    cardBorder: cardBorder,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSelectionCard(
-                    title: 'Rekap Harian Guru',
-                    description: 'Rekap kehadiran & jam kerja harian guru',
+                    title: 'Rekap Absensi Guru',
+                    description: 'Laporan & statistik kehadiran harian dan bulanan guru',
                     icon: Icons.co_present_rounded,
                     color: const Color(0xFF6366F1),
                     onTap: () {
                       Get.back();
                       Get.to(() => const AdminTeacherAttendancePage(isMonthly: false));
-                    },
-                    isDark: isDark,
-                    cardBg: cardBg,
-                    cardBorder: cardBorder,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSelectionCard(
-                    title: 'Rekap Bulanan Guru',
-                    description: 'Statistik kehadiran bulanan guru',
-                    icon: Icons.calendar_month_rounded,
-                    color: const Color(0xFFF59E0B),
-                    onTap: () {
-                      Get.back();
-                      Get.to(() => const AdminTeacherAttendancePage(isMonthly: true));
                     },
                     isDark: isDark,
                     cardBg: cardBg,
@@ -1230,9 +1201,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     SizedBox(
                       width: 280,
                       child: _buildSelectionCard(
-                        title: 'Rekap Harian Murid',
-                        description: 'Laporan kehadiran per tanggal sekolah',
-                        icon: Icons.calendar_today_rounded,
+                        title: 'Rekap Absensi Siswa',
+                        description: 'Laporan & statistik kehadiran harian dan bulanan siswa',
+                        icon: Icons.calendar_month_rounded,
                         color: const Color(0xFF8B5CF6),
                         onTap: () => Get.to(() => const DailyRecapPage()),
                         isDark: isDark,
@@ -1243,37 +1214,11 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     SizedBox(
                       width: 280,
                       child: _buildSelectionCard(
-                        title: 'Rekap Bulanan Murid',
-                        description: 'Statistik kehadiran bulanan per kelas murid',
-                        icon: Icons.calendar_month_rounded,
-                        color: const Color(0xFF10B981),
-                        onTap: () => Get.to(() => const MonthlyRecapPage()),
-                        isDark: isDark,
-                        cardBg: cardBg,
-                        cardBorder: cardBorder,
-                      ),
-                    ),
-                    SizedBox(
-                      width: 280,
-                      child: _buildSelectionCard(
-                        title: 'Rekap Harian Guru',
-                        description: 'Rekap kehadiran & jam kerja harian guru',
+                        title: 'Rekap Absensi Guru',
+                        description: 'Laporan & statistik kehadiran harian dan bulanan guru',
                         icon: Icons.co_present_rounded,
                         color: const Color(0xFF6366F1),
                         onTap: () => Get.to(() => const AdminTeacherAttendancePage(isMonthly: false)),
-                        isDark: isDark,
-                        cardBg: cardBg,
-                        cardBorder: cardBorder,
-                      ),
-                    ),
-                    SizedBox(
-                      width: 280,
-                      child: _buildSelectionCard(
-                        title: 'Rekap Bulanan Guru',
-                        description: 'Statistik kehadiran bulanan guru',
-                        icon: Icons.calendar_month_rounded,
-                        color: const Color(0xFFF59E0B),
-                        onTap: () => Get.to(() => const AdminTeacherAttendancePage(isMonthly: true)),
                         isDark: isDark,
                         cardBg: cardBg,
                         cardBorder: cardBorder,

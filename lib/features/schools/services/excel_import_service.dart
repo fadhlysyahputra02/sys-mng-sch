@@ -74,6 +74,10 @@ class ExcelImportService {
       onFileSelected?.call();
       final excel = Excel.decodeBytes(bytes);
 
+      List<Map<String, dynamic>> validatedTeachers = [];
+      List<String> errors = [];
+      Set<String> fileNips = {};
+
       int totalRows = 0;
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
@@ -82,21 +86,17 @@ class ExcelImportService {
         }
       }
 
-      int success = 0;
-      int duplicate = 0;
-      int failed = 0;
-      List<String> errors = [];
       int processed = 0;
 
+      // Pass 1: Validation
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
         if (sheet == null) continue;
 
-        // Skip header row at index 0, start at index 1
         for (int i = 1; i < sheet.maxRows; i++) {
           var row = sheet.rows[i];
           processed++;
-          onProgress?.call(processed, totalRows);
+          onProgress?.call(processed, totalRows * 2);
           if (row.isEmpty) continue;
 
           final nama = row.isNotEmpty ? _cleanValue(row[0]?.value) : '';
@@ -105,18 +105,28 @@ class ExcelImportService {
           final gender = _parseGender(genderRaw);
           final alamat = row.length > 3 ? _cleanValue(row[3]?.value) : '';
 
-          // Skip completely empty rows silently (don't treat as failure)
+          // Skip completely empty rows silently
           if (nama.isEmpty && nip.isEmpty) {
             continue;
           }
 
-          if (nama.isEmpty || nip.isEmpty) {
-            failed++;
-            errors.add('Baris ${i + 1}: Nama atau NIP kosong.');
+          if (nama.isEmpty) {
+            errors.add('Baris ${i + 1} (NIP: ${nip.isEmpty ? "-" : nip}): Nama guru tidak boleh kosong.');
             continue;
           }
 
-          // Check if NIP is already registered
+          if (nip.isEmpty) {
+            errors.add('Baris ${i + 1} (Nama: $nama): NIP tidak boleh kosong.');
+            continue;
+          }
+
+          if (fileNips.contains(nip)) {
+            errors.add('Baris ${i + 1} (Nama: $nama, NIP: $nip): NIP duplikat di dalam file Excel.');
+            continue;
+          }
+          fileNips.add(nip);
+
+          // Check if NIP is registered in Firestore
           final existing = await _db
               .collection('schools')
               .doc(schoolId)
@@ -125,47 +135,74 @@ class ExcelImportService {
               .get();
 
           if (existing.docs.isNotEmpty) {
-            duplicate++;
+            final existingName = existing.docs.first.data()['nama'] ?? 'Guru Lain';
+            errors.add('Baris ${i + 1} (Nama: $nama, NIP: $nip): NIP sudah terdaftar di database atas nama "$existingName".');
             continue;
           }
 
-          // Insert teacher record
-          final docRef = _db
-              .collection('schools')
-              .doc(schoolId)
-              .collection('teachers')
-              .doc();
+          if (genderRaw.isNotEmpty && gender.isEmpty) {
+            errors.add('Baris ${i + 1} (Nama: $nama, NIP: $nip): Jenis Kelamin "$genderRaw" tidak valid (harus L atau P).');
+            continue;
+          }
 
-          await docRef.set({
-            'teacherId': docRef.id,
-            'schoolId': schoolId,
-            'uid': '',
-            'email': '',
-            'nip': nip,
+          validatedTeachers.add({
             'nama': nama,
+            'nip': nip,
             'gender': gender,
             'alamat': alamat,
-            'aktif': true,
-            'sudahRegister': false,
-            'createdAt': FieldValue.serverTimestamp(),
           });
-
-          success++;
         }
+      }
+
+      // If there are any validation errors, abort the entire process and return failures
+      if (errors.isNotEmpty) {
+        return ExcelImportResult(
+          successCount: 0,
+          duplicateCount: 0,
+          failedCount: errors.length,
+          errors: errors,
+        );
+      }
+
+      // Pass 2: Firestore Insertions
+      int success = 0;
+      for (int i = 0; i < validatedTeachers.length; i++) {
+        final teacherData = validatedTeachers[i];
+        final docRef = _db
+            .collection('schools')
+            .doc(schoolId)
+            .collection('teachers')
+            .doc();
+
+        await docRef.set({
+          'teacherId': docRef.id,
+          'schoolId': schoolId,
+          'uid': '',
+          'email': '',
+          'nip': teacherData['nip'],
+          'nama': teacherData['nama'],
+          'gender': teacherData['gender'],
+          'alamat': teacherData['alamat'],
+          'aktif': true,
+          'sudahRegister': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        success++;
+        onProgress?.call(totalRows + success, totalRows * 2);
       }
 
       return ExcelImportResult(
         successCount: success,
-        duplicateCount: duplicate,
-        failedCount: failed,
-        errors: errors,
+        duplicateCount: 0,
+        failedCount: 0,
+        errors: [],
       );
     } catch (e) {
       debugPrint('Error importing teachers: $e');
       return ExcelImportResult(
         successCount: 0,
         duplicateCount: 0,
-        failedCount: 0,
+        failedCount: 1,
         errors: ['Terjadi kesalahan saat memproses file: $e'],
       );
     }
@@ -205,6 +242,10 @@ class ExcelImportService {
       onFileSelected?.call();
       final excel = Excel.decodeBytes(bytes);
 
+      List<Map<String, dynamic>> validatedStudents = [];
+      List<String> errors = [];
+      Set<String> fileNiss = {};
+
       int totalRows = 0;
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
@@ -213,21 +254,17 @@ class ExcelImportService {
         }
       }
 
-      int success = 0;
-      int duplicate = 0;
-      int failed = 0;
-      List<String> errors = [];
       int processed = 0;
 
+      // Pass 1: Validation
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
         if (sheet == null) continue;
 
-        // Skip header row at index 0, start at index 1
         for (int i = 1; i < sheet.maxRows; i++) {
           var row = sheet.rows[i];
           processed++;
-          onProgress?.call(processed, totalRows);
+          onProgress?.call(processed, totalRows * 2);
           if (row.isEmpty) continue;
 
           final nama = row.isNotEmpty ? _cleanValue(row[0]?.value) : '';
@@ -238,18 +275,28 @@ class ExcelImportService {
           final tanggalLahir = row.length > 4 ? _cleanValue(row[4]?.value) : '';
           final angkatan = row.length > 5 ? _cleanValue(row[5]?.value) : '';
 
-          // Skip completely empty rows silently (don't treat as failure)
+          // Skip completely empty rows silently
           if (nama.isEmpty && nis.isEmpty) {
             continue;
           }
 
-          if (nama.isEmpty || nis.isEmpty) {
-            failed++;
-            errors.add('Baris ${i + 1}: Nama atau NIS kosong.');
+          if (nama.isEmpty) {
+            errors.add('Baris ${i + 1} (NIS: ${nis.isEmpty ? "-" : nis}): Nama siswa tidak boleh kosong.');
             continue;
           }
 
-          // Check if NIS is already registered
+          if (nis.isEmpty) {
+            errors.add('Baris ${i + 1} (Nama: $nama): NIS tidak boleh kosong.');
+            continue;
+          }
+
+          if (fileNiss.contains(nis)) {
+            errors.add('Baris ${i + 1} (Nama: $nama, NIS: $nis): NIS duplikat di dalam file Excel.');
+            continue;
+          }
+          fileNiss.add(nis);
+
+          // Check if NIS is registered in Firestore
           final existing = await _db
               .collection('schools')
               .doc(schoolId)
@@ -258,50 +305,79 @@ class ExcelImportService {
               .get();
 
           if (existing.docs.isNotEmpty) {
-            duplicate++;
+            final existingName = existing.docs.first.data()['nama'] ?? 'Siswa Lain';
+            errors.add('Baris ${i + 1} (Nama: $nama, NIS: $nis): NIS sudah terdaftar di database atas nama "$existingName".');
             continue;
           }
 
-          // Insert student record
-          final docRef = _db
-              .collection('schools')
-              .doc(schoolId)
-              .collection('students')
-              .doc();
+          if (genderRaw.isNotEmpty && gender.isEmpty) {
+            errors.add('Baris ${i + 1} (Nama: $nama, NIS: $nis): Jenis Kelamin "$genderRaw" tidak valid (harus L atau P).');
+            continue;
+          }
 
-          await docRef.set({
-            'studentId': docRef.id,
-            'schoolId': schoolId,
-            'uid': '',
-            'email': '',
-            'nis': nis,
+          validatedStudents.add({
             'nama': nama,
+            'nis': nis,
             'gender': gender,
             'alamat': alamat,
             'tanggalLahir': tanggalLahir,
             'angkatan': angkatan,
-            'classId': null,
-            'aktif': true,
-            'sudahRegister': false,
-            'createdAt': FieldValue.serverTimestamp(),
           });
-
-          success++;
         }
+      }
+
+      // If there are any validation errors, abort the entire process and return failures
+      if (errors.isNotEmpty) {
+        return ExcelImportResult(
+          successCount: 0,
+          duplicateCount: 0,
+          failedCount: errors.length,
+          errors: errors,
+        );
+      }
+
+      // Pass 2: Firestore Insertions
+      int success = 0;
+      for (int i = 0; i < validatedStudents.length; i++) {
+        final studentData = validatedStudents[i];
+        final docRef = _db
+            .collection('schools')
+            .doc(schoolId)
+            .collection('students')
+            .doc();
+
+        await docRef.set({
+          'studentId': docRef.id,
+          'schoolId': schoolId,
+          'uid': '',
+          'email': '',
+          'nis': studentData['nis'],
+          'nama': studentData['nama'],
+          'gender': studentData['gender'],
+          'alamat': studentData['alamat'],
+          'tanggalLahir': studentData['tanggalLahir'],
+          'angkatan': studentData['angkatan'],
+          'classId': null,
+          'aktif': true,
+          'sudahRegister': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        success++;
+        onProgress?.call(totalRows + success, totalRows * 2);
       }
 
       return ExcelImportResult(
         successCount: success,
-        duplicateCount: duplicate,
-        failedCount: failed,
-        errors: errors,
+        duplicateCount: 0,
+        failedCount: 0,
+        errors: [],
       );
     } catch (e) {
       debugPrint('Error importing students: $e');
       return ExcelImportResult(
         successCount: 0,
         duplicateCount: 0,
-        failedCount: 0,
+        failedCount: 1,
         errors: ['Terjadi kesalahan saat memproses file: $e'],
       );
     }

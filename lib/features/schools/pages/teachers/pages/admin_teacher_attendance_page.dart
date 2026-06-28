@@ -1,7 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:excel/excel.dart' hide Border;
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import '../../../../officer/data/officer_repository.dart';
@@ -160,6 +167,493 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
         ),
       ],
     );
+  }
+
+  Future<void> _exportDailyPdf() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+      ),
+    );
+
+    try {
+      final schoolId = SessionService.currentUser!.schoolId;
+      final dateStr = _getDateStr(_selectedDate);
+
+      // Fetch teachers
+      final teachersSnap = await _teacherService.getTeachers(schoolId).first;
+      // Fetch attendance
+      final attendanceSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('teacher_daily_attendance')
+          .where('date', isEqualTo: dateStr)
+          .get();
+
+      final Map<String, Map<String, dynamic>> attMap = {};
+      for (var doc in attendanceSnap.docs) {
+        final d = doc.data();
+        final tId = d['teacherId'] as String?;
+        if (tId != null) {
+          attMap[tId] = d;
+        }
+      }
+
+      final processedList = <Map<String, dynamic>>[];
+      for (var doc in teachersSnap.docs) {
+        final tData = doc.data();
+        final tId = doc.id;
+        final name = tData['nama'] ?? 'Guru';
+        final nip = tData['nip'] ?? '';
+        
+        final attendance = attMap[tId];
+        final status = attendance != null ? (attendance['status'] ?? 'hadir') : 'alfa';
+
+        if (_searchQuery.isNotEmpty &&
+            !name.toLowerCase().contains(_searchQuery.toLowerCase())) {
+          continue;
+        }
+        if (_selectedStatusFilter != 'Semua') {
+          if (_selectedStatusFilter == 'Hadir' && status != 'hadir') continue;
+          if (_selectedStatusFilter == 'Terlambat' && status != 'terlambat') continue;
+          if (_selectedStatusFilter == 'Sakit' && status != 'sakit') continue;
+          if (_selectedStatusFilter == 'Izin' && status != 'izin') continue;
+          if (_selectedStatusFilter == 'Alfa' && status != 'alfa') continue;
+        }
+
+        processedList.add({
+          'teacherId': tId,
+          'teacherName': name,
+          'nip': nip,
+          'status': status,
+          'attendance': attendance,
+        });
+      }
+
+      processedList.sort((a, b) => (a['teacherName'] as String).compareTo(b['teacherName'] as String));
+
+      final pdf = pw.Document();
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Laporan Kehadiran Harian Guru', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 8),
+                pw.Text('Tanggal: ${_getFormattedIndonesianDate(_selectedDate)}'),
+                pw.SizedBox(height: 20),
+                pw.Table.fromTextArray(
+                  headers: ['No', 'Nama Guru', 'NIP', 'Status', 'Masuk', 'Pulang'],
+                  data: List<List<String>>.generate(processedList.length, (index) {
+                    final item = processedList[index];
+                    final att = item['attendance'] as Map<String, dynamic>?;
+                    final checkInTime = att != null ? att['checkInTime'] as Timestamp? : null;
+                    final checkOutTime = att != null ? att['checkOutTime'] as Timestamp? : null;
+                    
+                    return [
+                      (index + 1).toString(),
+                      item['teacherName'] ?? '-',
+                      item['nip'] ?? '-',
+                      (item['status'] ?? '-').toString().toUpperCase(),
+                      checkInTime != null ? _formatTime(checkInTime) : '--:--',
+                      checkOutTime != null ? _formatTime(checkOutTime) : '--:--',
+                    ];
+                  }),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      if (mounted) Navigator.pop(context); // Pop spinner
+
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: 'Rekap_Harian_Guru_${DateFormat('yyyyMMdd').format(_selectedDate)}.pdf',
+      );
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Pop spinner
+      Get.snackbar('Error', 'Gagal export PDF: $e', backgroundColor: Colors.red, colorText: Colors.white);
+    }
+  }
+
+  Future<void> _exportDailyExcel() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+      ),
+    );
+
+    try {
+      final schoolId = SessionService.currentUser!.schoolId;
+      final dateStr = _getDateStr(_selectedDate);
+
+      // Fetch teachers
+      final teachersSnap = await _teacherService.getTeachers(schoolId).first;
+      // Fetch attendance
+      final attendanceSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('teacher_daily_attendance')
+          .where('date', isEqualTo: dateStr)
+          .get();
+
+      final Map<String, Map<String, dynamic>> attMap = {};
+      for (var doc in attendanceSnap.docs) {
+        final d = doc.data();
+        final tId = d['teacherId'] as String?;
+        if (tId != null) {
+          attMap[tId] = d;
+        }
+      }
+
+      final processedList = <Map<String, dynamic>>[];
+      for (var doc in teachersSnap.docs) {
+        final tData = doc.data();
+        final tId = doc.id;
+        final name = tData['nama'] ?? 'Guru';
+        final nip = tData['nip'] ?? '';
+        
+        final attendance = attMap[tId];
+        final status = attendance != null ? (attendance['status'] ?? 'hadir') : 'alfa';
+
+        if (_searchQuery.isNotEmpty &&
+            !name.toLowerCase().contains(_searchQuery.toLowerCase())) {
+          continue;
+        }
+        if (_selectedStatusFilter != 'Semua') {
+          if (_selectedStatusFilter == 'Hadir' && status != 'hadir') continue;
+          if (_selectedStatusFilter == 'Terlambat' && status != 'terlambat') continue;
+          if (_selectedStatusFilter == 'Sakit' && status != 'sakit') continue;
+          if (_selectedStatusFilter == 'Izin' && status != 'izin') continue;
+          if (_selectedStatusFilter == 'Alfa' && status != 'alfa') continue;
+        }
+
+        processedList.add({
+          'teacherId': tId,
+          'teacherName': name,
+          'nip': nip,
+          'status': status,
+          'attendance': attendance,
+        });
+      }
+
+      processedList.sort((a, b) => (a['teacherName'] as String).compareTo(b['teacherName'] as String));
+
+      final excelFile = Excel.createExcel();
+      final sheetObject = excelFile['Sheet1'];
+      
+      sheetObject.appendRow([
+        TextCellValue('No'),
+        TextCellValue('Nama Guru'),
+        TextCellValue('NIP'),
+        TextCellValue('Status'),
+        TextCellValue('Jam Masuk'),
+        TextCellValue('Jam Pulang'),
+      ]);
+
+      for (int i = 0; i < processedList.length; i++) {
+        final item = processedList[i];
+        final att = item['attendance'] as Map<String, dynamic>?;
+        final checkInTime = att != null ? att['checkInTime'] as Timestamp? : null;
+        final checkOutTime = att != null ? att['checkOutTime'] as Timestamp? : null;
+
+        sheetObject.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(item['teacherName'] ?? '-'),
+          TextCellValue(item['nip'] ?? '-'),
+          TextCellValue((item['status'] ?? '-').toString().toUpperCase()),
+          TextCellValue(checkInTime != null ? _formatTime(checkInTime) : '--:--'),
+          TextCellValue(checkOutTime != null ? _formatTime(checkOutTime) : '--:--'),
+        ]);
+      }
+
+      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(schoolId).get();
+      final schoolName = schoolDoc.data()?['namaSekolah'] ?? 'Sekolah';
+      final fileName = 'rekap absensi harian guru ($schoolName) tanggal ${DateFormat('yyyyMMdd').format(_selectedDate)}.xlsx';
+
+      if (kIsWeb) {
+        excelFile.save(fileName: fileName);
+        if (mounted) Navigator.pop(context); // Pop spinner
+        Get.snackbar(
+          'Berhasil',
+          'File Excel berhasil diunduh.',
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+        );
+      } else {
+        final bytes = excelFile.save();
+        if (bytes == null) throw ('Gagal generate file Excel');
+        final dir = await getApplicationDocumentsDirectory();
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+        if (mounted) Navigator.pop(context); // Pop spinner
+        Get.snackbar(
+          'Berhasil',
+          'File Excel disimpan di: ${file.path}',
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Pop spinner
+      Get.snackbar('Error', 'Gagal export excel: $e', backgroundColor: Colors.red, colorText: Colors.white);
+    }
+  }
+
+  Future<void> _exportMonthlyPdf() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+      ),
+    );
+
+    try {
+      final schoolId = SessionService.currentUser!.schoolId;
+      final teachersSnap = await _teacherService.getTeachers(schoolId).first;
+      
+      final year = _selectedYear;
+      final monthStr = _selectedMonth.toString().padLeft(2, '0');
+      final startOfDate = '$year-$monthStr-01';
+      final endOfDate = '$year-$monthStr-31';
+
+      final attendanceSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('teacher_daily_attendance')
+          .where('date', isGreaterThanOrEqualTo: startOfDate)
+          .where('date', isLessThanOrEqualTo: endOfDate)
+          .get();
+
+      final Map<String, Map<String, int>> recapMap = {};
+      for (var doc in attendanceSnap.docs) {
+        final d = doc.data();
+        final tId = d['teacherId'] as String?;
+        final status = d['status'] as String?;
+        if (tId != null && status != null) {
+          recapMap.putIfAbsent(tId, () => {
+            'hadir': 0,
+            'terlambat': 0,
+            'sakit': 0,
+            'izin': 0,
+            'alfa': 0,
+          });
+          final normStatus = status.toLowerCase();
+          if (recapMap[tId]!.containsKey(normStatus)) {
+            recapMap[tId]![normStatus] = recapMap[tId]![normStatus]! + 1;
+          } else if (normStatus == 'alfa' || normStatus == 'alpha') {
+            recapMap[tId]!['alfa'] = recapMap[tId]!['alfa']! + 1;
+          }
+        }
+      }
+
+      final teachersList = teachersSnap.docs;
+      final sortedTeachers = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(teachersList);
+      sortedTeachers.sort((a, b) {
+        final nameA = (a.data()['nama'] ?? 'Guru').toString();
+        final nameB = (b.data()['nama'] ?? 'Guru').toString();
+        return nameA.compareTo(nameB);
+      });
+
+      final pdf = pw.Document();
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return [
+              pw.Text('Laporan Kehadiran Bulanan Guru', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 8),
+              pw.Text('Periode: ${_monthNames[_selectedMonth - 1]} $_selectedYear'),
+              pw.SizedBox(height: 20),
+              pw.Table.fromTextArray(
+                headers: ['No', 'Nama Guru', 'NIP', 'Hadir', 'Telat', 'Sakit', 'Izin', 'Alfa'],
+                data: List<List<String>>.generate(sortedTeachers.length, (index) {
+                  final doc = sortedTeachers[index];
+                  final tData = doc.data();
+                  final tId = doc.id;
+                  final name = tData['nama'] ?? 'Guru';
+                  final nip = tData['nip'] ?? '-';
+                  
+                  final counts = recapMap[tId] ?? {
+                    'hadir': 0,
+                    'terlambat': 0,
+                    'sakit': 0,
+                    'izin': 0,
+                    'alfa': 0,
+                  };
+
+                  return [
+                    (index + 1).toString(),
+                    name,
+                    nip,
+                    counts['hadir'].toString(),
+                    counts['terlambat'].toString(),
+                    counts['sakit'].toString(),
+                    counts['izin'].toString(),
+                    counts['alfa'].toString(),
+                  ];
+                }),
+              ),
+            ];
+          },
+        ),
+      );
+
+      if (mounted) Navigator.pop(context); // Pop spinner
+
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: 'Rekap_Bulanan_Guru_${_monthNames[_selectedMonth - 1]}_$_selectedYear.pdf',
+      );
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Pop spinner
+      Get.snackbar('Error', 'Gagal export PDF: $e', backgroundColor: Colors.red, colorText: Colors.white);
+    }
+  }
+
+  Future<void> _exportMonthlyExcel() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+      ),
+    );
+
+    try {
+      final schoolId = SessionService.currentUser!.schoolId;
+      final teachersSnap = await _teacherService.getTeachers(schoolId).first;
+      
+      final year = _selectedYear;
+      final monthStr = _selectedMonth.toString().padLeft(2, '0');
+      final startOfDate = '$year-$monthStr-01';
+      final endOfDate = '$year-$monthStr-31';
+
+      final attendanceSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('teacher_daily_attendance')
+          .where('date', isGreaterThanOrEqualTo: startOfDate)
+          .where('date', isLessThanOrEqualTo: endOfDate)
+          .get();
+
+      final Map<String, Map<String, int>> recapMap = {};
+      for (var doc in attendanceSnap.docs) {
+        final d = doc.data();
+        final tId = d['teacherId'] as String?;
+        final status = d['status'] as String?;
+        if (tId != null && status != null) {
+          recapMap.putIfAbsent(tId, () => {
+            'hadir': 0,
+            'terlambat': 0,
+            'sakit': 0,
+            'izin': 0,
+            'alfa': 0,
+          });
+          final normStatus = status.toLowerCase();
+          if (recapMap[tId]!.containsKey(normStatus)) {
+            recapMap[tId]![normStatus] = recapMap[tId]![normStatus]! + 1;
+          } else if (normStatus == 'alfa' || normStatus == 'alpha') {
+            recapMap[tId]!['alfa'] = recapMap[tId]!['alfa']! + 1;
+          }
+        }
+      }
+
+      final teachersList = teachersSnap.docs;
+      final sortedTeachers = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(teachersList);
+      sortedTeachers.sort((a, b) {
+        final nameA = (a.data()['nama'] ?? 'Guru').toString();
+        final nameB = (b.data()['nama'] ?? 'Guru').toString();
+        return nameA.compareTo(nameB);
+      });
+
+      final excelFile = Excel.createExcel();
+      final sheetObject = excelFile['Sheet1'];
+      
+      sheetObject.appendRow([
+        TextCellValue('No'),
+        TextCellValue('Nama Guru'),
+        TextCellValue('NIP'),
+        TextCellValue('Hadir'),
+        TextCellValue('Telat'),
+        TextCellValue('Sakit'),
+        TextCellValue('Izin'),
+        TextCellValue('Alfa'),
+      ]);
+
+      for (int i = 0; i < sortedTeachers.length; i++) {
+        final doc = sortedTeachers[i];
+        final tData = doc.data();
+        final tId = doc.id;
+        final name = tData['nama'] ?? 'Guru';
+        final nip = tData['nip'] ?? '-';
+
+        final counts = recapMap[tId] ?? {
+          'hadir': 0,
+          'terlambat': 0,
+          'sakit': 0,
+          'izin': 0,
+          'alfa': 0,
+        };
+
+        sheetObject.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(name),
+          TextCellValue(nip),
+          IntCellValue(counts['hadir']!),
+          IntCellValue(counts['terlambat']!),
+          IntCellValue(counts['sakit']!),
+          IntCellValue(counts['izin']!),
+          IntCellValue(counts['alfa']!),
+        ]);
+      }
+
+      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(schoolId).get();
+      final schoolName = schoolDoc.data()?['namaSekolah'] ?? 'Sekolah';
+      final monthName = _monthNames[_selectedMonth - 1];
+
+      final fileName = 'rekap absensi bulanan guru ($schoolName) bulan ($monthName).xlsx';
+
+      if (kIsWeb) {
+        excelFile.save(fileName: fileName);
+        if (mounted) Navigator.pop(context); // Pop spinner
+        Get.snackbar(
+          'Berhasil',
+          'File Excel berhasil diunduh.',
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+        );
+      } else {
+        final bytes = excelFile.save();
+        if (bytes == null) throw ('Gagal generate file Excel');
+        final dir = await getApplicationDocumentsDirectory();
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+        if (mounted) Navigator.pop(context); // Pop spinner
+        Get.snackbar(
+          'Berhasil',
+          'File Excel disimpan di: ${file.path}',
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Pop spinner
+      Get.snackbar('Error', 'Gagal export excel: $e', backgroundColor: Colors.red, colorText: Colors.white);
+    }
   }
 
   void _showEditAttendanceModal({
@@ -514,11 +1008,34 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
             ),
             centerTitle: true,
             actions: [
-              if (!_isMonthlyRecap)
+              if (!_isMonthlyRecap) ...[
                 IconButton(
                   icon: Icon(Icons.calendar_month_rounded, color: textColor),
                   onPressed: _showDatePicker,
+                  tooltip: 'Pilih Tanggal',
                 ),
+                IconButton(
+                  icon: Icon(Icons.picture_as_pdf_rounded, color: textColor),
+                  onPressed: _exportDailyPdf,
+                  tooltip: 'Export PDF',
+                ),
+                IconButton(
+                  icon: Icon(Icons.table_view_rounded, color: textColor),
+                  onPressed: _exportDailyExcel,
+                  tooltip: 'Export Excel',
+                ),
+              ] else ...[
+                IconButton(
+                  icon: Icon(Icons.picture_as_pdf_rounded, color: textColor),
+                  onPressed: _exportMonthlyPdf,
+                  tooltip: 'Export PDF',
+                ),
+                IconButton(
+                  icon: Icon(Icons.table_view_rounded, color: textColor),
+                  onPressed: _exportMonthlyExcel,
+                  tooltip: 'Export Excel',
+                ),
+              ],
             ],
           ),
           body: Padding(
