@@ -30,6 +30,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
   String? _tahunAjaran;
   String? _semester;
   String? _studentClassId;
+  String? _studentClassName;
   String? _waliKelas;
   String? _waliKelasId;
   bool _isLoading = true;
@@ -65,6 +66,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
       final studentId = (parentData?['studentId'] ?? '').toString();
 
       String? classId;
+      String? namaKelas;
       String? waliKelas;
       String? waliKelasId;
       if (studentId.isNotEmpty) {
@@ -83,11 +85,10 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
               .collection('classes')
               .doc(classId)
               .get();
-          // Field yang tersimpan adalah 'teacherId' dan 'teacherName'
-          // (bukan 'waliKelasId') — lihat class_service.dart assignWaliKelas()
+          
           final teacherId = classDoc.data()?['teacherId'] as String?;
+          namaKelas = classDoc.data()?['namaKelas'] as String?;
           waliKelasId = teacherId;
-          // Gunakan teacherName dari class doc sebagai nilai cepat
           waliKelas = classDoc.data()?['teacherName'] as String?;
           // Jika teacherName kosong, ambil dari koleksi teachers berdasarkan teacherId
           if ((waliKelas == null || waliKelas.isEmpty) &&
@@ -111,6 +112,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
           _tahunAjaran = schoolData?['tahunAjaran'] as String?;
           _semester = schoolData?['semester'] as String?;
           _studentClassId = classId;
+          _studentClassName = namaKelas;
           _waliKelas = waliKelas;
           _waliKelasId = waliKelasId;
           _isLoading = false;
@@ -249,14 +251,10 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                             child: MotifCard(
                               isDark: isDark,
                               padding: const EdgeInsets.all(24),
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
-                              ),
+                              cardColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
                               borderRadius: 28,
                               cardBorderColor: Colors.transparent,
-                              cardShadowColor: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                              cardShadowColor: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.06),
                               child: Column(
                                 children: [
                                   Row(
@@ -264,12 +262,12 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                       CircleAvatar(
                                         radius: 32,
                                         backgroundColor:
-                                            Colors.white.withValues(alpha: 0.2),
+                                            textColor.withValues(alpha: 0.1),
                                         child: Text(
                                           (_parentData?['studentName']?[0] ??
                                               'A'),
-                                          style: const TextStyle(
-                                            color: Colors.white,
+                                          style: TextStyle(
+                                            color: textColor,
                                             fontSize: 28,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -287,15 +285,14 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                                 vertical: 4,
                                               ),
                                               decoration: BoxDecoration(
-                                                color: Colors.white
-                                                    .withValues(alpha: 0.2),
+                                                color: textColor.withValues(alpha: 0.05),
                                                 borderRadius:
                                                     BorderRadius.circular(20),
                                               ),
-                                              child: const Text(
+                                              child: Text(
                                                 'Siswa Terhubung',
                                                 style: TextStyle(
-                                                  color: Colors.white,
+                                                  color: textColor,
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.bold,
                                                 ),
@@ -304,17 +301,16 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                             const SizedBox(height: 6),
                                             Text(
                                               _parentData?['studentName'] ?? '-',
-                                              style: const TextStyle(
-                                                color: Colors.white,
+                                              style: TextStyle(
+                                                color: textColor,
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                             Text(
-                                              'Kelas ${_parentData?['className'] ?? '-'}',
+                                              'Kelas ${_studentClassName ?? _parentData?['className'] ?? '-'}',
                                               style: TextStyle(
-                                                color: Colors.white
-                                                    .withValues(alpha: 0.8),
+                                                color: textColor.withValues(alpha: 0.8),
                                                 fontSize: 13,
                                               ),
                                             ),
@@ -326,7 +322,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                   const SizedBox(height: 20),
                                   Divider(
                                       color:
-                                          Colors.white.withValues(alpha: 0.2)),
+                                          textColor.withValues(alpha: 0.1)),
                                   const SizedBox(height: 12),
                                   Row(
                                     mainAxisAlignment:
@@ -334,10 +330,12 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                     children: [
                                       _heroSmallInfo(
                                           Icons.business_rounded,
-                                          _schoolName ?? 'Sekolah'),
+                                          _schoolName ?? 'Sekolah',
+                                          textColor),
                                       _heroSmallInfo(
                                           Icons.calendar_today_rounded,
-                                          _tahunAjaran ?? '-'),
+                                          _tahunAjaran ?? '-',
+                                          textColor),
                                     ],
                                   ),
                                   const SizedBox(height: 10),
@@ -346,20 +344,20 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 12, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.15),
+                                      color: textColor.withValues(alpha: 0.05),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Icon(Icons.event_note_rounded,
-                                            color: Colors.white.withValues(alpha: 0.8),
+                                            color: textColor.withValues(alpha: 0.8),
                                             size: 14),
                                         const SizedBox(width: 6),
                                         Text(
                                           'Semester ${_semester ?? '-'} • Tahun Ajaran ${_tahunAjaran ?? '-'}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
+                                          style: TextStyle(
+                                            color: textColor,
                                             fontSize: 11,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -395,9 +393,8 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                   user.schoolId,
                                   (_parentData?['studentId'] ?? '').toString(),
                                   _studentClassId,
-                                  (_parentData?['className'] ?? '-').toString(),
-                                  (_parentData?['studentName'] ?? 'Anak')
-                                      .toString(),
+                                  _studentClassName ?? _parentData?['className'],
+                                  (_parentData?['studentName'] ?? 'Anak'),
                                   _tahunAjaran,
                                   _semester,
                                 ),
@@ -504,6 +501,14 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
               'studentId': studentId,
               'className': className,
               'studentName': studentName,
+            }),
+      },
+      {
+        'title': 'Jadwal Kelas',
+        'icon': Icons.calendar_month_rounded,
+        'color': const Color(0xFFF59E0B),
+        'onTap': () => Get.toNamed(AppRoutes.parentSchedule, arguments: {
+              'className': className,
             }),
       },
       {
@@ -858,15 +863,15 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
     );
   }
 
-  Widget _heroSmallInfo(IconData icon, String text) {
+  Widget _heroSmallInfo(IconData icon, String text, Color textColor) {
     return Row(
       children: [
-        Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: 16),
+        Icon(icon, color: textColor.withValues(alpha: 0.7), size: 16),
         const SizedBox(width: 8),
         Text(
           text,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: textColor,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),

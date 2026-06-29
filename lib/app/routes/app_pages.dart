@@ -21,6 +21,7 @@ import '../../features/parent/pages/parent_chat_list_page.dart';
 import '../../features/parent/pages/parent_permit_page.dart';
 import '../../features/teachers/pages/teacher_permits_page.dart';
 import '../../features/authentication/pages/parent_register_page.dart';
+import '../../features/students/pages/student_schedule_page.dart';
 import '../../features/schools/pages/notifications/notifications_page.dart';
 import '../../features/schools/pages/dashboard/premium_features_page.dart';
 import '../../features/officer/pages/officer_dashboard_page.dart';
@@ -86,6 +87,15 @@ class AppPages {
     GetPage(
       name: AppRoutes.parentPermit,
       page: () => const ParentPermitPage(),
+    ),
+    GetPage(
+      name: AppRoutes.parentSchedule,
+      page: () {
+        final args = Get.arguments as Map<String, dynamic>? ?? {};
+        return StudentSchedulePage(
+          className: args['className'] ?? '',
+        );
+      },
     ),
     GetPage(
       name: AppRoutes.teacherPermits,

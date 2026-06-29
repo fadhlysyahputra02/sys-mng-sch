@@ -21,6 +21,7 @@ class AppRoutes {
   static const parentViolations = '/parent-violations';
   static const parentChat = '/parent-chat';
   static const parentPermit = '/parent-permit';
+  static const parentSchedule = '/parent-schedule';
   static const teacherPermits = '/teacher-permits';
 
   // Route untuk officer

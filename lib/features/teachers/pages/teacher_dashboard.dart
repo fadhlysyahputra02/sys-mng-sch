@@ -46,6 +46,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   Map<String, dynamic>? _teacherData;
   bool _isLoadingTeacher = true;
 
+  // Class IDs where this teacher is wali kelas or teaches schedules
+  Set<String> _teacherClassIds = {};
+  StreamSubscription? _waliClassesSub;
+  StreamSubscription? _scheduleClassesSub;
+
   String? _schoolName;
   String _plan = 'FREE';
   bool _isLoadingSchool = true;
@@ -58,6 +63,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   void initState() {
     super.initState();
     _resolveTeacherDocId();
+  }
+
+  @override
+  void dispose() {
+    _waliClassesSub?.cancel();
+    _scheduleClassesSub?.cancel();
+    super.dispose();
   }
 
   /// Langkah paling penting: cari dokumen guru di subcollection teachers
@@ -90,6 +102,48 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         _isLoadingSchool = false;
       });
     }
+
+    if (doc != null) {
+      _loadTeacherClassIds(user.schoolId, doc.id);
+    }
+  }
+
+  void _loadTeacherClassIds(String schoolId, String teacherDocId) {
+    _waliClassesSub?.cancel();
+    _waliClassesSub = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(schoolId)
+        .collection('classes')
+        .where('teacherId', isEqualTo: teacherDocId)
+        .snapshots()
+        .listen((snap) {
+      if (mounted) {
+        setState(() {
+          final waliIds = snap.docs.map((d) => d.id).toSet();
+          _teacherClassIds = {..._teacherClassIds, ...waliIds};
+        });
+      }
+    });
+
+    _scheduleClassesSub?.cancel();
+    _scheduleClassesSub = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(schoolId)
+        .collection('class_schedules')
+        .where('teacherId', isEqualTo: teacherDocId)
+        .snapshots()
+        .listen((snap) {
+      if (mounted) {
+        setState(() {
+          final scheduleIds = snap.docs
+              .map((d) => d.data()['classId'] as String?)
+              .where((id) => id != null && id.isNotEmpty)
+              .cast<String>()
+              .toSet();
+          _teacherClassIds = {..._teacherClassIds, ...scheduleIds};
+        });
+      }
+    });
   }
 
   int _timeToMinutes(String time) {
@@ -1578,11 +1632,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                     .collection('schools')
                                     .doc(SessionService.currentUser!.schoolId)
                                     .collection('permits')
-                                    .where('teacherId', isEqualTo: _teacherDocId)
                                     .snapshots(),
                                 builder: (context, snapshot) {
                                   final docs = snapshot.data?.docs ?? [];
-                                  final pendingCount = docs
+                                  final filteredDocs = docs.where((doc) {
+                                    final data = doc.data();
+                                    final permitTeacherId = data['teacherId']?.toString() ?? '';
+                                    final permitClassId = data['classId']?.toString() ?? '';
+                                    return permitTeacherId == _teacherDocId || _teacherClassIds.contains(permitClassId);
+                                  }).toList();
+
+                                  final pendingCount = filteredDocs
                                       .where((d) => d.data()['status'] == 'Pending')
                                       .length;
 
@@ -1996,11 +2056,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                               .collection('schools')
                               .doc(SessionService.currentUser!.schoolId)
                               .collection('permits')
-                              .where('teacherId', isEqualTo: _teacherDocId)
                               .snapshots(),
                           builder: (context, snapshot) {
                             final docs = snapshot.data?.docs ?? [];
-                            final pendingCount = docs.where((d) => d.data()['status'] == 'Pending').length;
+                            final filteredDocs = docs.where((doc) {
+                              final data = doc.data();
+                              final permitTeacherId = data['teacherId']?.toString() ?? '';
+                              final permitClassId = data['classId']?.toString() ?? '';
+                              return permitTeacherId == _teacherDocId || _teacherClassIds.contains(permitClassId);
+                            }).toList();
+
+                            final pendingCount = filteredDocs.where((d) => d.data()['status'] == 'Pending').length;
                             if (pendingCount > 0) {
                               return Container(
                                 width: 8,
@@ -2034,11 +2100,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         .collection('schools')
                         .doc(SessionService.currentUser!.schoolId)
                         .collection('permits')
-                        .where('teacherId', isEqualTo: _teacherDocId)
                         .snapshots(),
                     builder: (context, snapshot) {
                       final docs = snapshot.data?.docs ?? [];
-                      final pendingCount = docs.where((d) => d.data()['status'] == 'Pending').length;
+                      final filteredDocs = docs.where((doc) {
+                        final data = doc.data();
+                        final permitTeacherId = data['teacherId']?.toString() ?? '';
+                        final permitClassId = data['classId']?.toString() ?? '';
+                        return permitTeacherId == _teacherDocId || _teacherClassIds.contains(permitClassId);
+                      }).toList();
+
+                      final pendingCount = filteredDocs.where((d) => d.data()['status'] == 'Pending').length;
                       if (pendingCount > 0) {
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
