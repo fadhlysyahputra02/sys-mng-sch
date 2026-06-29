@@ -18,7 +18,6 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
   final namaController = TextEditingController();
   final kkmController = TextEditingController(text: '75');
 
-  String kategori = 'Wajib';
   bool isLoading = false;
 
   Future<void> save() async {
@@ -33,7 +32,6 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
         schoolId: SessionService.currentUser!.schoolId,
         kodeMapel: kodeController.text.trim(),
         namaMapel: namaController.text.trim(),
-        kategori: kategori,
         kkm: int.tryParse(kkmController.text.trim()) ?? 75,
       );
 
@@ -201,38 +199,6 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
                             keyboardType: TextInputType.number,
                             validator: (v) => (v == null || v.isEmpty) ? 'Nilai KKM wajib diisi' : null,
                           ),
-                          const SizedBox(height: 14),
-
-                          // Kategori Dropdown
-                          Container(
-                            decoration: BoxDecoration(
-                              color: fieldBg,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: fieldBorder),
-                            ),
-                            child: DropdownButtonFormField<String>(
-                              initialValue: kategori,
-                              dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-                              style: TextStyle(color: textPrimaryColor, fontSize: 15),
-                              decoration: InputDecoration(
-                                labelText: 'Kategori',
-                                labelStyle: TextStyle(color: textSecondaryColor, fontSize: 14),
-                                prefixIcon: const Icon(Icons.category_outlined, color: Color(0xFF10B981), size: 20),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                              ),
-                              items: [
-                                DropdownMenuItem(value: 'Wajib', child: Text('Wajib', style: TextStyle(color: textPrimaryColor))),
-                                DropdownMenuItem(value: 'Pilihan', child: Text('Pilihan', style: TextStyle(color: textPrimaryColor))),
-                              ],
-                              onChanged: (v) {
-                                setState(() {
-                                  kategori = v!;
-                                });
-                              },
-                            ),
-                          ),
-
                           const SizedBox(height: 32),
 
                           // Submit button

@@ -42,6 +42,20 @@ class ClassService {
 
   Future<void> deleteClass(String classId) async {
     final schoolId = SessionService.currentUser!.schoolId;
+
+    // Cek apakah ada siswa di dalam kelas ini
+    final studentsInClass = await _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('students')
+        .where('classId', isEqualTo: classId)
+        .limit(1)
+        .get();
+
+    if (studentsInClass.docs.isNotEmpty) {
+      throw ('Kelas tidak dapat dihapus karena masih ada siswa aktif di dalamnya.');
+    }
+
     await _classesRef(schoolId).doc(classId).delete();
   }
 

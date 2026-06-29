@@ -862,44 +862,48 @@ class _TeacherListPageState extends State<TeacherListPage> {
                 'Hasil Import Excel',
                 style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildResultRow(Icons.check_circle_outline_rounded, Colors.green, 'Berhasil diimport: ${importResult!.successCount} data', textColor),
-                  const SizedBox(height: 10),
-                  _buildResultRow(Icons.copy_rounded, Colors.orange, 'Duplikat (dilewati): ${importResult!.duplicateCount} data', textColor),
-                  const SizedBox(height: 10),
-                  _buildResultRow(Icons.error_outline_rounded, Colors.red, 'Gagal diimport: ${importResult!.failedCount} data', textColor),
-                  if (importResult!.errors.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Detail Error/Peringatan:',
-                      style: TextStyle(color: subtitleColor, fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 120),
-                      width: double.maxFinite,
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFF1E1B4B).withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
+              // SizedBox dengan lebar tertentu mencegah AlertDialog
+              // mencoba mengukur intrinsic width secara rekursif
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildResultRow(Icons.check_circle_outline_rounded, Colors.green, 'Berhasil diimport: ${importResult!.successCount} data', textColor),
+                    const SizedBox(height: 10),
+                    _buildResultRow(Icons.error_outline_rounded, Colors.red, 'Gagal diimport: ${importResult!.failedCount} data', textColor),
+                    if (importResult!.errors.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Detail Error/Peringatan:',
+                        style: TextStyle(color: subtitleColor, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.all(8),
-                        itemCount: importResult!.errors.length,
-                        itemBuilder: (context, idx) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            importResult!.errors[idx],
-                            style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+                      const SizedBox(height: 6),
+                      Container(
+                        // maxHeight membatasi tinggi list — ListView bisa scroll di dalamnya
+                        // tanpa perlu shrinkWrap (shrinkWrap di dalam Column(min) + AlertDialog
+                        // menyebabkan viewport mencoba hitung intrinsic dimension → crash)
+                        constraints: const BoxConstraints(maxHeight: 150),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFF1E1B4B).withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: importResult!.errors.length,
+                          itemBuilder: (context, idx) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              importResult!.errors[idx],
+                              style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ]
-                ],
+                    ]
+                  ],
+                ),
               ),
               actions: [
                 TextButton(

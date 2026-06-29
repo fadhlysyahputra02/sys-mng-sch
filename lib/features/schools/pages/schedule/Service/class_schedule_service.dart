@@ -3,6 +3,48 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ClassScheduleService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  Future<void> _checkIfSemesterIsActive(String schoolId) async {
+    final schoolDoc = await _db.collection('schools').doc(schoolId).get();
+    if (!schoolDoc.exists) return;
+
+    final schoolData = schoolDoc.data() ?? {};
+    final bool allowBypass = schoolData['allowBypassScheduleLock'] ?? false;
+    if (allowBypass) return; // Bypass locks if enabled by Super Admin
+
+    final String tahunAjaran = schoolData['tahunAjaran'] ?? '';
+    final String semester = schoolData['semester'] ?? '';
+
+    if (tahunAjaran.isEmpty || semester.isEmpty) return;
+
+    // 1. Cek absensi murid
+    final studentAttendanceQuery = await _db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('attendance')
+        .where('tahunAjaran', isEqualTo: tahunAjaran)
+        .where('semester', isEqualTo: semester)
+        .limit(1)
+        .get();
+
+    if (studentAttendanceQuery.docs.isNotEmpty) {
+      throw 'Jadwal tidak dapat diubah/dihapus karena semester sedang berjalan (sudah ada absensi murid).';
+    }
+
+    // 2. Cek absensi guru
+    final teacherAttendanceQuery = await _db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('teacher_daily_attendance')
+        .where('tahunAjaran', isEqualTo: tahunAjaran)
+        .where('semester', isEqualTo: semester)
+        .limit(1)
+        .get();
+
+    if (teacherAttendanceQuery.docs.isNotEmpty) {
+      throw 'Jadwal tidak dapat diubah/dihapus karena semester sedang berjalan (sudah ada absensi guru).';
+    }
+  }
+
   CollectionReference<Map<String, dynamic>> _schedulesRef(String schoolId) =>
       _db.collection('schools').doc(schoolId).collection('class_schedules');
 
@@ -66,6 +108,7 @@ class ClassScheduleService {
     required String schoolId,
     required String scheduleId,
   }) async {
+    await _checkIfSemesterIsActive(schoolId);
     final batch = _db.batch();
 
     // 1. Cari dan hapus semua absensi yang terikat dengan jadwal ini
@@ -114,6 +157,7 @@ class ClassScheduleService {
     required String jamSelesai,
     String? scheduleId, // Optional parameter for editing
   }) async {
+    await _checkIfSemesterIsActive(schoolId);
     final newStart = _timeToMinutes(jamMulai);
     final newEnd = _timeToMinutes(jamSelesai);
 
@@ -206,6 +250,7 @@ class ClassScheduleService {
     required String schoolId,
     required List<Map<String, dynamic>> schedules,
   }) async {
+    await _checkIfSemesterIsActive(schoolId);
     final existingSchedules = await _schedulesRef(schoolId).get();
     
     WriteBatch batch = _db.batch();
@@ -255,6 +300,7 @@ class ClassScheduleService {
   }
 
   Future<void> deleteAllSchedules(String schoolId) async {
+    await _checkIfSemesterIsActive(schoolId);
     final existingSchedules = await _schedulesRef(schoolId).get();
     WriteBatch batch = _db.batch();
     int opsCount = 0;
@@ -271,6 +317,7 @@ class ClassScheduleService {
   }
 
   Future<void> deleteSchedulesByClass(String schoolId, String classId) async {
+    await _checkIfSemesterIsActive(schoolId);
     final existingSchedules = await _schedulesRef(schoolId).where('classId', isEqualTo: classId).get();
     WriteBatch batch = _db.batch();
     int opsCount = 0;
@@ -287,6 +334,7 @@ class ClassScheduleService {
   }
 
   Future<void> deleteSchedulesByClassAndDay(String schoolId, String classId, String hari) async {
+    await _checkIfSemesterIsActive(schoolId);
     final existingSchedules = await _schedulesRef(schoolId)
         .where('classId', isEqualTo: classId)
         .where('hari', isEqualTo: hari)

@@ -205,4 +205,14 @@ class SchoolService {
     data['uid'] = doc.id;
     return data;
   }
+
+  // Update bypass schedule lock flag
+  Future<void> updateBypassScheduleLock({
+    required String domain,
+    required bool allowBypass,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'allowBypassScheduleLock': allowBypass,
+    });
+  }
 }

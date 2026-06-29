@@ -180,7 +180,6 @@ class SubjectListPage extends StatelessWidget {
                     itemCount: docs.length,
                     itemBuilder: (_, i) {
                       final data = docs[i].data();
-                      final isWajib = data['kategori'] == 'Wajib';
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -240,29 +239,6 @@ class SubjectListPage extends StatelessWidget {
                                             fontSize: 12,
                                             color: subtitleColor,
                                             fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: isWajib
-                                                ? const Color(0xFF3B82F6).withValues(alpha: 0.15)
-                                                : const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(20),
-                                            border: Border.all(
-                                              color: isWajib
-                                                  ? const Color(0xFF3B82F6).withValues(alpha: 0.4)
-                                                  : const Color(0xFFF59E0B).withValues(alpha: 0.4),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            data['kategori'] ?? '-',
-                                            style: TextStyle(
-                                              color: isWajib ? const Color(0xFF3B82F6) : const Color(0xFFF59E0B),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
                                           ),
                                         ),
                                       ],
@@ -333,7 +309,6 @@ class SubjectListPage extends StatelessWidget {
     final namaController = TextEditingController(text: data['namaMapel']);
     final kodeController = TextEditingController(text: data['kodeMapel']);
     final kkmController = TextEditingController(text: (data['kkm'] ?? 75).toString());
-    String selectedKategori = data['kategori'] ?? 'Wajib';
 
     showDialog(
       context: context,
@@ -376,32 +351,6 @@ class SubjectListPage extends StatelessWidget {
                     icon: Icons.speed_rounded,
                     isDark: isDark,
                   ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedKategori,
-                    dropdownColor: dialogBgColor,
-                    style: TextStyle(color: textStyleColor),
-                    decoration: InputDecoration(
-                      labelText: 'Kategori',
-                      labelStyle: TextStyle(color: labelColor),
-                      prefixIcon: Icon(Icons.category_outlined, color: labelColor),
-                      filled: true,
-                      fillColor: fieldBgColor,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: fieldBorderColor),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: fieldBorderColor),
-                      ),
-                    ),
-                    items: [
-                      DropdownMenuItem(value: 'Wajib', child: Text('Wajib', style: TextStyle(color: textStyleColor))),
-                      DropdownMenuItem(value: 'Pilihan', child: Text('Pilihan', style: TextStyle(color: textStyleColor))),
-                    ],
-                    onChanged: (v) => setDialogState(() => selectedKategori = v!),
-                  ),
                 ],
               ),
               actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -434,20 +383,31 @@ class SubjectListPage extends StatelessWidget {
                           final kkmVal = int.tryParse(kkmController.text.trim()) ?? 75;
                           if (nama.isEmpty || kode.isEmpty) return;
 
-                          await service.updateSubject(
-                            schoolId: SessionService.currentUser!.schoolId,
-                            subjectId: data['subjectId'],
-                            namaMapel: nama,
-                            kodeMapel: kode,
-                            kategori: selectedKategori,
-                            kkm: kkmVal,
-                          );
-
-                          if (ctx.mounted) {
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Mata pelajaran berhasil diperbarui')),
+                          try {
+                            await service.updateSubject(
+                              schoolId: SessionService.currentUser!.schoolId,
+                              subjectId: data['subjectId'],
+                              namaMapel: nama,
+                              kodeMapel: kode,
+                              kkm: kkmVal,
                             );
+
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Mata pelajaran berhasil diperbarui')),
+                              );
+                            }
+                          } catch (e) {
+                            if (ctx.mounted) {
+                              final errorMsg = e.toString().replaceAll('Exception: ', '');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(errorMsg),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
                           }
                         },
                         child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -531,15 +491,27 @@ class SubjectListPage extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () async {
-                      await service.deleteSubject(
-                        schoolId: SessionService.currentUser!.schoolId,
-                        subjectId: data['subjectId'],
-                      );
-                      if (ctx.mounted) {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Mata pelajaran berhasil dihapus')),
+                      try {
+                        await service.deleteSubject(
+                          schoolId: SessionService.currentUser!.schoolId,
+                          subjectId: data['subjectId'],
                         );
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Mata pelajaran berhasil dihapus')),
+                          );
+                        }
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          final errorMsg = e.toString().replaceAll('Exception: ', '');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(errorMsg),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
                       }
                     },
                     child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),

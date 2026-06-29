@@ -530,14 +530,26 @@ class ClassSchedulePage extends StatelessWidget {
     ) ?? false;
 
     if (confirm && context.mounted) {
-      await _service.deleteSchedule(
-        schoolId: SessionService.currentUser!.schoolId,
-        scheduleId: scheduleId,
-      );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Jadwal berhasil dihapus')),
+      try {
+        await _service.deleteSchedule(
+          schoolId: SessionService.currentUser!.schoolId,
+          scheduleId: scheduleId,
         );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Jadwal berhasil dihapus')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          final errorMsg = e.toString().replaceAll('Exception: ', '');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMsg),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
       }
     }
   }

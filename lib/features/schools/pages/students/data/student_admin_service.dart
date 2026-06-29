@@ -205,6 +205,17 @@ class StudentService {
     String? tanggalLahir,
     String? angkatan,
   }) async {
+    // Cek duplikasi NIS — abaikan jika NIS milik murid yang sama (studentId sama)
+    final existing = await _studentsRef
+        .where('nis', isEqualTo: nis)
+        .get();
+
+    for (final doc in existing.docs) {
+      if (doc.id != studentId) {
+        throw ('NIS $nis sudah digunakan oleh murid lain');
+      }
+    }
+
     await _studentsRef.doc(studentId).update({
       'nama': nama,
       'nis': nis,

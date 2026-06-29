@@ -284,101 +284,158 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
     final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
     final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final inputBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+
+    final TextEditingController nipController = TextEditingController();
+    String? errorText;
 
     showDialog(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: dialogBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: borderColor, width: 1.5),
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 30),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(color: borderColor, width: 1.5),
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Hapus Guru',
-                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Apakah Anda yakin ingin menghapus ${teacher['nama']}? Data ini tidak dapat dikembalikan.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: subTextColor, fontSize: 13, height: 1.5),
-              ),
-            ],
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: borderColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text('Batal', style: TextStyle(color: textColor)),
+                    child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 30),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Hapus Guru',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
+                  ),
+                  const SizedBox(height: 12),
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      style: TextStyle(color: subTextColor, fontSize: 13, height: 1.5),
+                      children: [
+                        const TextSpan(text: 'Apakah Anda yakin ingin menghapus '),
+                        TextSpan(
+                          text: '${teacher['nama']}',
+                          style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                        const TextSpan(text: '?\nData ini tidak dapat dikembalikan.\n\nKetik NIP '),
+                        TextSpan(
+                          text: '${teacher['nip']}',
+                          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                        ),
+                        const TextSpan(text: ' untuk konfirmasi.'),
+                      ],
                     ),
-                    onPressed: () async {
-                      // Hapus data guru
-                      await FirebaseFirestore.instance
-                          .collection('schools')
-                          .doc(teacher['schoolId'])
-                          .collection('teachers')
-                          .doc(teacher['teacherId'])
-                          .delete();
-
-                      // Hapus juga relasi mata pelajaran guru ini
-                      final subjectsSnapshot = await FirebaseFirestore.instance
-                          .collection('schools')
-                          .doc(teacher['schoolId'])
-                          .collection('teacher_subjects')
-                          .where('teacherId', isEqualTo: teacher['teacherId'])
-                          .get();
-
-                      for (var doc in subjectsSnapshot.docs) {
-                        await doc.reference.delete();
-                      }
-
-                      if (ctx.mounted) {
-                        Navigator.pop(ctx); // Tutup dialog
-                        Navigator.pop(context); // Kembali ke halaman sebelumnya
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Guru berhasil dihapus')),
-                        );
-                      }
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nipController,
+                    style: TextStyle(color: textColor, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Masukkan NIP',
+                      hintStyle: TextStyle(color: subTextColor),
+                      errorText: errorText,
+                      filled: true,
+                      fillColor: inputBgColor,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      if (errorText != null) setState(() => errorText = null);
                     },
-                    child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
+                ],
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          side: BorderSide(color: borderColor),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text('Batal', style: TextStyle(color: textColor)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () async {
+                          if (nipController.text.trim() != teacher['nip'].toString()) {
+                            setState(() {
+                              errorText = 'NIP tidak cocok';
+                            });
+                            return;
+                          }
+
+                          // Hapus data guru
+                          await FirebaseFirestore.instance
+                              .collection('schools')
+                              .doc(teacher['schoolId'])
+                              .collection('teachers')
+                              .doc(teacher['teacherId'])
+                              .delete();
+
+                          // Hapus juga relasi mata pelajaran guru ini
+                          final subjectsSnapshot = await FirebaseFirestore.instance
+                              .collection('schools')
+                              .doc(teacher['schoolId'])
+                              .collection('teacher_subjects')
+                              .where('teacherId', isEqualTo: teacher['teacherId'])
+                              .get();
+
+                          for (var doc in subjectsSnapshot.docs) {
+                            await doc.reference.delete();
+                          }
+
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx); // Tutup dialog
+                            Navigator.pop(context); // Kembali ke halaman sebelumnya
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Guru berhasil dihapus')),
+                            );
+                          }
+                        },
+                        child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -588,6 +645,148 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
     }
   }
 
+  Future<void> _handleToggleActive(BuildContext context) async {
+    final bool currentlyActive = teacher['isActive'] ?? true;
+    final bool willBeActive = !currentlyActive;
+    final isDark = AuthBackground.isDarkMode.value;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
+    final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: dialogBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: borderColor, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: currentlyActive
+                    ? Colors.orange.withValues(alpha: 0.15)
+                    : const Color(0xFF10B981).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: currentlyActive
+                      ? Colors.orange.withValues(alpha: 0.4)
+                      : const Color(0xFF10B981).withValues(alpha: 0.4),
+                ),
+              ),
+              child: Icon(
+                currentlyActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
+                color: currentlyActive ? Colors.orange : const Color(0xFF10B981),
+                size: 26,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              currentlyActive ? 'Nonaktifkan Akun Guru?' : 'Aktifkan Kembali Akun Guru?',
+              style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 17),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              currentlyActive
+                  ? 'Guru ${teacher['nama']} tidak akan bisa login ke aplikasi sampai diaktifkan kembali oleh admin.'
+                  : 'Guru ${teacher['nama']} akan dapat login kembali ke aplikasi.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: subTextColor, fontSize: 13, height: 1.5),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    side: BorderSide(color: borderColor),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: Text('Batal', style: TextStyle(color: textColor)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: currentlyActive ? Colors.orange : const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: Text(
+                    currentlyActive ? 'Nonaktifkan' : 'Aktifkan',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final String? uid = teacher['uid'];
+    if (uid == null || uid.trim().isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ID Pengguna tidak valid. Guru mungkin belum registrasi.'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'isActive': willBeActive,
+      });
+
+      setState(() {
+        teacher['isActive'] = willBeActive;
+      });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              willBeActive
+                  ? 'Akun guru ${teacher['nama']} berhasil diaktifkan kembali.'
+                  : 'Akun guru ${teacher['nama']} berhasil dinonaktifkan.',
+            ),
+            backgroundColor: willBeActive ? const Color(0xFF10B981) : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengubah status akun: ${e.toString()}'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isRegistered = teacher['sudahRegister'] ?? false;
@@ -663,9 +862,10 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
 
                 // ── Body ────────────────────────────────────────────────────────
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: Column(
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                      child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // ── Profile Card ─────────────────────────────────────
@@ -739,39 +939,70 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                                       ],
                                     ),
                                     const SizedBox(height: 10),
-                                    // Status badge
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isRegistered
-                                            ? Colors.white.withValues(alpha: 0.25)
-                                            : Colors.orange.withValues(alpha: 0.3),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: isRegistered
-                                              ? Colors.white.withValues(alpha: 0.4)
-                                              : Colors.orange.withValues(alpha: 0.5),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            isRegistered ? Icons.verified_rounded : Icons.pending_rounded,
-                                            size: 11,
-                                            color: Colors.white,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            isRegistered ? 'Terdaftar' : 'Belum Registrasi',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
+                                    // Status badges
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isRegistered
+                                                ? Colors.white.withValues(alpha: 0.25)
+                                                : Colors.orange.withValues(alpha: 0.3),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: isRegistered
+                                                  ? Colors.white.withValues(alpha: 0.4)
+                                                  : Colors.orange.withValues(alpha: 0.5),
                                             ),
                                           ),
-                                        ],
-                                      ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                isRegistered ? Icons.verified_rounded : Icons.pending_rounded,
+                                                size: 11,
+                                                color: Colors.white,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                isRegistered ? 'Terdaftar' : 'Belum Registrasi',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Badge nonaktif
+                                        if (!(teacher['isActive'] ?? true))
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red.withValues(alpha: 0.3),
+                                              borderRadius: BorderRadius.circular(20),
+                                              border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.block_rounded, size: 11, color: Colors.white),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  'Nonaktif',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -810,9 +1041,8 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                         const SizedBox(height: 14),
 
                         // ── Subject list ─────────────────────────────────────
-                        Expanded(
-                          child: StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
                                 .collection('schools')
                                 .doc(teacher['schoolId'])
                                 .collection('teacher_subjects')
@@ -866,6 +1096,8 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                               }
 
                               return ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
                                 itemCount: docs.length,
                                 itemBuilder: (context, index) {
                                   final mapel = docs[index].data() as Map<String, dynamic>;
@@ -933,7 +1165,6 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                               );
                             },
                           ),
-                        ),
 
                         const SizedBox(height: 16),
 
@@ -1052,9 +1283,51 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                           ),
                         ),
 
+                        const SizedBox(height: 12),
+
+                        // ── Nonaktifkan / Aktifkan Akun Button ──────────────────────
+                        Builder(builder: (context) {
+                          final bool isActive = teacher['isActive'] ?? true;
+                          return Container(
+                            width: double.infinity,
+                            height: 54,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? Colors.orange.withValues(alpha: 0.08)
+                                  : const Color(0xFF10B981).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isActive
+                                    ? Colors.orange.withValues(alpha: 0.4)
+                                    : const Color(0xFF10B981).withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: TextButton.icon(
+                              style: TextButton.styleFrom(
+                                foregroundColor: isActive ? Colors.orange : const Color(0xFF10B981),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              icon: Icon(
+                                isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
+                                color: isActive ? Colors.orange : const Color(0xFF10B981),
+                              ),
+                              label: Text(
+                                isActive ? 'Nonaktifkan Akun Guru' : 'Aktifkan Kembali Akun Guru',
+                                style: TextStyle(
+                                  color: isActive ? Colors.orange : const Color(0xFF10B981),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              onPressed: () => _handleToggleActive(context),
+                            ),
+                          );
+                        }),
+
                         const SizedBox(height: 20),
                       ],
                     ),
+                  ),
                   ),
                 ),
               ],

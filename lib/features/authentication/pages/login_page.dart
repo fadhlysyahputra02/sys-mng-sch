@@ -148,15 +148,33 @@ class _LoginPageState extends State<LoginPage> {
         final userData = doc.data();
         final firestorePassword = userData['password'] as String?;
         final tempPassword = userData['tempPassword'] as String?;
+        final bool isActive = userData['isActive'] ?? true;
+
+        // Cek apakah akun dinonaktifkan oleh admin
+        if (!isActive) {
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Akun Anda sedang dinonaktifkan. Harap hubungi admin untuk informasi lebih lanjut.',
+              ),
+              backgroundColor: Color(0xFFEF4444),
+              duration: Duration(seconds: 6),
+            ),
+          );
+          return;
+        }
 
         if (tempPassword != null && tempPassword == password) {
-          // Admin telah mereset password, login menggunakan password lama
+          // Admin telah mereset password, login menggunakan password lama di Firebase Auth
           credential = await authService.login(
             email: email,
             password: firestorePassword ?? '',
           );
 
-          // Update password di Firebase Auth ke password baru
+          // Update password di Firebase Auth ke password baru (tempPassword)
           await credential.user!.updatePassword(password);
 
           // Update password di Firestore & hapus tempPassword
@@ -164,8 +182,24 @@ class _LoginPageState extends State<LoginPage> {
             'password': password,
             'tempPassword': FieldValue.delete(),
           });
+        } else if (tempPassword != null && tempPassword != password) {
+          // Admin sudah mereset password tapi user mencoba login dengan password lama.
+          // Tolak login dan minta user gunakan password baru dari admin.
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Password Anda telah direset oleh admin. Silakan gunakan password baru yang diberikan admin untuk login.',
+              ),
+              backgroundColor: Color(0xFFEF4444),
+              duration: Duration(seconds: 5),
+            ),
+          );
+          return;
         } else {
-          // Jalur login standar
+          // Jalur login standar (tidak ada tempPassword)
           credential = await authService.login(
             email: email,
             password: password,

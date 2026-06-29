@@ -59,7 +59,7 @@ class ClassListPage extends StatelessWidget {
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                           ),
                         ),
-                        // Format Button
+                        // Kosongkan Kelas Button
                         Container(
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
@@ -79,7 +79,7 @@ class ClassListPage extends StatelessWidget {
                             color: Colors.transparent,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                              onTap: () => _showFormatAllClassesConfirmation(context, schoolId),
+                              onTap: () => _showKosongkanKelasConfirmation(context, schoolId),
                               child: const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 child: Row(
@@ -88,7 +88,7 @@ class ClassListPage extends StatelessWidget {
                                     Icon(Icons.delete_sweep_rounded, color: Colors.white, size: 18),
                                     SizedBox(width: 6),
                                     Text(
-                                      'Format',
+                                      'Kosongkan Kelas',
                                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                                     ),
                                   ],
@@ -553,7 +553,7 @@ class ClassListPage extends StatelessWidget {
     );
   }
 
-  void _showFormatAllClassesConfirmation(BuildContext context, String schoolId) {
+  void _showKosongkanKelasConfirmation(BuildContext context, String schoolId) {
     final isDark = AuthBackground.isDarkMode.value;
     final dialogBgColor = isDark ? const Color(0xFF0F0C20) : Colors.white;
     final dialogBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
@@ -581,7 +581,7 @@ class ClassListPage extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Format Seluruh Kelas?',
+                  'Kosongkan Seluruh Kelas?',
                   style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor, fontSize: 16),
                 ),
               ),
@@ -632,7 +632,7 @@ class ClassListPage extends StatelessWidget {
                           Navigator.pop(context); // close loading dialog
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Seluruh kelas berhasil dikosongkan (diformat).'),
+                              content: Text('Seluruh kelas berhasil dikosongkan.'),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -642,14 +642,14 @@ class ClassListPage extends StatelessWidget {
                           Navigator.pop(context); // close loading dialog
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Gagal memformat kelas: $e'),
+                              content: Text('Gagal mengosongkan kelas: $e'),
                               backgroundColor: Colors.red,
                             ),
                           );
                         }
                       }
                     },
-                    child: const Text('Format', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text('Kosongkan', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],

@@ -283,6 +283,34 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
     );
   }
 
+  Future<void> _toggleBypassScheduleLock(Map<String, dynamic> school) async {
+    final bool currentBypass = school['allowBypassScheduleLock'] ?? false;
+    final bool nextBypass = !currentBypass;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateBypassScheduleLock(
+        domain: school['domain'],
+        allowBypass: nextBypass,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextBypass 
+            ? 'Bypass kunci jadwal ${school['namaSekolah']} diaktifkan!' 
+            : 'Kunci jadwal ${school['namaSekolah']} diaktifkan kembali!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _handleResetPassword(Map<String, dynamic> school) async {
     setState(() => _isLoading = true);
     try {
@@ -1151,12 +1179,43 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                                     ],
                                   ),
                                   const SizedBox(height: 20),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      // Edit Plan button (Icon Only)
-                                      Container(
-                                        decoration: BoxDecoration(
+                                   Row(
+                                     mainAxisAlignment: MainAxisAlignment.end,
+                                     children: [
+                                       // Toggle Bypass Schedule Lock (Icon Only)
+                                       Builder(
+                                         builder: (context) {
+                                           final bool allowBypass = school['allowBypassScheduleLock'] ?? false;
+                                           return Container(
+                                             decoration: BoxDecoration(
+                                               color: allowBypass
+                                                   ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                                                   : Colors.grey.withValues(alpha: 0.1),
+                                               shape: BoxShape.circle,
+                                               border: Border.all(
+                                                 color: allowBypass
+                                                     ? const Color(0xFF10B981).withValues(alpha: 0.2)
+                                                     : Colors.grey.withValues(alpha: 0.2),
+                                               ),
+                                             ),
+                                             child: IconButton(
+                                               icon: Icon(
+                                                 allowBypass ? Icons.lock_open_rounded : Icons.lock_rounded,
+                                                 color: allowBypass ? const Color(0xFF10B981) : Colors.grey,
+                                                 size: 20,
+                                               ),
+                                               tooltip: allowBypass ? 'Kunci Jadwal (Aktif)' : 'Bypass Kunci Jadwal (Nonaktif)',
+                                               onPressed: () => _toggleBypassScheduleLock(school),
+                                               constraints: const BoxConstraints(),
+                                               padding: const EdgeInsets.all(8),
+                                             ),
+                                           );
+                                         }
+                                       ),
+                                       const SizedBox(width: 10),
+                                       // Edit Plan button (Icon Only)
+                                       Container(
+                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
                                           shape: BoxShape.circle,
                                           border: Border.all(

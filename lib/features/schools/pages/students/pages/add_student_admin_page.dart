@@ -268,6 +268,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
                                 subTextColor: subTextColor,
                                 cardBgColor: cardBgColor,
                                 borderColor: borderColor,
+                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Tanggal lahir wajib diisi' : null,
                               ),
                             ),
                           ),
@@ -282,7 +283,11 @@ class _AddStudentPageState extends State<AddStudentPage> {
                             subTextColor: subTextColor,
                             cardBgColor: cardBgColor,
                             borderColor: borderColor,
-                            validator: (v) => (v != null && v.isNotEmpty && int.tryParse(v) == null) ? 'Angkatan harus berupa tahun (angka)' : null,
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return 'Angkatan wajib diisi';
+                              if (int.tryParse(v.trim()) == null) return 'Angkatan harus berupa tahun (angka)';
+                              return null;
+                            },
                           ),
 
                           const SizedBox(height: 32),

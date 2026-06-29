@@ -626,7 +626,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                       );
                                     } else if (dateCompare == 0) {
                                       // Today -> Check if past 18:21
-                                      final bool isAfter1821 = nowTime.hour > 18 || (nowTime.hour == 18 && nowTime.minute >= 30);
+                                      final bool isAfter1821 = nowTime.hour > 19 || (nowTime.hour == 19 && nowTime.minute >= 11);
                                       if (isAfter1821) {
                                         return Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

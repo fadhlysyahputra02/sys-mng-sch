@@ -24,6 +24,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
   }
 
   void _showEditDialog() {
+    final formKey = GlobalKey<FormState>();
     final namaController = TextEditingController(text: student['nama']);
     final nisController = TextEditingController(text: student['nis']);
     final alamatController = TextEditingController(text: student['alamat']);
@@ -38,194 +39,234 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     showDialog(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: dialogBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: borderColor, width: 1.5),
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          content: StatefulBuilder(
-            builder: (context, setStateDialog) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            bool isLoading = false;
+
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(color: borderColor, width: 1.5),
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Edit Data Murid',
-                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
-              ),
-              const SizedBox(height: 20),
-              _buildDialogField(
-                controller: namaController,
-                label: 'Nama Murid',
-                icon: Icons.person_outline_rounded,
-                capitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: 12),
-              _buildDialogField(
-                controller: nisController,
-                label: 'NIS',
-                icon: Icons.badge_outlined,
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: borderColor),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: DropdownButtonFormField<String>(
-                  value: selectedGender,
-                  decoration: InputDecoration(
-                    labelText: 'Jenis Kelamin',
-                    labelStyle: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65)),
-                    prefixIcon: Icon(Icons.wc_rounded, color: isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65), size: 20),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  dropdownColor: dialogBg,
-                  style: TextStyle(color: textColor, fontSize: 15),
-                  items: ['Laki-laki', 'Perempuan'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setStateDialog(() {
-                      selectedGender = newValue;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildDialogField(
-                controller: alamatController,
-                label: 'Alamat',
-                icon: Icons.home_outlined,
-                capitalization: TextCapitalization.sentences,
-              ),
-              const SizedBox(height: 12),
-              GestureDetector(
-                onTap: () async {
-                  final pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime(2010),
-                    firstDate: DateTime(1990),
-                    lastDate: DateTime.now(),
-                    builder: (context, child) {
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: ColorScheme.fromSeed(
-                            seedColor: const Color(0xFF0EA5E9),
-                            brightness: isDark ? Brightness.dark : Brightness.light,
+              contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Edit Data Murid',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildDialogField(
+                        controller: namaController,
+                        label: 'Nama Murid',
+                        icon: Icons.person_outline_rounded,
+                        capitalization: TextCapitalization.words,
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDialogField(
+                        controller: nisController,
+                        label: 'NIS',
+                        icon: Icons.badge_outlined,
+                        keyboardType: TextInputType.number,
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'NIS wajib diisi' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: borderColor),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        child: DropdownButtonFormField<String>(
+                          value: selectedGender,
+                          decoration: InputDecoration(
+                            labelText: 'Jenis Kelamin',
+                            labelStyle: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65)),
+                            prefixIcon: Icon(Icons.wc_rounded, color: isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65), size: 20),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                          dropdownColor: dialogBg,
+                          style: TextStyle(color: textColor, fontSize: 15),
+                          items: ['Laki-laki', 'Perempuan'].map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                          onChanged: (newValue) {
+                            setStateDialog(() {
+                              selectedGender = newValue;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDialogField(
+                        controller: alamatController,
+                        label: 'Alamat',
+                        icon: Icons.home_outlined,
+                        capitalization: TextCapitalization.sentences,
+                      ),
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: () async {
+                          final pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime(2010),
+                            firstDate: DateTime(1990),
+                            lastDate: DateTime.now(),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: ColorScheme.fromSeed(
+                                    seedColor: const Color(0xFF0EA5E9),
+                                    brightness: isDark ? Brightness.dark : Brightness.light,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (pickedDate != null) {
+                            tanggalLahirController.text = "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
+                          }
+                        },
+                        child: AbsorbPointer(
+                          child: _buildDialogField(
+                            controller: tanggalLahirController,
+                            label: 'Tanggal Lahir',
+                            icon: Icons.calendar_month_rounded,
+                            validator: (v) => (v == null || v.trim().isEmpty) ? 'Tanggal lahir wajib diisi' : null,
                           ),
                         ),
-                        child: child!,
-                      );
-                    },
-                  );
-                  if (pickedDate != null) {
-                    tanggalLahirController.text = "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
-                  }
-                },
-                child: AbsorbPointer(
-                  child: _buildDialogField(
-                    controller: tanggalLahirController,
-                    label: 'Tanggal Lahir',
-                    icon: Icons.calendar_month_rounded,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDialogField(
+                        controller: angkatanController,
+                        label: 'Angkatan Masuk (Tahun)',
+                        icon: Icons.calendar_today_rounded,
+                        keyboardType: TextInputType.number,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Angkatan wajib diisi';
+                          if (int.tryParse(v.trim()) == null) return 'Angkatan harus berupa tahun (angka)';
+                          return null;
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              _buildDialogField(
-                controller: angkatanController,
-                label: 'Angkatan Masuk (Tahun)',
-                icon: Icons.calendar_today_rounded,
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          );
-        }),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: borderColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          side: BorderSide(color: borderColor),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text('Batal', style: TextStyle(color: textColor)),
+                      ),
                     ),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text('Batal', style: TextStyle(color: textColor)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0EA5E9),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: StatefulBuilder(
+                        builder: (context, setSaveState) {
+                          return ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0EA5E9),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: isLoading ? null : () async {
+                              if (!formKey.currentState!.validate()) return;
+
+                              final newNama = namaController.text.trim();
+                              final newNis = nisController.text.trim();
+                              final newAlamat = alamatController.text.trim();
+                              final newGender = selectedGender ?? '';
+                              final newTanggalLahir = tanggalLahirController.text.trim();
+                              final newAngkatan = angkatanController.text.trim();
+
+                              setSaveState(() => isLoading = true);
+                              try {
+                                await _studentService.updateStudent(
+                                  studentId: student['studentId'],
+                                  nama: newNama,
+                                  nis: newNis,
+                                  gender: newGender,
+                                  alamat: newAlamat,
+                                  tanggalLahir: newTanggalLahir,
+                                  angkatan: newAngkatan,
+                                );
+
+                                setState(() {
+                                  student['nama'] = newNama;
+                                  student['nis'] = newNis;
+                                  student['gender'] = newGender;
+                                  student['alamat'] = newAlamat;
+                                  student['tanggalLahir'] = newTanggalLahir;
+                                  student['angkatan'] = newAngkatan;
+                                });
+
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Data murid berhasil diperbarui')),
+                                  );
+                                }
+                              } catch (e) {
+                                setSaveState(() => isLoading = false);
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(e.toString().replaceAll('Exception: ', '')),
+                                      backgroundColor: const Color(0xFFEF4444),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
+                                : const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                          );
+                        },
+                      ),
                     ),
-                    onPressed: () async {
-                      final newNama = namaController.text.trim();
-                      final newNis = nisController.text.trim();
-                      final newAlamat = alamatController.text.trim();
-                      final newGender = selectedGender ?? '';
-                      final newTanggalLahir = tanggalLahirController.text.trim();
-                      final newAngkatan = angkatanController.text.trim();
-                      if (newNama.isEmpty || newNis.isEmpty) return;
-
-                      await _studentService.updateStudent(
-                        studentId: student['studentId'],
-                        nama: newNama,
-                        nis: newNis,
-                        gender: newGender,
-                        alamat: newAlamat,
-                        tanggalLahir: newTanggalLahir,
-                        angkatan: newAngkatan,
-                      );
-
-                      setState(() {
-                        student['nama'] = newNama;
-                        student['nis'] = newNis;
-                        student['gender'] = newGender;
-                        student['alamat'] = newAlamat;
-                        student['tanggalLahir'] = newTanggalLahir;
-                        student['angkatan'] = newAngkatan;
-                      });
-
-                      if (ctx.mounted) {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Data murid berhasil diperbarui')),
-                        );
-                      }
-                    },
-                    child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -237,82 +278,138 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
     final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+    final inputBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+
+    final TextEditingController nisController = TextEditingController();
+    String? errorText;
 
     showDialog(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: dialogBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: borderColor, width: 1.5),
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 30),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(color: borderColor, width: 1.5),
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Hapus Murid',
-                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Apakah Anda yakin ingin menghapus "${student['nama']}"? Data ini tidak dapat dikembalikan.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: subTextColor, fontSize: 13, height: 1.5),
-              ),
-            ],
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: borderColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text('Batal', style: TextStyle(color: textColor)),
+                    child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 30),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Hapus Murid',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
+                  ),
+                  const SizedBox(height: 12),
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      style: TextStyle(color: subTextColor, fontSize: 13, height: 1.5),
+                      children: [
+                        const TextSpan(text: 'Apakah Anda yakin ingin menghapus '),
+                        TextSpan(
+                          text: '${student['nama']}',
+                          style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                        const TextSpan(text: '?\nData ini tidak dapat dikembalikan.\n\nKetik NIS '),
+                        TextSpan(
+                          text: '${student['nis']}',
+                          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                        ),
+                        const TextSpan(text: ' untuk konfirmasi.'),
+                      ],
                     ),
-                    onPressed: () async {
-                      await _studentService.deleteStudent(student['studentId']);
-                      if (ctx.mounted) {
-                        Navigator.pop(ctx);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Murid berhasil dihapus')),
-                        );
-                      }
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nisController,
+                    style: TextStyle(color: textColor, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Masukkan NIS',
+                      hintStyle: TextStyle(color: subTextColor),
+                      errorText: errorText,
+                      filled: true,
+                      fillColor: inputBgColor,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      if (errorText != null) setState(() => errorText = null);
                     },
-                    child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
+                ],
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          side: BorderSide(color: borderColor),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text('Batal', style: TextStyle(color: textColor)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () async {
+                          if (nisController.text.trim() != student['nis'].toString()) {
+                            setState(() {
+                              errorText = 'NIS tidak cocok';
+                            });
+                            return;
+                          }
+                          await _studentService.deleteStudent(student['studentId']);
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Murid berhasil dihapus')),
+                            );
+                          }
+                        },
+                        child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -528,6 +625,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     required IconData icon,
     TextCapitalization capitalization = TextCapitalization.none,
     TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
   }) {
     final isDark = AuthBackground.isDarkMode.value;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
@@ -541,17 +639,19 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor),
       ),
-      child: TextField(
+      child: TextFormField(
         controller: controller,
         style: TextStyle(color: textColor),
         textCapitalization: capitalization,
         keyboardType: keyboardType,
+        validator: validator,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: subTextColor),
           prefixIcon: Icon(icon, color: subTextColor, size: 20),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          errorStyle: const TextStyle(fontSize: 11),
         ),
       ),
     );

@@ -3,7 +3,6 @@ class SubjectModel {
   final String schoolId;
   final String kodeMapel;
   final String namaMapel;
-  final String kategori;
   final bool aktif;
 
   SubjectModel({
@@ -11,7 +10,6 @@ class SubjectModel {
     required this.schoolId,
     required this.kodeMapel,
     required this.namaMapel,
-    required this.kategori,
     required this.aktif,
   });
 
@@ -21,7 +19,6 @@ class SubjectModel {
       schoolId: map['schoolId'] ?? '',
       kodeMapel: map['kodeMapel'] ?? '',
       namaMapel: map['namaMapel'] ?? '',
-      kategori: map['kategori'] ?? '',
       aktif: map['aktif'] ?? true,
     );
   }
