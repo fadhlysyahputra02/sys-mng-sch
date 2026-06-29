@@ -221,6 +221,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
   Widget build(BuildContext context) {
     final user = SessionService.currentUser;
     if (user == null) {
+      Future.microtask(() => Get.offAllNamed(AppRoutes.splash));
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     

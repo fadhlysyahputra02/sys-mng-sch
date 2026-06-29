@@ -24,6 +24,7 @@ import 'teacher_daily_attendance_page.dart';
 import 'teacher_tasks_page.dart';
 import 'teacher_permits_page.dart';
 import '../../exams/pages/teacher_exams_page.dart';
+import 'teacher_student_violations_page.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -199,7 +200,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   @override
   Widget build(BuildContext context) {
     if (SessionService.currentUser == null) {
-      Future.microtask(() => Get.offAllNamed(AppRoutes.login));
+      Future.microtask(() => Get.offAllNamed(AppRoutes.splash));
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -1356,6 +1357,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'icon': Icons.groups_rounded,
         'color': const Color(0xFF0EA5E9),
       },
+      {
+        'title': 'Input Pelanggaran',
+        'icon': Icons.report_problem_rounded,
+        'color': const Color(0xFFEF4444),
+      },
 
       {
         'title': 'Realtime Control',
@@ -1491,6 +1497,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
                 } else if (menu['title'] == 'News Feed Sekolah') {
                   Get.toNamed(AppRoutes.comingSoonNewsFeedGuru);
+                } else if (menu['title'] == 'Input Pelanggaran') {
+                  Get.to(() => TeacherStudentViolationsPage(teacherId: _teacherDocId!));
                 } else {
                   Get.snackbar(
                     'Info',
@@ -1819,6 +1827,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Surat Izin Siswa', Icons.mark_email_read_rounded, 10, const Color(0xFF8B5CF6), isDark, isPermit: true),
                 const SizedBox(height: 4),
+                _buildSidebarItem('Input Pelanggaran', Icons.report_problem_rounded, 12, const Color(0xFFEF4444), isDark),
+                const SizedBox(height: 4),
                 _buildSidebarItem('Pengaturan Profil', Icons.settings_rounded, 11, const Color(0xFF64748B), isDark),
               ],
             ),
@@ -2038,6 +2048,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         );
       case 11:
         return TeacherSettingsPage(hideBackButton: true);
+      case 12:
+        return TeacherStudentViolationsPage(teacherId: _teacherDocId!);
       default:
         return _buildDesktopDashboardHome(isDark);
     }

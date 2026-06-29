@@ -23,6 +23,7 @@ import 'student_attendance_history_page.dart';
 import 'student_grades_page.dart';
 import 'student_tasks_page.dart';
 import '../../exams/pages/student_exams_page.dart';
+import '../../parent/pages/parent_violation_page.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -732,6 +733,11 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   @override
   Widget build(BuildContext context) {
+    if (SessionService.currentUser == null) {
+      Future.microtask(() => Get.offAllNamed(AppRoutes.splash));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
@@ -1362,6 +1368,11 @@ class _StudentDashboardState extends State<StudentDashboard>
         'color': const Color(0xFF8B5CF6),
       },
       {
+        'title': 'Pelanggaran',
+        'icon': Icons.warning_amber_rounded,
+        'color': const Color(0xFFEF4444),
+      },
+      {
         'title': parentLinked ? 'Sudah Terhubung' : 'Sambungkan ke Orang Tua',
         'icon': parentLinked
             ? Icons.verified_rounded
@@ -1742,6 +1753,28 @@ class _StudentDashboardState extends State<StudentDashboard>
         } else {
           final classId = _studentData!['classId'] as String;
           Get.to(() => StudentExamsPage(classId: classId));
+        }
+        break;
+      case 'Pelanggaran':
+        if (_studentDocId == null) {
+          Get.snackbar(
+            'Informasi',
+            'Data murid belum lengkap. Hubungi admin sekolah.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.amber,
+            colorText: Colors.black,
+            margin: const EdgeInsets.all(16),
+            borderRadius: 12,
+            icon: const Icon(Icons.info_outline, color: Colors.black),
+          );
+        } else {
+          Get.to(
+            () => const ParentViolationPage(),
+            arguments: {
+              'schoolId': user.schoolId,
+              'studentId': _studentDocId!,
+            },
+          );
         }
         break;
       case 'Nilai':

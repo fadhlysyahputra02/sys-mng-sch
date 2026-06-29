@@ -387,5 +387,54 @@ class StudentService {
     }
     await batch.commit();
   }
+
+  /// Tambahkan catatan pelanggaran baru untuk murid
+  Future<void> addStudentViolation({
+    required String schoolId,
+    required String studentId,
+    required String studentName,
+    required String className,
+    required String jenis,
+    required int poin,
+    required String keterangan,
+    required DateTime date,
+    required String recordedBy,
+  }) async {
+    await _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('violations')
+        .add({
+      'studentId': studentId,
+      'studentName': studentName,
+      'className': className,
+      'jenis': jenis,
+      'poin': poin,
+      'keterangan': keterangan,
+      'date': Timestamp.fromDate(date),
+      'recordedBy': recordedBy,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Mengambil seluruh data pelanggaran di sekolah (untuk Admin)
+  Stream<QuerySnapshot<Map<String, dynamic>>> getViolationsBySchool(String schoolId) {
+    return _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('violations')
+        .orderBy('date', descending: true)
+        .snapshots();
+  }
+
+  /// Menghapus satu data pelanggaran
+  Future<void> deleteViolation(String schoolId, String violationId) async {
+    await _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('violations')
+        .doc(violationId)
+        .delete();
+  }
 }
 

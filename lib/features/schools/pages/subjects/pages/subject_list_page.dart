@@ -140,7 +140,11 @@ class SubjectListPage extends StatelessWidget {
                     );
                   }
 
-                  final docs = snapshot.data!.docs;
+                  final docs = snapshot.data!.docs.toList()..sort((a, b) {
+                    final aName = (a.data() as Map<String, dynamic>)['namaMapel']?.toString().toLowerCase() ?? '';
+                    final bName = (b.data() as Map<String, dynamic>)['namaMapel']?.toString().toLowerCase() ?? '';
+                    return aName.compareTo(bName);
+                  });
 
                   if (docs.isEmpty) {
                     return Center(

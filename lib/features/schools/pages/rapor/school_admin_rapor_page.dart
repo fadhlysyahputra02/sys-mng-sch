@@ -48,7 +48,12 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
     _classesSubscription = _classService.getClasses(schoolId).listen((snapshot) {
       if (mounted) {
         setState(() {
-          _classes = snapshot.docs;
+          final sortedDocs = snapshot.docs.toList()..sort((a, b) {
+            final aName = a.data()['namaKelas']?.toString().toLowerCase() ?? '';
+            final bName = b.data()['namaKelas']?.toString().toLowerCase() ?? '';
+            return aName.compareTo(bName);
+          });
+          _classes = sortedDocs;
           _isLoadingClasses = false;
           
           if (_classes.isNotEmpty) {

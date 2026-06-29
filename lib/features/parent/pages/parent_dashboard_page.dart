@@ -169,7 +169,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
   @override
   Widget build(BuildContext context) {
     if (SessionService.currentUser == null) {
-      Future.microtask(() => Get.offAllNamed(AppRoutes.login));
+      Future.microtask(() => Get.offAllNamed(AppRoutes.splash));
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 

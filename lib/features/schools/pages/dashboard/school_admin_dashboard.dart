@@ -23,6 +23,7 @@ import '../teaching_reports/admin_teaching_reports_page.dart';
 import '../teachers/pages/admin_teacher_attendance_page.dart';
 
 import '../rapor/school_admin_rapor_page.dart';
+import '../violations/admin_violations_history_page.dart';
 
 class SchoolAdminDashboard extends StatefulWidget {
   const SchoolAdminDashboard({super.key});
@@ -90,6 +91,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('Petugas', Icons.security_rounded, Color(0xFF8B5CF6)),
     _MenuData('Tata Usaha', Icons.support_agent_rounded, Color(0xFF3B82F6)),
     _MenuData('E-Rapor', Icons.description_rounded, Color(0xFF8B5CF6)),
+    _MenuData('Pelanggaran Murid', Icons.report_problem_rounded, Color(0xFFEF4444)),
     _MenuData('Export Laporan', Icons.file_download_rounded, Color(0xFF10B981), badge: 'BASIC'),
     _MenuData('Statistik Akademik', Icons.bar_chart_rounded, Color(0xFF6366F1), badge: 'BASIC'),
     _MenuData('Analitik Sekolah', Icons.analytics_rounded, Color(0xFFEC4899), badge: 'PRO'),
@@ -99,6 +101,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     switch (title) {
       case 'E-Rapor':
         Get.to(() => const SchoolAdminRaporPage());
+        break;
+      case 'Pelanggaran Murid':
+        Get.to(() => const AdminViolationsHistoryPage());
         break;
       case 'Guru':
         Get.toNamed(AppRoutes.teacherlist);
@@ -174,12 +179,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   @override
   Widget build(BuildContext context) {
     if (SessionService.currentUser == null) {
-      Future.microtask(() => Get.offAllNamed(AppRoutes.login));
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      Future.microtask(() => Get.offAllNamed(AppRoutes.splash));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
@@ -832,9 +833,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Absensi', Icons.fact_check_rounded, 6, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 7, const Color(0xFF06B6D4), isDark),
-                const SizedBox(height: 4),
-                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
+                 _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 7, const Color(0xFF06B6D4), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Petugas', Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
@@ -843,6 +842,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 _buildSidebarItem('Rekap Nilai', Icons.grade_rounded, 11, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('E-Rapor', Icons.description_rounded, 12, const Color(0xFF8B5CF6), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Pelanggaran Murid', Icons.report_problem_rounded, 13, const Color(0xFFEF4444), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
             ),
           ),
@@ -1013,6 +1016,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         return const SchoolAdminGradesPage();
       case 12:
         return const SchoolAdminRaporPage(hideBackButton: true);
+      case 13:
+        return const AdminViolationsHistoryPage(hideBackButton: true);
       default:
         return _buildDesktopDashboardHome(isDark);
     }
