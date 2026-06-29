@@ -78,8 +78,7 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
         final textPrimaryColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final textSecondaryColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
-        final fieldBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03);
-        final fieldBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+
 
         return Scaffold(
           body: AuthBackground(

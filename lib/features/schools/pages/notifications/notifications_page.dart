@@ -351,7 +351,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           keep = true;
                         } else if (targetType == 'umum') {
                           keep = true;
-                        } else if (targetType == 'kelas' && _waliClassIds.contains(targetId)) {
+                        } else if (targetType == 'kelas' && _teacherClassIds.contains(targetId)) {
                           keep = true;
                         } else if (targetType == 'guru' && (targetId == '' || targetId == _teacherDocId)) {
                           keep = true;

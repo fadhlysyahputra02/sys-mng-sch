@@ -25,6 +25,9 @@ import 'teacher_tasks_page.dart';
 import 'teacher_permits_page.dart';
 import '../../exams/pages/teacher_exams_page.dart';
 import 'teacher_student_violations_page.dart';
+import '../../officer/pages/officer_dashboard_page.dart';
+
+import '../../../core/widgets/motif_card.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -283,20 +286,31 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           );
         }
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth < 850) {
-              return _buildMobileLayout(isDark);
-            } else {
-              return _buildDesktopLayout(isDark);
-            }
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(SessionService.currentUser!.uid)
+              .snapshots(),
+          builder: (context, userSnapshot) {
+            final userData = userSnapshot.data?.data();
+            final isGateOfficer = userData?['isGateOfficer'] as bool? ?? false;
+
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 850) {
+                  return _buildMobileLayout(isDark, isGateOfficer);
+                } else {
+                  return _buildDesktopLayout(isDark, isGateOfficer);
+                }
+              },
+            );
           },
         );
       },
     );
   }
 
-  Widget _buildMobileLayout(bool isDark) {
+  Widget _buildMobileLayout(bool isDark, bool isGateOfficer) {
     final user = SessionService.currentUser!;
     final teacherId = _teacherDocId!;
     final teacherNama = _teacherData?['nama'] ?? user.nama;
@@ -563,7 +577,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                         isDark,
                                       ),
                                       const SizedBox(height: 16),
-                                      _buildMenuGrid(isDark),
+                                      _buildMenuGrid(isDark, isGateOfficer),
                                       const SizedBox(height: 40),
                                     ],
                                   ),
@@ -753,20 +767,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       'role': 'teacher',
     });
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: cardShadow,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+    return MotifCard(
+      isDark: isDark,
+      cardColor: cardColor,
+      cardBorderColor: cardBorder,
+      cardShadowColor: cardShadow,
       child: Column(
         children: [
           Row(
@@ -1300,7 +1305,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildMenuGrid(bool isDark) {
+  Widget _buildMenuGrid(bool isDark, bool isGateOfficer) {
     final menus = [
       {
         'title': 'Jadwal Mengajar',
@@ -1316,6 +1321,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'title': 'Absensi Harian',
         'icon': Icons.co_present_rounded,
         'color': const Color(0xFF6366F1),
+      },
+      {
+        'title': 'Scan Absensi Harian',
+        'icon': Icons.qr_code_scanner_rounded,
+        'color': const Color(0xFF10B981),
       },
       {
         'title': 'Input Nilai',
@@ -1416,34 +1426,50 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         final menu = menus[index];
         final color = menu['color'] as Color;
         final badge = menu['badge'] as String?;
-        return Container(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cardBorder),
-            boxShadow: isDark
-                ? []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                final user = SessionService.currentUser!;
-                if (menu['title'] == 'Jadwal Mengajar') {
-                  Get.to(() => TeacherSchedulePage(teacherId: _teacherDocId!));
-                } else if (menu['title'] == 'Absensi Murid') {
-                  Get.to(
-                    () =>
-                        TeacherAttendanceSchedulePage(teacherId: _teacherDocId!),
-                  );
-                } else if (menu['title'] == 'Absensi Harian') {
+        final isScanCard = menu['title'] == 'Scan Absensi Harian';
+        final isDisabled = isScanCard && !isGateOfficer;
+
+        return Opacity(
+          opacity: isDisabled ? 0.5 : 1.0,
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDisabled ? (isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02)) : cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isDisabled ? Colors.grey.withValues(alpha: 0.3) : cardBorder),
+              boxShadow: isDark
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  final user = SessionService.currentUser!;
+                  if (isScanCard) {
+                    if (!isGateOfficer) {
+                      Get.snackbar(
+                        'Akses Ditolak',
+                        'Anda tidak memiliki izin sebagai petugas scan.',
+                        backgroundColor: Colors.amber,
+                        colorText: Colors.black,
+                      );
+                    } else {
+                      Get.toNamed(AppRoutes.officerDashboard);
+                    }
+                  } else if (menu['title'] == 'Jadwal Mengajar') {
+                    Get.to(() => TeacherSchedulePage(teacherId: _teacherDocId!));
+                  } else if (menu['title'] == 'Absensi Murid') {
+                    Get.to(
+                      () =>
+                          TeacherAttendanceSchedulePage(teacherId: _teacherDocId!),
+                    );
+                  } else if (menu['title'] == 'Absensi Harian') {
                   Get.to(
                     () => TeacherDailyAttendancePage(
                       teacherId: _teacherDocId!,
@@ -1623,15 +1649,32 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       right: 8,
                       child: _buildPackageBadge(badge),
                     ),
+                  if (isScanCard && !isGateOfficer)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.lock_rounded,
+                          color: Colors.redAccent,
+                          size: 14,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
-        );
-      },
-
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildPackageBadge(String badge) {
     final isBasic = badge == 'BASIC';
@@ -1672,19 +1715,19 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildDesktopLayout(bool isDark) {
+  Widget _buildDesktopLayout(bool isDark, bool isGateOfficer) {
     final panelBg = isDark ? const Color(0xFF0B081B) : const Color(0xFFF8FAFC);
 
     return Scaffold(
       body: Row(
         children: [
           // Sidebar
-          _buildTeacherSidebar(isDark),
+          _buildTeacherSidebar(isDark, isGateOfficer),
           // Main Panel Content
           Expanded(
             child: Container(
               color: panelBg,
-              child: _buildDesktopContent(isDark),
+              child: _buildDesktopContent(isDark, isGateOfficer),
             ),
           ),
         ],
@@ -1692,7 +1735,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildTeacherSidebar(bool isDark) {
+  Widget _buildTeacherSidebar(bool isDark, bool isGateOfficer) {
     final sidebarBg = isDark ? const Color(0xFF110E24) : Colors.white;
     final borderRightColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
     final miniLogoBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06);
@@ -1813,6 +1856,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Absensi Harian', Icons.co_present_rounded, 3, const Color(0xFF6366F1), isDark),
                 const SizedBox(height: 4),
+                _buildSidebarItem('Scan Absensi Harian', Icons.qr_code_scanner_rounded, 13, const Color(0xFF10B981), isDark, isGateOfficer: isGateOfficer),
+                const SizedBox(height: 4),
                 _buildSidebarItem('Input Nilai', Icons.grade_rounded, 4, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Manajemen Tugas', Icons.assignment_rounded, 5, const Color(0xFF3B82F6), isDark),
@@ -1877,135 +1922,158 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildSidebarItem(String title, IconData icon, int index, Color color, bool isDark, {bool isChat = false, bool isPermit = false}) {
+  Widget _buildSidebarItem(String title, IconData icon, int index, Color color, bool isDark, {bool isChat = false, bool isPermit = false, bool isGateOfficer = true}) {
+    final bool isDisabled = index == 13 && !isGateOfficer;
     final bool isSelected = _selectedMenuIndex == index;
     final itemBg = isSelected ? color.withValues(alpha: isDark ? 0.15 : 0.08) : Colors.transparent;
     final itemBorder = isSelected ? color.withValues(alpha: isDark ? 0.3 : 0.2) : Colors.transparent;
-    final iconColor = isSelected ? color : (isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5));
-    final textColor = isSelected ? (isDark ? Colors.white : const Color(0xFF1E1B4B)) : (isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.7));
+    final iconColor = isDisabled
+        ? Colors.grey
+        : (isSelected ? color : (isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5)));
+    final textColor = isDisabled
+        ? Colors.grey
+        : (isSelected ? (isDark ? Colors.white : const Color(0xFF1E1B4B)) : (isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.7)));
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedMenuIndex = index;
-          });
-        },
+        onTap: isDisabled
+            ? () {
+                Get.snackbar(
+                  'Akses Ditolak',
+                  'Anda tidak memiliki izin sebagai petugas scan.',
+                  backgroundColor: Colors.amber,
+                  colorText: Colors.black,
+                );
+              }
+            : () {
+                setState(() {
+                  _selectedMenuIndex = index;
+                });
+              },
         borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: itemBg,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: itemBorder,
-              width: 1,
+        child: Opacity(
+          opacity: isDisabled ? 0.5 : 1.0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: itemBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: itemBorder,
+                width: 1,
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(
-                    icon,
-                    color: iconColor,
-                    size: 20,
-                  ),
-                  if (isChat && _teacherDocId != null)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: ChatUnreadBadge(
-                        schoolId: SessionService.currentUser!.schoolId,
-                        userId: _teacherDocId!,
-                        role: 'teacher',
-                        top: 0,
-                        right: 0,
-                        child: const SizedBox(width: 8, height: 8),
-                      ),
+            child: Row(
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      icon,
+                      color: iconColor,
+                      size: 20,
                     ),
-                  if (isPermit && _teacherDocId != null)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                        stream: FirebaseFirestore.instance
-                            .collection('schools')
-                            .doc(SessionService.currentUser!.schoolId)
-                            .collection('permits')
-                            .where('teacherId', isEqualTo: _teacherDocId)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          final docs = snapshot.data?.docs ?? [];
-                          final pendingCount = docs.where((d) => d.data()['status'] == 'Pending').length;
-                          if (pendingCount > 0) {
-                            return Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.redAccent,
-                                shape: BoxShape.circle,
-                              ),
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
+                    if (isChat && _teacherDocId != null)
+                      Positioned(
+                        top: -4,
+                        right: -4,
+                        child: ChatUnreadBadge(
+                          schoolId: SessionService.currentUser!.schoolId,
+                          userId: _teacherDocId!,
+                          role: 'teacher',
+                          top: 0,
+                          right: 0,
+                          child: const SizedBox(width: 8, height: 8),
+                        ),
                       ),
+                    if (isPermit && _teacherDocId != null)
+                      Positioned(
+                        top: -4,
+                        right: -4,
+                        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: FirebaseFirestore.instance
+                              .collection('schools')
+                              .doc(SessionService.currentUser!.schoolId)
+                              .collection('permits')
+                              .where('teacherId', isEqualTo: _teacherDocId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            final docs = snapshot.data?.docs ?? [];
+                            final pendingCount = docs.where((d) => d.data()['status'] == 'Pending').length;
+                            if (pendingCount > 0) {
+                              return Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Colors.redAccent,
+                                  shape: BoxShape.circle,
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      fontSize: 13,
                     ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: textColor,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 13,
                   ),
                 ),
-              ),
-              if (isPermit && _teacherDocId != null)
-                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance
-                      .collection('schools')
-                      .doc(SessionService.currentUser!.schoolId)
-                      .collection('permits')
-                      .where('teacherId', isEqualTo: _teacherDocId)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    final docs = snapshot.data?.docs ?? [];
-                    final pendingCount = docs.where((d) => d.data()['status'] == 'Pending').length;
-                    if (pendingCount > 0) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$pendingCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
+                if (isPermit && _teacherDocId != null)
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection('schools')
+                        .doc(SessionService.currentUser!.schoolId)
+                        .collection('permits')
+                        .where('teacherId', isEqualTo: _teacherDocId)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      final docs = snapshot.data?.docs ?? [];
+                      final pendingCount = docs.where((d) => d.data()['status'] == 'Pending').length;
+                      if (pendingCount > 0) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
-            ],
+                          child: Text(
+                            '$pendingCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                if (isDisabled)
+                  const Icon(
+                    Icons.lock_outline_rounded,
+                    color: Colors.grey,
+                    size: 16,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildDesktopContent(bool isDark) {
+  Widget _buildDesktopContent(bool isDark, bool isGateOfficer) {
     switch (_selectedMenuIndex) {
       case 0:
         return _buildDesktopDashboardHome(isDark);
@@ -2050,6 +2118,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         return TeacherSettingsPage(hideBackButton: true);
       case 12:
         return TeacherStudentViolationsPage(teacherId: _teacherDocId!);
+      case 13:
+        if (isGateOfficer) {
+          return const OfficerDashboardPage();
+        } else {
+          return const Center(child: Text("Akses ditolak. Anda bukan petugas scan."));
+        }
       default:
         return _buildDesktopDashboardHome(isDark);
     }

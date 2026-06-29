@@ -15,6 +15,7 @@ import '../../../core/services/push_notification_service.dart';
 import '../widgets/auth_background.dart';
 import '../widgets/theme_toggle_button.dart';
 
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -637,7 +638,7 @@ class _LoginPageState extends State<LoginPage> {
                     
                     // Form Card dengan Glassmorphism
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                      // Padding dipindah ke dalam Stack
                       decoration: BoxDecoration(
                         color: cardColor,
                         borderRadius: BorderRadius.circular(28),
@@ -652,12 +653,31 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'MASUK KE AKUN',
-                            textAlign: TextAlign.center,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(28),
+                        child: Stack(
+                          children: [
+                            // Latar belakang motif geometris modern
+                            if (!isDark)
+                              Positioned.fill(
+                                child: Opacity(
+                                  opacity: 0.10, // Dipertipis
+                                  child: Image.asset(
+                                    'assets/images/motif_mandala.png',
+                                    fit: BoxFit.cover,
+                                    repeat: ImageRepeat.repeat,
+                                  ),
+                                ),
+                              ),
+                            // Konten Form
+                            Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Text(
+                                    'MASUK KE AKUN',
+                                    textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -826,6 +846,10 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
                     
                     const SizedBox(height: 28),
                     

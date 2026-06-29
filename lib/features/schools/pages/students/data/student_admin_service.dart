@@ -573,7 +573,6 @@ class StudentService {
     final batch = _db.batch();
 
     for (var doc in querySnapshot.docs) {
-      final studentId = doc.id;
       final studentData = doc.data();
       final String? uid = studentData['uid'];
 

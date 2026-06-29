@@ -237,7 +237,7 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             final studentDoc = filteredStudents[index];
-                            final studentId = studentDoc.data()?['studentId'] ?? studentDoc.id;
+                            final studentId = studentDoc.data()['studentId'] ?? studentDoc.id;
                             final studentData = studentDoc.data();
                             final name = studentData['nama'] ?? 'Murid';
                             final nis = studentData['nis'] ?? '-';

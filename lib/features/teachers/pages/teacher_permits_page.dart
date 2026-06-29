@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +29,13 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
   late String _schoolId;
   bool _isArgumentsLoaded = false;
 
+  Set<String> _teacherClassIds = {};
+  Set<String> _scheduleClassIds = {};
+  Set<String> _waliClassIds = {};
+  bool _isLoadingInfo = true;
+  StreamSubscription? _schedulesSub;
+  StreamSubscription? _classesSub;
+
   @override
   void initState() {
     super.initState();
@@ -47,12 +55,63 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
         _schoolId = args['schoolId']?.toString() ?? '';
       }
       _isArgumentsLoaded = true;
+      _loadTeacherClassesInfo();
     }
+  }
+
+  void _loadTeacherClassesInfo() {
+    _schedulesSub?.cancel();
+    _schedulesSub = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(_schoolId)
+        .collection('class_schedules')
+        .where('teacherId', isEqualTo: _teacherDocId)
+        .snapshots()
+        .listen((schedulesSnap) {
+      final scheduleClassIds = schedulesSnap.docs
+          .map((d) => d.data()['classId'] as String?)
+          .where((id) => id != null && id.isNotEmpty)
+          .cast<String>()
+          .toSet();
+
+      if (mounted) {
+        setState(() {
+          _scheduleClassIds = scheduleClassIds;
+          _teacherClassIds = {..._scheduleClassIds, ..._waliClassIds};
+          _isLoadingInfo = false;
+        });
+      }
+    }, onError: (e) {
+      debugPrint('Error loading schedules stream: $e');
+    });
+
+    _classesSub?.cancel();
+    _classesSub = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(_schoolId)
+        .collection('classes')
+        .where('teacherId', isEqualTo: _teacherDocId)
+        .snapshots()
+        .listen((waliKelasSnap) {
+      final waliClassIds = waliKelasSnap.docs.map((d) => d.id).toSet();
+
+      if (mounted) {
+        setState(() {
+          _waliClassIds = waliClassIds;
+          _teacherClassIds = {..._scheduleClassIds, ..._waliClassIds};
+          _isLoadingInfo = false;
+        });
+      }
+    }, onError: (e) {
+      debugPrint('Error loading classes stream: $e');
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _schedulesSub?.cancel();
+    _classesSub?.cancel();
     super.dispose();
   }
 
@@ -99,6 +158,14 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
           final end = DateTime.parse(tglSelesaiStr);
           final daysCount = end.difference(start).inDays;
 
+          // Ambil daftar jadwal pelajaran kelas murid
+          final schedulesSnap = await firestore
+              .collection('schools')
+              .doc(_schoolId)
+              .collection('class_schedules')
+              .where('classId', isEqualTo: classId)
+              .get();
+
           // Looping untuk menulis record kehadiran per hari
           for (int i = 0; i <= daysCount; i++) {
             final date = start.add(Duration(days: i));
@@ -144,6 +211,49 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
                 DateTime.now().add(const Duration(days: 365 * 5)),
               ),
             }, SetOptions(merge: true));
+
+            // 3. Tulis ke koleksi attendance mata pelajaran (untuk rekap per mapel)
+            final daysIndo = {
+              DateTime.monday: 'Senin',
+              DateTime.tuesday: 'Selasa',
+              DateTime.wednesday: 'Rabu',
+              DateTime.thursday: 'Kamis',
+              DateTime.friday: 'Jumat',
+              DateTime.saturday: 'Sabtu',
+              DateTime.sunday: 'Minggu',
+            };
+            final dayIndo = daysIndo[date.weekday] ?? '';
+
+            final todaySchedules = schedulesSnap.docs.where((doc) {
+              final data = doc.data();
+              return data['hari']?.toString().toLowerCase() == dayIndo.toLowerCase();
+            }).toList();
+
+            for (final schedDoc in todaySchedules) {
+              final schedData = schedDoc.data();
+              final scheduleId = schedDoc.id;
+              final subjectName = schedData['subjectName']?.toString() ?? '-';
+
+              await firestore
+                  .collection('schools')
+                  .doc(_schoolId)
+                  .collection('attendance')
+                  .doc('${studentId}_${scheduleId}_$dateStr')
+                  .set({
+                'studentId': studentId,
+                'studentName': studentName,
+                'classId': classId,
+                'className': className,
+                'scheduleId': scheduleId,
+                'subjectName': subjectName,
+                'date': dateStr,
+                'timestamp': FieldValue.serverTimestamp(),
+                'status': jenis, // 'Sakit' or 'Izin'
+                'tahunAjaran': tahunAjaran,
+                'semester': semester,
+                'method': 'surat_izin',
+              });
+            }
           }
         }
       }
@@ -526,17 +636,23 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
                           .collection('schools')
                           .doc(_schoolId)
                           .collection('permits')
-                          .where('teacherId', isEqualTo: _teacherDocId)
                           .snapshots(),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState == ConnectionState.waiting || _isLoadingInfo) {
                           return const Center(child: CircularProgressIndicator());
                         }
 
                         final docs = snapshot.data?.docs ?? [];
 
-                        final pendingDocs = docs.where((d) => d.data()['status'] == 'Pending').toList();
-                        final historyDocs = docs.where((d) => d.data()['status'] != 'Pending').toList();
+                        final filteredDocs = docs.where((doc) {
+                          final data = doc.data();
+                          final permitTeacherId = data['teacherId']?.toString() ?? '';
+                          final permitClassId = data['classId']?.toString() ?? '';
+                          return permitTeacherId == _teacherDocId || _teacherClassIds.contains(permitClassId);
+                        }).toList();
+
+                        final pendingDocs = filteredDocs.where((d) => d.data()['status'] == 'Pending').toList();
+                        final historyDocs = filteredDocs.where((d) => d.data()['status'] != 'Pending').toList();
 
                         return TabBarView(
                           controller: _tabController,

@@ -117,7 +117,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin menghapus petugas "$nama"? Tindakan ini akan menolak akses login petugas tersebut ke sistem.',
+          'Apakah Anda yakin ingin menonaktifkan petugas "$nama" dari otoritas scan absensi?',
           style: TextStyle(color: textColor.withValues(alpha: 0.8)),
         ),
         actions: [
@@ -143,15 +143,31 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
     if (confirm != true) return;
 
     try {
-      // Hapus dokumen di Firestore users collection
-      await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final data = userDoc.data();
+      final role = data?['role'] as String?;
 
-      Get.snackbar(
-        'Berhasil',
-        'Akun petugas $nama berhasil dinonaktifkan.',
-        backgroundColor: const Color(0xFF10B981),
-        colorText: Colors.white,
-      );
+      if (role == 'teacher') {
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+          'isGateOfficer': false,
+          'scanGuruEnabled': false,
+          'scanMuridEnabled': false,
+        });
+        Get.snackbar(
+          'Berhasil',
+          'Akses petugas untuk guru $nama berhasil dinonaktifkan.',
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+        );
+      } else {
+        await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+        Get.snackbar(
+          'Berhasil',
+          'Akun petugas $nama berhasil dinonaktifkan.',
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+        );
+      }
     } catch (e) {
       Get.snackbar(
         'Gagal',
@@ -160,6 +176,297 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
         colorText: Colors.white,
       );
     }
+  }
+
+  void _showAddTeacherOfficerDialog() {
+    String searchQuery = '';
+    
+    Get.dialog(
+      StatefulBuilder(
+        builder: (context, setStateDialog) {
+          final isDark = AuthBackground.isDarkMode.value;
+          final dialogBg = isDark ? const Color(0xFF1E1B4B) : Colors.white;
+          final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+          final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+          final fieldFill = isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02);
+          final fieldBorder = isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12);
+
+          return Dialog(
+            backgroundColor: dialogBg,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(color: fieldBorder),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(24.0),
+              width: 450,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tambah Guru Sebagai Petugas',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Aktifkan akses scan absensi gerbang untuk guru yang dipilih.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: subTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Search field
+                  TextField(
+                    style: TextStyle(color: textColor, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama guru...',
+                      hintStyle: TextStyle(color: subTextColor, fontSize: 14),
+                      prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
+                      filled: true,
+                      fillColor: fieldFill,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: fieldBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    ),
+                    onChanged: (val) {
+                      setStateDialog(() {
+                        searchQuery = val.trim().toLowerCase();
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // List of teachers
+                  Flexible(
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      ),
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('users')
+                            .where('schoolId', isEqualTo: _schoolId)
+                            .where('role', isEqualTo: 'teacher')
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                            return Center(
+                              child: Text(
+                                'Tidak ada guru yang terdaftar.',
+                                style: TextStyle(color: subTextColor),
+                              ),
+                            );
+                          }
+
+                          final teachers = snapshot.data!.docs.where((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            final nama = (data['nama'] ?? '').toString().toLowerCase();
+                            return nama.contains(searchQuery);
+                          }).toList();
+
+                          if (teachers.isEmpty) {
+                            return Center(
+                              child: Text(
+                                'Nama guru tidak cocok.',
+                                style: TextStyle(color: subTextColor),
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: teachers.length,
+                            itemBuilder: (context, idx) {
+                              final doc = teachers[idx];
+                              final data = doc.data() as Map<String, dynamic>;
+                              final nama = data['nama'] ?? '-';
+                              final isGateOfficer = data['isGateOfficer'] as bool? ?? false;
+                              final scanGuruEnabled = data['scanGuruEnabled'] as bool? ?? isGateOfficer;
+                              final scanMuridEnabled = data['scanMuridEnabled'] as bool? ?? isGateOfficer;
+
+                              return Card(
+                                color: isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.01),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: isGateOfficer
+                                        ? const Color(0xFF6366F1).withOpacity(0.4)
+                                        : fieldBorder,
+                                    width: isGateOfficer ? 1.5 : 1,
+                                  ),
+                                ),
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.person_rounded,
+                                            color: isGateOfficer ? const Color(0xFF6366F1) : subTextColor,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              nama,
+                                              style: TextStyle(
+                                                color: textColor,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                          Switch(
+                                            value: isGateOfficer,
+                                            activeColor: const Color(0xFF6366F1),
+                                            onChanged: (val) async {
+                                              await FirebaseFirestore.instance
+                                                  .collection('users')
+                                                  .doc(doc.id)
+                                                  .update({
+                                                'isGateOfficer': val,
+                                                'scanGuruEnabled': val,
+                                                'scanMuridEnabled': val,
+                                              });
+                                              Get.snackbar(
+                                                'Berhasil',
+                                                val
+                                                    ? '$nama diaktifkan sebagai petugas scan.'
+                                                    : '$nama dinonaktifkan dari petugas scan.',
+                                                backgroundColor: const Color(0xFF10B981),
+                                                colorText: Colors.white,
+                                                duration: const Duration(seconds: 2),
+                                              );
+                                              setStateDialog(() {});
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      if (isGateOfficer) ...[
+                                        const Divider(height: 16),
+                                        Text(
+                                          'Hak Akses Scan:',
+                                          style: TextStyle(
+                                            color: textColor.withOpacity(0.7),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: CheckboxListTile(
+                                                contentPadding: EdgeInsets.zero,
+                                                title: Text(
+                                                  'Scan Guru',
+                                                  style: TextStyle(color: textColor, fontSize: 12),
+                                                ),
+                                                value: scanGuruEnabled,
+                                                activeColor: const Color(0xFF3B82F6),
+                                                dense: true,
+                                                controlAffinity: ListTileControlAffinity.leading,
+                                                onChanged: (val) async {
+                                                  if (val != null) {
+                                                    final newScanGuru = val;
+                                                    final newScanMurid = scanMuridEnabled;
+                                                    final newIsGate = newScanGuru || newScanMurid;
+
+                                                    await FirebaseFirestore.instance
+                                                        .collection('users')
+                                                        .doc(doc.id)
+                                                        .update({
+                                                      'scanGuruEnabled': newScanGuru,
+                                                      'isGateOfficer': newIsGate,
+                                                    });
+                                                    setStateDialog(() {});
+                                                  }
+                                                },
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: CheckboxListTile(
+                                                contentPadding: EdgeInsets.zero,
+                                                title: Text(
+                                                  'Scan Murid',
+                                                  style: TextStyle(color: textColor, fontSize: 12),
+                                                ),
+                                                value: scanMuridEnabled,
+                                                activeColor: const Color(0xFF10B981),
+                                                dense: true,
+                                                controlAffinity: ListTileControlAffinity.leading,
+                                                onChanged: (val) async {
+                                                  if (val != null) {
+                                                    final newScanGuru = scanGuruEnabled;
+                                                    final newScanMurid = val;
+                                                    final newIsGate = newScanGuru || newScanMurid;
+
+                                                    await FirebaseFirestore.instance
+                                                        .collection('users')
+                                                        .doc(doc.id)
+                                                        .update({
+                                                      'scanMuridEnabled': newScanMurid,
+                                                      'isGateOfficer': newIsGate,
+                                                    });
+                                                    setStateDialog(() {});
+                                                  }
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Close Button
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton(
+                      onPressed: () => Get.back(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  )
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _showAddOfficerDialog() {
@@ -415,47 +722,78 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                             ),
                           ),
                         ),
-                        // Add Button
-                        Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
+                        // Add Button wrap
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                            ],
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: _showAddOfficerDialog,
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Tambah',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: _showAddOfficerDialog,
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.add_rounded, color: Colors.white, size: 16),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Petugas Baru',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF10B981), Color(0xFF059669)],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: _showAddTeacherOfficerDialog,
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.person_add_rounded, color: Colors.white, size: 16),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Petugas Guru',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -468,7 +806,6 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                     stream: FirebaseFirestore.instance
                         .collection('users')
                         .where('schoolId', isEqualTo: _schoolId)
-                        .where('role', isEqualTo: 'officer')
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
@@ -506,7 +843,12 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                         );
                       }
 
-                      final docs = snapshot.data?.docs ?? [];
+                      final docs = (snapshot.data?.docs ?? []).where((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final role = data['role'] as String?;
+                        final isGateOfficer = data['isGateOfficer'] as bool? ?? false;
+                        return role == 'officer' || (role == 'teacher' && isGateOfficer);
+                      }).toList();
 
                       if (docs.isEmpty) {
                         return Center(
@@ -533,7 +875,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Tap "Tambah" untuk mendaftarkan petugas baru',
+                                'Tap tombol di atas untuk mendaftarkan petugas baru',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: mutedColor,
@@ -552,6 +894,8 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                           final data = doc.data() as Map<String, dynamic>;
                           final name = data['nama'] ?? '-';
                           final email = data['email'] ?? '-';
+                          final role = data['role'] ?? 'officer';
+                          final isTeacher = role == 'teacher';
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -572,20 +916,26 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                               padding: const EdgeInsets.all(16),
                               child: Row(
                                 children: [
-                                  // Avatar bulat security
+                                  // Avatar bulat security / teacher
                                   Container(
                                     width: 50,
                                     height: 50,
                                     decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+                                      gradient: LinearGradient(
+                                        colors: isTeacher
+                                            ? [const Color(0xFF10B981), const Color(0xFF059669)]
+                                            : [const Color(0xFF8B5CF6), const Color(0xFFD946EF)],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                       ),
                                       borderRadius: BorderRadius.circular(14),
                                     ),
-                                    child: const Icon(Icons.security_rounded,
-                                        color: Colors.white, size: 26),
+                                    child: Icon(
+                                        isTeacher
+                                            ? Icons.school_rounded
+                                            : Icons.security_rounded,
+                                        color: Colors.white,
+                                        size: 26),
                                   ),
                                   const SizedBox(width: 14),
 
@@ -622,26 +972,67 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                         const SizedBox(height: 8),
 
                                         // Role badge
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF8B5CF6)
-                                                .withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(20),
-                                            border: Border.all(
-                                              color: const Color(0xFF8B5CF6)
-                                                  .withValues(alpha: 0.4),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 10, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: (isTeacher
+                                                        ? const Color(0xFF10B981)
+                                                        : const Color(0xFF8B5CF6))
+                                                    .withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: (isTeacher
+                                                          ? const Color(0xFF10B981)
+                                                          : const Color(0xFF8B5CF6))
+                                                      .withValues(alpha: 0.4),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                isTeacher ? 'Petugas Guru' : 'Petugas Kehadiran',
+                                                style: TextStyle(
+                                                  color: isTeacher
+                                                      ? const Color(0xFF10B981)
+                                                      : const Color(0xFF8B5CF6),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                          child: const Text(
-                                            'Petugas Kehadiran',
-                                            style: TextStyle(
-                                              color: Color(0xFF8B5CF6),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
+                                            if (data['scanGuruEnabled'] as bool? ?? (data['isGateOfficer'] as bool? ?? !isTeacher))
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue.withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                                                ),
+                                                child: const Text(
+                                                  'Scan Guru',
+                                                  style: TextStyle(color: Colors.blue, fontSize: 9, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            if (data['scanMuridEnabled'] as bool? ?? (data['isGateOfficer'] as bool? ?? !isTeacher))
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green.withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                                                ),
+                                                child: const Text(
+                                                  'Scan Murid',
+                                                  style: TextStyle(color: Colors.green, fontSize: 9, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ],
                                     ),

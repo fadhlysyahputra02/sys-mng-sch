@@ -121,6 +121,10 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
       final parentId = SessionService.currentUser!.uid;
       final parentName = SessionService.currentUser!.nama;
 
+      final dateRangeStr = _startDate == _endDate
+          ? DateFormat('yyyy-MM-dd').format(_startDate)
+          : '${DateFormat('yyyy-MM-dd').format(_startDate)} s.d ${DateFormat('yyyy-MM-dd').format(_endDate)}';
+
       await FirebaseFirestore.instance
           .collection('schools')
           .doc(schoolId)
@@ -140,6 +144,22 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
         'alasan': _reasonController.text.trim(),
         'buktiBase64': _buktiBase64,
         'status': 'Pending', // Pending, Disetujui, Ditolak
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('notifications')
+          .add({
+        'title': 'Pengajuan Surat ${_jenisIzin}',
+        'content': 'Siswa ${_studentName} mengajukan surat ${_jenisIzin.toLowerCase()} untuk tanggal $dateRangeStr dengan alasan: ${_reasonController.text.trim()}',
+        'targetType': 'kelas',
+        'targetId': _classId,
+        'targetName': _className,
+        'senderId': parentId,
+        'senderName': parentName,
+        'senderRole': 'parent',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -510,7 +530,6 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
 
   @override
   Widget build(BuildContext context) {
-    final parentId = SessionService.currentUser!.uid;
     final schoolId = SessionService.currentUser!.schoolId;
 
     return ValueListenableBuilder<bool>(

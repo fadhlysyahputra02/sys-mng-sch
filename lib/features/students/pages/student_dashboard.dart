@@ -23,7 +23,9 @@ import 'student_attendance_history_page.dart';
 import 'student_grades_page.dart';
 import 'student_tasks_page.dart';
 import '../../exams/pages/student_exams_page.dart';
+import '../../../core/widgets/motif_card.dart';
 import '../../parent/pages/parent_violation_page.dart';
+import 'student_payment_page.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -1007,20 +1009,11 @@ class _StudentDashboardState extends State<StudentDashboard>
         ? Colors.white.withValues(alpha: 0.5)
         : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: cardShadow,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+    return MotifCard(
+      isDark: isDark,
+      cardColor: cardColor,
+      cardBorderColor: cardBorder,
+      cardShadowColor: cardShadow,
       child: Column(
         children: [
           Row(
@@ -1393,6 +1386,11 @@ class _StudentDashboardState extends State<StudentDashboard>
         'icon': Icons.newspaper_rounded,
         'color': const Color(0xFF0EA5E9),
         'badge': 'PRO',
+      },
+      {
+        'title': 'Keuangan & SPP',
+        'icon': Icons.payments_rounded,
+        'color': const Color(0xFF10B981),
       },
     ];
     final cardBg = isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white;
@@ -1894,6 +1892,28 @@ class _StudentDashboardState extends State<StudentDashboard>
         break;
       case 'News Feed Sekolah':
         Get.toNamed(AppRoutes.comingSoonNewsFeedMurid);
+        break;
+      case 'Keuangan & SPP':
+        if (_studentDocId == null) {
+          Get.snackbar(
+            'Informasi',
+            'Data murid belum lengkap. Hubungi admin sekolah.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.amber,
+            colorText: Colors.black,
+            margin: const EdgeInsets.all(16),
+            borderRadius: 12,
+            icon: const Icon(Icons.info_outline, color: Colors.black),
+          );
+        } else {
+          Get.to(
+            () => StudentPaymentPage(
+              schoolId: user.schoolId,
+              studentId: _studentDocId!,
+              studentName: _studentData?['nama'] ?? 'Murid',
+            ),
+          );
+        }
         break;
       default:
         break;

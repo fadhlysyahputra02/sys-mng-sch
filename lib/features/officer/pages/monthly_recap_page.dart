@@ -29,15 +29,11 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
 
   // Selected date parameters
   int _selectedMonth = DateTime.now().month;
+  int _selectedYear = DateTime.now().year;
 
   // Process states
   bool _isLoadingClasses = true;
   bool _isLoadingData = false;
-
-  String? _selectedTahunAjaran;
-  String? _selectedSemester;
-  List<String> _tahunAjaranOptions = [];
-  final List<String> _semesterOptions = ['Semester 1', 'Semester 2'];
 
   // Data maps
   List<Map<String, dynamic>> _students = [];
@@ -59,46 +55,37 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
     'Desember'
   ];
 
+  int get _computedYear => _selectedYear;
+
+  String get _computedTahunAjaran {
+    final int y = _selectedYear;
+    final int m = _selectedMonth;
+    if (m >= 7 && m <= 12) {
+      return '$y/${y + 1}';
+    } else {
+      return '${y - 1}/$y';
+    }
+  }
+
+  String get _computedSemester {
+    final int m = _selectedMonth;
+    if (m >= 7 && m <= 12) {
+      return 'Semester 1';
+    } else {
+      return 'Semester 2';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _initTahunAjaranList();
     _fetchClasses();
-  }
-
-  void _initTahunAjaranList() {
-    final currentYear = DateTime.now().year;
-    final currentMonth = DateTime.now().month;
-    int maxStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
-    
-    for (int i = maxStartYear - 5; i <= maxStartYear + 1; i++) {
-      _tahunAjaranOptions.add('$i/${i + 1}');
-    }
   }
 
   Future<void> _fetchClasses() async {
     setState(() => _isLoadingClasses = true);
     try {
       final user = SessionService.currentUser!;
-      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(user.schoolId).get();
-      if (schoolDoc.exists) {
-        final tA = schoolDoc.data()?['tahunAjaran'];
-        final sem = schoolDoc.data()?['semester'];
-        if (tA != null) {
-          _selectedTahunAjaran = tA;
-          if (!_tahunAjaranOptions.contains(tA)) _tahunAjaranOptions.add(tA);
-        }
-        if (sem != null) _selectedSemester = sem;
-      }
-
-      if (_selectedTahunAjaran == null) {
-        final currentYear = DateTime.now().year;
-        final currentMonth = DateTime.now().month;
-        int maxStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
-        _selectedTahunAjaran = '$maxStartYear/${maxStartYear + 1}';
-      }
-      if (_selectedSemester == null) _selectedSemester = 'Semester 1';
-
       final query = await FirebaseFirestore.instance
           .collection('schools')
           .doc(user.schoolId)
@@ -142,8 +129,8 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
           .doc(schoolId)
           .collection('class_enrollments')
           .where('classId', isEqualTo: _selectedClassId)
-          .where('tahunAjaran', isEqualTo: _selectedTahunAjaran)
-          .where('semester', isEqualTo: _selectedSemester)
+          .where('tahunAjaran', isEqualTo: _computedTahunAjaran)
+          .where('semester', isEqualTo: _computedSemester)
           .get();
 
       // If empty, fall back to active students collection
@@ -169,18 +156,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
       studentsList.sort((a, b) => a['nama'].toString().compareTo(b['nama'].toString()));
 
       // 2. Fetch monthly attendance data safely
-      final parts = (_selectedTahunAjaran ?? '').split('/');
-      int computedYear = DateTime.now().year;
-      if (parts.length == 2) {
-        if (_selectedSemester == 'Semester 1') {
-          computedYear = int.tryParse(parts[0]) ?? computedYear;
-        } else {
-          computedYear = int.tryParse(parts[1]) ?? computedYear;
-        }
-      }
-
-      // Start of month: YYYY-MM-01, End of month: YYYY-MM-31
-      final monthPrefix = '$computedYear-${_selectedMonth.toString().padLeft(2, '0')}';
+      final monthPrefix = '$_computedYear-${_selectedMonth.toString().padLeft(2, '0')}';
       final startOfDate = '$monthPrefix-01';
       final endOfDate = '$monthPrefix-31';
 
@@ -272,16 +248,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
   Future<void> _exportPdf() async {
     final pdf = pw.Document();
     final monthName = _monthNames[_selectedMonth - 1];
-    
-    final parts = (_selectedTahunAjaran ?? '').split('/');
-    int computedYear = DateTime.now().year;
-    if (parts.length == 2) {
-      if (_selectedSemester == 'Semester 1') {
-        computedYear = int.tryParse(parts[0]) ?? computedYear;
-      } else {
-        computedYear = int.tryParse(parts[1]) ?? computedYear;
-      }
-    }
+    final int computedYear = _computedYear;
 
     pdf.addPage(
       pw.MultiPage(
@@ -343,16 +310,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
       final excelFile = Excel.createExcel();
       final sheetObject = excelFile['Sheet1'];
       
-      final parts = (_selectedTahunAjaran ?? '').split('/');
-      int computedYear = DateTime.now().year;
-      if (parts.length == 2) {
-        if (_selectedSemester == 'Semester 1') {
-          computedYear = int.tryParse(parts[0]) ?? computedYear;
-        } else {
-          computedYear = int.tryParse(parts[1]) ?? computedYear;
-        }
-      }
-
+      final int computedYear = _computedYear;
       final daysInMonth = _getDaysInMonth(computedYear);
       final monthName = _monthNames[_selectedMonth - 1];
 
@@ -631,13 +589,14 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                                     ),
                           const SizedBox(height: 16),
 
-                          // Month selector
+                          // Month & Year selector
                           Row(
                             children: [
                               // Month Dropdown
                               Expanded(
+                                flex: 1,
                                 child: DropdownButtonFormField<int>(
-                                  initialValue: _selectedMonth,
+                                  value: _selectedMonth,
                                   dropdownColor:
                                       isDark ? const Color(0xFF1E1B4B) : Colors.white,
                                   style: TextStyle(color: textColor),
@@ -669,61 +628,18 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                                   },
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Tahun Ajaran and Semester selector
-                          Row(
-                            children: [
-                              // Tahun Ajaran Dropdown
-                              Expanded(
-                                flex: 1,
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: _selectedTahunAjaran,
-                                  dropdownColor:
-                                      isDark ? const Color(0xFF1E1B4B) : Colors.white,
-                                  style: TextStyle(color: textColor),
-                                  decoration: InputDecoration(
-                                    labelText: 'Tahun Ajaran',
-                                    labelStyle: TextStyle(color: subTextColor),
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(horizontal: 12),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(color: cardBorder),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(color: cardBorder),
-                                    ),
-                                  ),
-                                  items: _tahunAjaranOptions.map((tahun) {
-                                    return DropdownMenuItem(
-                                      value: tahun,
-                                      child: Text(tahun),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setState(() => _selectedTahunAjaran = val);
-                                      _fetchMonthlyData();
-                                    }
-                                  },
-                                ),
-                              ),
                               const SizedBox(width: 12),
 
-                              // Semester Dropdown
+                              // Year Dropdown
                               Expanded(
                                 flex: 1,
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: _selectedSemester,
+                                child: DropdownButtonFormField<int>(
+                                  value: _selectedYear,
                                   dropdownColor:
                                       isDark ? const Color(0xFF1E1B4B) : Colors.white,
                                   style: TextStyle(color: textColor),
                                   decoration: InputDecoration(
-                                    labelText: 'Semester',
+                                    labelText: 'Tahun',
                                     labelStyle: TextStyle(color: subTextColor),
                                     contentPadding:
                                         const EdgeInsets.symmetric(horizontal: 12),
@@ -736,15 +652,16 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                                       borderSide: BorderSide(color: cardBorder),
                                     ),
                                   ),
-                                  items: _semesterOptions.map((sem) {
+                                  items: List.generate(5, (index) {
+                                    final year = DateTime.now().year - 3 + index;
                                     return DropdownMenuItem(
-                                      value: sem,
-                                      child: Text(sem),
+                                      value: year,
+                                      child: Text('$year'),
                                     );
-                                  }).toList(),
+                                  }),
                                   onChanged: (val) {
                                     if (val != null) {
-                                      setState(() => _selectedSemester = val);
+                                      setState(() => _selectedYear = val);
                                       _fetchMonthlyData();
                                     }
                                   },

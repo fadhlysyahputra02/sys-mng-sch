@@ -24,6 +24,7 @@ import '../teachers/pages/admin_teacher_attendance_page.dart';
 
 import '../rapor/school_admin_rapor_page.dart';
 import '../violations/admin_violations_history_page.dart';
+import '../../../../core/widgets/motif_card.dart';
 
 class SchoolAdminDashboard extends StatefulWidget {
   const SchoolAdminDashboard({super.key});
@@ -308,20 +309,11 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
     final dateColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: cardShadow,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+    return MotifCard(
+      isDark: isDark,
+      cardColor: cardColor,
+      cardBorderColor: cardBorder,
+      cardShadowColor: cardShadow,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1402,22 +1394,13 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     final cardShadow = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05);
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-    final bulletColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.3);
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: cardShadow,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+
+    return MotifCard(
+      isDark: isDark,
+      cardColor: cardColor,
+      cardBorderColor: cardBorder,
+      cardShadowColor: cardShadow,
       child: Row(
         children: [
           // School Logo / Avatar

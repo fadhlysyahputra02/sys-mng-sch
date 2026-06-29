@@ -141,8 +141,8 @@ class SubjectListPage extends StatelessWidget {
                   }
 
                   final docs = snapshot.data!.docs.toList()..sort((a, b) {
-                    final aName = (a.data() as Map<String, dynamic>)['namaMapel']?.toString().toLowerCase() ?? '';
-                    final bName = (b.data() as Map<String, dynamic>)['namaMapel']?.toString().toLowerCase() ?? '';
+                    final aName = a.data()['namaMapel']?.toString().toLowerCase() ?? '';
+                    final bName = b.data()['namaMapel']?.toString().toLowerCase() ?? '';
                     return aName.compareTo(bName);
                   });
 
@@ -304,9 +304,6 @@ class SubjectListPage extends StatelessWidget {
   void _showEditDialog(BuildContext context, Map<String, dynamic> data, String schoolId) {
     final isDark = AuthBackground.isDarkMode.value;
     final titleTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final fieldBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
-    final fieldBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
-    final labelColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
     final textStyleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final dialogBgColor = isDark ? const Color(0xFF0F0C20) : Colors.white;
 

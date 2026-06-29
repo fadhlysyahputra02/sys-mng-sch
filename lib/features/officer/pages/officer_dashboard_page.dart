@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
 import '../../teachers/pages/teacher_settings_page.dart';
+
+import '../../../core/widgets/motif_card.dart';
 
 class OfficerDashboardPage extends StatefulWidget {
   const OfficerDashboardPage({super.key});
@@ -74,131 +77,152 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
       Future.microtask(() => Get.offAllNamed(AppRoutes.splash));
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
-        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-        final cardBorder = isDark
-            ? Colors.white.withValues(alpha: 0.1)
-            : Colors.black.withValues(alpha: 0.08);
 
-        return Scaffold(
-          extendBodyBehindAppBar: true,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            title: Text(
-              'Dashboard Officer',
-              style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.settings_rounded, color: textColor),
-                onPressed: () => Get.to(() => const TeacherSettingsPage()),
-                tooltip: 'Pengaturan',
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
+      builder: (context, userSnapshot) {
+        final userData = userSnapshot.data?.data();
+        final isOfficer = userData?['role'] == 'officer';
+        final scanGuruEnabled = userData?['scanGuruEnabled'] as bool? ??
+            (isOfficer ? true : (userData?['isGateOfficer'] as bool? ?? false));
+        final scanMuridEnabled = userData?['scanMuridEnabled'] as bool? ??
+            (isOfficer ? true : (userData?['isGateOfficer'] as bool? ?? false));
+
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
+            final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+            final cardBorder = isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.08);
+
+            return Scaffold(
+              extendBodyBehindAppBar: true,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                title: Text(
+                  'Dashboard Officer',
+                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                ),
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.settings_rounded, color: textColor),
+                    onPressed: () => Get.to(() => const TeacherSettingsPage()),
+                    tooltip: 'Pengaturan',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout_rounded, color: Colors.red),
+                    onPressed: _logout,
+                    tooltip: 'Logout',
+                  )
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.logout_rounded, color: Colors.red),
-                onPressed: _logout,
-                tooltip: 'Logout',
-              )
-            ],
-          ),
-          body: AuthBackground(
-            child: SafeArea(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Profile & School Header
-                      _buildMergedHeaderCard(nama, email, isDark),
-                      const SizedBox(height: 32),
-
-                      // Quick Actions Grid
-                      Text(
-                        'Menu Cepat',
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childAspectRatio: 1.1,
+              body: AuthBackground(
+                child: SafeArea(
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildMenuCard(
-                            title: 'Scan QR Murid',
-                            icon: Icons.qr_code_scanner_rounded,
-                            color: const Color(0xFF10B981),
-                            onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'student'}),
-                            textColor: textColor,
-                            cardBg: cardBg,
-                            cardBorder: cardBorder,
+                          // Profile & School Header
+                          _buildMergedHeaderCard(nama, email, isDark),
+                          const SizedBox(height: 32),
+
+                          // Quick Actions Grid
+                          Text(
+                            'Menu Cepat',
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          _buildMenuCard(
-                            title: 'Scan Guru (Masuk)',
-                            icon: Icons.assignment_ind_rounded,
-                            color: const Color(0xFF3B82F6),
-                            onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'teacher', 'action': 'check_in'}),
-                            textColor: textColor,
-                            cardBg: cardBg,
-                            cardBorder: cardBorder,
+                          const SizedBox(height: 16),
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            childAspectRatio: 1.1,
+                            children: [
+                              _buildMenuCard(
+                                title: 'Scan QR Murid',
+                                icon: Icons.qr_code_scanner_rounded,
+                                color: const Color(0xFF10B981),
+                                onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'student'}),
+                                textColor: textColor,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                                isDisabled: !scanMuridEnabled,
+                              ),
+                              _buildMenuCard(
+                                title: 'Scan Guru (Masuk)',
+                                icon: Icons.assignment_ind_rounded,
+                                color: const Color(0xFF3B82F6),
+                                onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'teacher', 'action': 'check_in'}),
+                                textColor: textColor,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                                isDisabled: !scanGuruEnabled,
+                              ),
+                              _buildMenuCard(
+                                title: 'Scan Guru (Pulang)',
+                                icon: Icons.assignment_returned_rounded,
+                                color: const Color(0xFFEF4444),
+                                onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'teacher', 'action': 'check_out'}),
+                                textColor: textColor,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                                isDisabled: !scanGuruEnabled,
+                              ),
+                              _buildMenuCard(
+                                title: 'Absen Manual',
+                                icon: Icons.how_to_reg_rounded,
+                                color: const Color(0xFFF59E0B),
+                                onTap: () => Get.toNamed(AppRoutes.officerManual),
+                                textColor: textColor,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                                isDisabled: !scanMuridEnabled && !scanGuruEnabled,
+                              ),
+                              _buildMenuCard(
+                                title: 'Rekap Harian',
+                                icon: Icons.bar_chart_rounded,
+                                color: const Color(0xFF6366F1),
+                                onTap: () => Get.toNamed(AppRoutes.officerRecap),
+                                textColor: textColor,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                                isDisabled: !scanMuridEnabled,
+                              ),
+                              _buildMenuCard(
+                                title: 'Rekap Bulanan',
+                                icon: Icons.calendar_month_rounded,
+                                color: const Color(0xFF8B5CF6),
+                                onTap: () => Get.toNamed(AppRoutes.officerMonthlyRecap),
+                                textColor: textColor,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                                isDisabled: !scanMuridEnabled,
+                              ),
+                            ],
                           ),
-                          _buildMenuCard(
-                            title: 'Scan Guru (Pulang)',
-                            icon: Icons.assignment_returned_rounded,
-                            color: const Color(0xFFEF4444),
-                            onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'teacher', 'action': 'check_out'}),
-                            textColor: textColor,
-                            cardBg: cardBg,
-                            cardBorder: cardBorder,
-                          ),
-                          _buildMenuCard(
-                            title: 'Absen Manual',
-                            icon: Icons.how_to_reg_rounded,
-                            color: const Color(0xFFF59E0B),
-                            onTap: () => Get.toNamed(AppRoutes.officerManual),
-                            textColor: textColor,
-                            cardBg: cardBg,
-                            cardBorder: cardBorder,
-                          ),
-                          _buildMenuCard(
-                            title: 'Rekap Harian',
-                            icon: Icons.bar_chart_rounded,
-                            color: const Color(0xFF6366F1),
-                            onTap: () => Get.toNamed(AppRoutes.officerRecap),
-                            textColor: textColor,
-                            cardBg: cardBg,
-                            cardBorder: cardBorder,
-                          ),
-                          _buildMenuCard(
-                            title: 'Rekap Bulanan',
-                            icon: Icons.calendar_month_rounded,
-                            color: const Color(0xFF8B5CF6),
-                            onTap: () => Get.toNamed(AppRoutes.officerMonthlyRecap),
-                            textColor: textColor,
-                            cardBg: cardBg,
-                            cardBorder: cardBorder,
-                          ),
+                          const SizedBox(height: 32),
                         ],
                       ),
-                      const SizedBox(height: 32),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -212,40 +236,79 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
     required Color textColor,
     required Color cardBg,
     required Color cardBorder,
+    bool isDisabled = false,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cardBorder),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+    return Opacity(
+      opacity: isDisabled ? 0.55 : 1.0,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isDisabled
+              ? () {
+                  Get.snackbar(
+                    'Akses Ditolak',
+                    'Otoritas scan untuk fitur ini tidak aktif.',
+                    backgroundColor: Colors.amber,
+                    colorText: Colors.black,
+                  );
+                }
+              : onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDisabled ? Colors.grey.withOpacity(0.05) : cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isDisabled ? Colors.grey.withOpacity(0.3) : cardBorder),
+            ),
+            child: Stack(
+              children: [
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDisabled ? Colors.grey.withOpacity(0.1) : color.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(icon, color: isDisabled ? Colors.grey : color, size: 32),
+                      ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isDisabled ? Colors.grey : textColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Icon(icon, color: color, size: 32),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+                if (isDisabled)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.lock_rounded,
+                        color: Colors.redAccent,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -261,20 +324,11 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
     final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
     final dateColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: cardShadow,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+    return MotifCard(
+      isDark: isDark,
+      cardColor: cardColor,
+      cardBorderColor: cardBorder,
+      cardShadowColor: cardShadow,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

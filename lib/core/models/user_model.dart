@@ -5,6 +5,9 @@ class UserModel {
   final String role;
   final String schoolId;
   final bool aktif;
+  final bool isGateOfficer;
+  final bool scanGuruEnabled;
+  final bool scanMuridEnabled;
 
   UserModel({
     required this.uid,
@@ -13,6 +16,9 @@ class UserModel {
     required this.role,
     required this.schoolId,
     required this.aktif,
+    this.isGateOfficer = false,
+    this.scanGuruEnabled = true,
+    this.scanMuridEnabled = true,
   });
 
   factory UserModel.fromMap(String uid, Map<String, dynamic> map) {
@@ -22,6 +28,8 @@ class UserModel {
     } else if (roleVal == 'schooladmin' || roleVal == 'school-admin' || roleVal == 'school_admin') {
       roleVal = 'school_admin';
     }
+    final isGate = map['isGateOfficer'] ?? false;
+    final isOfficer = roleVal == 'officer';
     return UserModel(
       uid: uid,
       nama: map['nama'] ?? '',
@@ -29,6 +37,9 @@ class UserModel {
       role: roleVal,
       schoolId: map['schoolId'] ?? '',
       aktif: map['aktif'] ?? false,
+      isGateOfficer: isGate,
+      scanGuruEnabled: map['scanGuruEnabled'] ?? (isOfficer ? true : isGate),
+      scanMuridEnabled: map['scanMuridEnabled'] ?? (isOfficer ? true : isGate),
     );
   }
 }

@@ -11,6 +11,9 @@ import '../../schools/services/school_service.dart';
 import '../../students/pages/student_tasks_page.dart';
 import '../../exams/pages/student_exams_page.dart';
 
+import '../../../core/widgets/motif_card.dart';
+import 'parent_payment_page.dart';
+
 class ParentDashboardPage extends StatefulWidget {
   const ParentDashboardPage({super.key});
 
@@ -243,24 +246,17 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                         SliverToBoxAdapter(
                           child: Padding(
                             padding: const EdgeInsets.all(24),
-                            child: Container(
+                            child: MotifCard(
+                              isDark: isDark,
                               padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
-                                ),
-                                borderRadius: BorderRadius.circular(28),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF8B5CF6)
-                                        .withValues(alpha: 0.3),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 10),
-                                  )
-                                ],
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
                               ),
+                              borderRadius: 28,
+                              cardBorderColor: Colors.transparent,
+                              cardShadowColor: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                               child: Column(
                                 children: [
                                   Row(
@@ -610,6 +606,28 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
         'color': const Color(0xFF0EA5E9),
         'onTap': () => Get.toNamed(AppRoutes.comingSoonNewsFeedOrtu),
         'badge': 'PRO',
+      },
+      {
+        'title': 'Tagihan SPP & Keuangan',
+        'icon': Icons.payments_rounded,
+        'color': const Color(0xFF10B981),
+        'onTap': () {
+          if (studentId.isEmpty) {
+            Get.snackbar(
+              'Informasi',
+              'Akun Anda belum terhubung dengan data murid manapun.',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.amber,
+              colorText: Colors.black,
+            );
+          } else {
+            Get.to(() => ParentPaymentPage(
+              schoolId: schoolId,
+              studentId: studentId,
+              studentName: studentName ?? 'Anak',
+            ));
+          }
+        },
       },
     ];
 

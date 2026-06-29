@@ -37,7 +37,7 @@ class _StudentListPageState extends State<StudentListPage> {
         final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
         final mutedColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
-        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFF1E1B4B).withValues(alpha: 0.04);
+        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
         final borderCol = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.08);
 
         return Scaffold(

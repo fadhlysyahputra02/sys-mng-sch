@@ -770,7 +770,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     // Glassmorphic Card Form
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
                       decoration: BoxDecoration(
                         color: cardColor,
                         borderRadius: BorderRadius.circular(28),
@@ -785,8 +784,27 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                         ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(28),
+                        child: Stack(
+                          children: [
+                            // Latar belakang motif geometris modern
+                            if (!isDark)
+                              Positioned.fill(
+                                child: Opacity(
+                                  opacity: 0.10, // Dipertipis
+                                  child: Image.asset(
+                                    'assets/images/motif_mandala.png',
+                                    fit: BoxFit.cover,
+                                    repeat: ImageRepeat.repeat,
+                                  ),
+                                ),
+                              ),
+                            // Konten Form
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           // Pilihan Role Kustom
                           if (!kIsWeb) ...[
@@ -1232,6 +1250,10 @@ class _RegisterPageState extends State<RegisterPage> {
                         ],
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
                     
                     const SizedBox(height: 24),
                   ],
