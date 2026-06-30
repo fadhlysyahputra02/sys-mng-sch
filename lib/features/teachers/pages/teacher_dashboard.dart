@@ -8,6 +8,7 @@ import '../../../app/routes/app_routes.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../librarian/pages/librarian_dashboard_page.dart';
 import '../../chat/teacher_chat_selector_page.dart';
 import '../../chat/widgets/chat_unread_badge.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
@@ -348,13 +349,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           builder: (context, userSnapshot) {
             final userData = userSnapshot.data?.data();
             final isGateOfficer = userData?['isGateOfficer'] as bool? ?? false;
+            final isLibrarian = userData?['isLibrarian'] as bool? ?? false;
 
             return LayoutBuilder(
               builder: (context, constraints) {
                 if (constraints.maxWidth < 850) {
-                  return _buildMobileLayout(isDark, isGateOfficer);
+                  return _buildMobileLayout(isDark, isGateOfficer, isLibrarian);
                 } else {
-                  return _buildDesktopLayout(isDark, isGateOfficer);
+                  return _buildDesktopLayout(isDark, isGateOfficer, isLibrarian);
                 }
               },
             );
@@ -364,7 +366,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildMobileLayout(bool isDark, bool isGateOfficer) {
+  Widget _buildMobileLayout(bool isDark, bool isGateOfficer, bool isLibrarian) {
     final user = SessionService.currentUser!;
     final teacherId = _teacherDocId!;
     final teacherNama = _teacherData?['nama'] ?? user.nama;
@@ -631,7 +633,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                         isDark,
                                       ),
                                       const SizedBox(height: 16),
-                                      _buildMenuGrid(isDark, isGateOfficer),
+                                      _buildMenuGrid(isDark, isGateOfficer, isLibrarian),
                                       const SizedBox(height: 40),
                                     ],
                                   ),
@@ -1359,7 +1361,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildMenuGrid(bool isDark, bool isGateOfficer) {
+  Widget _buildMenuGrid(bool isDark, bool isGateOfficer, bool isLibrarian) {
     final menus = [
       {
         'title': 'Jadwal Mengajar',
@@ -1376,11 +1378,20 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'icon': Icons.co_present_rounded,
         'color': const Color(0xFF6366F1),
       },
-      {
-        'title': 'Scan Absensi Harian',
-        'icon': Icons.qr_code_scanner_rounded,
-        'color': const Color(0xFF10B981),
-      },
+      if (isGateOfficer) ...[
+        {
+          'title': 'Scan Absensi Harian',
+          'icon': Icons.qr_code_scanner_rounded,
+          'color': const Color(0xFF10B981),
+        },
+      ],
+      if (isLibrarian) ...[
+        {
+          'title': 'Dashboard Perpustakaan',
+          'icon': Icons.menu_book_rounded,
+          'color': const Color(0xFF6366F1),
+        },
+      ],
       {
         'title': 'Input Nilai',
         'icon': Icons.grade_rounded,
@@ -1516,6 +1527,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     } else {
                       Get.toNamed(AppRoutes.officerDashboard);
                     }
+                  } else if (menu['title'] == 'Dashboard Perpustakaan') {
+                    Get.to(() => const LibrarianDashboardPage());
                   } else if (menu['title'] == 'Jadwal Mengajar') {
                     Get.to(() => TeacherSchedulePage(teacherId: _teacherDocId!));
                   } else if (menu['title'] == 'Absensi Murid') {
@@ -1775,19 +1788,19 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildDesktopLayout(bool isDark, bool isGateOfficer) {
+  Widget _buildDesktopLayout(bool isDark, bool isGateOfficer, bool isLibrarian) {
     final panelBg = isDark ? const Color(0xFF0B081B) : const Color(0xFFF8FAFC);
 
     return Scaffold(
       body: Row(
         children: [
           // Sidebar
-          _buildTeacherSidebar(isDark, isGateOfficer),
+          _buildTeacherSidebar(isDark, isGateOfficer, isLibrarian),
           // Main Panel Content
           Expanded(
             child: Container(
               color: panelBg,
-              child: _buildDesktopContent(isDark, isGateOfficer),
+              child: _buildDesktopContent(isDark, isGateOfficer, isLibrarian),
             ),
           ),
         ],
@@ -1795,7 +1808,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildTeacherSidebar(bool isDark, bool isGateOfficer) {
+  Widget _buildTeacherSidebar(bool isDark, bool isGateOfficer, bool isLibrarian) {
     final sidebarBg = isDark ? const Color(0xFF110E24) : Colors.white;
     final borderRightColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
     final miniLogoBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06);
@@ -1915,8 +1928,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 _buildSidebarItem('Absensi Murid', Icons.fact_check_rounded, 2, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Absensi Harian', Icons.co_present_rounded, 3, const Color(0xFF6366F1), isDark),
-                const SizedBox(height: 4),
-                _buildSidebarItem('Scan Absensi Harian', Icons.qr_code_scanner_rounded, 13, const Color(0xFF10B981), isDark, isGateOfficer: isGateOfficer),
+                if (isGateOfficer) ...[
+                  const SizedBox(height: 4),
+                  _buildSidebarItem('Scan Absensi Harian', Icons.qr_code_scanner_rounded, 13, const Color(0xFF10B981), isDark, isGateOfficer: isGateOfficer),
+                ],
+                if (isLibrarian) ...[
+                  const SizedBox(height: 4),
+                  _buildSidebarItem('Perpustakaan', Icons.menu_book_rounded, 14, const Color(0xFF8B5CF6), isDark),
+                ],
                 const SizedBox(height: 4),
                 _buildSidebarItem('Input Nilai', Icons.grade_rounded, 4, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
@@ -2145,7 +2164,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildDesktopContent(bool isDark, bool isGateOfficer) {
+  Widget _buildDesktopContent(bool isDark, bool isGateOfficer, bool isLibrarian) {
     switch (_selectedMenuIndex) {
       case 0:
         return _buildDesktopDashboardHome(isDark);
@@ -2195,6 +2214,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           return const OfficerDashboardPage();
         } else {
           return const Center(child: Text("Akses ditolak. Anda bukan petugas scan."));
+        }
+      case 14:
+        if (isLibrarian) {
+          return const LibrarianDashboardPage();
+        } else {
+          return const Center(child: Text("Akses ditolak. Anda bukan petugas perpustakaan."));
         }
       default:
         return _buildDesktopDashboardHome(isDark);

@@ -16,8 +16,8 @@ import '../students/data/student_admin_service.dart';
 import '../subjects/pages/subject_list_page.dart';
 import '../schedule/Page/class_schedule_overview_page.dart';
 import '../notifications/notifications_page.dart';
-import '../officers/pages/officer_management_page.dart';
-import '../tu/pages/tu_management_page.dart';
+import '../staff/staff_management_tabbed_page.dart';
+
 import '../../../officer/pages/daily_recap_page.dart';
 import '../teaching_reports/admin_teaching_reports_page.dart';
 import '../teachers/pages/admin_teacher_attendance_page.dart';
@@ -90,7 +90,6 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('Notifikasi', Icons.notifications_rounded, Color(0xFF06B6D4)),
     _MenuData('Pengaturan', Icons.settings_rounded, Color(0xFF64748B)),
     _MenuData('Petugas', Icons.security_rounded, Color(0xFF8B5CF6)),
-    _MenuData('Tata Usaha', Icons.support_agent_rounded, Color(0xFF3B82F6)),
     _MenuData('E-Rapor', Icons.description_rounded, Color(0xFF8B5CF6)),
     _MenuData('Pelanggaran Murid', Icons.report_problem_rounded, Color(0xFFEF4444)),
     _MenuData('Export Laporan', Icons.file_download_rounded, Color(0xFF10B981), badge: 'BASIC'),
@@ -134,10 +133,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         }
         break;
       case 'Petugas':
-        Get.to(() => const OfficerManagementPage());
-        break;
-      case 'Tata Usaha':
-        Get.to(() => const TuManagementPage());
+        Get.to(() => const StaffManagementTabbedPage());
         break;
       case 'Absensi':
         _showAbsensiSelectionDialog();
@@ -542,7 +538,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   Widget _buildMenuCard(_MenuData menu, bool isDark) {
     final bool isActive = [
       'Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi',
-      'Pengaturan', 'Petugas', 'Tata Usaha', 'Absensi', 'Rekap Nilai', 'Laporan Mengajar',
+      'Pengaturan', 'Petugas', 'Absensi', 'Rekap Nilai', 'Laporan Mengajar',
       'E-Rapor',
       // Menu Coming Soon baru (tetap aktif karena punya route)
       'Export Laporan', 'Statistik Akademik', 'Analitik Sekolah',
@@ -829,13 +825,11 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Petugas', Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Tata Usaha', Icons.support_agent_rounded, 10, const Color(0xFF3B82F6), isDark),
+                _buildSidebarItem('Rekap Nilai', Icons.grade_rounded, 10, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Rekap Nilai', Icons.grade_rounded, 11, const Color(0xFFEF4444), isDark),
+                _buildSidebarItem('E-Rapor', Icons.description_rounded, 11, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('E-Rapor', Icons.description_rounded, 12, const Color(0xFF8B5CF6), isDark),
-                const SizedBox(height: 4),
-                _buildSidebarItem('Pelanggaran Murid', Icons.report_problem_rounded, 13, const Color(0xFFEF4444), isDark),
+                _buildSidebarItem('Pelanggaran Murid', Icons.report_problem_rounded, 12, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
@@ -1001,14 +995,12 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       case 8:
         return SchoolSettingsPage(schoolId: schoolId, hideBackButton: true);
       case 9:
-        return const OfficerManagementPage();
+        return const StaffManagementTabbedPage();
       case 10:
-        return const TuManagementPage();
-      case 11:
         return const SchoolAdminGradesPage();
-      case 12:
+      case 11:
         return const SchoolAdminRaporPage(hideBackButton: true);
-      case 13:
+      case 12:
         return const AdminViolationsHistoryPage(hideBackButton: true);
       default:
         return _buildDesktopDashboardHome(isDark);

@@ -5,7 +5,14 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 /// Mengembalikan payload String (isi QR) saat berhasil scan,
 /// atau null jika pengguna menutup halaman.
 class StudentQrScannerPage extends StatefulWidget {
-  const StudentQrScannerPage({super.key});
+  final String title;
+  final String subtitle;
+
+  const StudentQrScannerPage({
+    super.key,
+    this.title = 'Scan QR Absensi',
+    this.subtitle = 'Arahkan kamera ke QR yang ditampilkan guru',
+  });
 
   @override
   State<StudentQrScannerPage> createState() => _StudentQrScannerPageState();
@@ -47,9 +54,9 @@ class _StudentQrScannerPageState extends State<StudentQrScannerPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        title: const Text(
-          'Scan QR Absensi',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          widget.title,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
           icon: const Icon(Icons.close_rounded, color: Colors.white),
@@ -100,10 +107,10 @@ class _StudentQrScannerPageState extends State<StudentQrScannerPage> {
                 children: [
                   const Icon(Icons.qr_code_scanner_rounded, color: Colors.white54, size: 28),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Arahkan kamera ke QR yang ditampilkan guru',
+                  Text(
+                    widget.subtitle,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,

@@ -112,19 +112,36 @@ class AuthPatternPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Menggambar Grid Halus
-    final gridPaint = Paint()
-      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.018) : Colors.black.withValues(alpha: 0.025)
-      ..strokeWidth = 0.8
-      ..style = PaintingStyle.stroke;
+    // 1. Fluid Abstract Shapes (Blobs)
+    final blobPaint1 = Paint()
+      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02)
+      ..style = PaintingStyle.fill;
+      
+    final blobPaint2 = Paint()
+      ..color = const Color(0xFF6366F1).withValues(alpha: isDarkMode ? 0.04 : 0.03)
+      ..style = PaintingStyle.fill;
 
-    const double gridSpacing = 40.0;
-    for (double x = 0; x < size.width; x += gridSpacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-    }
-    for (double y = 0; y < size.height; y += gridSpacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
+    final path1 = Path();
+    path1.moveTo(0, size.height * 0.35);
+    path1.cubicTo(
+      size.width * 0.25, size.height * 0.4,
+      size.width * 0.45, size.height * 0.15,
+      size.width * 0.55, 0
+    );
+    path1.lineTo(0, 0);
+    path1.close();
+    canvas.drawPath(path1, blobPaint1);
+
+    final path2 = Path();
+    path2.moveTo(size.width, size.height * 0.65);
+    path2.cubicTo(
+      size.width * 0.75, size.height * 0.6,
+      size.width * 0.65, size.height * 0.85,
+      size.width * 0.45, size.height
+    );
+    path2.lineTo(size.width, size.height);
+    path2.close();
+    canvas.drawPath(path2, blobPaint2);
 
     // 2. Menggambar Ornamen Gelombang Abstrak Melengkung
     final pathPaint = Paint()
