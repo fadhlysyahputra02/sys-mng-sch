@@ -49,9 +49,12 @@ class StaffManagementTabbedPage extends StatelessWidget {
                     ),
                   ),
                   TabBar(
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.center,
                     labelColor: indicatorColor,
                     unselectedLabelColor: unselectedColor,
                     indicatorColor: indicatorColor,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                     tabs: const [
                       Tab(text: 'Petugas Absensi'),
                       Tab(text: 'Tata Usaha'),

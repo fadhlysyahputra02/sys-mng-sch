@@ -1502,10 +1502,19 @@ class _StudentDashboardState extends State<StudentDashboard>
                                         final taskSemester = taskData['semester']?.toString();
 
                                         if (status != 'active') return false;
-                                         if (taskTahunAjaran != _tahunAjaran ||
-                                             taskSemester != _activeSemester) {
-                                           return false;
-                                         }
+                                        if (taskTahunAjaran != _tahunAjaran ||
+                                            taskSemester != _activeSemester) {
+                                          return false;
+                                        }
+
+                                        // Jika tugas belum dikerjakan, tapi sudah melewati tenggat waktu (dueDate), jangan dihitung
+                                        final dueDateObj = taskData['dueDate'];
+                                        if (dueDateObj != null && dueDateObj is Timestamp) {
+                                          final dueDate = dueDateObj.toDate();
+                                          if (dueDate.isBefore(DateTime.now())) {
+                                            return false;
+                                          }
+                                        }
 
                                         return !submittedTaskIds.contains(taskId);
                                       }).length;

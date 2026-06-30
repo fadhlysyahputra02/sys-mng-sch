@@ -22,7 +22,8 @@ class AuthBackground extends StatelessWidget {
     });
   }
 
-  const AuthBackground({super.key, required this.child});
+  final bool fullScreen;
+  const AuthBackground({super.key, required this.child, this.fullScreen = true});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +32,7 @@ class AuthBackground extends StatelessWidget {
       builder: (context, isDark, _) {
         return Container(
           width: double.infinity,
-          height: double.infinity,
+          height: fullScreen ? double.infinity : null,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topRight,

@@ -256,7 +256,9 @@ class _BookListTabState extends State<BookListTab> {
                                         );
                                         _showNotification('Berhasil', 'Buku baru berhasil terdaftar.', true);
                                       }
-                                      Get.back();
+                                      if (context.mounted) {
+                                        Navigator.of(context).pop();
+                                      }
                                     } catch (e) {
                                       _showNotification('Gagal', e.toString(), false);
                                     } finally {

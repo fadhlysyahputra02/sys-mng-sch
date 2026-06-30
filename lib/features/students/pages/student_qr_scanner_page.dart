@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -21,7 +22,7 @@ class StudentQrScannerPage extends StatefulWidget {
 class _StudentQrScannerPageState extends State<StudentQrScannerPage> {
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
-    facing: CameraFacing.back,
+    facing: kIsWeb ? CameraFacing.front : CameraFacing.back,
   );
 
   bool _hasScanned = false;
@@ -64,6 +65,11 @@ class _StudentQrScannerPageState extends State<StudentQrScannerPage> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
+            tooltip: 'Tukar Kamera',
+            onPressed: () => _controller.switchCamera(),
+          ),
+          IconButton(
             icon: Icon(
               _isTorchOn ? Icons.flashlight_on_rounded : Icons.flashlight_off_rounded,
               color: _isTorchOn ? const Color(0xFFF59E0B) : Colors.white54,
@@ -83,6 +89,30 @@ class _StudentQrScannerPageState extends State<StudentQrScannerPage> {
           MobileScanner(
             controller: _controller,
             onDetect: _onDetect,
+            errorBuilder: (context, error) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.videocam_off_rounded, color: Colors.white, size: 64),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Kamera Tidak Tersedia',
+                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Pastikan Anda telah memberikan izin akses kamera pada browser/perangkat Anda, dan kamera tidak sedang digunakan oleh aplikasi lain (seperti Zoom/Meet).',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
 
           // Overlay dimming + scan frame

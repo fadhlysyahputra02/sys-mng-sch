@@ -626,98 +626,105 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                 SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                    child: Row(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (!widget.hideBackButton)
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
-                          ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            'Data Petugas Perpustakaan',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
-                            ),
-                          ),
-                        ),
-                        // Add Button wrap
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
+                        Row(
                           children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                                ),
-                                borderRadius: BorderRadius.circular(10),
+                            if (!widget.hideBackButton)
+                              IconButton(
+                                onPressed: () => Navigator.pop(context),
+                                icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
                               ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(10),
-                                  onTap: _showAddOfficerDialog,
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.add_rounded, color: Colors.white, size: 16),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'Petugas Perpustakaan Baru',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF10B981), Color(0xFF059669)],
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(10),
-                                  onTap: _showAddTeacherLibrarianDialog,
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.person_add_rounded, color: Colors.white, size: 16),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'Petugas Guru',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'Data Petugas Perpustakaan',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
                                 ),
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: _showAddOfficerDialog,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.add_rounded, color: Colors.white, size: 16),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Petugas Perpustakaan Baru',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF10B981), Color(0xFF059669)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: _showAddTeacherLibrarianDialog,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.person_add_rounded, color: Colors.white, size: 16),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Petugas Guru',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

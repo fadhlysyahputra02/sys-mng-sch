@@ -92,7 +92,7 @@ class DashboardHomeTab extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 24),
             child: MotifCard(
               isDark: isDark,
-              cardBorderColor: borderCol,
+              cardBorderColor: Colors.transparent,
               cardShadowColor: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
               gradient: const LinearGradient(
                 colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
@@ -107,7 +107,7 @@ class DashboardHomeTab extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Colors.black,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -115,7 +115,7 @@ class DashboardHomeTab extends StatelessWidget {
                     'Kelola katalog buku, sirkulasi peminjaman, serta kehadiran pengunjung dengan mudah dan efisien.',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.white.withOpacity(0.85),
+                      color: Colors.black.withOpacity(0.85),
                     ),
                   ),
                   const SizedBox(height: 18),

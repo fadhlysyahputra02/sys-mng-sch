@@ -434,7 +434,9 @@ class _LoanListTabState extends State<LoanListTab> {
                                       dueDate: _dueDate,
                                     );
                                     _showNotification('Berhasil', 'Transaksi peminjaman dicatat.', true);
-                                    Get.back();
+                                    if (context.mounted) {
+                                      Navigator.of(context).pop();
+                                    }
                                   } catch (e) {
                                     _showNotification('Gagal', e.toString(), false);
                                   }
@@ -713,12 +715,18 @@ class _LoanListTabState extends State<LoanListTab> {
 
                               // Student Info
                               Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(Icons.person_outline_rounded, size: 14, color: subTextColor),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 1),
+                                    child: Icon(Icons.person_outline_rounded, size: 14, color: subTextColor),
+                                  ),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    '$studentName (NIS: $studentNis • Kelas $className)',
-                                    style: TextStyle(fontSize: 12, color: subTextColor),
+                                  Expanded(
+                                    child: Text(
+                                      '$studentName (NIS: $studentNis • Kelas $className)',
+                                      style: TextStyle(fontSize: 12, color: subTextColor),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -726,13 +734,19 @@ class _LoanListTabState extends State<LoanListTab> {
 
                               // Date details
                               Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(Icons.calendar_today_rounded, size: 14, color: subTextColor),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 1),
+                                    child: Icon(Icons.calendar_today_rounded, size: 14, color: subTextColor),
+                                  ),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    'Pinjam: ${loanDate != null ? "${loanDate.day}/${loanDate.month}/${loanDate.year}" : "-"} • '
-                                    'Tempo: ${dueDate != null ? "${dueDate.day}/${dueDate.month}/${dueDate.year}" : "-"}',
-                                    style: TextStyle(fontSize: 12, color: subTextColor),
+                                  Expanded(
+                                    child: Text(
+                                      'Pinjam: ${loanDate != null ? "${loanDate.day}/${loanDate.month}/${loanDate.year}" : "-"} • '
+                                      'Tempo: ${dueDate != null ? "${dueDate.day}/${dueDate.month}/${dueDate.year}" : "-"}',
+                                      style: TextStyle(fontSize: 12, color: subTextColor),
+                                    ),
                                   ),
                                 ],
                               ),

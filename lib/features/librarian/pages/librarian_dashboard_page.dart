@@ -106,13 +106,16 @@ class _LibrarianDashboardPageState extends State<LibrarianDashboardPage> with Si
         final tabIndicatorColor = const Color(0xFF6366F1);
 
         return Scaffold(
-          body: AuthBackground(
-            child: SafeArea(
-              child: Column(
-                children: [
-                  // Dashboard Header
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : const Color(0xFFF8FAFC),
+          body: Column(
+            children: [
+              AuthBackground(
+                fullScreen: false,
+                child: Column(
+                  children: [
+                    // Dashboard Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
                     child: Row(
                       children: [
                         if (canGoBack) ...[
@@ -186,27 +189,28 @@ class _LibrarianDashboardPageState extends State<LibrarianDashboardPage> with Si
                       Tab(text: 'Buku Tamu', icon: Icon(Icons.people_rounded, size: 20)),
                     ],
                   ),
-
-                  // Tab Contents
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        DashboardHomeTab(
-                          isDark: isDark,
-                          onTabChange: (index) {
-                            _tabController.animateTo(index);
-                          },
-                        ),
-                        BookListTab(isDark: isDark),
-                        LoanListTab(isDark: isDark),
-                        VisitorLogTab(isDark: isDark),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
+
+              // Tab Contents
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    DashboardHomeTab(
+                      isDark: isDark,
+                      onTabChange: (index) {
+                        _tabController.animateTo(index);
+                      },
+                    ),
+                    BookListTab(isDark: isDark),
+                    LoanListTab(isDark: isDark),
+                    VisitorLogTab(isDark: isDark),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },

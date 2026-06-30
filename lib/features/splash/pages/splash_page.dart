@@ -114,6 +114,9 @@ class _SplashPageState extends State<SplashPage>
         case 'tu':
           Get.offAllNamed(AppRoutes.tuDashboard);
           break;
+        case 'librarian':
+          Get.offAllNamed(AppRoutes.librarianDashboard);
+          break;
         default:
           await FirebaseAuth.instance.signOut();
           Get.offAllNamed(AppRoutes.login);
