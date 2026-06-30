@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/services/semester_state_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../data/officer_repository.dart';
 
@@ -143,6 +144,13 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
   }
 
   void _showAttendanceDialog(Map<String, dynamic> student, String studentId) {
+    final semesterError = SemesterStateService.validateInput();
+    if (semesterError != null) {
+      Get.snackbar('Akses Ditolak', semesterError,
+          backgroundColor: Colors.redAccent, colorText: Colors.white);
+      return;
+    }
+
     final statuses = ['hadir', 'terlambat', 'alpha', 'izin', 'sakit'];
     String selectedStatus = 'hadir';
 
@@ -315,6 +323,13 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
   }
 
   void _showTeacherAttendanceDialog(Map<String, dynamic> teacher, String teacherId) {
+    final semesterError = SemesterStateService.validateInput();
+    if (semesterError != null) {
+      Get.snackbar('Akses Ditolak', semesterError,
+          backgroundColor: Colors.redAccent, colorText: Colors.white);
+      return;
+    }
+
     final statuses = ['hadir', 'terlambat', 'alpha', 'izin', 'sakit'];
     String selectedStatus = 'hadir';
 
@@ -738,7 +753,7 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          
+                          _buildSemesterStateBanner(),
                           if (_isLoading || (_isLoadingStudents && _allStudents.isEmpty) || (_isLoadingTeachers && _allTeachers.isEmpty))
                             const LinearProgressIndicator(color: Color(0xFF6366F1)),
                             
@@ -994,6 +1009,55 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildSemesterStateBanner() {
+    final semesterError = SemesterStateService.validateInput();
+    if (semesterError == null) return const SizedBox.shrink();
+
+    final status = SemesterStateService.status;
+    final color = status == SemesterStatus.ditutup ? Colors.red : Colors.amber;
+    final icon = status == SemesterStatus.ditutup ? Icons.lock : Icons.beach_access;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Akses Dibatasi - ${SemesterStateService.statusLabel}',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  semesterError,
+                  style: TextStyle(
+                    color: color.withValues(alpha: 0.85),
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

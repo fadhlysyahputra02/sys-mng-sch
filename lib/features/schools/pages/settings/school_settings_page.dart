@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../authentication/widgets/auth_background.dart';
+import '../../../../core/services/semester_state_service.dart';
 import '../../../../core/services/session_service.dart';
 
 class SchoolSettingsPage extends StatefulWidget {
@@ -53,11 +54,20 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
   bool _obscurePass    = true;
   bool _obscureConfirm = true;
 
+  // ── Reset Semester ─────────────────────────────────────────────────
+  Map<String, dynamic>? _resetRequest; // null = tidak ada pengajuan
+  bool _isResetting = false;
+  bool _isSubmittingRequest = false;
+
+  // ── Tanggal Mulai Semester ────────────────────────────────────────
+  DateTime? _tanggalMulaiSemester;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadSchoolData();
+    _listenResetRequest();
   }
 
   Future<void> _loadSchoolData() async {
@@ -77,6 +87,10 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
           _tahunAjaranController.text = data['tahunAjaran'] ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
           _activeSemester = data['semester'] ?? 'Semester 1';
           _jamMasukController.text = data['jamMasuk'] ?? '07:15';
+
+          // Tanggal mulai semester
+          final ts = data['tanggalMulaiSemester'];
+          _tanggalMulaiSemester = ts is Timestamp ? ts.toDate() : null;
 
           if (gradeTemplates.isNotEmpty) {
             _aplusController.text  = (gradeTemplates['aplus']  ?? 95).toString();
@@ -98,6 +112,20 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _listenResetRequest() {
+    FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .snapshots()
+        .listen((doc) {
+      if (!mounted) return;
+      final data = doc.data() ?? {};
+      setState(() {
+        _resetRequest = data['resetRequest'] as Map<String, dynamic>?;
+      });
+    });
   }
 
   // ── Pick Logo ────────────────────────────────────────────────────
@@ -208,6 +236,12 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
         'tahunAjaran': _tahunAjaranController.text.trim(),
         'semester': _activeSemester,
         'jamMasuk': _jamMasukController.text.trim(),
+        if (_tanggalMulaiSemester != null)
+          'tanggalMulaiSemester': Timestamp.fromDate(_tanggalMulaiSemester!)
+        else
+          'tanggalMulaiSemester': FieldValue.delete(),
+        // Membuka semester baru / mengubah tanggal mulai juga mereset status penutupan
+        'semesterDitutup': false,
       });
 
       if (mounted) _snack('Pengaturan sekolah berhasil disimpan');
@@ -244,6 +278,269 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
 
   void _snack(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+  // ── Reset Semester: TU Submits Request ──────────────────────────────
+  Future<void> _submitResetRequest() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final isDark = AuthBackground.isDarkMode.value;
+        final dialogBg = isDark ? const Color(0xFF1E1B4B) : Colors.white;
+        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        return AlertDialog(
+          backgroundColor: dialogBg,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.send_rounded, color: Color(0xFF6366F1)),
+              const SizedBox(width: 10),
+              Text('Ajukan Akhiri Semester', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          content: Text(
+            'Pengajuan akan dikirimkan ke Admin Sekolah untuk disetujui.\n\nData berikut akan direset setelah disetujui:\n• Jadwal kelas\n• Penugasan wali kelas & murid\n• Alokasi jam pelajaran\n• Bobot nilai per kelas\n• Surat izin\n• Data realtime control',
+            style: TextStyle(color: textColor.withValues(alpha: 0.8), fontSize: 13, height: 1.5),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Kirim Pengajuan'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirm != true) return;
+    try {
+      setState(() => _isSubmittingRequest = true);
+      final user = SessionService.currentUser;
+      await FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).update({
+        'resetRequest': {
+          'status': 'pending',
+          'requestedBy': user?.uid ?? '',
+          'requestedByName': user?.nama ?? '',
+          'requestedAt': FieldValue.serverTimestamp(),
+          'tahunAjaran': _tahunAjaranController.text.trim(),
+          'semester': _activeSemester,
+        },
+      });
+      if (mounted) _snack('Pengajuan berhasil dikirim. Menunggu persetujuan Admin Sekolah.');
+    } catch (e) {
+      if (mounted) _snack('Gagal mengirim pengajuan: $e');
+    } finally {
+      if (mounted) setState(() => _isSubmittingRequest = false);
+    }
+  }
+
+  // ── Reset Semester: Admin Cancels TU Request ─────────────────────────
+  Future<void> _cancelResetRequest() async {
+    try {
+      await FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).update({
+        'resetRequest': FieldValue.delete(),
+      });
+      if (mounted) _snack('Pengajuan berhasil ditolak.');
+    } catch (e) {
+      if (mounted) _snack('Gagal menolak pengajuan: $e');
+    }
+  }
+
+  // ── Reset Semester: Admin Confirms & Executes ───────────────────────
+  Future<void> _confirmAndExecuteReset({bool isApproving = false}) async {
+    final tahunAjaran = _tahunAjaranController.text.trim();
+    final semester = _activeSemester;
+    final expectedKeyword = 'akhiri $tahunAjaran $semester'.toLowerCase();
+    final keywordController = TextEditingController();
+    String? errorText;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final isDark = AuthBackground.isDarkMode.value;
+        final dialogBg = isDark ? const Color(0xFF1E1B4B) : Colors.white;
+        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            backgroundColor: dialogBg,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 22),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: Text('Konfirmasi Akhiri Semester', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 15))),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    'Aksi ini akan mereset konfigurasi kelas, jadwal, dan perizinan untuk tahun ajaran $tahunAjaran $semester. Tindakan ini tidak dapat dibatalkan.',
+                    style: TextStyle(color: Colors.red.withValues(alpha: 0.85), fontSize: 12, height: 1.5),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Ketik teks berikut untuk konfirmasi (klik untuk menyalin):',
+                  style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                // Selectable keyword box — user can tap to copy
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.35)),
+                  ),
+                  child: SelectableText(
+                    'akhiri $tahunAjaran $semester',
+                    style: const TextStyle(
+                      color: Color(0xFF6366F1),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: keywordController,
+                  onChanged: (_) => setDialogState(() => errorText = null),
+                  style: TextStyle(color: textColor, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'akhiri $tahunAjaran $semester',
+                    hintStyle: TextStyle(color: textColor.withValues(alpha: 0.35), fontSize: 13),
+                    errorText: errorText,
+                    filled: true,
+                    fillColor: textColor.withValues(alpha: 0.05),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: textColor.withValues(alpha: 0.1))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF6366F1))),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  if (keywordController.text.trim().toLowerCase() != expectedKeyword) {
+                    setDialogState(() => errorText = 'Teks konfirmasi tidak sesuai');
+                    return;
+                  }
+                  Navigator.pop(ctx, true);
+                },
+                child: const Text('Akhiri Semester'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    keywordController.dispose();
+    if (confirmed != true) return;
+    await _runSemesterReset(isApproving: isApproving);
+  }
+
+  // ── Reset Semester: Actual Reset Logic ──────────────────────────────
+  Future<void> _runSemesterReset({bool isApproving = false}) async {
+    try {
+      setState(() => _isResetting = true);
+      final db = FirebaseFirestore.instance;
+      final schoolRef = db.collection('schools').doc(widget.schoolId);
+
+      // Helper: delete a subcollection in batches of 400
+      Future<void> deleteSubcollection(String subcollection) async {
+        while (true) {
+          final snap = await schoolRef.collection(subcollection).limit(400).get();
+          if (snap.docs.isEmpty) break;
+          final batch = db.batch();
+          for (final doc in snap.docs) {
+            batch.delete(doc.reference);
+          }
+          await batch.commit();
+        }
+      }
+
+      // 1. Delete class_schedules
+      await deleteSubcollection('class_schedules');
+
+      // 2. Reset classes: clear teacherId, teacherName, subjectQuotas
+      final classesSnap = await schoolRef.collection('classes').get();
+      for (var i = 0; i < classesSnap.docs.length; i += 400) {
+        final batch = db.batch();
+        final chunk = classesSnap.docs.skip(i).take(400);
+        for (final doc in chunk) {
+          batch.update(doc.reference, {
+            'teacherId': null,
+            'teacherName': null,
+            'subjectQuotas': FieldValue.delete(),
+          });
+        }
+        await batch.commit();
+      }
+
+      // 3. Reset students: clear classId, className
+      final studentsSnap = await schoolRef.collection('students').get();
+      for (var i = 0; i < studentsSnap.docs.length; i += 400) {
+        final batch = db.batch();
+        final chunk = studentsSnap.docs.skip(i).take(400);
+        for (final doc in chunk) {
+          batch.update(doc.reference, {
+            'classId': null,
+            'className': null,
+          });
+        }
+        await batch.commit();
+      }
+
+      // 4. Delete subject_weights
+      await deleteSubcollection('subject_weights');
+
+      // 5. Delete permits
+      await deleteSubcollection('permits');
+
+      // 6. Delete behavior_records
+      await deleteSubcollection('behavior_records');
+
+      // 7. Tandai semester sebagai ditutup
+      await schoolRef.update({'semesterDitutup': true});
+
+      // 8. Clear resetRequest field (if this was an approval)
+      if (isApproving) {
+        await schoolRef.update({'resetRequest': FieldValue.delete()});
+      }
+
+      if (mounted) {
+        _snack('Semester berhasil diakhiri. Data kelas, jadwal, dan perizinan telah direset.');
+      }
+    } catch (e) {
+      if (mounted) _snack('Gagal mereset semester: $e');
+    } finally {
+      if (mounted) setState(() => _isResetting = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -997,6 +1294,100 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
                     ),
                   ),
                 ),
+
+                const SizedBox(height: 20),
+
+                // ── Tanggal Mulai Semester ──────────────────────────────
+                Text(
+                  'Tanggal Mulai Semester',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Sebelum tanggal ini semua input absensi & nilai akan ditolak (masa liburan). Kosongkan jika tidak ada pembatasan.',
+                  style: TextStyle(fontSize: 11, color: textSecondary, height: 1.4),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _tanggalMulaiSemester ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2035),
+                            builder: (ctx, child) => Theme(
+                              data: Theme.of(ctx).copyWith(
+                                colorScheme: ColorScheme.fromSeed(
+                                  seedColor: const Color(0xFF6366F1),
+                                  brightness: isDark ? Brightness.dark : Brightness.light,
+                                ),
+                              ),
+                              child: child!,
+                            ),
+                          );
+                          if (picked != null) setState(() => _tanggalMulaiSemester = picked);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _tanggalMulaiSemester != null
+                                  ? const Color(0xFF6366F1).withValues(alpha: 0.5)
+                                  : cardBorder,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.event_rounded,
+                                color: _tanggalMulaiSemester != null
+                                    ? const Color(0xFF6366F1)
+                                    : textSecondary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _tanggalMulaiSemester != null
+                                      ? '${_tanggalMulaiSemester!.day.toString().padLeft(2, '0')}'
+                                        '/${_tanggalMulaiSemester!.month.toString().padLeft(2, '0')}'
+                                        '/${_tanggalMulaiSemester!.year}'
+                                      : 'Pilih tanggal mulai semester...',
+                                  style: TextStyle(
+                                    color: _tanggalMulaiSemester != null ? textPrimary : textSecondary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              if (_tanggalMulaiSemester != null)
+                                const Icon(Icons.edit_rounded, size: 16, color: Color(0xFF6366F1)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_tanggalMulaiSemester != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'Hapus tanggal mulai',
+                        onPressed: () => setState(() => _tanggalMulaiSemester = null),
+                        icon: const Icon(Icons.close_rounded, color: Colors.red, size: 20),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.red.withValues(alpha: 0.1),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _buildSemesterStatusBadge(isDark),
+
               ],
             ),
           ),
@@ -1011,9 +1402,238 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
             onPressed: _saveNilai,
           ),
 
+          const SizedBox(height: 36),
+
+          // ── Akhiri Semester ───────────────────────────────────────
+          _buildEndSemesterSection(isDark),
+
           const SizedBox(height: 20),
         ],
       ),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  //  SECTION — Akhiri Semester
+  // ════════════════════════════════════════════════════════════════════
+  Widget _buildEndSemesterSection(bool isDark) {
+    final user = SessionService.currentUser;
+    if (user == null) return const SizedBox.shrink();
+    final role = user.role; // 'school_admin' or 'tu'
+    final isAdmin = role == 'school_admin';
+
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+    final textPrimary = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final textSecondary = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+    final hasPendingRequest = _resetRequest != null && _resetRequest!['status'] == 'pending';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('Akhiri Semester', Icons.flag_rounded, isDark),
+        const SizedBox(height: 16),
+
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.restart_alt_rounded, color: Colors.red, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Reset Konfigurasi Akademik',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Mereset jadwal kelas, alokasi jam pelajaran, penugasan wali kelas & murid, bobot nilai, surat izin, dan data realtime control. Data nilai, absensi, dan pembayaran tetap dipertahankan.',
+                style: TextStyle(fontSize: 12, color: textSecondary, height: 1.5),
+              ),
+              const SizedBox(height: 16),
+
+              // ── Banner: TU — sudah ada pengajuan pending ──────────
+              if (!isAdmin && hasPendingRequest)
+                _buildPendingBannerTu(isDark, textPrimary, textSecondary)
+
+              // ── Banner: Admin — ada pengajuan TU menunggu ─────────
+              else if (isAdmin && hasPendingRequest)
+                _buildApprovalBannerAdmin(isDark, textPrimary)
+
+              // ── Button: TU — belum ada pengajuan ──────────────────
+              else if (!isAdmin)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _isSubmittingRequest ? null : _submitResetRequest,
+                    icon: _isSubmittingRequest
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.send_rounded, size: 18),
+                    label: Text(_isSubmittingRequest ? 'Mengirim...' : 'Ajukan Akhiri Semester'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                )
+
+              // ── Button: Admin — tidak ada pengajuan, inisiasi sendiri ─
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isResetting ? null : () => _confirmAndExecuteReset(),
+                    icon: _isResetting
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.flag_rounded, size: 18),
+                    label: Text(_isResetting ? 'Mereset...' : 'Akhiri Semester Ini'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPendingBannerTu(bool isDark, Color textPrimary, Color textSecondary) {
+    final req = _resetRequest!;
+    final requestedAt = (req['requestedAt'] as Timestamp?)?.toDate();
+    final dateStr = requestedAt != null
+        ? '${requestedAt.day}/${requestedAt.month}/${requestedAt.year} ${requestedAt.hour.toString().padLeft(2, '0')}:${requestedAt.minute.toString().padLeft(2, '0')}'
+        : '';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.hourglass_top_rounded, color: Color(0xFFF59E0B), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pengajuan Terkirim',
+                  style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Text(
+                  'Menunggu persetujuan Admin Sekolah.${ dateStr.isNotEmpty ? '\nDikirim: $dateStr' : ''}',
+                  style: TextStyle(color: const Color(0xFFF59E0B).withValues(alpha: 0.8), fontSize: 12, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApprovalBannerAdmin(bool isDark, Color textPrimary) {
+    final req = _resetRequest!;
+    final requesterName = req['requestedByName'] ?? 'Tata Usaha';
+    final tahunAjaran = req['tahunAjaran'] ?? _tahunAjaranController.text;
+    final semester = req['semester'] ?? _activeSemester;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.inbox_rounded, color: Color(0xFF6366F1), size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Pengajuan Masuk', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(
+                      '$requesterName mengajukan untuk mengakhiri $semester $tahunAjaran.',
+                      style: TextStyle(color: const Color(0xFF6366F1).withValues(alpha: 0.8), fontSize: 12, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _isResetting ? null : _cancelResetRequest,
+                icon: const Icon(Icons.close_rounded, size: 16),
+                label: const Text('Tolak'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton.icon(
+                onPressed: _isResetting ? null : () => _confirmAndExecuteReset(isApproving: true),
+                icon: _isResetting
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.check_rounded, size: 16),
+                label: Text(_isResetting ? 'Mereset...' : 'Setujui & Akhiri Semester'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1202,6 +1822,76 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         ),
+      ),
+    );
+  }
+  Widget _buildSemesterStatusBadge(bool isDark) {
+    final status = SemesterStateService.status;
+    final Color color;
+    final IconData icon;
+    final String label;
+    final String desc;
+
+    switch (status) {
+      case SemesterStatus.aktif:
+        color = const Color(0xFF10B981);
+        icon = Icons.check_circle_rounded;
+        label = 'Semester Aktif';
+        desc = 'Input absensi, nilai, dan perizinan dapat dilakukan.';
+        break;
+      case SemesterStatus.liburan:
+        final d = SemesterStateService.tanggalMulai;
+        final dateStr = d != null
+            ? '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}'
+            : '';
+        color = const Color(0xFFF59E0B);
+        icon = Icons.beach_access_rounded;
+        label = 'Masa Liburan';
+        desc = 'Input data ditolak hingga $dateStr.';
+        break;
+      case SemesterStatus.ditutup:
+        color = Colors.red;
+        icon = Icons.lock_rounded;
+        label = 'Semester Ditutup';
+        desc = 'Admin telah menutup semester ini. Input data tidak dapat dilakukan.';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Status: $label',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  desc,
+                  style: TextStyle(
+                    color: color.withValues(alpha: 0.8),
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

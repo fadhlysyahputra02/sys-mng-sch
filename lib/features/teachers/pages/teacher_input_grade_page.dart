@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/services/semester_state_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
 import '../services/grade_service.dart';
@@ -253,6 +254,12 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
   }
 
   Future<void> _saveGradeData() async {
+    final semesterError = SemesterStateService.validateInput();
+    if (semesterError != null) {
+      _showErrorSnackBar(semesterError);
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
     if (_selectedClassId == null) {
       _showErrorSnackBar('Pilih kelas terlebih dahulu');
@@ -415,6 +422,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
+                                  _buildSemesterStateBanner(),
                                   // Dropdown Kelas
                                   DropdownButtonFormField<String>(
                                     isExpanded: true,
@@ -856,6 +864,55 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                 ),
         );
       },
+    );
+  }
+
+  Widget _buildSemesterStateBanner() {
+    final semesterError = SemesterStateService.validateInput();
+    if (semesterError == null) return const SizedBox.shrink();
+
+    final status = SemesterStateService.status;
+    final color = status == SemesterStatus.ditutup ? Colors.red : Colors.amber;
+    final icon = status == SemesterStatus.ditutup ? Icons.lock : Icons.beach_access;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Akses Dibatasi - ${SemesterStateService.statusLabel}',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  semesterError,
+                  style: TextStyle(
+                    color: color.withValues(alpha: 0.85),
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

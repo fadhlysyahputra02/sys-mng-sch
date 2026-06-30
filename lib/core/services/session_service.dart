@@ -1,4 +1,5 @@
 import '../models/user_model.dart';
+import 'semester_state_service.dart';
 
 class SessionService {
   static UserModel? currentUser;
@@ -7,5 +8,6 @@ class SessionService {
 
   static void logout() {
     currentUser = null;
+    SemesterStateService.dispose();
   }
 }

@@ -187,12 +187,21 @@ class _ClassSubjectQuotaPageState extends State<ClassSubjectQuotaPage> {
                         );
                       }
 
+                      final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+                      sortedDocs.sort((a, b) {
+                        final dataA = a.data() as Map<String, dynamic>? ?? {};
+                        final dataB = b.data() as Map<String, dynamic>? ?? {};
+                        final nameA = (dataA['namaMapel'] ?? '').toString().toLowerCase();
+                        final nameB = (dataB['namaMapel'] ?? '').toString().toLowerCase();
+                        return nameA.compareTo(nameB);
+                      });
+
                       return ListView.builder(
                         padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-                        itemCount: docs.length,
+                        itemCount: sortedDocs.length,
                         itemBuilder: (context, index) {
-                          final subject = docs[index].data() as Map<String, dynamic>;
-                          final subjectId = subject['subjectId'] ?? docs[index].id;
+                          final subject = sortedDocs[index].data() as Map<String, dynamic>;
+                          final subjectId = subject['subjectId'] ?? sortedDocs[index].id;
                           final quota = _quotas[subjectId] ?? 0;
 
                           return Container(

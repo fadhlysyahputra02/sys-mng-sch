@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/services/semester_state_service.dart';
+
 
 class GradeService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -24,6 +26,10 @@ class GradeService {
     required String tahunAjaran,
     required String semester,
   }) async {
+    // ── Validasi status semester ──
+    final semesterError = SemesterStateService.validateInput();
+    if (semesterError != null) throw SemesterValidationException(semesterError);
+
     final docRef = gradeId == null || gradeId.isEmpty
         ? _gradesRef(schoolId).doc()
         : _gradesRef(schoolId).doc(gradeId);

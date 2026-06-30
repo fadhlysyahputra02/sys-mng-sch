@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../../authentication/widgets/auth_background.dart';
+import '../../../../core/services/semester_state_service.dart';
+
 
 class TeacherPermitsPage extends StatefulWidget {
   final String? teacherDocId;
@@ -120,6 +122,13 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
     required Map<String, dynamic> permitData,
     required String targetStatus, // Disetujui / Ditolak
   }) async {
+    final semesterError = SemesterStateService.validateInput();
+    if (semesterError != null) {
+      Get.snackbar('Akses Ditolak', semesterError,
+          backgroundColor: Colors.redAccent, colorText: Colors.white);
+      return;
+    }
+
     try {
       showDialog(
         context: context,
@@ -609,6 +618,7 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
             child: SafeArea(
               child: Column(
                 children: [
+                  _buildSemesterStateBanner(),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
@@ -693,6 +703,55 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSemesterStateBanner() {
+    final semesterError = SemesterStateService.validateInput();
+    if (semesterError == null) return const SizedBox.shrink();
+
+    final status = SemesterStateService.status;
+    final color = status == SemesterStatus.ditutup ? Colors.red : Colors.amber;
+    final icon = status == SemesterStatus.ditutup ? Icons.lock : Icons.beach_access;
+
+    return Container(
+      margin: const EdgeInsets.only(left: 16, right: 16, top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Akses Dibatasi - ${SemesterStateService.statusLabel}',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  semesterError,
+                  style: TextStyle(
+                    color: color.withValues(alpha: 0.85),
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

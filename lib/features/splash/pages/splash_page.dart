@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/models/user_model.dart';
+import '../../../core/services/semester_state_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../authentication/widgets/auth_background.dart';
@@ -69,6 +70,7 @@ class _SplashPageState extends State<SplashPage>
       final userData = await userService.getUserById(firebaseUser.uid);
       if (userData == null) {
         await FirebaseAuth.instance.signOut();
+        SemesterStateService.dispose();
         Get.offAllNamed(AppRoutes.login);
         return;
       }
@@ -78,6 +80,12 @@ class _SplashPageState extends State<SplashPage>
         firebaseUser.uid,
         userData,
       );
+
+      // ✅ Start semester state listener (jika user punya schoolId)
+      final schoolId = (userData['schoolId'] ?? '').toString();
+      if (schoolId.isNotEmpty) {
+        SemesterStateService.listen(schoolId);
+      }
 
       String role = (userData['role'] ?? '').toString().trim().toLowerCase();
       if (role == 'superadmin' || role == 'super-admin' || role == 'super_admin') {

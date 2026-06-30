@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'scan_log_model.dart';
+import '../../../core/services/semester_state_service.dart';
+
 
 class OfficerRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -25,8 +27,32 @@ class OfficerRepository {
         jamMasukLimit = schoolDoc.data()?['jamMasuk'] ?? '07:15';
         tahunAjaran = schoolDoc.data()?['tahunAjaran'] ?? tahunAjaran;
         semester = schoolDoc.data()?['semester'] ?? semester;
+
+        // ── Validasi status semester ──
+        final data = schoolDoc.data()!;
+        final semesterDitutup = (data['semesterDitutup'] as bool?) ?? false;
+        final tanggalMulaiTs = data['tanggalMulaiSemester'];
+        final tanggalMulai = tanggalMulaiTs is Timestamp ? tanggalMulaiTs.toDate() : null;
+
+        if (semesterDitutup) {
+          throw SemesterValidationException('Semester telah ditutup oleh Admin 🔒. Input absensi tidak dapat dilakukan.');
+        }
+        if (tanggalMulai != null) {
+          final now2 = DateTime.now();
+          final today = DateTime(now2.year, now2.month, now2.day);
+          final start = DateTime(tanggalMulai.year, tanggalMulai.month, tanggalMulai.day);
+          if (today.isBefore(start)) {
+            final d = start.day.toString().padLeft(2, '0');
+            final m = start.month.toString().padLeft(2, '0');
+            final y = start.year;
+            throw SemesterValidationException('Masa liburan sekolah sedang berlangsung 🏖️. Input absensi baru tersedia mulai $d/$m/$y.');
+          }
+        }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (e is Exception) rethrow;
+    }
+
 
     // Hitung apakah terlambat berdasarkan jamMasukLimit
     bool isLate = false;
@@ -83,8 +109,31 @@ class OfficerRepository {
       if (schoolDoc.exists) {
         tahunAjaran = schoolDoc.data()?['tahunAjaran'] ?? tahunAjaran;
         semester = schoolDoc.data()?['semester'] ?? semester;
+
+        // ── Validasi status semester ──
+        final data = schoolDoc.data()!;
+        final semesterDitutup = (data['semesterDitutup'] as bool?) ?? false;
+        final tanggalMulaiTs = data['tanggalMulaiSemester'];
+        final tanggalMulai = tanggalMulaiTs is Timestamp ? tanggalMulaiTs.toDate() : null;
+
+        if (semesterDitutup) {
+          throw SemesterValidationException('Semester telah ditutup oleh Admin 🔒. Input absensi tidak dapat dilakukan.');
+        }
+        if (tanggalMulai != null) {
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final start = DateTime(tanggalMulai.year, tanggalMulai.month, tanggalMulai.day);
+          if (today.isBefore(start)) {
+            final d = start.day.toString().padLeft(2, '0');
+            final m = start.month.toString().padLeft(2, '0');
+            final y = start.year;
+            throw SemesterValidationException('Masa liburan sekolah sedang berlangsung 🏖️. Input absensi baru tersedia mulai $d/$m/$y.');
+          }
+        }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (e is Exception) rethrow;
+    }
 
     await _saveAttendance(
       schoolId: schoolId,
