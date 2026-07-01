@@ -190,29 +190,6 @@ class AppPages {
         packageBadge: 'BASIC',
       ),
     ),
-    // BASIC: Export Laporan
-    GetPage(
-      name: AppRoutes.comingSoonExportAdmin,
-      page: () => const ComingSoonPage(
-        featureName: 'Export Laporan',
-        description:
-            'Unduh laporan absensi, nilai, dan statistik dalam format PDF atau Excel.',
-        icon: Icons.file_download_rounded,
-        iconColor: Color(0xFF10B981),
-        packageBadge: 'BASIC',
-      ),
-    ),
-    GetPage(
-      name: AppRoutes.comingSoonExportTu,
-      page: () => const ComingSoonPage(
-        featureName: 'Export Laporan',
-        description:
-            'Unduh laporan absensi, nilai, dan statistik dalam format PDF atau Excel.',
-        icon: Icons.file_download_rounded,
-        iconColor: Color(0xFF10B981),
-        packageBadge: 'BASIC',
-      ),
-    ),
     // PRO: Surat Izin Digital
     GetPage(
       name: AppRoutes.comingSoonSuratIzinOrtu,

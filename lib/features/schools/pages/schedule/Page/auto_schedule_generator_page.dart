@@ -301,19 +301,10 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
               };
             }
           } else {
-            // Fallback 1: search for placement ignoring teacher conflict
+            // Fallback 1: relax the "same day" restriction but STILL respect teacher conflicts.
+            // Try each day & slot for a free teacher.
             final List<Map<String, dynamic>> fallbackOptions = [];
             for (final day in _days) {
-              bool alreadyScheduledToday = false;
-              for (final slot in lessonSlots) {
-                final sIdx = slot['slotIndex'] as int;
-                if (classGrid[day]!.containsKey(sIdx) && classGrid[day]![sIdx]?['subjectId'] == subjectId) {
-                  alreadyScheduledToday = true;
-                  break;
-                }
-              }
-              if (alreadyScheduledToday) continue;
-
               for (int i = 0; i <= lessonSlots.length - blockSize; i++) {
                 bool fits = true;
                 for (int j = 0; j < blockSize; j++) {
@@ -323,13 +314,26 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
                     break;
                   }
                 }
-                if (fits) {
-                  final tId = eligibleTeacherIds.isNotEmpty ? eligibleTeacherIds.first : '';
-                  fallbackOptions.add({
-                    'day': day,
-                    'startIndex': i,
-                    'teacherId': tId,
-                  });
+                if (!fits) continue;
+
+                // Check each eligible teacher for conflict-free placement
+                for (final tId in eligibleTeacherIds) {
+                  bool teacherFree = true;
+                  for (int j = 0; j < blockSize; j++) {
+                    final slotIdx = lessonSlots[i + j]['slotIndex'] as int;
+                    final slotKey = '${day}_$slotIdx';
+                    if (busyTeachers[slotKey]?.contains(tId) == true) {
+                      teacherFree = false;
+                      break;
+                    }
+                  }
+                  if (teacherFree) {
+                    fallbackOptions.add({
+                      'day': day,
+                      'startIndex': i,
+                      'teacherId': tId,
+                    });
+                  }
                 }
               }
             }
@@ -339,18 +343,15 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
               final day = opt['day'] as String;
               final startIndex = opt['startIndex'] as int;
               final tId = opt['teacherId'] as String;
-
-              final teacherDoc = tId.isNotEmpty ? teachers.firstWhereOrNull((t) => t.id == tId) : null;
+              final teacherDoc = teachers.firstWhereOrNull((t) => t.id == tId);
 
               for (int j = 0; j < blockSize; j++) {
                 final slot = lessonSlots[startIndex + j];
                 final slotIdx = slot['slotIndex'] as int;
                 final slotKey = '${day}_$slotIdx';
 
-                if (tId.isNotEmpty) {
-                  busyTeachers.putIfAbsent(slotKey, () => <String>{}).add(tId);
-                  assignedTeacherForSubject[subjectId] = tId;
-                }
+                busyTeachers.putIfAbsent(slotKey, () => <String>{}).add(tId);
+                assignedTeacherForSubject[subjectId] = tId;
 
                 classGrid[day]![slotIdx] = {
                   'classId': classId,
@@ -359,64 +360,59 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
                   'subjectId': subjectId,
                   'subjectName': subjectDoc.data()['namaMapel'] ?? 'Pelajaran',
                   'teacherId': tId,
-                  'teacherName': teacherDoc?.data()['nama'] ?? 'Guru Bentrok/Kosong',
+                  'teacherName': teacherDoc?.data()['nama'] ?? 'Guru',
                   'hari': day,
                   'jamMulai': slot['start'],
                   'jamSelesai': slot['end'],
                 };
               }
             } else {
-              // Fallback 2: split block into size 1 blocks and place them anywhere
+              // Fallback 2: split block into size-1 pieces and find free-teacher slots.
               for (int k = 0; k < blockSize; k++) {
                 final List<Map<String, dynamic>> singleSlotOptions = [];
-                
-                // Try to find empty slots on days where this subject is NOT already scheduled
-                for (final day in _days) {
-                  bool alreadyScheduledToday = false;
-                  for (final slot in lessonSlots) {
-                    final sIdx = slot['slotIndex'] as int;
-                    if (classGrid[day]!.containsKey(sIdx) && classGrid[day]![sIdx]?['subjectId'] == subjectId) {
-                      alreadyScheduledToday = true;
-                      break;
-                    }
-                  }
-                  if (alreadyScheduledToday) continue;
 
+                for (final day in _days) {
                   for (final slot in lessonSlots) {
                     final sIdx = slot['slotIndex'] as int;
-                    if (!classGrid[day]!.containsKey(sIdx)) {
-                      singleSlotOptions.add({'day': day, 'slot': slot});
+                    if (classGrid[day]!.containsKey(sIdx)) continue;
+
+                    final slotKey = '${day}_$sIdx';
+                    for (final tId in eligibleTeacherIds) {
+                      if (busyTeachers[slotKey]?.contains(tId) != true) {
+                        singleSlotOptions.add({'day': day, 'slot': slot, 'teacherId': tId});
+                      }
                     }
                   }
                 }
 
-                Map<String, dynamic>? chosenSlot;
+                Map<String, dynamic>? chosenOption;
                 if (singleSlotOptions.isNotEmpty) {
-                  // Pick randomly from options that respect "different days"
-                  chosenSlot = singleSlotOptions[math.Random().nextInt(singleSlotOptions.length)];
+                  chosenOption = singleSlotOptions[math.Random().nextInt(singleSlotOptions.length)];
                 } else {
-                  // If not possible, pick from any available empty slots across all days
-                  final List<Map<String, dynamic>> allEmptySlots = [];
+                  // Absolute last resort: find ANY empty class slot (may leave teacher blank)
                   for (final day in _days) {
                     for (final slot in lessonSlots) {
                       final sIdx = slot['slotIndex'] as int;
                       if (!classGrid[day]!.containsKey(sIdx)) {
-                        allEmptySlots.add({'day': day, 'slot': slot});
+                        chosenOption = {
+                          'day': day,
+                          'slot': slot,
+                          'teacherId': eligibleTeacherIds.isNotEmpty ? eligibleTeacherIds.first : '',
+                          'forceConflict': true,
+                        };
+                        break;
                       }
                     }
-                  }
-                  if (allEmptySlots.isNotEmpty) {
-                    chosenSlot = allEmptySlots[math.Random().nextInt(allEmptySlots.length)];
+                    if (chosenOption != null) break;
                   }
                 }
 
-                if (chosenSlot != null) {
-                  final day = chosenSlot['day'] as String;
-                  final slot = chosenSlot['slot'] as Map<String, dynamic>;
+                if (chosenOption != null) {
+                  final day = chosenOption['day'] as String;
+                  final slot = chosenOption['slot'] as Map<String, dynamic>;
                   final sIdx = slot['slotIndex'] as int;
                   final slotKey = '${day}_$sIdx';
-
-                  final tId = eligibleTeacherIds.isNotEmpty ? eligibleTeacherIds.first : '';
+                  final tId = (chosenOption['teacherId'] as String?) ?? '';
                   final teacherDoc = tId.isNotEmpty ? teachers.firstWhereOrNull((t) => t.id == tId) : null;
 
                   if (tId.isNotEmpty) {
@@ -431,7 +427,7 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
                     'subjectId': subjectId,
                     'subjectName': subjectDoc.data()['namaMapel'] ?? 'Pelajaran',
                     'teacherId': tId,
-                    'teacherName': teacherDoc?.data()['nama'] ?? 'Guru Bentrok/Kosong',
+                    'teacherName': teacherDoc?.data()['nama'] ?? 'Guru Kosong',
                     'hari': day,
                     'jamMulai': slot['start'],
                     'jamSelesai': slot['end'],
@@ -440,6 +436,7 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
               }
             }
           }
+
         }
 
         // Assemble schedule for this class

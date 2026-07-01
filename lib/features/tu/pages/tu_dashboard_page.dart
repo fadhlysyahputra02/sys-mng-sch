@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/session_service.dart';
@@ -10,6 +11,7 @@ import '../../schools/services/school_service.dart';
 import '../../officer/pages/daily_recap_page.dart';
 import '../../schools/pages/settings/school_settings_page.dart';
 import '../../schools/pages/teachers/pages/admin_teacher_attendance_page.dart';
+import '../../schools/pages/violations/admin_violations_history_page.dart';
 
 import '../../schools/pages/classes/pages/class_list_page.dart';
 import '../../schools/pages/subjects/pages/subject_list_page.dart';
@@ -22,6 +24,7 @@ import '../../shared/coming_soon_page.dart';
 
 import '../../../core/widgets/motif_card.dart';
 import 'tu_payment_dashboard.dart';
+import '../../schools/pages/grades/school_admin_grades_page.dart';
 
 class TuDashboardPage extends StatefulWidget {
   const TuDashboardPage({super.key});
@@ -235,13 +238,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
     {
       'title': 'Dashboard',
       'icon': Icons.dashboard_rounded,
-      'color': const Color(0xFF6366F1),
-    },
-    {
-      'title': 'Manajemen Siswa',
-      'icon': Icons.people_rounded,
-      'color': const Color(0xFF3B82F6),
-      'onTap': () => Get.to(() => StudentListPage(schoolId: schoolId)),
+      'color': const Color(0xFF8B5CF6),
     },
     {
       'title': 'Manajemen Guru',
@@ -250,16 +247,10 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
       'onTap': () => Get.to(() => TeacherListPage(schoolId: schoolId)),
     },
     {
-      'title': 'Rekap Absensi',
-      'icon': Icons.calendar_month_rounded,
-      'color': const Color(0xFF8B5CF6),
-      'onTap': _showAbsensiSelectionDialog,
-    },
-    {
-      'title': 'Kelas',
-      'icon': Icons.class_rounded,
-      'color': const Color(0xFFF59E0B),
-      'onTap': () => Get.to(() => ClassListPage()),
+      'title': 'Manajemen Siswa',
+      'icon': Icons.people_rounded,
+      'color': const Color(0xFF3B82F6),
+      'onTap': () => Get.to(() => StudentListPage(schoolId: schoolId)),
     },
     {
       'title': 'Mata Pelajaran',
@@ -268,10 +259,45 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
       'onTap': () => Get.to(() => SubjectListPage()),
     },
     {
+      'title': 'Kelas',
+      'icon': Icons.class_rounded,
+      'color': const Color(0xFFF59E0B),
+      'onTap': () => Get.to(() => ClassListPage()),
+    },
+    {
       'title': 'Jadwal',
       'icon': Icons.calendar_today_rounded,
       'color': const Color(0xFFEC4899),
       'onTap': () => Get.to(() => ClassScheduleOverviewPage()),
+    },
+    {
+      'title': 'Rekap Absensi',
+      'icon': Icons.calendar_month_rounded,
+      'color': const Color(0xFF8B5CF6),
+      'onTap': _showAbsensiSelectionDialog,
+    },
+    {
+      'title': 'Rekap Nilai',
+      'icon': Icons.grade_rounded,
+      'color': const Color(0xFFEF4444),
+      'onTap': () => Get.to(() => const SchoolAdminGradesPage()),
+    },
+    {
+      'title': 'Notifikasi',
+      'icon': Icons.notifications_rounded,
+      'color': const Color(0xFFEF4444),
+      'onTap': () => Get.to(() => NotificationsPage()),
+    },
+    {
+      'title': 'Pengaturan',
+      'icon': Icons.settings_rounded,
+      'color': const Color(0xFF64748B),
+      'onTap': () async {
+        final updated = await Get.to(() => SchoolSettingsPage(schoolId: schoolId));
+        if (updated == true) {
+          _loadSchoolData();
+        }
+      },
     },
     {
       'title': 'Petugas (Kepegawaian)',
@@ -285,19 +311,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
       'color': const Color(0xFF10B981),
       'onTap': () => Get.to(() => TUPaymentDashboard(schoolId: schoolId)),
     },
-    {
-      'title': 'Notifikasi',
-      'icon': Icons.notifications_rounded,
-      'color': const Color(0xFFEF4444),
-      'onTap': () => Get.to(() => NotificationsPage()),
-    },
-    {
-      'title': 'Export Laporan',
-      'icon': Icons.file_download_rounded,
-      'color': const Color(0xFF10B981),
-      'badge': 'BASIC',
-      'onTap': () => Get.toNamed(AppRoutes.comingSoonExportTu),
-    },
+    
   ];
 
   @override
@@ -423,29 +437,29 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               children: [
-                _buildSidebarItem('Dashboard', Icons.dashboard_rounded, 0, const Color(0xFF6366F1), isDark),
+                _buildSidebarItem('Dashboard', Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Manajemen Siswa', Icons.people_rounded, 1, const Color(0xFF3B82F6), isDark),
+                _buildSidebarItem('Manajemen Guru', Icons.school_rounded, 1, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Manajemen Guru', Icons.school_rounded, 2, const Color(0xFFF59E0B), isDark),
+                _buildSidebarItem('Manajemen Siswa', Icons.people_rounded, 2, const Color(0xFF3B82F6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Rekap Absensi', Icons.calendar_month_rounded, 3, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem('Mata Pelajaran', Icons.menu_book_rounded, 3, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Kelas', Icons.class_rounded, 4, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Mata Pelajaran', Icons.menu_book_rounded, 5, const Color(0xFF10B981), isDark),
+                _buildSidebarItem('Jadwal', Icons.calendar_today_rounded, 5, const Color(0xFFEC4899), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Jadwal', Icons.calendar_today_rounded, 6, const Color(0xFFEC4899), isDark),
+                _buildSidebarItem('Rekap Absensi', Icons.calendar_month_rounded, 6, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Petugas', Icons.security_rounded, 7, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 7, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Pembayaran', Icons.payments_rounded, 8, const Color(0xFF10B981), isDark),
+                _buildSidebarItem('Petugas', Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 9, const Color(0xFFEF4444), isDark),
+                _buildSidebarItem('Rekap Nilai', Icons.grade_rounded, 10, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Export Laporan', Icons.file_download_rounded, 10, const Color(0xFF10B981), isDark),
+                _buildSidebarItem('Pembayaran', Icons.payments_rounded, 12, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 11, const Color(0xFF64748B), isDark),
+                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
             ),
           ),
@@ -543,33 +557,28 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
   Widget _buildDesktopContent(bool isDark) {
     switch (_selectedMenuIndex) {
       case 1:
-        return StudentListPage(schoolId: schoolId, hideBackButton: true);
-      case 2:
         return TeacherListPage(schoolId: schoolId, hideBackButton: true);
+      case 2:
+        return StudentListPage(schoolId: schoolId, hideBackButton: true);
       case 3:
-        return _buildDesktopAbsensiOverview(isDark);
+        return SubjectListPage(hideBackButton: true);
       case 4:
         return ClassListPage(hideBackButton: true);
       case 5:
-        return SubjectListPage(hideBackButton: true);
-      case 6:
         return ClassScheduleOverviewPage(hideBackButton: true);
+      case 6:
+        return _buildDesktopAbsensiOverview(isDark);
       case 7:
-        return const OfficerManagementPage(hideBackButton: true);
-      case 8:
-        return TUPaymentDashboard(schoolId: schoolId, hideBackButton: true);
-      case 9:
         return NotificationsPage(hideBackButton: true);
-      case 10:
-        return const ComingSoonPage(
-          featureName: 'Export Laporan',
-          description: 'Unduh laporan absensi, nilai, dan statistik dalam format PDF atau Excel.',
-          icon: Icons.file_download_rounded,
-          iconColor: Color(0xFF10B981),
-          packageBadge: 'BASIC',
-        );
-      case 11:
+      case 8:
         return SchoolSettingsPage(schoolId: schoolId, hideBackButton: true);
+      case 9:
+        return const OfficerManagementPage(hideBackButton: true);
+      case 10:
+        return const SchoolAdminGradesPage();
+      case 12:
+        return TUPaymentDashboard(schoolId: schoolId, hideBackButton: true);
+      
       default:
         return _buildDesktopDashboardHome(isDark);
     }
@@ -649,27 +658,250 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
   }
 
   Widget _buildDesktopDashboardHome(bool isDark) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildWebHeaderBar(isDark),
-            const SizedBox(height: 32),
-            _buildMergedHeaderCard(nama, email, isDark),
-            const SizedBox(height: 32),
-            Text(
-              'Menu Tata Usaha',
-              style: TextStyle(
-                color: isDark ? Colors.white : const Color(0xFF1E1B4B),
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+    final greetingColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    return AuthBackground(
+
+      child: RefreshIndicator(
+        onRefresh: _loadSchoolData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Welcome Header
+              _buildWebHeaderBar(isDark),
+              const SizedBox(height: 32),
+
+              // Merged Header Card
+              _buildMergedHeaderCard(nama, email, isDark),
+              const SizedBox(height: 36),
+
+              // Statistik Sekolah
+              Row(
+                children: [
+                  Icon(
+                    Icons.analytics_rounded,
+                    color: isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Statistik Sekolah',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildMenuGrid(isDark, crossAxisCount: 4),
-          ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('teachers').snapshots(),
+                      builder: (context, snapshot) {
+                        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                        return _buildStatCard('Total Guru', '$count', Icons.person_rounded, const Color(0xFF6366F1), isDark);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('students').snapshots(),
+                      builder: (context, snapshot) {
+                        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                        return _buildStatCard('Total Murid', '$count', Icons.groups_rounded, const Color(0xFF0EA5E9), isDark);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('classes').snapshots(),
+                      builder: (context, snapshot) {
+                        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                        return _buildStatCard('Total Kelas', '$count', Icons.class_rounded, const Color(0xFFF59E0B), isDark);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('subjects').snapshots(),
+                      builder: (context, snapshot) {
+                        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                        return _buildStatCard('Mata Pelajaran', '$count', Icons.menu_book_rounded, const Color(0xFF10B981), isDark);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 40),
+
+              const SizedBox(height: 40),
+
+              // Live Data Panels
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Info Cepat',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 360,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildLiveDataPanel(
+                        title: 'Hadir Harian Guru',
+                        icon: Icons.co_present_rounded,
+                        color: const Color(0xFF6366F1),
+                        isDark: isDark,
+                        onViewAll: () => Get.to(() => const AdminTeacherAttendancePage(isMonthly: false)),
+                        stream: FirebaseFirestore.instance
+                            .collection('schools')
+                            .doc(schoolId)
+                            .collection('teacher_daily_attendance')
+                            .where('date', isEqualTo: _getTodayStr())
+                            .orderBy('checkInTime', descending: false)
+                            .snapshots(),
+                        itemBuilder: (doc) {
+                          final d = doc.data() as Map<String, dynamic>;
+                          final name = d['teacherName'] ?? d['nama'] ?? '-';
+                          final status = d['status'] ?? 'hadir';
+                          final isLate = status == 'terlambat';
+                          final statusColor = isLate ? const Color(0xFFF59E0B) : const Color(0xFF10B981);
+                          final checkIn = d['checkInTime'];
+                          String timeStr = '';
+                          if (checkIn is Timestamp) {
+                            final t = checkIn.toDate().toLocal();
+                            timeStr = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                          }
+                          return _buildPanelRow(
+                            leading: Container(
+                              width: 8, height: 8,
+                              decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                            ),
+                            title: name,
+                            trailing: timeStr.isNotEmpty ? timeStr : status,
+                            trailingColor: statusColor,
+                            isDark: isDark,
+                          );
+                        },
+                        emptyText: 'Belum ada absensi guru hari ini',
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildLiveDataPanel(
+                        title: 'Pelanggaran Siswa',
+                        icon: Icons.report_problem_rounded,
+                        color: const Color(0xFFEF4444),
+                        isDark: isDark,
+                        onViewAll: () => Get.to(() => const AdminViolationsHistoryPage()),
+                        stream: FirebaseFirestore.instance
+                            .collection('schools')
+                            .doc(schoolId)
+                            .collection('violations')
+                            .orderBy('date', descending: true)
+                            .limit(20)
+                            .snapshots(),
+                        itemBuilder: (doc) {
+                          final d = doc.data() as Map<String, dynamic>;
+                          final name = d['studentName'] ?? '-';
+                          final jenis = d['jenis'] ?? 'Pelanggaran';
+                          final poin = d['poin'] ?? 0;
+                          return _buildPanelRow(
+                            leading: const Icon(Icons.report_rounded, color: Color(0xFFEF4444), size: 14),
+                            title: name,
+                            subtitle: jenis,
+                            trailing: '-$poin',
+                            trailingColor: const Color(0xFFEF4444),
+                            isDark: isDark,
+                          );
+                        },
+                        emptyText: 'Tidak ada catatan pelanggaran',
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildLiveDataPanel(
+                        title: 'Murid Terlambat',
+                        icon: Icons.timer_off_rounded,
+                        color: const Color(0xFFF59E0B),
+                        isDark: isDark,
+                        onViewAll: () => Get.to(() => const DailyRecapPage()),
+                        stream: FirebaseFirestore.instance
+                            .collection('schools')
+                            .doc(schoolId)
+                            .collection('daily_attendance')
+                            .where('date', isEqualTo: _getTodayStr())
+                            .where('status', isEqualTo: 'terlambat')
+                            .orderBy('timestamp', descending: false)
+                            .snapshots(),
+                        itemBuilder: (doc) {
+                          final d = doc.data() as Map<String, dynamic>;
+                          final name = d['studentName'] ?? '-';
+                          final className = d['className'] ?? '';
+                          final ts = d['timestamp'];
+                          String timeStr = '';
+                          if (ts is Timestamp) {
+                            final t = ts.toDate().toLocal();
+                            timeStr = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                          }
+                          return _buildPanelRow(
+                            leading: const Icon(Icons.access_time_rounded, color: Color(0xFFF59E0B), size: 14),
+                            title: name,
+                            subtitle: className,
+                            trailing: timeStr,
+                            trailingColor: const Color(0xFFF59E0B),
+                            isDark: isDark,
+                          );
+                        },
+                        emptyText: 'Tidak ada murid terlambat hari ini',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // Menu Tata Usaha
+              Text(
+                'Menu Tata Usaha',
+                style: TextStyle(
+                  color: greetingColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuGrid(isDark, crossAxisCount: 4),
+            ],
+          ),
         ),
       ),
     );
@@ -684,7 +916,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${_getGreeting()}',
+              _getGreeting(),
               style: TextStyle(
                 color: textColor,
                 fontSize: 24,
@@ -781,26 +1013,31 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
       ),
       body: AuthBackground(
         child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildMergedHeaderCard(nama, email, isDark),
-                  const SizedBox(height: 32),
-                  Text(
-                    'Menu Tata Usaha',
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+          child: RefreshIndicator(
+            onRefresh: _loadSchoolData,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildMergedHeaderCard(nama, email, isDark),
+                    const SizedBox(height: 28),
+
+                    Text(
+                      'Menu Tata Usaha',
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMenuGrid(isDark, crossAxisCount: 2),
-                  const SizedBox(height: 32),
-                ],
+                    const SizedBox(height: 16),
+                    _buildMenuGrid(isDark, crossAxisCount: 2),
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1071,7 +1308,255 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
     );
   }
 
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, bool isDark) {
+    final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+    final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final valueColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final titleColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: cardBgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cardBorderColor),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: valueColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: titleColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getTodayStr() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildLiveDataPanel({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onViewAll,
+    required Stream<QuerySnapshot> stream,
+    required Widget Function(QueryDocumentSnapshot) itemBuilder,
+    required String emptyText,
+  }) {
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cardBorder),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: color, size: 16),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: titleColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: onViewAll,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Text(
+                      'Lihat Semua',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.06),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: stream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: color),
+                    ),
+                  );
+                }
+                final docs = snapshot.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(icon, color: color.withValues(alpha: 0.2), size: 32),
+                          const SizedBox(height: 8),
+                          Text(
+                            emptyText,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: isDark ? Colors.white.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.35),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  itemCount: docs.length,
+                  itemBuilder: (_, i) => itemBuilder(docs[i]),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPanelRow({
+    required Widget leading,
+    required String title,
+    String? subtitle,
+    required String trailing,
+    required Color trailingColor,
+    required bool isDark,
+  }) {
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subColor = isDark ? Colors.white.withValues(alpha: 0.45) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      child: Row(
+        children: [
+          leading,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: titleColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (subtitle != null && subtitle.isNotEmpty)
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: subColor, fontSize: 10),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            trailing,
+            style: TextStyle(
+              color: trailingColor,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPlanBadge() {
+
+
     Color badgeColor;
     Gradient badgeGradient;
     IconData icon;

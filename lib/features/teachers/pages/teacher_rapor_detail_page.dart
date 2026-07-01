@@ -640,6 +640,11 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
 
                                 // 3. Ketidakhadiran (Absensi)
                                 _buildSectionHeader('3. Ketidakhadiran (Absensi)', titleColor),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Dihitung dari absensi harian (kedatangan) sesuai tahun & semester aktif.',
+                                  style: TextStyle(fontSize: 11, color: subTextColor, fontStyle: FontStyle.italic),
+                                ),
                                 const SizedBox(height: 12),
                                 Row(
                                   children: [

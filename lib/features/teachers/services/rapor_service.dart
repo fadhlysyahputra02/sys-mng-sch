@@ -82,8 +82,10 @@ class RaporService {
     return await _reportsRef(schoolId).doc(docId).get();
   }
 
-  /// Menghitung rekap data absensi dari Firestore secara realtime / cepat
-  /// Format tanggal: YYYY-MM-DD
+  /// Menghitung rekap ketidakhadiran dari koleksi daily_attendance.
+  /// Otomatis menghitung "Alfa" untuk hari-hari sekolah (Senin-Jumat)
+  /// yang tidak memiliki catatan absensi, terhitung dari tanggal mulai semester
+  /// hingga hari ini (atau sampai semester ditutup jika sudah tutup).
   Future<Map<String, int>> calculateAttendanceStats({
     required String schoolId,
     required String studentId,
@@ -91,30 +93,93 @@ class RaporService {
     required String semester,
   }) async {
     try {
+      // 1. Ambil metadata tanggal mulai & tutup semester dari dokumen sekolah
+      final schoolDoc = await _firestore.collection('schools').doc(schoolId).get();
+      DateTime? tanggalMulai;
+      DateTime? tanggalTutup;
+
+      if (schoolDoc.exists) {
+        final schoolData = schoolDoc.data() ?? {};
+        final tsMulai = schoolData['tanggalMulaiSemester'];
+        if (tsMulai is Timestamp) {
+          tanggalMulai = tsMulai.toDate();
+        }
+        final tsTutup = schoolData['tanggalSemesterDitutup'];
+        if (tsTutup is Timestamp) {
+          tanggalTutup = tsTutup.toDate();
+        }
+      }
+
+      // 2. Ambil semua absensi harian yang ada
       final snapshot = await _firestore
           .collection('schools')
           .doc(schoolId)
-          .collection('attendance')
+          .collection('daily_attendance')
           .where('studentId', isEqualTo: studentId)
           .where('tahunAjaran', isEqualTo: tahunAjaran)
           .where('semester', isEqualTo: semester)
           .get();
+
+      final Map<String, String> dateToStatus = {};
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final date = data['date']?.toString() ?? '';
+        final status = data['status']?.toString().toLowerCase() ?? '';
+        if (date.isNotEmpty) {
+          dateToStatus[date] = status;
+        }
+      }
 
       int sakit = 0;
       int izin = 0;
       int alpa = 0;
       int hadir = 0;
 
-      for (final doc in snapshot.docs) {
-        final status = doc.data()['status']?.toString().toLowerCase() ?? '';
-        if (status == 'sakit') {
-          sakit++;
-        } else if (status == 'izin') {
-          izin++;
-        } else if (status == 'alpa' || status == 'absen' || status == 'tanpa keterangan') {
-          alpa++;
-        } else if (status == 'hadir') {
-          hadir++;
+      // 3. Jika tanggal mulai semester diset, hitung secara otomatis per hari sekolah
+      if (tanggalMulai != null) {
+        final start = DateTime(tanggalMulai.year, tanggalMulai.month, tanggalMulai.day);
+        final now = DateTime.now();
+        final end = tanggalTutup != null
+            ? DateTime(tanggalTutup.year, tanggalTutup.month, tanggalTutup.day)
+            : DateTime(now.year, now.month, now.day);
+
+        DateTime current = start;
+        while (!current.isAfter(end)) {
+          // Hanya hitung hari sekolah (Senin - Jumat)
+          if (current.weekday != DateTime.saturday && current.weekday != DateTime.sunday) {
+            final dateStr = '${current.year}-${current.month.toString().padLeft(2, '0')}-${current.day.toString().padLeft(2, '0')}';
+            
+            if (dateToStatus.containsKey(dateStr)) {
+              final status = dateToStatus[dateStr]!;
+              if (status == 'sakit') {
+                sakit++;
+              } else if (status == 'izin') {
+                izin++;
+              } else if (status == 'alpa' || status == 'absen' || status == 'tanpa keterangan') {
+                alpa++;
+              } else if (status == 'hadir' || status == 'terlambat') {
+                hadir++;
+              }
+            } else {
+              // Jika tidak ada record absensi sama sekali pada hari sekolah -> Auto Alfa!
+              alpa++;
+            }
+          }
+          // Tambah 1 hari secara aman
+          current = DateTime(current.year, current.month, current.day + 1);
+        }
+      } else {
+        // Fallback jika tanggalMulaiSemester belum di-set (hitung manual dari data yang ada saja)
+        for (final status in dateToStatus.values) {
+          if (status == 'sakit') {
+            sakit++;
+          } else if (status == 'izin') {
+            izin++;
+          } else if (status == 'alpa' || status == 'absen' || status == 'tanpa keterangan') {
+            alpa++;
+          } else if (status == 'hadir' || status == 'terlambat') {
+            hadir++;
+          }
         }
       }
 

@@ -79,20 +79,19 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   }
 
   final List<_MenuData> _menus = const [
-    _MenuData('Guru', Icons.person_rounded, Color(0xFF6366F1)),
-    _MenuData('Murid', Icons.groups_rounded, Color(0xFF0EA5E9)),
+    _MenuData('Manajemen Guru', Icons.school_rounded, Color(0xFFF59E0B)),
+    _MenuData('Manajemen Siswa', Icons.people_rounded, Color(0xFF3B82F6)),
     _MenuData('Mata Pelajaran', Icons.menu_book_rounded, Color(0xFF10B981)),
     _MenuData('Kelas', Icons.class_rounded, Color(0xFFF59E0B)),
-    _MenuData('Jadwal', Icons.calendar_month_rounded, Color(0xFFEC4899)),
-    _MenuData('Absensi', Icons.fact_check_rounded, Color(0xFF8B5CF6)),
+    _MenuData('Jadwal', Icons.calendar_today_rounded, Color(0xFFEC4899)),
+    _MenuData('Rekap Absensi', Icons.calendar_month_rounded, Color(0xFF8B5CF6)),
     _MenuData('Rekap Nilai', Icons.grade_rounded, Color(0xFFEF4444)),
     _MenuData('Laporan Mengajar', Icons.edit_document, Color(0xFFF59E0B)),
-    _MenuData('Notifikasi', Icons.notifications_rounded, Color(0xFF06B6D4)),
+    _MenuData('Notifikasi', Icons.notifications_rounded, Color(0xFFEF4444)),
     _MenuData('Pengaturan', Icons.settings_rounded, Color(0xFF64748B)),
     _MenuData('Petugas', Icons.security_rounded, Color(0xFF8B5CF6)),
     _MenuData('E-Rapor', Icons.description_rounded, Color(0xFF8B5CF6)),
     _MenuData('Pelanggaran Murid', Icons.report_problem_rounded, Color(0xFFEF4444)),
-    _MenuData('Export Laporan', Icons.file_download_rounded, Color(0xFF10B981), badge: 'BASIC'),
     _MenuData('Statistik Akademik', Icons.bar_chart_rounded, Color(0xFF6366F1), badge: 'BASIC'),
     _MenuData('Analitik Sekolah', Icons.analytics_rounded, Color(0xFFEC4899), badge: 'PRO'),
   ];
@@ -105,10 +104,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       case 'Pelanggaran Murid':
         Get.to(() => const AdminViolationsHistoryPage());
         break;
-      case 'Guru':
+      case 'Manajemen Guru':
         Get.toNamed(AppRoutes.teacherlist);
         break;
-      case 'Murid':
+      case 'Manajemen Siswa':
         Get.toNamed(AppRoutes.studentList);
         break;
       case 'Mata Pelajaran':
@@ -135,14 +134,11 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       case 'Petugas':
         Get.to(() => const StaffManagementTabbedPage());
         break;
-      case 'Absensi':
+      case 'Rekap Absensi':
         _showAbsensiSelectionDialog();
         break;
       case 'Laporan Mengajar':
         Get.to(() => const AdminTeachingReportsPage());
-        break;
-      case 'Export Laporan':
-        Get.toNamed(AppRoutes.comingSoonExportAdmin);
         break;
       case 'Statistik Akademik':
         Get.toNamed(AppRoutes.comingSoonStatistikAdmin);
@@ -267,7 +263,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
 
                     const SizedBox(height: 28),
 
-                    // 3. MENU UTAMA
+                    // MENU UTAMA
                     _buildSectionTitle('Menu Utama', Icons.dashboard_rounded, isDark),
                     const SizedBox(height: 16),
 
@@ -537,11 +533,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
 
   Widget _buildMenuCard(_MenuData menu, bool isDark) {
     final bool isActive = [
-      'Guru', 'Murid', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi',
-      'Pengaturan', 'Petugas', 'Absensi', 'Rekap Nilai', 'Laporan Mengajar',
-      'E-Rapor',
-      // Menu Coming Soon baru (tetap aktif karena punya route)
-      'Export Laporan', 'Statistik Akademik', 'Analitik Sekolah',
+      'Manajemen Guru', 'Manajemen Siswa', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi',
+      'Pengaturan', 'Petugas', 'Rekap Absensi', 'Rekap Nilai', 'Laporan Mengajar',
+      'E-Rapor', 'Pelanggaran Murid',
     ].contains(menu.title);
 
     final cardBg = isActive
@@ -809,19 +803,19 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               children: [
                 _buildSidebarItem('Dashboard', Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Guru', Icons.person_rounded, 1, const Color(0xFF6366F1), isDark),
+                _buildSidebarItem('Manajemen Guru', Icons.school_rounded, 1, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Murid', Icons.groups_rounded, 2, const Color(0xFF0EA5E9), isDark),
+                _buildSidebarItem('Manajemen Siswa', Icons.people_rounded, 2, const Color(0xFF3B82F6), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Mata Pelajaran', Icons.menu_book_rounded, 3, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Kelas', Icons.class_rounded, 4, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Jadwal', Icons.calendar_month_rounded, 5, const Color(0xFFEC4899), isDark),
+                _buildSidebarItem('Jadwal', Icons.calendar_today_rounded, 5, const Color(0xFFEC4899), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Absensi', Icons.fact_check_rounded, 6, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem('Rekap Absensi', Icons.calendar_month_rounded, 6, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                 _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 7, const Color(0xFF06B6D4), isDark),
+                 _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 7, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Petugas', Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
@@ -1357,21 +1351,129 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
 
             const SizedBox(height: 40),
 
-            // Fitur Lainnya (Segera Hadir)
-            _buildSectionTitle('Fitur Lainnya (Segera Hadir)', Icons.extension_rounded, isDark),
+            // Live Data Panels
+            _buildSectionTitle('Info Cepat', Icons.info_outline_rounded, isDark),
             const SizedBox(height: 16),
-             GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 3,
-              crossAxisSpacing: 20,
-              mainAxisSpacing: 20,
-              childAspectRatio: 1.6,
-              children: [
-                _buildUpcomingFeatureCard('Manajemen Nilai', Icons.grade_rounded, const Color(0xFFEF4444), isDark),
-                _buildUpcomingFeatureCard('Keuangan & SPP', Icons.account_balance_wallet_rounded, const Color(0xFFEC4899), isDark),
-                _buildUpcomingFeatureCard('WhatsApp Gateway', Icons.chat_bubble_rounded, const Color(0xFF10B981), isDark),
-              ],
+            SizedBox(
+              height: 360,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Panel 1: Daftar Hadir Harian Guru
+                  Expanded(
+                    child: _buildLiveDataPanel(
+                      title: 'Hadir Harian Guru',
+                      icon: Icons.co_present_rounded,
+                      color: const Color(0xFF6366F1),
+                      isDark: isDark,
+                      onViewAll: () => Get.to(() => const AdminTeacherAttendancePage(isMonthly: false)),
+                      stream: FirebaseFirestore.instance
+                          .collection('schools')
+                          .doc(schoolId)
+                          .collection('teacher_daily_attendance')
+                          .where('date', isEqualTo: _getTodayStr())
+                          .orderBy('checkInTime', descending: false)
+                          .snapshots(),
+                      itemBuilder: (doc) {
+                        final d = doc.data() as Map<String, dynamic>;
+                        final name = d['teacherName'] ?? d['nama'] ?? '-';
+                        final status = d['status'] ?? 'hadir';
+                        final isLate = status == 'terlambat';
+                        final statusColor = isLate ? const Color(0xFFF59E0B) : const Color(0xFF10B981);
+                        final checkIn = d['checkInTime'];
+                        String timeStr = '';
+                        if (checkIn is Timestamp) {
+                          final t = checkIn.toDate().toLocal();
+                          timeStr = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                        }
+                        return _buildPanelRow(
+                          leading: Container(
+                            width: 8, height: 8,
+                            decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                          ),
+                          title: name,
+                          trailing: timeStr.isNotEmpty ? timeStr : status,
+                          trailingColor: statusColor,
+                          isDark: isDark,
+                        );
+                      },
+                      emptyText: 'Belum ada absensi guru hari ini',
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Panel 2: Daftar Pelanggaran Siswa
+                  Expanded(
+                    child: _buildLiveDataPanel(
+                      title: 'Pelanggaran Siswa',
+                      icon: Icons.report_problem_rounded,
+                      color: const Color(0xFFEF4444),
+                      isDark: isDark,
+                      onViewAll: () => Get.to(() => const AdminViolationsHistoryPage()),
+                      stream: FirebaseFirestore.instance
+                          .collection('schools')
+                          .doc(schoolId)
+                          .collection('violations')
+                          .orderBy('date', descending: true)
+                          .limit(20)
+                          .snapshots(),
+                      itemBuilder: (doc) {
+                        final d = doc.data() as Map<String, dynamic>;
+                        final name = d['studentName'] ?? '-';
+                        final jenis = d['jenis'] ?? 'Pelanggaran';
+                        final poin = d['poin'] ?? 0;
+                        return _buildPanelRow(
+                          leading: const Icon(Icons.report_rounded, color: Color(0xFFEF4444), size: 14),
+                          title: name,
+                          subtitle: jenis,
+                          trailing: '-$poin',
+                          trailingColor: const Color(0xFFEF4444),
+                          isDark: isDark,
+                        );
+                      },
+                      emptyText: 'Tidak ada catatan pelanggaran',
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Panel 3: Murid Terlambat
+                  Expanded(
+                    child: _buildLiveDataPanel(
+                      title: 'Murid Terlambat',
+                      icon: Icons.timer_off_rounded,
+                      color: const Color(0xFFF59E0B),
+                      isDark: isDark,
+                      onViewAll: () => Get.to(() => const DailyRecapPage()),
+                      stream: FirebaseFirestore.instance
+                          .collection('schools')
+                          .doc(schoolId)
+                          .collection('daily_attendance')
+                          .where('date', isEqualTo: _getTodayStr())
+                          .where('status', isEqualTo: 'terlambat')
+                          .orderBy('timestamp', descending: false)
+                          .snapshots(),
+                      itemBuilder: (doc) {
+                        final d = doc.data() as Map<String, dynamic>;
+                        final name = d['studentName'] ?? '-';
+                        final className = d['className'] ?? '';
+                        final ts = d['timestamp'];
+                        String timeStr = '';
+                        if (ts is Timestamp) {
+                          final t = ts.toDate().toLocal();
+                          timeStr = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                        }
+                        return _buildPanelRow(
+                          leading: const Icon(Icons.access_time_rounded, color: Color(0xFFF59E0B), size: 14),
+                          title: name,
+                          subtitle: className,
+                          trailing: timeStr,
+                          trailingColor: const Color(0xFFF59E0B),
+                          isDark: isDark,
+                        );
+                      },
+                      emptyText: 'Tidak ada murid terlambat hari ini',
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -1579,70 +1681,134 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildUpcomingFeatureCard(String title, IconData icon, Color color, bool isDark) {
-    final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white;
-    final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.06);
-    final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.02);
-    final textThemeColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-    final badgeBgColor = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.05);
-    final badgeTextColor = isDark ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+  String _getTodayStr() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildLiveDataPanel({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onViewAll,
+    required Stream<QuerySnapshot> stream,
+    required Widget Function(QueryDocumentSnapshot) itemBuilder,
+    required String emptyText,
+  }) {
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: cardBgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: cardBorderColor,
-        ),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cardBorder),
         boxShadow: isDark
             ? []
             : [
                 BoxShadow(
-                  color: cardShadow,
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: isDark ? Colors.white.withValues(alpha: 0.2) : const Color(0xFF1E1B4B).withValues(alpha: 0.3),
-            size: 24,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+          // Panel Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: textThemeColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: badgeBgColor,
-                    borderRadius: BorderRadius.circular(6),
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: Icon(icon, color: color, size: 16),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
                   child: Text(
-                    'Segera Hadir',
+                    title,
                     style: TextStyle(
-                      color: badgeTextColor,
-                      fontSize: 8,
+                      color: titleColor,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
+                InkWell(
+                  onTap: onViewAll,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Text(
+                      'Lihat Semua',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
               ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.06),
+          ),
+          // Panel Content
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: stream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: SizedBox(
+                      width: 24, height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: color,
+                      ),
+                    ),
+                  );
+                }
+                final docs = snapshot.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(icon, color: color.withValues(alpha: 0.2), size: 32),
+                          const SizedBox(height: 8),
+                          Text(
+                            emptyText,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: isDark ? Colors.white.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.35),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  itemCount: docs.length,
+                  itemBuilder: (_, i) => itemBuilder(docs[i]),
+                );
+              },
             ),
           ),
         ],
@@ -1650,7 +1816,61 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
+  Widget _buildPanelRow({
+    required Widget leading,
+    required String title,
+    String? subtitle,
+    required String trailing,
+    required Color trailingColor,
+    required bool isDark,
+  }) {
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final subColor = isDark ? Colors.white.withValues(alpha: 0.45) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      child: Row(
+        children: [
+          leading,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: titleColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (subtitle != null && subtitle.isNotEmpty)
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: subColor, fontSize: 10),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            trailing,
+            style: TextStyle(
+              color: trailingColor,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
   Future<void> _logout() async {
+
     final isDark = AuthBackground.isDarkMode.value;
     final confirm = await showDialog<bool>(
       context: context,

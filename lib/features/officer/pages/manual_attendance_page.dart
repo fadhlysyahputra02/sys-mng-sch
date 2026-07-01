@@ -19,6 +19,7 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
   
   String _searchQuery = '';
   bool _isLoading = false;
+  String _mode = ''; // 'student_check_in' | 'student_check_out' | 'teacher' | ''
 
   // Stats state
   int? _totalStudentsCount;
@@ -38,6 +39,10 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
   @override
   void initState() {
     super.initState();
+    final args = Get.arguments;
+    if (args is Map<String, dynamic>) {
+      _mode = args['mode'] as String? ?? '';
+    }
     _fetchCounts();
     _loadAllStudents();
     _loadAllTeachers();
@@ -282,6 +287,150 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
     }
   }
 
+  // ─── Student check-out dialog ──────────────────────────────────────────────
+  void _showStudentCheckOutDialog(Map<String, dynamic> student, String studentId) {
+    final semesterError = SemesterStateService.validateInput();
+    if (semesterError != null) {
+      Get.snackbar('Akses Ditolak', semesterError,
+          backgroundColor: Colors.redAccent, colorText: Colors.white);
+      return;
+    }
+
+    Get.dialog(
+      StatefulBuilder(
+        builder: (context, _setDialog) {
+          final isDark = AuthBackground.isDarkMode.value;
+          final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+          return Dialog(
+            backgroundColor: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF06B6D4).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.exit_to_app_rounded,
+                            color: Color(0xFF06B6D4), size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Absen Pulang Manual',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: textColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Siswa: ${student['nama'] ?? '-'}',
+                    style: TextStyle(fontSize: 14, color: textColor),
+                  ),
+                  Text(
+                    'Kelas: ${student['className'] ?? '-'}',
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: textColor.withValues(alpha: 0.7)),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF06B6D4).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: const Color(0xFF06B6D4).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded,
+                            color: Color(0xFF06B6D4), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Waktu pulang akan dicatat sekarang.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: textColor.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Get.back(),
+                        child: const Text('Batal'),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () async {
+                          Get.back();
+                          _submitManualCheckOut(student, studentId);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF06B6D4),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Catat Pulang',
+                            style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _submitManualCheckOut(
+      Map<String, dynamic> student, String studentId) async {
+    setState(() => _isLoading = true);
+    try {
+      final user = SessionService.currentUser!;
+
+      await _repo.markManualCheckOut(
+        schoolId: user.schoolId,
+        studentId: studentId,
+        studentName: student['nama'] ?? '-',
+        officerId: user.uid,
+      );
+
+      Get.snackbar(
+        'Berhasil',
+        'Absen pulang berhasil dicatat.',
+        backgroundColor: const Color(0xFF06B6D4),
+        colorText: Colors.white,
+      );
+
+      _fetchCounts();
+    } catch (e) {
+      Get.snackbar('Error', e.toString(),
+          backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _loadAllTeachers() async {
     if (!mounted) return;
     setState(() => _isLoadingTeachers = true);
@@ -462,6 +611,154 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
     }
   }
 
+  // ─── Teacher check-out dialog ──────────────────────────────────────────────
+  void _showTeacherCheckOutDialog(Map<String, dynamic> teacher, String teacherId) {
+    final semesterError = SemesterStateService.validateInput();
+    if (semesterError != null) {
+      Get.snackbar('Akses Ditolak', semesterError,
+          backgroundColor: Colors.redAccent, colorText: Colors.white);
+      return;
+    }
+
+    Get.dialog(
+      StatefulBuilder(
+        builder: (context, _setDialog) {
+          final isDark = AuthBackground.isDarkMode.value;
+          final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+          return Dialog(
+            backgroundColor: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.assignment_turned_in_rounded,
+                            color: Color(0xFFEF4444), size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Absen Pulang Guru',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: textColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Guru: ${teacher['nama'] ?? '-'}',
+                    style: TextStyle(fontSize: 14, color: textColor),
+                  ),
+                  Text(
+                    'NIP: ${teacher['nip'] ?? '-'}',
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: textColor.withValues(alpha: 0.7)),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Apakah Anda yakin ingin mencatat kepulangan guru ini?',
+                    style: TextStyle(fontSize: 13, color: textColor.withValues(alpha: 0.8)),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Get.back(),
+                        child: const Text('Batal'),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () async {
+                          Get.back();
+                          _submitTeacherManualCheckOut(teacher, teacherId);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEF4444),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Catat Pulang',
+                            style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _submitTeacherManualCheckOut(
+      Map<String, dynamic> teacher, String teacherId) async {
+    setState(() => _isLoading = true);
+    try {
+      final user = SessionService.currentUser!;
+      final dateStr = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
+
+      final todayAttendance = await _repo.getTeacherTodayAttendance(user.schoolId, teacherId);
+      if (todayAttendance == null || todayAttendance['checkInTime'] == null) {
+        Get.snackbar(
+          'Peringatan',
+          'Guru ini belum melakukan absen masuk hari ini.',
+          backgroundColor: Colors.amber,
+          colorText: Colors.black,
+        );
+        return;
+      }
+      if (todayAttendance['checkOutTime'] != null) {
+        Get.snackbar(
+          'Peringatan',
+          'Guru ini sudah melakukan absen pulang hari ini.',
+          backgroundColor: Colors.amber,
+          colorText: Colors.black,
+        );
+        return;
+      }
+
+      await _repo.markTeacherAttendanceManual(
+        schoolId: user.schoolId,
+        teacherId: teacherId,
+        teacherName: teacher['nama'] ?? '-',
+        nip: teacher['nip'] ?? '-',
+        dateStr: dateStr,
+        status: todayAttendance['status'] ?? 'hadir',
+        checkInTime: (todayAttendance['checkInTime'] as Timestamp).toDate(),
+        checkOutTime: DateTime.now(),
+      );
+
+      Get.snackbar(
+        'Berhasil',
+        'Absen pulang guru berhasil dicatat.',
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+      );
+
+      _fetchCounts();
+    } catch (e) {
+      Get.snackbar('Error', e.toString(),
+          backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Widget _buildStatsOverviewTeachers(
     bool isDark,
     Color textColor,
@@ -603,7 +900,90 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
           future: _repo.getTeacherTodayAttendance(schoolId, teacherId),
           builder: (context, attendanceSnapshot) {
             final todayAttendance = attendanceSnapshot.data;
-            final hasCheckedIn = todayAttendance != null;
+            final hasCheckedIn = todayAttendance != null && todayAttendance['checkInTime'] != null;
+            final hasCheckedOut = todayAttendance != null && todayAttendance['checkOutTime'] != null;
+
+            Widget trailing;
+            final isCheckOutMode = _mode == 'teacher_check_out';
+
+            if (isCheckOutMode) {
+              if (!hasCheckedIn) {
+                trailing = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Belum Masuk',
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              } else if (hasCheckedOut) {
+                trailing = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+                  ),
+                  child: const Text(
+                    'Sudah Pulang',
+                    style: TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              } else {
+                trailing = ElevatedButton(
+                  onPressed: () => _showTeacherCheckOutDialog(teacher, teacherId),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4444),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                  child: const Text('Pulang', style: TextStyle(color: Colors.white, fontSize: 12)),
+                );
+              }
+            } else {
+              // Default/check-in mode
+              if (hasCheckedIn) {
+                trailing = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Text(
+                    'Sudah Masuk',
+                    style: TextStyle(
+                      color: Color(0xFF10B981),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              } else {
+                trailing = ElevatedButton(
+                  onPressed: () => _showTeacherAttendanceDialog(teacher, teacherId),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('Absen', style: TextStyle(color: Colors.white, fontSize: 12)),
+                );
+              }
+            }
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -625,34 +1005,7 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                   'NIP: ${teacher['nip'] ?? '-'}',
                   style: TextStyle(color: subTextColor, fontSize: 12),
                 ),
-                trailing: hasCheckedIn
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: const Text(
-                          'Sudah Absen',
-                          style: TextStyle(
-                            color: Color(0xFF10B981),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    : ElevatedButton(
-                        onPressed: () => _showTeacherAttendanceDialog(teacher, teacherId),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6366F1),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                        child: const Text('Absen', style: TextStyle(color: Colors.white, fontSize: 12)),
-                      ),
+                trailing: trailing,
               ),
             );
           },
@@ -679,8 +1032,14 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
             (isOfficer ? true : (userData?['isGateOfficer'] as bool? ?? false));
 
         final List<String> tabs = [];
-        if (scanMuridEnabled) tabs.add('Siswa');
-        if (scanGuruEnabled) tabs.add('Guru');
+        if (_mode.startsWith('teacher_')) {
+          if (scanGuruEnabled) tabs.add('Guru');
+        } else if (_mode.startsWith('student_')) {
+          if (scanMuridEnabled) tabs.add('Siswa');
+        } else {
+          if (scanMuridEnabled) tabs.add('Siswa');
+          if (scanGuruEnabled) tabs.add('Guru');
+        }
 
         if (tabs.isEmpty) {
           return const Scaffold(
@@ -695,6 +1054,18 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
               ),
             ),
           );
+        }
+
+        // Set title based on mode
+        String pageTitle = 'Absensi Manual';
+        if (_mode == 'student_check_in') {
+          pageTitle = 'Absen Manual Siswa (Masuk)';
+        } else if (_mode == 'student_check_out') {
+          pageTitle = 'Absen Manual Siswa (Pulang)';
+        } else if (_mode == 'teacher_check_in') {
+          pageTitle = 'Absen Manual Guru (Masuk)';
+        } else if (_mode == 'teacher_check_out') {
+          pageTitle = 'Absen Manual Guru (Pulang)';
         }
 
         return DefaultTabController(
@@ -718,15 +1089,17 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                   elevation: 0,
                   iconTheme: IconThemeData(color: textColor),
                   title: Text(
-                    'Absensi Manual',
+                    pageTitle,
                     style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
                   ),
-                  bottom: TabBar(
-                    indicatorColor: const Color(0xFF6366F1),
-                    labelColor: textColor,
-                    unselectedLabelColor: subTextColor,
-                    tabs: tabs.map((tab) => Tab(text: tab)).toList(),
-                  ),
+                  bottom: tabs.length <= 1
+                      ? null
+                      : TabBar(
+                          indicatorColor: const Color(0xFF6366F1),
+                          labelColor: textColor,
+                          unselectedLabelColor: subTextColor,
+                          tabs: tabs.map((tab) => Tab(text: tab)).toList(),
+                        ),
                 ),
                 body: AuthBackground(
                   child: SafeArea(
@@ -951,10 +1324,95 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
         final student = displayList[index];
         final studentId = student['id'] ?? '';
 
-        return FutureBuilder<bool>(
-          future: _repo.hasStudentScannedToday(schoolId, studentId),
+        return FutureBuilder<Map<String, dynamic>?>(
+          future: _repo.getStudentTodayAttendance(schoolId, studentId),
           builder: (context, attendanceSnapshot) {
-            final hasCheckedIn = attendanceSnapshot.data ?? false;
+            final todayData = attendanceSnapshot.data;
+            final hasCheckedIn = todayData != null && todayData['checkInTime'] != null;
+            final hasCheckedOut = todayData != null && todayData['checkOutTime'] != null;
+
+            // Determine trailing widget based on mode
+            Widget trailing;
+            final isCheckOutMode = _mode == 'student_check_out';
+
+            if (isCheckOutMode) {
+              if (!hasCheckedIn) {
+                trailing = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Belum Masuk',
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              } else if (hasCheckedOut) {
+                trailing = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF06B6D4).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.3)),
+                  ),
+                  child: const Text(
+                    'Sudah Pulang',
+                    style: TextStyle(
+                      color: Color(0xFF06B6D4),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              } else {
+                trailing = ElevatedButton(
+                  onPressed: () => _showStudentCheckOutDialog(student, studentId),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF06B6D4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                  child: const Text('Pulang', style: TextStyle(color: Colors.white, fontSize: 12)),
+                );
+              }
+            } else {
+              // Default: check-in mode
+              if (hasCheckedIn) {
+                trailing = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Text(
+                    'Sudah Masuk',
+                    style: TextStyle(
+                      color: Color(0xFF10B981),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              } else {
+                trailing = ElevatedButton(
+                  onPressed: () => _showAttendanceDialog(student, studentId),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('Absen', style: TextStyle(color: Colors.white, fontSize: 12)),
+                );
+              }
+            }
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -976,34 +1434,7 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                   'Kelas: ${student['className'] ?? '-'}',
                   style: TextStyle(color: subTextColor, fontSize: 12),
                 ),
-                trailing: hasCheckedIn
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: const Text(
-                          'Sudah Absen',
-                          style: TextStyle(
-                            color: Color(0xFF10B981),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    : ElevatedButton(
-                        onPressed: () => _showAttendanceDialog(student, studentId),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6366F1),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                        child: const Text('Absen', style: TextStyle(color: Colors.white, fontSize: 12)),
-                      ),
+                trailing: trailing,
               ),
             );
           },

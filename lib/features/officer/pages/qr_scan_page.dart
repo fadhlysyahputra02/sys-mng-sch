@@ -282,11 +282,34 @@ class _QrScanPageState extends State<QrScanPage>
         return;
       }
 
-      final hasScanned = await _repo.hasStudentScannedToday(user.schoolId, studentId);
+      // --- ABSENSI PULANG SISWA ---
+      if (_forcedAction == 'check_out') {
+        await _repo.scanStudentCheckOut(
+          schoolId: user.schoolId,
+          studentId: studentId,
+          studentName: studentName,
+          officerId: user.uid,
+        );
+
+        final now = DateTime.now();
+        final timeStr =
+            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+        _showSuccessToast(_ToastData(
+          isLate: false,
+          studentName: studentName,
+          className: '$className - Pulang',
+          time: timeStr,
+        ));
+        return;
+      }
+
+      // --- ABSENSI MASUK SISWA (default) ---
+      final hasScanned = await _repo.hasStudentCheckedInToday(user.schoolId, studentId);
       if (hasScanned) {
         _showErrorDialog(
           'Sudah Tercatat',
-          '$studentName sudah melakukan scan kehadiran hari ini.',
+          '$studentName sudah melakukan scan absen masuk hari ini.',
         );
         return;
       }

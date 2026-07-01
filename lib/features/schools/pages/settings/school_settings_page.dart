@@ -242,6 +242,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
           'tanggalMulaiSemester': FieldValue.delete(),
         // Membuka semester baru / mengubah tanggal mulai juga mereset status penutupan
         'semesterDitutup': false,
+        'tanggalSemesterDitutup': FieldValue.delete(),
       });
 
       if (mounted) _snack('Pengaturan sekolah berhasil disimpan');
@@ -525,7 +526,10 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
       await deleteSubcollection('behavior_records');
 
       // 7. Tandai semester sebagai ditutup
-      await schoolRef.update({'semesterDitutup': true});
+      await schoolRef.update({
+        'semesterDitutup': true,
+        'tanggalSemesterDitutup': FieldValue.serverTimestamp(),
+      });
 
       // 8. Clear resetRequest field (if this was an approval)
       if (isApproving) {

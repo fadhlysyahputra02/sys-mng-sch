@@ -704,6 +704,58 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                               );
                             }
 
+                            if (menu['title'] == 'Tagihan SPP & Keuangan' && studentId.isNotEmpty) {
+                              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('schools')
+                                    .doc(schoolId)
+                                    .collection('student_bills')
+                                    .where('studentId', isEqualTo: studentId)
+                                    .where('status', isEqualTo: 'unpaid')
+                                    .snapshots(),
+                                builder: (context, billsSnapshot) {
+                                  final unpaidCount = billsSnapshot.data?.docs.length ?? 0;
+                                  if (unpaidCount == 0) return container;
+
+                                  return Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      container,
+                                      Positioned(
+                                        top: -4,
+                                        right: -4,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.redAccent,
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          constraints: const BoxConstraints(
+                                            minWidth: 18,
+                                            minHeight: 18,
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              '$unpaidCount',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            }
+
                             if (menu['title'] == 'Tugas Anak' &&
                                 studentId.isNotEmpty &&
                                 classId != null &&

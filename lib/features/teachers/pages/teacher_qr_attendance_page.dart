@@ -704,8 +704,20 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
     String classId,
     String dateStr,
   ) {
+    // Guard: do not allow writing if scheduleId or dateStr is missing
+    if (scheduleId.isEmpty || dateStr.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak dapat menyimpan: data jadwal atau tanggal tidak lengkap.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final tahunAjaran = _tahunAjaran;
     final semester = _semester;
+    final formattedDate = _getFormattedIndonesianDate(dateStr);
 
     showDialog(
       context: context,
@@ -713,7 +725,37 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Beri Keterangan', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Text('Atur kehadiran untuk $studentName:'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Atur kehadiran untuk $studentName:'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                    const SizedBox(width: 6),
+                    Text(
+                      formattedDate,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF8B5CF6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -784,6 +826,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
       },
     );
   }
+
 
   void _showTeachingReportDialog(
     String schoolId,

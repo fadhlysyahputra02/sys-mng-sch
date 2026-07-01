@@ -144,6 +144,10 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                             ),
                           ),
                           const SizedBox(height: 16),
+
+                          // ─── MURID section ───────────────────────────────
+                          _buildSectionLabel('Absensi Murid', Icons.school_rounded, const Color(0xFF10B981), textColor),
+                          const SizedBox(height: 12),
                           GridView.count(
                             crossAxisCount: 2,
                             shrinkWrap: true,
@@ -153,19 +157,64 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                             childAspectRatio: 1.1,
                             children: [
                               _buildMenuCard(
-                                title: 'Scan QR Murid',
+                                title: 'Scan Murid\n(Masuk)',
                                 icon: Icons.qr_code_scanner_rounded,
-                                color: const Color(0xFF10B981),
-                                onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'student'}),
+                                color: const Color(0xFF10B981), // Emerald Green
+                                onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'student', 'action': 'check_in'}),
                                 textColor: textColor,
                                 cardBg: cardBg,
                                 cardBorder: cardBorder,
                                 isDisabled: !scanMuridEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Scan Guru (Masuk)',
-                                icon: Icons.assignment_ind_rounded,
-                                color: const Color(0xFF3B82F6),
+                                title: 'Scan Murid\n(Pulang)',
+                                icon: Icons.exit_to_app_rounded,
+                                color: const Color(0xFF059669), // Darker Green
+                                onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'student', 'action': 'check_out'}),
+                                textColor: textColor,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                                isDisabled: !scanMuridEnabled,
+                              ),
+                              _buildMenuCard(
+                                title: 'Absen Manual\nMurid (Masuk)',
+                                icon: Icons.how_to_reg_rounded,
+                                color: const Color(0xFF34D399), // Light Green
+                                onTap: () => Get.toNamed(AppRoutes.officerManual, arguments: {'mode': 'student_check_in'}),
+                                textColor: textColor,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                                isDisabled: !scanMuridEnabled,
+                              ),
+                              _buildMenuCard(
+                                title: 'Absen Manual\nMurid (Pulang)',
+                                icon: Icons.assignment_return_rounded,
+                                color: const Color(0xFF0D9488), // Teal Green
+                                onTap: () => Get.toNamed(AppRoutes.officerManual, arguments: {'mode': 'student_check_out'}),
+                                textColor: textColor,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                                isDisabled: !scanMuridEnabled,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ─── GURU section ────────────────────────────────
+                          _buildSectionLabel('Absensi Guru', Icons.assignment_ind_rounded, const Color(0xFF2563EB), textColor),
+                          const SizedBox(height: 12),
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            childAspectRatio: 1.1,
+                            children: [
+                              _buildMenuCard(
+                                title: 'Scan Guru\n(Masuk)',
+                                icon: Icons.qr_code_scanner_rounded,
+                                color: const Color(0xFF3B82F6), // Blue
                                 onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'teacher', 'action': 'check_in'}),
                                 textColor: textColor,
                                 cardBg: cardBg,
@@ -173,9 +222,9 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                                 isDisabled: !scanGuruEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Scan Guru (Pulang)',
-                                icon: Icons.assignment_returned_rounded,
-                                color: const Color(0xFFEF4444),
+                                title: 'Scan Guru\n(Pulang)',
+                                icon: Icons.exit_to_app_rounded,
+                                color: const Color(0xFF1D4ED8), // Dark Blue
                                 onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'teacher', 'action': 'check_out'}),
                                 textColor: textColor,
                                 cardBg: cardBg,
@@ -183,15 +232,40 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                                 isDisabled: !scanGuruEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Absen Manual',
+                                title: 'Absen Manual\nGuru (Masuk)',
                                 icon: Icons.how_to_reg_rounded,
-                                color: const Color(0xFFF59E0B),
-                                onTap: () => Get.toNamed(AppRoutes.officerManual),
+                                color: const Color(0xFF60A5FA), // Light Blue
+                                onTap: () => Get.toNamed(AppRoutes.officerManual, arguments: {'mode': 'teacher_check_in'}),
                                 textColor: textColor,
                                 cardBg: cardBg,
                                 cardBorder: cardBorder,
-                                isDisabled: !scanMuridEnabled && !scanGuruEnabled,
+                                isDisabled: !scanGuruEnabled,
                               ),
+                              _buildMenuCard(
+                                title: 'Absen Manual\nGuru (Pulang)',
+                                icon: Icons.assignment_return_rounded,
+                                color: const Color(0xFF2563EB), // Royal Blue
+                                onTap: () => Get.toNamed(AppRoutes.officerManual, arguments: {'mode': 'teacher_check_out'}),
+                                textColor: textColor,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                                isDisabled: !scanGuruEnabled,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ─── REKAP section ───────────────────────────────
+                          _buildSectionLabel('Rekap Absensi', Icons.bar_chart_rounded, const Color(0xFF6366F1), textColor),
+                          const SizedBox(height: 12),
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            childAspectRatio: 1.1,
+                            children: [
                               _buildMenuCard(
                                 title: 'Rekap Harian',
                                 icon: Icons.bar_chart_rounded,
@@ -205,7 +279,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                               _buildMenuCard(
                                 title: 'Rekap Bulanan',
                                 icon: Icons.calendar_month_rounded,
-                                color: const Color(0xFF8B5CF6),
+                                color: const Color(0xFF7C3AED),
                                 onTap: () => Get.toNamed(AppRoutes.officerMonthlyRecap),
                                 textColor: textColor,
                                 cardBg: cardBg,
@@ -225,6 +299,31 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildSectionLabel(String label, IconData icon, Color color, Color textColor) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 16),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ],
     );
   }
 

@@ -6,7 +6,7 @@ import '../../../core/services/semester_state_service.dart';
 class OfficerRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 1. Catat absensi via QR Scan
+  // 1. Catat absensi Masuk via QR Scan
   Future<bool> scanAttendance({
     required String schoolId,
     required String studentId,
@@ -16,6 +16,7 @@ class OfficerRepository {
     required String officerId,
   }) async {
     final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     
     // Ambil jamMasuk dari database sekolah
     String jamMasukLimit = '07:15';
@@ -53,6 +54,16 @@ class OfficerRepository {
       if (e is Exception) rethrow;
     }
 
+    // Cek apakah sudah check-in hari ini
+    final dailyRef = _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('daily_attendance')
+        .doc('${dateStr}_$studentId');
+    final existing = await dailyRef.get();
+    if (existing.exists && existing.data()?['checkInTime'] != null) {
+      throw Exception('$studentName sudah melakukan absen masuk hari ini.');
+    }
 
     // Hitung apakah terlambat berdasarkan jamMasukLimit
     bool isLate = false;
@@ -92,7 +103,52 @@ class OfficerRepository {
     return isLate;
   }
 
-  // 2. Catat absensi Manual
+  // 1b. Catat absensi Pulang via QR Scan
+  Future<void> scanStudentCheckOut({
+    required String schoolId,
+    required String studentId,
+    required String studentName,
+    required String officerId,
+  }) async {
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    // Validasi semester
+    try {
+      final schoolDoc = await _firestore.collection('schools').doc(schoolId).get();
+      if (schoolDoc.exists) {
+        final data = schoolDoc.data()!;
+        final semesterDitutup = (data['semesterDitutup'] as bool?) ?? false;
+        if (semesterDitutup) {
+          throw SemesterValidationException('Semester telah ditutup oleh Admin 🔒. Input absensi tidak dapat dilakukan.');
+        }
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+    }
+
+    final dailyRef = _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('daily_attendance')
+        .doc('${dateStr}_$studentId');
+    final doc = await dailyRef.get();
+
+    if (!doc.exists || doc.data()?['checkInTime'] == null) {
+      throw Exception('$studentName belum melakukan absen masuk hari ini.');
+    }
+    if (doc.data()?['checkOutTime'] != null) {
+      throw Exception('$studentName sudah melakukan absen masuk dan pulang hari ini.');
+    }
+
+    await dailyRef.update({
+      'checkOutTime': Timestamp.fromDate(now),
+      'checkOutMethod': 'qr_scan',
+      'checkOutOfficerId': officerId,
+    });
+  }
+
+  // 2. Catat absensi Manual Masuk Siswa
   Future<void> markManualAttendance({
     required String schoolId,
     required String studentId,
@@ -148,6 +204,51 @@ class OfficerRepository {
       tahunAjaran: tahunAjaran,
       semester: semester,
     );
+  }
+
+  // 2b. Catat absensi Manual Pulang Siswa
+  Future<void> markManualCheckOut({
+    required String schoolId,
+    required String studentId,
+    required String studentName,
+    required String officerId,
+  }) async {
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    // Validasi semester
+    try {
+      final schoolDoc = await _firestore.collection('schools').doc(schoolId).get();
+      if (schoolDoc.exists) {
+        final data = schoolDoc.data()!;
+        final semesterDitutup = (data['semesterDitutup'] as bool?) ?? false;
+        if (semesterDitutup) {
+          throw SemesterValidationException('Semester telah ditutup oleh Admin 🔒. Input absensi tidak dapat dilakukan.');
+        }
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+    }
+
+    final dailyRef = _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('daily_attendance')
+        .doc('${dateStr}_$studentId');
+    final doc = await dailyRef.get();
+
+    if (!doc.exists || doc.data()?['checkInTime'] == null) {
+      throw Exception('$studentName belum melakukan absen masuk hari ini.');
+    }
+    if (doc.data()?['checkOutTime'] != null) {
+      throw Exception('$studentName sudah melakukan absen pulang hari ini.');
+    }
+
+    await dailyRef.update({
+      'checkOutTime': Timestamp.fromDate(now),
+      'checkOutMethod': 'manual',
+      'checkOutOfficerId': officerId,
+    });
   }
 
   // Internal: Save to daily_attendance and scan_logs
@@ -207,6 +308,8 @@ class OfficerRepository {
       'classId': classId,
       'className': className,
       'date': dateStr,
+      'checkInTime': Timestamp.fromDate(timeScanned),
+      'checkOutTime': null,
       'timestamp': Timestamp.fromDate(timeScanned),
       'status': status,
       'method': method,
@@ -254,8 +357,8 @@ class OfficerRepository {
     return query.docs.map((doc) => doc.data()).toList();
   }
 
-  // 5. Cek apakah sudah absen hari ini
-  Future<bool> hasStudentScannedToday(String schoolId, String studentId) async {
+  // 5a. Cek apakah sudah absen masuk hari ini
+  Future<bool> hasStudentCheckedInToday(String schoolId, String studentId) async {
     final now = DateTime.now();
     final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     
@@ -264,10 +367,41 @@ class OfficerRepository {
         .doc(schoolId)
         .collection('daily_attendance')
         .doc('${dateStr}_$studentId');
-        
     final doc = await docRef.get();
-    return doc.exists;
+    return doc.exists && doc.data()?['checkInTime'] != null;
   }
+
+  // 5b. Cek apakah sudah absen pulang hari ini
+  Future<bool> hasStudentCheckedOutToday(String schoolId, String studentId) async {
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    
+    final docRef = _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('daily_attendance')
+        .doc('${dateStr}_$studentId');
+    final doc = await docRef.get();
+    return doc.exists && doc.data()?['checkOutTime'] != null;
+  }
+
+  // 5c. Ambil data absensi siswa hari ini (full document)
+  Future<Map<String, dynamic>?> getStudentTodayAttendance(String schoolId, String studentId) async {
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    
+    final docRef = _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('daily_attendance')
+        .doc('${dateStr}_$studentId');
+    final doc = await docRef.get();
+    return doc.exists ? doc.data() : null;
+  }
+
+  // 5d. Legacy alias — cek sudah absen masuk (digunakan di bagian lama)
+  Future<bool> hasStudentScannedToday(String schoolId, String studentId) =>
+      hasStudentCheckedInToday(schoolId, studentId);
 
   // 6. Catat absensi Guru via QR Scan (Harian)
   Future<Map<String, dynamic>> scanTeacherAttendance({
@@ -425,19 +559,21 @@ class OfficerRepository {
     }
   }
 
-  // 7. Ambil status absensi guru hari ini
+  // 7. Ambil status absensi guru hari ini (Berdasarkan field 'date')
   Future<Map<String, dynamic>?> getTeacherTodayAttendance(String schoolId, String teacherId) async {
     final now = DateTime.now();
     final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     
-    final doc = await _firestore
+    final query = await _firestore
         .collection('schools')
         .doc(schoolId)
         .collection('teacher_daily_attendance')
-        .doc('${dateStr}_$teacherId')
+        .where('teacherId', isEqualTo: teacherId)
+        .where('date', isEqualTo: dateStr)
+        .limit(1)
         .get();
         
-    return doc.exists ? doc.data() : null;
+    return query.docs.isNotEmpty ? query.docs.first.data() : null;
   }
 
   // 8. Catat absensi Guru Manual oleh Admin

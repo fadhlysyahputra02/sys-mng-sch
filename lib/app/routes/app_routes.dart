@@ -48,8 +48,6 @@ class AppRoutes {
   static const comingSoonBankSoalMurid = '/coming-soon/bank-soal-murid';
   static const comingSoonStatistikGuru = '/coming-soon/statistik-guru';
   static const comingSoonStatistikAdmin = '/coming-soon/statistik-admin';
-  static const comingSoonExportAdmin = '/coming-soon/export-admin';
-  static const comingSoonExportTu = '/coming-soon/export-tu';
   static const comingSoonSuratIzinOrtu = '/coming-soon/surat-izin-ortu';
   static const comingSoonSuratIzinMurid = '/coming-soon/surat-izin-murid';
   static const comingSoonNewsFeedAdmin = '/coming-soon/news-feed-admin';

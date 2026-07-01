@@ -389,7 +389,10 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                                 style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 12),
                               ),
                               const SizedBox(height: 6),
-                              Row(
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -402,20 +405,16 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                                       style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 10),
                                     ),
                                   ),
-                                  if (method != null) ...[
-                                    const SizedBox(width: 8),
+                                  if (method != null)
                                     Text(
                                       'Metode: $method',
                                       style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 11),
                                     ),
-                                  ],
-                                  if (uploadedAt != null) ...[
-                                    const SizedBox(width: 8),
+                                  if (uploadedAt != null)
                                     Text(
                                       'Tgl: ${_formatDate(uploadedAt)}',
                                       style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 11),
                                     ),
-                                  ],
                                 ],
                               ),
                             ],
