@@ -391,8 +391,8 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
             child: Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
                     gradient: _schoolLogoBase64 != null
                         ? null
@@ -401,14 +401,14 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: miniLogoBorder, width: 1),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(15),
                     child: _schoolLogoBase64 != null
                         ? Image.memory(base64Decode(_schoolLogoBase64!), fit: BoxFit.cover)
-                        : const Icon(Icons.support_agent_rounded, color: Colors.white, size: 24),
+                        : const Icon(Icons.support_agent_rounded, color: Colors.white, size: 32),
                   ),
                 ),
                 const SizedBox(width: 12),

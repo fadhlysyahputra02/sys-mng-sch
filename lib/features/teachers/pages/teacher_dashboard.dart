@@ -23,9 +23,13 @@ import 'teacher_grades_page.dart';
 import 'teacher_reports_page.dart';
 import 'teacher_daily_attendance_page.dart';
 import 'teacher_tasks_page.dart';
+import '../../../core/widgets/flip_card.dart';
+
 import 'teacher_permits_page.dart';
 import '../../exams/pages/teacher_exams_page.dart';
 import 'teacher_student_violations_page.dart';
+import '../../librarian/services/library_service.dart';
+import '../../students/pages/student_qr_scanner_page.dart';
 import '../../officer/pages/officer_dashboard_page.dart';
 
 import '../../../core/widgets/motif_card.dart';
@@ -41,13 +45,67 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   final _teacherService = TeacherService();
   final _scheduleService = ClassScheduleService();
   final _teacherSubjectService = TeacherSubjectService();
+  final _libraryService = LibraryService();
 
   // Teacher Firestore doc ID (berbeda dengan Firebase Auth UID)
   String? _teacherDocId;
   Map<String, dynamic>? _teacherData;
   bool _isLoadingTeacher = true;
 
-  // Class IDs where this teacher is wali kelas or teaches schedules
+
+  // --- Library Visitor Scan ---
+  Future<void> _scanLibraryVisitor(BuildContext context) async {
+    final result = await Get.to<String>(() => const StudentQrScannerPage(
+          title: 'Scan QR Buku Tamu Perpustakaan',
+          subtitle: 'Arahkan kamera ke QR Kartu Siswa/Guru untuk mencatat kunjungan',
+        ));
+
+    if (result != null && result.isNotEmpty) {
+      try {
+        final Map<String, dynamic> payload = jsonDecode(result);
+        final isTeacher = payload['role']?.toString().toLowerCase() == 'teacher';
+
+        final id = isTeacher 
+            ? (payload['teacherId']?.toString() ?? '')
+            : (payload['studentId']?.toString() ?? '');
+        final nis = isTeacher
+            ? (payload['nip']?.toString() ?? '')
+            : (payload['nis']?.toString() ?? '');
+        final name = payload['nama']?.toString() ?? '';
+        final className = isTeacher ? 'GURU' : (payload['className']?.toString() ?? '-');
+        final role = isTeacher ? 'teacher' : 'student';
+
+        if (id.isEmpty || name.isEmpty) {
+          Get.snackbar('Gagal', 'Data QR tidak valid.',
+              backgroundColor: Colors.red, colorText: Colors.white,
+              snackPosition: SnackPosition.TOP, margin: const EdgeInsets.all(16));
+          return;
+        }
+
+        await _libraryService.recordVisitor(
+          studentId: id,
+          studentNis: nis,
+          studentName: name,
+          className: className,
+          role: role,
+        );
+
+        Get.snackbar(
+          'Berhasil Mencatat Kunjungan',
+          'Selamat datang di perpustakaan, $name!',
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
+        );
+      } catch (e) {
+        Get.snackbar('Gagal', 'Format QR Code tidak dikenali.',
+            backgroundColor: Colors.red, colorText: Colors.white,
+            snackPosition: SnackPosition.TOP, margin: const EdgeInsets.all(16));
+      }
+    }
+  }
   Set<String> _teacherClassIds = {};
   StreamSubscription? _waliClassesSub;
   StreamSubscription? _scheduleClassesSub;
@@ -445,45 +503,40 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                 toolbarHeight: 56,
                                 title: Row(
                                   children: [
-                                    if (_schoolLogoBase64 != null &&
-                                        _schoolLogoBase64!.isNotEmpty) ...[
-                                      Container(
-                                        width: 32,
-                                        height: 32,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: const Color(
-                                              0xFF8B5CF6,
-                                            ).withValues(alpha: 0.4),
-                                            width: 1.5,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: const Color(
-                                                0xFF8B5CF6,
-                                              ).withValues(alpha: 0.15),
-                                              blurRadius: 8,
-                                            ),
-                                          ],
-                                        ),
-                                        child: ClipOval(
-                                          child: Image.memory(
-                                            base64Decode(
-                                              _schoolLogoBase64!,
-                                            ),
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) =>
-                                                Icon(
-                                                  Icons.school_rounded,
-                                                  size: 18,
-                                                  color: titleColor,
-                                                ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                    ],
+                                     if (_schoolLogoBase64 != null &&
+                                         _schoolLogoBase64!.isNotEmpty) ...[
+                                       Container(
+                                         width: 42,
+                                         height: 42,
+                                         decoration: BoxDecoration(
+                                           borderRadius: BorderRadius.circular(10),
+                                           boxShadow: [
+                                             BoxShadow(
+                                               color: const Color(
+                                                 0xFF8B5CF6,
+                                               ).withValues(alpha: 0.15),
+                                               blurRadius: 8,
+                                             ),
+                                           ],
+                                         ),
+                                         child: ClipRRect(
+                                           borderRadius: BorderRadius.circular(9),
+                                           child: Image.memory(
+                                             base64Decode(
+                                               _schoolLogoBase64!,
+                                             ),
+                                             fit: BoxFit.cover,
+                                             errorBuilder: (_, __, ___) =>
+                                                 Icon(
+                                                   Icons.school_rounded,
+                                                   size: 22,
+                                                   color: titleColor,
+                                                 ),
+                                           ),
+                                         ),
+                                       ),
+                                       const SizedBox(width: 12),
+                                     ],
                                     Expanded(
                                       child: Text(
                                         _getGreeting(),
@@ -529,9 +582,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                         size: 20,
                                       ),
                                       tooltip: 'Pengaturan',
-                                      onPressed: () => Get.to(
-                                        () => const TeacherSettingsPage(),
-                                      ),
+                                      onPressed: () async {
+                                        await Get.to(
+                                          () => const TeacherSettingsPage(),
+                                        );
+                                        _resolveTeacherDocId();
+                                      },
                                     ),
                                   ),
                                   const SizedBox(width: 8),
@@ -833,48 +889,92 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(4), // gradient frame thickness
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
-                      blurRadius: 15,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Container(
-                  width: 102,
-                  height: 102,
+              FlipCard(
+                isDark: isDark,
+                front: Container(
+                  padding: const EdgeInsets.all(4), // gradient frame thickness
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                        blurRadius: 15,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: GestureDetector(
-                      onTap: () => _showFullScreenQr(context, qrPayload),
-                      child: QrImageView(
-                        data: qrPayload,
-                        version: QrVersions.auto,
-                        backgroundColor: Colors.white,
-                        padding: const EdgeInsets.all(8.0),
-                        eyeStyle: const QrEyeStyle(
-                          eyeShape: QrEyeShape.square,
-                          color: Color(0xFF1E1B4B),
-                        ),
-                        dataModuleStyle: const QrDataModuleStyle(
-                          dataModuleShape: QrDataModuleShape.square,
-                          color: Color(0xFF1E1B4B),
+                  child: Container(
+                    width: 102,
+                    height: 102,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: GestureDetector(
+                        onTap: () => _showFullScreenQr(context, qrPayload),
+                        child: QrImageView(
+                          data: qrPayload,
+                          version: QrVersions.auto,
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.all(8.0),
+                          eyeStyle: const QrEyeStyle(
+                            eyeShape: QrEyeShape.square,
+                            color: Color(0xFF1E1B4B),
+                          ),
+                          dataModuleStyle: const QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.square,
+                            color: Color(0xFF1E1B4B),
+                          ),
                         ),
                       ),
+                    ),
+                  ),
+                ),
+                back: Container(
+                  padding: const EdgeInsets.all(4), // gradient frame thickness
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                        blurRadius: 15,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Container(
+                    width: 102,
+                    height: 102,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: _teacherData?['fotoBase64'] != null && _teacherData!['fotoBase64'].toString().isNotEmpty
+                          ? Image.memory(
+                              base64Decode(_teacherData!['fotoBase64']),
+                              fit: BoxFit.cover,
+                            )
+                          : const Center(
+                              child: Icon(
+                                Icons.person_rounded,
+                                color: Color(0xFF8B5CF6),
+                                size: 40,
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -1391,6 +1491,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           'icon': Icons.menu_book_rounded,
           'color': const Color(0xFF6366F1),
         },
+        {
+          'title': 'Scan Kunjungan Perpustakaan',
+          'icon': Icons.qr_code_scanner_rounded,
+          'color': const Color(0xFF8B5CF6),
+        },
       ],
       {
         'title': 'Input Nilai',
@@ -1514,7 +1619,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () {
+                onTap: () async {
                   final user = SessionService.currentUser!;
                   if (isScanCard) {
                     if (!isGateOfficer) {
@@ -1529,6 +1634,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     }
                   } else if (menu['title'] == 'Dashboard Perpustakaan') {
                     Get.to(() => const LibrarianDashboardPage());
+                  } else if (menu['title'] == 'Scan Kunjungan Perpustakaan') {
+                    await _scanLibraryVisitor(context);
                   } else if (menu['title'] == 'Jadwal Mengajar') {
                     Get.to(() => TeacherSchedulePage(teacherId: _teacherDocId!));
                   } else if (menu['title'] == 'Absensi Murid') {
@@ -1585,9 +1692,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 } else if (menu['title'] == 'Pengumuman') {
                   Get.toNamed(AppRoutes.notifications);
                 } else if (menu['title'] == 'Pengaturan Profil') {
-                  Get.to(() => const TeacherSettingsPage());
-
-
+                  await Get.to(() => const TeacherSettingsPage());
+                  _resolveTeacherDocId();
                 } else if (menu['title'] == 'News Feed Sekolah') {
                   Get.toNamed(AppRoutes.comingSoonNewsFeedGuru);
                 } else if (menu['title'] == 'Input Pelanggaran') {
@@ -1835,8 +1941,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               children: [
                 // Mini Logo
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
                     gradient: _schoolLogoBase64 != null
                         ? null
@@ -1845,14 +1951,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: miniLogoBorder,
                       width: 1,
                     ),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(15),
                     child: _schoolLogoBase64 != null
                         ? Image.memory(
                             base64Decode(_schoolLogoBase64!),
@@ -1861,7 +1967,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         : const Icon(
                             Icons.school_rounded,
                             color: Colors.white,
-                            size: 24,
+                            size: 32,
                           ),
                   ),
                 ),

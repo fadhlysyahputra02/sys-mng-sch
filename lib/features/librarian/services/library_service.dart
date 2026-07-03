@@ -95,6 +95,7 @@ class LibraryService {
     required String studentNis,
     required String studentName,
     required String className,
+    String role = 'student',
   }) async {
     if (schoolId.isEmpty) throw 'Sekolah tidak teridentifikasi';
 
@@ -105,6 +106,7 @@ class LibraryService {
       'studentNis': studentNis,
       'studentName': studentName,
       'className': className,
+      'role': role,
       'timestamp': FieldValue.serverTimestamp(),
     });
   }

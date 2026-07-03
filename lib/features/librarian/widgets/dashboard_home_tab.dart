@@ -33,32 +33,40 @@ class DashboardHomeTab extends StatelessWidget {
   void _scanVisitor(BuildContext context) async {
     final result = await Get.to<String>(() => const StudentQrScannerPage(
           title: 'Scan QR Buku Tamu',
-          subtitle: 'Arahkan kamera ke QR Kartu Siswa untuk mencatat kunjungan',
+          subtitle: 'Arahkan kamera ke QR Kartu Siswa/Guru untuk mencatat kunjungan',
         ));
 
     if (result != null && result.isNotEmpty) {
       try {
         final Map<String, dynamic> payload = jsonDecode(result);
-        final studentId = payload['studentId']?.toString() ?? '';
-        final studentNis = payload['nis']?.toString() ?? '';
-        final studentName = payload['nama']?.toString() ?? '';
-        final className = payload['className']?.toString() ?? '-';
+        final isTeacher = payload['role']?.toString().toLowerCase() == 'teacher';
 
-        if (studentId.isEmpty || studentName.isEmpty) {
-          _showNotification('Gagal', 'Data QR Siswa tidak valid.', false);
+        final id = isTeacher 
+            ? (payload['teacherId']?.toString() ?? '')
+            : (payload['studentId']?.toString() ?? '');
+        final nis = isTeacher
+            ? (payload['nip']?.toString() ?? '')
+            : (payload['nis']?.toString() ?? '');
+        final name = payload['nama']?.toString() ?? '';
+        final className = isTeacher ? 'GURU' : (payload['className']?.toString() ?? '-');
+        final role = isTeacher ? 'teacher' : 'student';
+
+        if (id.isEmpty || name.isEmpty) {
+          _showNotification('Gagal', 'Data QR tidak valid.', false);
           return;
         }
 
         await _libraryService.recordVisitor(
-          studentId: studentId,
-          studentNis: studentNis,
-          studentName: studentName,
+          studentId: id,
+          studentNis: nis,
+          studentName: name,
           className: className,
+          role: role,
         );
 
         _showNotification(
           'Berhasil Mencatat Kunjungan',
-          'Selamat datang di perpustakaan, $studentName!',
+          'Selamat datang di perpustakaan, $name!',
           true,
         );
       } catch (e) {
@@ -93,54 +101,99 @@ class DashboardHomeTab extends StatelessWidget {
             child: MotifCard(
               isDark: isDark,
               cardBorderColor: Colors.transparent,
-              cardShadowColor: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+              cardShadowColor: Colors.black.withOpacity(isDark ? 0.25 : 0.08),
               gradient: const LinearGradient(
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)], // Premium rich indigo-violet gradient
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Layanan Perpustakaan Digital',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Kelola katalog buku, sirkulasi peminjaman, serta kehadiran pengunjung dengan mudah dan efisien.',
-                    style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.85)),
-                  ),
-                  const SizedBox(height: 18),
-                  Center(
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 12,
-                      runSpacing: 10,
+                  // Elegant Pill Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        ElevatedButton.icon(
-                          onPressed: () => _scanVisitor(context),
-                          icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-                          label: const Text('Scan QR Pengunjung'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () => onTabChange(2),
-                          icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: Colors.black),
-                          label: const Text('Catat Peminjaman', style: TextStyle(color: Colors.black)),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.black, width: 1.5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        Icon(Icons.stars_rounded, color: Colors.amber, size: 14),
+                        SizedBox(width: 4),
+                        Text(
+                          'Sirkulasi Digital',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 1.0,
                           ),
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Layanan Perpustakaan Digital',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Kelola katalog buku, sirkulasi peminjaman, serta kehadiran pengunjung dengan cepat, mudah, dan efisien.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.88),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => _scanVisitor(context),
+                        icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                        label: const Text(
+                          'Scan QR Pengunjung',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF4F46E5),
+                          elevation: 4,
+                          shadowColor: Colors.black.withOpacity(0.15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => onTabChange(2),
+                        icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: Colors.white),
+                        label: const Text(
+                          'Catat Peminjaman',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.white.withOpacity(0.4), width: 1.5),
+                          backgroundColor: Colors.white.withOpacity(0.12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

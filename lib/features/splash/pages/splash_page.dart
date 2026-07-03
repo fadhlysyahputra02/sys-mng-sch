@@ -213,6 +213,16 @@ class _SplashPageState extends State<SplashPage>
                           AlwaysStoppedAnimation(Color(0xFF8B5CF6)),
                     ),
                   ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'v1.13.1',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: subTextColor,
+                      letterSpacing: 1.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ),

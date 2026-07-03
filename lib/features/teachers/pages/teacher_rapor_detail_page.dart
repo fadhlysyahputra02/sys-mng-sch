@@ -61,11 +61,13 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
   final _raporService = RaporService();
   final _gradeService = GradeService();
 
+  String? _teacherUserId;
+
   bool get _isEditable {
     final user = SessionService.currentUser;
     if (user == null) return false;
     if (user.role != 'teacher') return false;
-    return user.uid == widget.teacherId;
+    return _teacherUserId == user.uid;
   }
 
   // Controllers
@@ -133,6 +135,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       }
       if (teacherDoc.exists) {
         _teacherName = teacherDoc.data()?['nama'] ?? 'Wali Kelas';
+        _teacherUserId = teacherDoc.data()?['uid']?.toString();
       }
 
       // 2. Ambil absensi auto-hitung dari system & data rapor tersimpan jika ada menggunakan semester aktif

@@ -666,8 +666,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               children: [
                 // Mini Logo
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
                     gradient: _schoolLogoBase64 != null
                         ? null
@@ -676,14 +676,14 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: miniLogoBorder,
                       width: 1,
                     ),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(15),
                     child: _schoolLogoBase64 != null
                         ? Image.memory(
                             base64Decode(_schoolLogoBase64!),
@@ -692,7 +692,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                         : const Icon(
                             Icons.school_rounded,
                             color: Colors.white,
-                            size: 24,
+                            size: 32,
                           ),
                   ),
                 ),

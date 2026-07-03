@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../services/library_service.dart';
 import '../../students/pages/student_qr_scanner_page.dart';
+import '../../authentication/widgets/auth_background.dart';
 
 class LoanListTab extends StatefulWidget {
   final bool isDark;
@@ -23,6 +24,7 @@ class _LoanListTabState extends State<LoanListTab> {
   String? _selectedStudentNis;
   String? _selectedStudentName;
   String? _selectedClassName;
+  bool _isTeacherBorrower = false;
 
   String? _selectedBookId;
   String? _selectedBookTitle;
@@ -46,6 +48,7 @@ class _LoanListTabState extends State<LoanListTab> {
     _selectedStudentNis = null;
     _selectedStudentName = null;
     _selectedClassName = null;
+    _isTeacherBorrower = false;
     _selectedBookId = null;
     _selectedBookTitle = null;
     _dueDate = DateTime.now().add(const Duration(days: 7));
@@ -62,23 +65,30 @@ class _LoanListTabState extends State<LoanListTab> {
           final fieldBorder = widget.isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.12);
           final cardBg = widget.isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.02);
 
-          // Handler for QR Scanning inside dialog
+           // Handler for QR Scanning inside dialog
           void scanStudentQr() async {
             final result = await Get.to<String>(() => const StudentQrScannerPage(
                   title: 'Scan QR Peminjam',
-                  subtitle: 'Arahkan kamera ke QR Kartu Siswa',
+                  subtitle: 'Arahkan kamera ke QR Kartu Siswa/Guru',
                 ));
 
             if (result != null && result.isNotEmpty) {
               try {
                 final Map<String, dynamic> payload = jsonDecode(result);
+                final isTeacher = payload['role']?.toString().toLowerCase() == 'teacher';
+
                 setStateDialog(() {
-                  _selectedStudentId = payload['studentId']?.toString() ?? '';
-                  _selectedStudentNis = payload['nis']?.toString() ?? '';
+                  _isTeacherBorrower = isTeacher;
+                  _selectedStudentId = isTeacher 
+                      ? (payload['teacherId']?.toString() ?? '')
+                      : (payload['studentId']?.toString() ?? '');
+                  _selectedStudentNis = isTeacher
+                      ? (payload['nip']?.toString() ?? '')
+                      : (payload['nis']?.toString() ?? '');
                   _selectedStudentName = payload['nama']?.toString() ?? '';
-                  _selectedClassName = payload['className']?.toString() ?? '-';
+                  _selectedClassName = isTeacher ? 'GURU' : (payload['className']?.toString() ?? '-');
                 });
-                _showNotification('Berhasil', 'Siswa $_selectedStudentName teridentifikasi!', true);
+                _showNotification('Berhasil', '${isTeacher ? 'Guru' : 'Siswa'} $_selectedStudentName teridentifikasi!', true);
               } catch (e) {
                 _showNotification('Gagal', 'QR Code tidak dikenali.', false);
               }
@@ -105,19 +115,19 @@ class _LoanListTabState extends State<LoanListTab> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Isi data siswa dan pilih buku yang dipinjam.',
+                      'Isi data peminjam dan pilih buku yang dipinjam.',
                       style: TextStyle(fontSize: 12, color: subTextColor),
                     ),
                     const SizedBox(height: 20),
 
                     // --- SISWA SECTION ---
                     Text(
-                      '1. Identitas Peminjam (Siswa)',
+                      '1. Identitas Peminjam',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
                     ),
                     const SizedBox(height: 8),
                     if (_selectedStudentId != null) ...[
-                      // Display Selected Student Info Card
+                      // Display Selected Borrower Info Card
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -127,7 +137,10 @@ class _LoanListTabState extends State<LoanListTab> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.person_rounded, color: Color(0xFF6366F1)),
+                            Icon(
+                              _isTeacherBorrower ? Icons.school_rounded : Icons.person_rounded,
+                              color: const Color(0xFF6366F1),
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -138,7 +151,9 @@ class _LoanListTabState extends State<LoanListTab> {
                                     style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 13),
                                   ),
                                   Text(
-                                    'NIS: $_selectedStudentNis • Kelas: $_selectedClassName',
+                                    _isTeacherBorrower
+                                        ? 'NIP: $_selectedStudentNis'
+                                        : 'NIS: $_selectedStudentNis • Kelas: $_selectedClassName',
                                     style: TextStyle(color: subTextColor, fontSize: 11),
                                   ),
                                 ],
@@ -151,6 +166,7 @@ class _LoanListTabState extends State<LoanListTab> {
                                   _selectedStudentName = null;
                                   _selectedStudentNis = null;
                                   _selectedClassName = null;
+                                  _isTeacherBorrower = false;
                                 });
                               },
                               icon: const Icon(Icons.close_rounded, color: Colors.red, size: 18),
@@ -477,9 +493,10 @@ class _LoanListTabState extends State<LoanListTab> {
       }
     }
 
-    final dialogBg = widget.isDark ? const Color(0xFF1E1B4B) : Colors.white;
-    final dialogBorder = widget.isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.08);
-    final textColor = widget.isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final bool isDark = AuthBackground.isDarkMode.value;
+    final dialogBg = isDark ? const Color(0xFF1E1B4B) : Colors.white;
+    final dialogBorder = isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.08);
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
     final confirm = await Get.dialog<bool>(
       AlertDialog(
@@ -488,11 +505,14 @@ class _LoanListTabState extends State<LoanListTab> {
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: dialogBorder),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.swap_horiz_rounded, color: Color(0xFF10B981)),
-            SizedBox(width: 10),
-            Text('Pengembalian Buku', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Icon(Icons.swap_horiz_rounded, color: Color(0xFF10B981)),
+            const SizedBox(width: 10),
+            Text(
+              'Pengembalian Buku',
+              style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+            ),
           ],
         ),
         content: Column(
@@ -567,9 +587,10 @@ class _LoanListTabState extends State<LoanListTab> {
   }
 
   void _reportLostBook(String loanId, String bookId, String title, String studentName) async {
-    final dialogBg = widget.isDark ? const Color(0xFF1E1B4B) : Colors.white;
-    final dialogBorder = widget.isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.08);
-    final textColor = widget.isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final bool isDark = AuthBackground.isDarkMode.value;
+    final dialogBg = isDark ? const Color(0xFF1E1B4B) : Colors.white;
+    final dialogBorder = isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.08);
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
     final confirm = await Get.dialog<bool>(
       AlertDialog(

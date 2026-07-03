@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 
@@ -23,12 +25,141 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
   bool _obscureNew = true;
   bool _obscureConfirm = true;
 
+  // ── Foto Profil ─────────────────────────────────────────────────
+  String? _fotoBase64;
+  bool _isUploadingFoto = false;
+  String? _userDocId; // doc id di subcollection teachers/students
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFotoProfil();
+  }
+
   @override
   void dispose() {
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  /// Load foto profil dari Firestore sesuai role user
+  Future<void> _loadFotoProfil() async {
+    final user = SessionService.currentUser;
+    if (user == null) return;
+    try {
+      final role = user.role;
+      final schoolId = user.schoolId;
+      final uid = user.uid;
+
+      if (role == 'teacher' || role == 'officer' || role == 'librarian') {
+        final snap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('teachers')
+            .where('uid', isEqualTo: uid)
+            .limit(1)
+            .get();
+        if (snap.docs.isNotEmpty && mounted) {
+          setState(() {
+            _userDocId = snap.docs.first.id;
+            _fotoBase64 = snap.docs.first.data()['fotoBase64'] as String?;
+          });
+        }
+      } else if (role == 'student') {
+        final snap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('students')
+            .where('uid', isEqualTo: uid)
+            .limit(1)
+            .get();
+        if (snap.docs.isNotEmpty && mounted) {
+          setState(() {
+            _userDocId = snap.docs.first.id;
+            _fotoBase64 = snap.docs.first.data()['fotoBase64'] as String?;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Pilih foto & upload ke Firestore
+  Future<void> _pickAndUploadFoto() async {
+    final user = SessionService.currentUser;
+    if (user == null) return;
+
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 400,
+        maxHeight: 400,
+        imageQuality: 75,
+      );
+      if (image == null) return;
+
+      final bytes = await image.readAsBytes();
+      final base64Str = base64Encode(bytes);
+
+      setState(() => _isUploadingFoto = true);
+
+      final role = user.role;
+      final schoolId = user.schoolId;
+      final uid = user.uid;
+
+      String? docId = _userDocId;
+
+      if (docId == null) {
+        // Cari docId dulu
+        final coll = (role == 'student') ? 'students' : 'teachers';
+        final snap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection(coll)
+            .where('uid', isEqualTo: uid)
+            .limit(1)
+            .get();
+        if (snap.docs.isNotEmpty) {
+          docId = snap.docs.first.id;
+          _userDocId = docId;
+        }
+      }
+
+      if (docId != null) {
+        final coll = (role == 'student') ? 'students' : 'teachers';
+        await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection(coll)
+            .doc(docId)
+            .update({'fotoBase64': base64Str});
+
+        if (mounted) {
+          setState(() {
+            _fotoBase64 = base64Str;
+            _isUploadingFoto = false;
+          });
+          _showNotification(
+            title: 'Berhasil',
+            message: 'Foto profil berhasil diperbarui!',
+            isSuccess: true,
+          );
+        }
+      } else {
+        if (mounted) setState(() => _isUploadingFoto = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingFoto = false);
+        _showNotification(
+          title: 'Gagal',
+          message: 'Gagal mengupload foto: $e',
+          isSuccess: false,
+        );
+      }
+    }
   }
 
   void _showNotification({
@@ -190,7 +321,7 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Info Akun
+                        // ── Foto Profil ──────────────────────────────────────
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
@@ -207,31 +338,137 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
                                     ),
                                   ],
                           ),
-                          child: Row(
+                          child: Column(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.person_rounded, color: Color(0xFF8B5CF6), size: 28),
+                              // Header section title
+                              Row(
+                                children: [
+                                  Icon(Icons.account_circle_rounded, color: const Color(0xFF8B5CF6), size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Foto Profil',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: textPrimaryColor,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      user.nama,
-                                      style: TextStyle(color: textPrimaryColor, fontSize: 18, fontWeight: FontWeight.bold),
+                              const SizedBox(height: 20),
+                              // Avatar + camera button
+                              Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  Container(
+                                    width: 96,
+                                    height: 96,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: _fotoBase64 == null
+                                          ? const LinearGradient(
+                                              colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            )
+                                          : null,
+                                      border: Border.all(
+                                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.5),
+                                        width: 2.5,
+                                      ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      user.email,
-                                      style: TextStyle(color: textSecondaryColor, fontSize: 13),
+                                    child: ClipOval(
+                                      child: _fotoBase64 != null
+                                          ? Image.memory(
+                                              base64Decode(_fotoBase64!),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : const Icon(
+                                              Icons.person_rounded,
+                                              color: Colors.white,
+                                              size: 48,
+                                            ),
                                     ),
-                                  ],
+                                  ),
+                                  // Camera overlay button
+                                  GestureDetector(
+                                    onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
+                                    child: Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+                                        ),
+                                        border: Border.all(color: isDark ? const Color(0xFF0F0C20) : Colors.white, width: 2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: _isUploadingFoto
+                                          ? const Padding(
+                                              padding: EdgeInsets.all(6),
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                              ),
+                                            )
+                                          : const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                user.nama,
+                                style: TextStyle(
+                                  color: textPrimaryColor,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                user.email,
+                                style: TextStyle(color: textSecondaryColor, fontSize: 13),
+                              ),
+                              const SizedBox(height: 12),
+                              // Upload hint
+                              GestureDetector(
+                                onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.upload_rounded,
+                                        color: const Color(0xFF8B5CF6),
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _fotoBase64 == null ? 'Upload Foto Profil' : 'Ganti Foto Profil',
+                                        style: const TextStyle(
+                                          color: Color(0xFF8B5CF6),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],

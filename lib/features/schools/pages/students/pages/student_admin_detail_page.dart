@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../authentication/widgets/auth_background.dart';
 import '../data/student_admin_service.dart';
@@ -16,6 +18,56 @@ class StudentDetailPage extends StatefulWidget {
 class _StudentDetailPageState extends State<StudentDetailPage> {
   late Map<String, dynamic> student;
   final _studentService = StudentService();
+  bool _isUploadingFoto = false;
+
+  Future<void> _pickAndUploadFoto() async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 400,
+        maxHeight: 400,
+        imageQuality: 75,
+      );
+      if (image == null) return;
+
+      setState(() => _isUploadingFoto = true);
+
+      final bytes = await image.readAsBytes();
+      final base64Str = base64Encode(bytes);
+
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(student['schoolId'])
+          .collection('students')
+          .doc(student['studentId'])
+          .update({'fotoBase64': base64Str});
+
+      setState(() {
+        student['fotoBase64'] = base64Str;
+        _isUploadingFoto = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto profil murid berhasil diperbarui!'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingFoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengupload foto: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -764,23 +816,60 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Avatar
-                              Container(
-                                width: 66,
-                                height: 66,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    inisial,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
+                              GestureDetector(
+                                onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
+                                child: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    Container(
+                                      width: 66,
+                                      height: 66,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: student['fotoBase64'] != null && student['fotoBase64'].toString().isNotEmpty
+                                            ? Image.memory(
+                                                base64Decode(student['fotoBase64']),
+                                                fit: BoxFit.cover,
+                                              )
+                                            : Center(
+                                                child: Text(
+                                                  inisial,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 28,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                      ),
                                     ),
-                                  ),
+                                    Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      padding: const EdgeInsets.all(4),
+                                      child: _isUploadingFoto
+                                          ? const SizedBox(
+                                              width: 10,
+                                              height: 10,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 1.5,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0EA5E9)),
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.camera_alt_rounded,
+                                              size: 10,
+                                              color: Color(0xFF0EA5E9),
+                                            ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(width: 18),

@@ -23,6 +23,7 @@ import 'student_attendance_history_page.dart';
 import 'student_grades_page.dart';
 import 'student_tasks_page.dart';
 import '../../exams/pages/student_exams_page.dart';
+import '../../../core/widgets/flip_card.dart';
 import '../../../core/widgets/motif_card.dart';
 import '../../parent/pages/parent_violation_page.dart';
 import 'student_payment_page.dart';
@@ -848,16 +849,10 @@ class _StudentDashboardState extends State<StudentDashboard>
                         if (_schoolLogoBase64 != null &&
                             _schoolLogoBase64!.isNotEmpty) ...[
                           Container(
-                            width: 32,
-                            height: 32,
+                            width: 42,
+                            height: 42,
                             decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(
-                                  0xFF8B5CF6,
-                                ).withValues(alpha: 0.4),
-                                width: 1.5,
-                              ),
+                              borderRadius: BorderRadius.circular(10),
                               boxShadow: [
                                 BoxShadow(
                                   color: const Color(
@@ -867,19 +862,20 @@ class _StudentDashboardState extends State<StudentDashboard>
                                 ),
                               ],
                             ),
-                            child: ClipOval(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(9),
                               child: Image.memory(
                                 base64Decode(_schoolLogoBase64!),
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Icon(
                                   Icons.school_rounded,
-                                  size: 18,
+                                  size: 22,
                                   color: titleColor,
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                         ],
                         Expanded(
                           child: Text(
@@ -924,8 +920,10 @@ class _StudentDashboardState extends State<StudentDashboard>
                             size: 20,
                           ),
                           tooltip: 'Pengaturan',
-                          onPressed: () =>
-                              Get.to(() => const TeacherSettingsPage()),
+                          onPressed: () async {
+                            await Get.to(() => const TeacherSettingsPage());
+                            _resolveStudentDocId();
+                          },
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1047,7 +1045,9 @@ class _StudentDashboardState extends State<StudentDashboard>
                   ),
                 )
               else
-                Container(
+              FlipCard(
+                isDark: isDark,
+                front: Container(
                   padding: const EdgeInsets.all(4), // gradient frame thickness
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -1093,6 +1093,49 @@ class _StudentDashboardState extends State<StudentDashboard>
                     ),
                   ),
                 ),
+                back: Container(
+                  padding: const EdgeInsets.all(4), // gradient frame thickness
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                        blurRadius: 15,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Container(
+                    width: 112,
+                    height: 112,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: _studentData?['fotoBase64'] != null && _studentData!['fotoBase64'].toString().isNotEmpty
+                          ? Image.memory(
+                              base64Decode(_studentData!['fotoBase64']),
+                              fit: BoxFit.cover,
+                            )
+                          : const Center(
+                              child: Icon(
+                                Icons.person_rounded,
+                                color: Color(0xFF8B5CF6),
+                                size: 44,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+
               const SizedBox(width: 20),
               Expanded(
                 child: Column(
