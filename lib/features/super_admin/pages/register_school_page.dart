@@ -22,6 +22,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
   final schoolService = SchoolService();
   final authService = AuthService();
 
+  // Selected plan defaults to free, but no longer customizable in UI
   String selectedPlan = 'free';
   String? generatedAdminCode;
   bool _isLoading = false;
@@ -110,7 +111,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
         namaSekolah: namaSekolah,
         domain: domain,
         kodeAdmin: adminCode,
-        plan: selectedPlan,
+        plan: 'free',
       );
 
       setState(() {
@@ -139,65 +140,43 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
     }
   }
 
-  void _showPlanDialog(Map<String, dynamic> school) {
-    String tempPlan = school['plan'] ?? 'free';
+
+
+  void _showQuotaDialog(Map<String, dynamic> school) {
+    int? tempTeacherQuota = school['teacherQuota'] as int?;
+    int? tempStudentQuota = school['studentQuota'] as int?;
+
+    final teacherController = TextEditingController(
+        text: tempTeacherQuota != null ? tempTeacherQuota.toString() : '');
+    final studentController = TextEditingController(
+        text: tempStudentQuota != null ? tempStudentQuota.toString() : '');
+
+    bool isTeacherUnlimited = tempTeacherQuota == null;
+    bool isStudentUnlimited = tempStudentQuota == null;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF151026),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      isScrollControlled: true,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            Widget planOption(String plan, String label, IconData icon, Color activeColor) {
-              final isSelected = tempPlan == plan;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setModalState(() => tempPlan = plan),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: isSelected ? activeColor.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.02),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSelected ? activeColor : Colors.white.withValues(alpha: 0.1),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          icon,
-                          color: isSelected ? activeColor : Colors.white.withValues(alpha: 0.5),
-                          size: 28,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          label,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }
-
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 28,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'ATUR PAKET LANGGANAN',
+                    'PENGATURAN KUOTA USER',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -207,22 +186,134 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Atur paket langganan untuk ${school['namaSekolah']}',
+                    'Atur batas kuota guru dan murid aktif untuk ${school['namaSekolah']}',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 12,
                     ),
                   ),
                   const SizedBox(height: 24),
+                  
+                  // Kuota Guru
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      planOption('free', 'Free', Icons.star_outline_rounded, Colors.white70),
-                      const SizedBox(width: 8),
-                      planOption('basic', 'Basic', Icons.star_half_rounded, const Color(0xFF3B82F6)),
-                      const SizedBox(width: 8),
-                      planOption('pro', 'Pro', Icons.star_rounded, const Color(0xFFF59E0B)),
+                      const Text(
+                        'Kuota Guru',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          const Text(
+                            'Tidak Terbatas',
+                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                          Checkbox(
+                            value: isTeacherUnlimited,
+                            activeColor: const Color(0xFF8B5CF6),
+                            checkColor: Colors.white,
+                            onChanged: (val) {
+                              setModalState(() {
+                                isTeacherUnlimited = val ?? false;
+                                if (isTeacherUnlimited) {
+                                  teacherController.clear();
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ),
                     ],
                   ),
+                  if (!isTeacherUnlimited) ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: teacherController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Masukkan batas kuota guru...',
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.02),
+                      ),
+                    ),
+                  ],
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Kuota Murid
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Kuota Murid Aktif',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          const Text(
+                            'Tidak Terbatas',
+                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                          Checkbox(
+                            value: isStudentUnlimited,
+                            activeColor: const Color(0xFF8B5CF6),
+                            checkColor: Colors.white,
+                            onChanged: (val) {
+                              setModalState(() {
+                                isStudentUnlimited = val ?? false;
+                                if (isStudentUnlimited) {
+                                  studentController.clear();
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (!isStudentUnlimited) ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: studentController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Masukkan batas kuota murid...',
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.02),
+                      ),
+                    ),
+                  ],
+                  
                   const SizedBox(height: 32),
                   Container(
                     height: 52,
@@ -234,22 +325,50 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                     ),
                     child: ElevatedButton(
                       onPressed: () async {
+                        final teacherText = teacherController.text.trim();
+                        final studentText = studentController.text.trim();
+                        
+                        final int? tQuota = isTeacherUnlimited ? null : int.tryParse(teacherText);
+                        final int? sQuota = isStudentUnlimited ? null : int.tryParse(studentText);
+                        
+                        if (!isTeacherUnlimited && (tQuota == null || tQuota <= 0)) {
+                          _showNotification(
+                            title: 'Gagal',
+                            message: 'Kuota guru harus berupa angka positif',
+                            isSuccess: false,
+                          );
+                          return;
+                        }
+                        
+                        if (!isStudentUnlimited && (sQuota == null || sQuota <= 0)) {
+                          _showNotification(
+                            title: 'Gagal',
+                            message: 'Kuota murid harus berupa angka positif',
+                            isSuccess: false,
+                          );
+                          return;
+                        }
+                        
                         Navigator.pop(context);
                         setState(() => _isLoading = true);
                         try {
-                          await schoolService.updateSchoolPlan(
+                          await schoolService.updateSchoolQuotas(
                             domain: school['domain'],
-                            plan: tempPlan,
+                            teacherQuota: tQuota,
+                            studentQuota: sQuota,
                           );
                           _showNotification(
                             title: 'Berhasil',
-                            message: 'Paket langganan ${school['namaSekolah']} diupdate ke ${tempPlan.toUpperCase()}!',
+                            message: 'Kuota user untuk ${school['namaSekolah']} berhasil disimpan!',
                             isSuccess: true,
                           );
                         } catch (e) {
+                          final cleanMsg = e.toString()
+                              .replaceAll('Exception: ', '')
+                              .replaceAll('Exception ', '');
                           _showNotification(
                             title: 'Gagal',
-                            message: e.toString(),
+                            message: cleanMsg,
                             isSuccess: false,
                           );
                         } finally {
@@ -460,54 +579,347 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
   void _confirmDeleteSchool(Map<String, dynamic> school) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF151026),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
-            SizedBox(width: 8),
-            Text('Hapus Sekolah?', style: TextStyle(color: Colors.white)),
-          ],
-        ),
-        content: Text(
-          'Apakah Anda yakin ingin menghapus sekolah "${school['namaSekolah']}"? Aksi ini akan menghapus semua data sekolah dan pengguna terkait secara permanen.',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal', style: TextStyle(color: Colors.white70)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: const Color(0xFF151026),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Warning icon
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.delete_forever_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 44,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Title
+                const Text(
+                  'Hapus Sekolah?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+
+                // School name badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: const Color(0xFFEF4444).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    school['namaSekolah'] ?? 'Sekolah',
+                    style: const TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Warning description
+                const Text(
+                  'Tindakan ini akan menghapus semua data sekolah, murid, guru, dan riwayat terkait secara PERMANEN dan tidak dapat dikembalikan.',
+                  style: TextStyle(
+                    color: Colors.white60,
+                    fontSize: 13,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white70,
+                          side: BorderSide(color: Colors.white.withOpacity(0.15)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEF4444),
+                          foregroundColor: Colors.white,
+                          shadowColor: Colors.transparent,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          _showSecretCodeVerification(school);
+                        },
+                        child: const Text(
+                          'Lanjutkan',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            onPressed: () async {
-              Navigator.pop(context);
-              setState(() => _isLoading = true);
-              try {
-                await schoolService.deleteSchool(school['domain']);
-                _showNotification(
-                  title: 'Berhasil',
-                  message: 'Sekolah "${school['namaSekolah']}" berhasil dihapus!',
-                  isSuccess: true,
-                );
-              } catch (e) {
-                _showNotification(
-                  title: 'Gagal',
-                  message: e.toString(),
-                  isSuccess: false,
-                );
-              } finally {
-                setState(() => _isLoading = false);
-              }
-            },
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),
-        ],
-      ),
+        );
+      },
+    );
+  }
+
+  void _showSecretCodeVerification(Map<String, dynamic> school) {
+    final codeController = TextEditingController();
+    bool obscureCode = true;
+    String? errorText;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              backgroundColor: const Color(0xFF151026),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Shield icon
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withOpacity(0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.shield_outlined,
+                        color: Color(0xFFF59E0B),
+                        size: 44,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Title
+                    const Text(
+                      'Verifikasi Keamanan',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+
+                    const Text(
+                      'Masukkan kode rahasia Super Admin untuk mengkonfirmasi penghapusan permanen ini.',
+                      style: TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Secret code input
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: errorText != null
+                              ? const Color(0xFFEF4444)
+                              : Colors.white.withOpacity(0.12),
+                        ),
+                      ),
+                      child: TextField(
+                        controller: codeController,
+                        obscureText: obscureCode,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 6,
+                        ),
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          hintText: '••••••',
+                          hintStyle: TextStyle(
+                            color: Colors.white.withOpacity(0.25),
+                            letterSpacing: 6,
+                            fontSize: 18,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.lock_outline_rounded,
+                            color: errorText != null
+                                ? const Color(0xFFEF4444)
+                                : const Color(0xFFF59E0B),
+                            size: 20,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureCode
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: Colors.white38,
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              setModalState(() => obscureCode = !obscureCode);
+                            },
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                        ),
+                        onChanged: (_) {
+                          if (errorText != null) {
+                            setModalState(() => errorText = null);
+                          }
+                        },
+                      ),
+                    ),
+
+                    // Error message
+                    if (errorText != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: Color(0xFFEF4444),
+                            size: 14,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            errorText!,
+                            style: const TextStyle(
+                              color: Color(0xFFEF4444),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    // Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: BorderSide(color: Colors.white.withOpacity(0.15)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            onPressed: () {
+                              codeController.dispose();
+                              Navigator.pop(dialogContext);
+                            },
+                            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEF4444),
+                              foregroundColor: Colors.white,
+                              shadowColor: Colors.transparent,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            onPressed: () async {
+                              const secretCode = '081987';
+                              if (codeController.text.trim() != secretCode) {
+                                setModalState(() {
+                                  errorText = 'Kode rahasia tidak valid!';
+                                });
+                                return;
+                              }
+
+                              // Code correct — proceed
+                              codeController.dispose();
+                              Navigator.pop(dialogContext);
+                              setState(() => _isLoading = true);
+                              try {
+                                await schoolService.deleteSchool(school['domain']);
+                                _showNotification(
+                                  title: 'Berhasil',
+                                  message: 'Sekolah "${school['namaSekolah']}" berhasil dihapus!',
+                                  isSuccess: true,
+                                );
+                              } catch (e) {
+                                _showNotification(
+                                  title: 'Gagal',
+                                  message: e.toString(),
+                                  isSuccess: false,
+                                );
+                              } finally {
+                                setState(() => _isLoading = false);
+                              }
+                            },
+                            child: const Text(
+                              'Hapus',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -555,83 +967,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
     );
   }
 
-  Widget _planCard(String plan, String label, IconData icon, Color activeColor) {
-    final isSelected = selectedPlan == plan;
-    final cardBorder = _isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
-    final unselectedBg = _isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01);
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => selectedPlan = plan),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: isSelected ? activeColor.withValues(alpha: 0.15) : unselectedBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected ? activeColor : cardBorder,
-              width: 1.5,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? activeColor : _textColor.withValues(alpha: 0.5),
-                size: 28,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? _textColor : _textColor.withValues(alpha: 0.5),
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlanBadge(String plan) {
-    Color badgeColor;
-    String label;
-    switch (plan.toLowerCase()) {
-      case 'pro':
-        badgeColor = const Color(0xFFF59E0B);
-        label = 'Pro';
-        break;
-      case 'basic':
-        badgeColor = const Color(0xFF3B82F6);
-        label = 'Basic';
-        break;
-      default:
-        badgeColor = _isDark ? Colors.white54 : Colors.grey;
-        label = 'Free';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: badgeColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: badgeColor,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -855,27 +1191,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
 
           const SizedBox(height: 24),
 
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 12),
-            child: Text(
-              'Paket Langganan',
-              style: TextStyle(
-                color: _subTextColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
 
-          Row(
-            children: [
-              _planCard('free', 'Free', Icons.star_outline_rounded, _isDark ? Colors.white70 : Colors.grey),
-              const SizedBox(width: 8),
-              _planCard('basic', 'Basic', Icons.star_half_rounded, const Color(0xFF3B82F6)),
-              const SizedBox(width: 8),
-              _planCard('pro', 'Pro', Icons.star_rounded, const Color(0xFFF59E0B)),
-            ],
-          ),
 
           const SizedBox(height: 32),
 
@@ -1147,7 +1463,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                                           ),
                                         ),
                                       ),
-                                      _buildPlanBadge(school['plan'] ?? 'free'),
+                                      // Removed plan badge display
                                     ],
                                   ),
                                   const SizedBox(height: 10),
@@ -1213,24 +1529,24 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                                          }
                                        ),
                                        const SizedBox(width: 10),
-                                       // Edit Plan button (Icon Only)
+                                       // Edit Quota button (Icon Only)
                                        Container(
                                          decoration: BoxDecoration(
-                                          color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                                          ),
-                                        ),
-                                        child: IconButton(
-                                          icon: const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 20),
-                                          tooltip: 'Atur Paket Langganan',
-                                          onPressed: () => _showPlanDialog(school),
-                                          constraints: const BoxConstraints(),
-                                          padding: const EdgeInsets.all(8),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
+                                           color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                           shape: BoxShape.circle,
+                                           border: Border.all(
+                                             color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                                           ),
+                                         ),
+                                         child: IconButton(
+                                           icon: const Icon(Icons.admin_panel_settings_rounded, color: Color(0xFF8B5CF6), size: 20),
+                                           tooltip: 'Atur Kuota User',
+                                           onPressed: () => _showQuotaDialog(school),
+                                           constraints: const BoxConstraints(),
+                                           padding: const EdgeInsets.all(8),
+                                         ),
+                                       ),
+                                       const SizedBox(width: 10),
                                       // Reset Password Admin button (Icon Only)
                                       Container(
                                         decoration: BoxDecoration(

@@ -215,4 +215,56 @@ class SchoolService {
       'allowBypassScheduleLock': allowBypass,
     });
   }
+
+  // Update school quotas
+  Future<void> updateSchoolQuotas({
+    required String domain,
+    required int? teacherQuota,
+    required int? studentQuota,
+  }) async {
+    // 1. Validasi kuota guru
+    if (teacherQuota != null) {
+      final countSnap = await _firestore
+          .collection('schools')
+          .doc(domain)
+          .collection('teachers')
+          .count()
+          .get();
+      final currentTeachers = countSnap.count ?? 0;
+      if (teacherQuota < currentTeachers) {
+        throw Exception('Tidak dapat mengubah kuota guru di bawah jumlah guru terdaftar saat ini ($currentTeachers guru).');
+      }
+    }
+
+    // 2. Validasi kuota murid aktif
+    if (studentQuota != null) {
+      final totalSnap = await _firestore
+          .collection('schools')
+          .doc(domain)
+          .collection('students')
+          .count()
+          .get();
+      final totalCount = totalSnap.count ?? 0;
+
+      final graduatedSnap = await _firestore
+          .collection('schools')
+          .doc(domain)
+          .collection('students')
+          .where('lulus', isEqualTo: true)
+          .count()
+          .get();
+      final graduatedCount = graduatedSnap.count ?? 0;
+
+      final activeStudents = totalCount - graduatedCount;
+
+      if (studentQuota < activeStudents) {
+        throw Exception('Tidak dapat mengubah kuota murid di bawah jumlah murid aktif saat ini ($activeStudents murid).');
+      }
+    }
+
+    await _firestore.collection('schools').doc(domain).update({
+      'teacherQuota': teacherQuota,
+      'studentQuota': studentQuota,
+    });
+  }
 }

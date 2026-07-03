@@ -26,6 +26,8 @@ class TUPaymentDashboard extends StatefulWidget {
 class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTickerProviderStateMixin {
   final PaymentService _paymentService = PaymentService();
   late TabController _tabController;
+  final _searchQueryController = TextEditingController();
+  String _searchQuery = '';
 
   // Verification filter status
   String _verificationFilter = 'pending'; // 'all', 'pending', 'paid', 'unpaid'
@@ -39,6 +41,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
   @override
   void dispose() {
     _tabController.dispose();
+    _searchQueryController.dispose();
     super.dispose();
   }
 
@@ -55,89 +58,93 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final textColor = isDark ? Colors.white : Colors.black;
+        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+        final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
 
-    Widget content = Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: widget.hideBackButton
-          ? null
-          : AppBar(
-              title: const Text('Manajemen Keuangan & SPP', style: TextStyle(fontWeight: FontWeight.bold)),
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              leading: IconButton(
-                icon: Icon(Icons.arrow_back_rounded, color: textColor),
-                onPressed: () => Get.back(),
+        Widget content = Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: widget.hideBackButton
+              ? null
+              : AppBar(
+                  title: const Text('Manajemen Keuangan & SPP', style: TextStyle(fontWeight: FontWeight.bold)),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  leading: IconButton(
+                    icon: Icon(Icons.arrow_back_rounded, color: textColor),
+                    onPressed: () => Get.back(),
+                  ),
+                ),
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.hideBackButton) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Manajemen Keuangan & SPP',
+                          style: TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        _buildCreateBillButton(context, isDark),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ] else ...[
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildCreateBillButton(context, isDark),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      indicatorColor: const Color(0xFF10B981),
+                      labelColor: const Color(0xFF10B981),
+                      unselectedLabelColor: textColor.withValues(alpha: 0.6),
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      dividerColor: Colors.transparent,
+                      tabs: const [
+                        Tab(icon: Icon(Icons.list_alt_rounded), text: 'Daftar Tagihan'),
+                        Tab(icon: Icon(Icons.fact_check_rounded), text: 'Verifikasi Pembayaran'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildDaftarTagihanTab(isDark, cardBg, cardBorder, textColor),
+                        _buildVerifikasiTab(isDark, cardBg, cardBorder, textColor),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (widget.hideBackButton) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Manajemen Keuangan & SPP',
-                      style: TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                    _buildCreateBillButton(context, isDark),
-                  ],
-                ),
-                const SizedBox(height: 20),
-              ] else ...[
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _buildCreateBillButton(context, isDark),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: cardBorder),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorColor: const Color(0xFF10B981),
-                  labelColor: const Color(0xFF10B981),
-                  unselectedLabelColor: textColor.withValues(alpha: 0.6),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  tabs: const [
-                    Tab(icon: Icon(Icons.list_alt_rounded), text: 'Daftar Tagihan'),
-                    Tab(icon: Icon(Icons.fact_check_rounded), text: 'Verifikasi Pembayaran'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildDaftarTagihanTab(isDark, cardBg, cardBorder, textColor),
-                    _buildVerifikasiTab(isDark, cardBg, cardBorder, textColor),
-                  ],
-                ),
-              ),
-            ],
           ),
-        ),
-      ),
-    );
+        );
 
-    if (widget.hideBackButton) {
-      return content;
-    } else {
-      return AuthBackground(child: content);
-    }
+        if (widget.hideBackButton) {
+          return content;
+        } else {
+          return AuthBackground(child: content);
+        }
+      },
+    );
   }
 
   Widget _buildCreateBillButton(BuildContext context, bool isDark) {
@@ -291,7 +298,44 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: TextField(
+            controller: _searchQueryController,
+            style: TextStyle(color: textColor),
+            onChanged: (val) {
+              setState(() {
+                _searchQuery = val.trim().toLowerCase();
+              });
+            },
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+              hintText: 'Cari nama murid, kelas, atau tagihan...',
+              hintStyle: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 13),
+              prefixIcon: Icon(Icons.search_rounded, color: textColor.withValues(alpha: 0.6), size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.clear_rounded, color: textColor.withValues(alpha: 0.6), size: 20),
+                      onPressed: () {
+                        _searchQueryController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         Expanded(
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: _verificationFilter == 'pending'
@@ -321,6 +365,19 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
               // Apply manual client-side filter if not querying pending-only
               if (_verificationFilter != 'all' && _verificationFilter != 'pending') {
                 docs = docs.where((doc) => doc.data()['status'] == _verificationFilter).toList();
+              }
+
+              // Apply search query filter
+              if (_searchQuery.isNotEmpty) {
+                docs = docs.where((doc) {
+                  final data = doc.data();
+                  final sName = (data['studentName'] ?? '').toString().toLowerCase();
+                  final cName = (data['className'] ?? '').toString().toLowerCase();
+                  final bTitle = (data['title'] ?? '').toString().toLowerCase();
+                  return sName.contains(_searchQuery) ||
+                      cName.contains(_searchQuery) ||
+                      bTitle.contains(_searchQuery);
+                }).toList();
               }
 
               if (docs.isEmpty) {
@@ -497,7 +554,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
     showDialog(
       context: context,
       builder: (context) {
-        final dialogTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final dialogTextColor = isDark ? Colors.white : Colors.black;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -511,9 +568,10 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                     TextField(
                       controller: titleController,
                       style: TextStyle(color: dialogTextColor),
-                      decoration: const InputDecoration(
-                        labelText: 'Nama Tagihan / Judul',
-                        hintText: 'Contoh: SPP Bulan Juli 2026',
+                      decoration: _dialogInputDeco(
+                        label: 'Nama Tagihan / Judul',
+                        hint: 'Contoh: SPP Bulan Juli 2026',
+                        textColor: dialogTextColor,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -522,9 +580,10 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                       style: TextStyle(color: dialogTextColor),
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(
-                        labelText: 'Nominal (Rupiah)',
-                        hintText: 'Contoh: 250000',
+                      decoration: _dialogInputDeco(
+                        label: 'Nominal (Rupiah)',
+                        hint: 'Contoh: 250000',
+                        textColor: dialogTextColor,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -541,7 +600,11 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                           dropdownColor: isDark ? const Color(0xFF1F2937) : Colors.white,
                           value: selectedClassId,
                           style: TextStyle(color: dialogTextColor),
-                          decoration: const InputDecoration(labelText: 'Ditujukan Kepada'),
+                          decoration: _dialogInputDeco(
+                            label: 'Ditujukan Kepada',
+                            hint: '',
+                            textColor: dialogTextColor,
+                          ),
                           items: [
                             DropdownMenuItem<String>(
                               value: null,
@@ -600,9 +663,11 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                       controller: descController,
                       style: TextStyle(color: dialogTextColor),
                       maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Deskripsi / Instruksi Bayar',
-                        border: OutlineInputBorder(),
+                      decoration: _dialogInputDeco(
+                        label: 'Deskripsi / Instruksi Bayar',
+                        hint: 'Detail rekening transfer dll.',
+                        textColor: dialogTextColor,
+                        hasOutline: true,
                       ),
                     ),
                   ],
@@ -670,7 +735,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
     showDialog(
       context: context,
       builder: (context) {
-        final dialogTextColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final dialogTextColor = isDark ? Colors.white : Colors.black;
         final reasonController = TextEditingController();
 
         return AlertDialog(
@@ -717,9 +782,10 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                 TextField(
                   controller: reasonController,
                   style: TextStyle(color: dialogTextColor),
-                  decoration: const InputDecoration(
-                    labelText: 'Alasan Penolakan (Hanya jika DITOLAK)',
-                    hintText: 'Contoh: Struk tidak jelas atau nominal salah',
+                  decoration: _dialogInputDeco(
+                    label: 'Alasan Penolakan (Hanya jika DITOLAK)',
+                    hint: 'Contoh: Struk tidak jelas atau nominal salah',
+                    textColor: dialogTextColor,
                   ),
                 ),
               ],
@@ -757,6 +823,18 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
               },
               child: const Text('Tolak Pembayaran', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B5CF6),
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.money_rounded, size: 16),
+              onPressed: () async {
+                Navigator.pop(context); // close verification dialog
+                _showDirectPaymentDialog(context, billDocId, studentName, title, amount);
+              },
+              label: const Text('Bayar Tunai', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
               onPressed: () async {
@@ -787,16 +865,21 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
 
   // 3. Dialog Bayar Tunai Langsung
   void _showDirectPaymentDialog(BuildContext context, String billDocId, String studentName, String title, double amount) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogTextColor = isDark ? Colors.white : Colors.black;
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Konfirmasi Bayar Tunai', style: TextStyle(fontWeight: FontWeight.bold)),
+          backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
+          title: Text('Konfirmasi Bayar Tunai', style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold)),
           content: Text(
             'Apakah Anda yakin ingin memverifikasi pembayaran tunai langsung di TU?\n\n'
             'Murid: $studentName\n'
             'Tagihan: $title\n'
             'Nominal: ${_formatRupiah(amount)}',
+            style: TextStyle(color: dialogTextColor.withValues(alpha: 0.8)),
           ),
           actions: [
             TextButton(
@@ -829,6 +912,40 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
           ],
         );
       },
+    );
+  }
+
+  InputDecoration _dialogInputDeco({
+    required String label,
+    required String hint,
+    required Color textColor,
+    bool hasOutline = false,
+  }) {
+    final border = hasOutline
+        ? OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: textColor.withValues(alpha: 0.15)),
+          )
+        : UnderlineInputBorder(
+            borderSide: BorderSide(color: textColor.withValues(alpha: 0.15)),
+          );
+    final focusedBorder = hasOutline
+        ? OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+          )
+        : const UnderlineInputBorder(
+            borderSide: BorderSide(color: Color(0xFF10B981), width: 2),
+          );
+
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: textColor.withValues(alpha: 0.65), fontSize: 13),
+      hintText: hint,
+      hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4), fontSize: 13),
+      enabledBorder: border,
+      focusedBorder: focusedBorder,
+      border: border,
     );
   }
 }

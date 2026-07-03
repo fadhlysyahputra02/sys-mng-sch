@@ -20,11 +20,12 @@ import '../../schools/pages/officers/pages/officer_management_page.dart';
 import '../../schools/pages/teachers/pages/teacher_list_admin_page.dart';
 import '../../schools/pages/students/pages/student_admin_list_page.dart';
 import '../../schools/pages/notifications/notifications_page.dart';
-import '../../shared/coming_soon_page.dart';
+
 
 import '../../../core/widgets/motif_card.dart';
 import 'tu_payment_dashboard.dart';
 import '../../schools/pages/grades/school_admin_grades_page.dart';
+import '../../schools/pages/rapor/school_admin_rapor_page.dart';
 
 class TuDashboardPage extends StatefulWidget {
   const TuDashboardPage({super.key});
@@ -311,7 +312,18 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
       'color': const Color(0xFF10B981),
       'onTap': () => Get.to(() => TUPaymentDashboard(schoolId: schoolId)),
     },
-    
+    {
+      'title': 'E-Rapor',
+      'icon': Icons.description_rounded,
+      'color': const Color(0xFF8B5CF6),
+      'onTap': () => Get.to(() => const SchoolAdminRaporPage()),
+    },
+    {
+      'title': 'Pelanggaran Murid',
+      'icon': Icons.warning_amber_rounded,
+      'color': const Color(0xFFEF4444),
+      'onTap': () => Get.to(() => const AdminViolationsHistoryPage()),
+    },
   ];
 
   @override
@@ -423,8 +435,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                      const SizedBox(height: 4),
-                      _buildPlanBadgeSidebar(),
+                      // Removed plan badge display
                     ],
                   ),
                 ),
@@ -458,6 +469,10 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                 _buildSidebarItem('Rekap Nilai', Icons.grade_rounded, 10, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Pembayaran', Icons.payments_rounded, 12, const Color(0xFF10B981), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('E-Rapor', Icons.description_rounded, 11, const Color(0xFF8B5CF6), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Pelanggaran Murid', Icons.warning_amber_rounded, 13, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
@@ -514,24 +529,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
     );
   }
 
-  Widget _buildPlanBadgeSidebar() {
-    Gradient badgeGradient;
-    if (_plan == 'PRO') {
-      badgeGradient = const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]);
-    } else if (_plan == 'BASIC') {
-      badgeGradient = const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF2563EB)]);
-    } else {
-      badgeGradient = const LinearGradient(colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)]);
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(gradient: badgeGradient, borderRadius: BorderRadius.circular(8)),
-      child: Text(
-        _plan,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 8, letterSpacing: 0.5),
-      ),
-    );
-  }
+
 
   Widget _buildSidebarLogoutItem(bool isDark) {
     return Material(
@@ -578,6 +576,10 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
         return const SchoolAdminGradesPage();
       case 12:
         return TUPaymentDashboard(schoolId: schoolId, hideBackButton: true);
+      case 11:
+        return SchoolAdminRaporPage(hideBackButton: true);
+      case 13:
+        return const AdminViolationsHistoryPage(hideBackButton: true);
       
       default:
         return _buildDesktopDashboardHome(isDark);

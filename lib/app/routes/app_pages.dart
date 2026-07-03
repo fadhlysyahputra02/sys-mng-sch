@@ -144,7 +144,7 @@ class AppPages {
     GetPage(name: AppRoutes.librarianDashboard, page: () => const LibrarianDashboardPage()),
 
     // ─── Route Coming Soon (Placeholder) ─────────────────────────────────────
-    // BASIC: Bank Soal & Quiz Online
+    // Bank Soal & Quiz Online
     GetPage(
       name: AppRoutes.comingSoonBankSoalGuru,
       page: () => const ComingSoonPage(
@@ -153,7 +153,6 @@ class AppPages {
             'Buat dan kelola kumpulan soal serta kuis online untuk siswa.',
         icon: Icons.quiz_rounded,
         iconColor: Color(0xFF14B8A6),
-        packageBadge: 'BASIC',
       ),
     ),
     GetPage(
@@ -164,10 +163,9 @@ class AppPages {
             'Kerjakan kuis dan latihan soal yang diberikan oleh guru.',
         icon: Icons.quiz_rounded,
         iconColor: Color(0xFF14B8A6),
-        packageBadge: 'BASIC',
       ),
     ),
-    // BASIC: Statistik Akademik
+    // Statistik Akademik
     GetPage(
       name: AppRoutes.comingSoonStatistikGuru,
       page: () => const ComingSoonPage(
@@ -176,7 +174,6 @@ class AppPages {
             'Grafik perkembangan nilai dan performa akademik siswa secara visual.',
         icon: Icons.bar_chart_rounded,
         iconColor: Color(0xFF6366F1),
-        packageBadge: 'BASIC',
       ),
     ),
     GetPage(
@@ -187,10 +184,9 @@ class AppPages {
             'Grafik perkembangan nilai dan performa akademik siswa secara visual.',
         icon: Icons.bar_chart_rounded,
         iconColor: Color(0xFF6366F1),
-        packageBadge: 'BASIC',
       ),
     ),
-    // PRO: Surat Izin Digital
+    // Surat Izin Digital
     GetPage(
       name: AppRoutes.comingSoonSuratIzinOrtu,
       page: () => const ComingSoonPage(
@@ -199,7 +195,6 @@ class AppPages {
             'Kirim surat izin atau surat sakit anak secara digital langsung dari aplikasi.',
         icon: Icons.mark_email_read_rounded,
         iconColor: Color(0xFF8B5CF6),
-        packageBadge: 'PRO',
       ),
     ),
     GetPage(
@@ -210,10 +205,9 @@ class AppPages {
             'Lihat status surat izin yang telah dikirimkan oleh orang tua.',
         icon: Icons.mark_email_read_rounded,
         iconColor: Color(0xFF8B5CF6),
-        packageBadge: 'PRO',
       ),
     ),
-    // PRO: News Feed Sekolah
+    // News Feed Sekolah
     GetPage(
       name: AppRoutes.comingSoonNewsFeedAdmin,
       page: () => const ComingSoonPage(
@@ -222,7 +216,6 @@ class AppPages {
             'Media informasi sekolah untuk berbagi berita, pengumuman, prestasi, dan kegiatan sekolah.',
         icon: Icons.newspaper_rounded,
         iconColor: Color(0xFF0EA5E9),
-        packageBadge: 'PRO',
       ),
     ),
     GetPage(
@@ -233,7 +226,6 @@ class AppPages {
             'Media informasi sekolah untuk berbagi berita, pengumuman, prestasi, dan kegiatan sekolah.',
         icon: Icons.newspaper_rounded,
         iconColor: Color(0xFF0EA5E9),
-        packageBadge: 'PRO',
       ),
     ),
     GetPage(
@@ -244,7 +236,6 @@ class AppPages {
             'Media informasi sekolah untuk berbagi berita, pengumuman, prestasi, dan kegiatan sekolah.',
         icon: Icons.newspaper_rounded,
         iconColor: Color(0xFF0EA5E9),
-        packageBadge: 'PRO',
       ),
     ),
     GetPage(
@@ -255,10 +246,9 @@ class AppPages {
             'Media informasi sekolah untuk berbagi berita, pengumuman, prestasi, dan kegiatan sekolah.',
         icon: Icons.newspaper_rounded,
         iconColor: Color(0xFF0EA5E9),
-        packageBadge: 'PRO',
       ),
     ),
-    // PRO: Analitik Sekolah
+    // Analitik Sekolah
     GetPage(
       name: AppRoutes.comingSoonAnalitikAdmin,
       page: () => const ComingSoonPage(
@@ -267,7 +257,6 @@ class AppPages {
             'Dashboard analitik lengkap untuk memantau perkembangan akademik dan kehadiran seluruh siswa.',
         icon: Icons.analytics_rounded,
         iconColor: Color(0xFFEC4899),
-        packageBadge: 'PRO',
       ),
     ),
   ];

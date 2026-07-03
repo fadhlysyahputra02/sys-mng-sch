@@ -488,27 +488,13 @@ class _StudentListPageState extends State<StudentListPage> {
     );
 
     try {
-      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).get();
       if (context.mounted) {
-        Navigator.pop(context); // Tutup loading dialog
-      }
-
-      final plan = (schoolDoc.data()?['plan'] ?? 'FREE').toString().toUpperCase();
-
-      if (plan == 'FREE') {
-        if (context.mounted) {
-          _showPremiumDialog(context);
-        }
-      } else {
-        if (context.mounted) {
-          _showImportGuide(context);
-        }
+        _showImportGuide(context);
       }
     } catch (e) {
       if (context.mounted) {
-        Navigator.pop(context); // Tutup loading dialog jika error
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memeriksa status paket: $e')),
+          SnackBar(content: Text('Gagal: $e')),
         );
       }
     }

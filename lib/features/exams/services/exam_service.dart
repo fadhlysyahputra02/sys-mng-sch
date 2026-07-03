@@ -104,23 +104,34 @@ class ExamService {
     required String studentId,
     required String studentName,
     required Map<String, int> answers,
+    required Map<String, String> essayAnswers,
   }) async {
     int correctCount = 0;
     int incorrectCount = 0;
+    int pointsObtained = 0;
+    int totalMaxPoints = 0;
+    bool hasEssay = false;
 
     for (final q in exam.questions) {
-      final studentAnswer = answers[q.id];
-      if (studentAnswer == q.correctOptionIndex) {
-        correctCount++;
+      totalMaxPoints += q.points;
+      if (q.type == 'essay') {
+        hasEssay = true;
       } else {
-        incorrectCount++;
+        final studentAnswer = answers[q.id];
+        if (studentAnswer == q.correctOptionIndex) {
+          correctCount++;
+          pointsObtained += q.points;
+        } else {
+          incorrectCount++;
+        }
       }
     }
 
-    final double score = exam.questions.isEmpty
+    final double score = totalMaxPoints == 0
         ? 0.0
-        : double.parse(((correctCount / exam.questions.length) * 100).toStringAsFixed(2));
+        : double.parse(((pointsObtained / totalMaxPoints) * 100).toStringAsFixed(2));
 
+    final isGraded = !hasEssay;
     final submissionId = '${exam.id}_$studentId';
     final submission = ExamSubmission(
       id: submissionId,
@@ -128,9 +139,12 @@ class ExamService {
       studentId: studentId,
       studentName: studentName,
       answers: answers,
+      essayAnswers: essayAnswers,
+      essayScores: {},
       correctCount: correctCount,
       incorrectCount: incorrectCount,
       score: score,
+      isGraded: isGraded,
       submittedAt: DateTime.now(),
       tahunAjaran: exam.tahunAjaran,
       semester: exam.semester,
@@ -139,8 +153,8 @@ class ExamService {
     // 1. Simpan dokumen submission pengerjaan ujian
     await _submissionsRef(schoolId).doc(submissionId).set(submission.toFirestore());
 
-    // 2. Jika diaktifkan, otomatis sinkronisasikan nilai ke Buku Nilai (/grades)
-    if (exam.syncToGrades) {
+    // 2. Jika diaktifkan dan sudah selesai dinilai (tidak ada essay), otomatis sinkronisasikan nilai ke Buku Nilai (/grades)
+    if (exam.syncToGrades && isGraded) {
       final gradeDocRef = _firestore
           .collection('schools')
           .doc(schoolId)
@@ -176,6 +190,85 @@ class ExamService {
     }
   }
 
+  /// Guru menilai hasil pengerjaan essay secara manual
+  Future<void> gradeSubmission({
+    required String schoolId,
+    required String submissionId,
+    required Exam exam,
+    required Map<String, int> essayScores,
+  }) async {
+    // 1. Ambil submission yang ada
+    final docSnapshot = await _submissionsRef(schoolId).doc(submissionId).get();
+    if (!docSnapshot.exists) {
+      throw Exception('Submission tidak ditemukan.');
+    }
+    
+    final submission = ExamSubmission.fromFirestore(docSnapshot);
+    
+    // 2. Hitung total poin
+    int pointsObtained = 0;
+    int totalMaxPoints = 0;
+    
+    for (final q in exam.questions) {
+      totalMaxPoints += q.points;
+      if (q.type == 'essay') {
+        final score = essayScores[q.id] ?? 0;
+        pointsObtained += score;
+      } else {
+        // PG
+        final studentAnswer = submission.answers[q.id];
+        if (studentAnswer == q.correctOptionIndex) {
+          pointsObtained += q.points;
+        }
+      }
+    }
+    
+    final double finalScore = totalMaxPoints == 0
+        ? 0.0
+        : double.parse(((pointsObtained / totalMaxPoints) * 100).toStringAsFixed(2));
+        
+    // 3. Update dokumen submission di Firestore
+    await _submissionsRef(schoolId).doc(submissionId).update({
+      'essayScores': essayScores,
+      'score': finalScore,
+      'isGraded': true,
+    });
+    
+    // 4. Jika diaktifkan, sinkronisasikan nilai akhir ke Buku Nilai (/grades)
+    if (exam.syncToGrades) {
+      final gradeDocRef = _firestore
+          .collection('schools')
+          .doc(schoolId)
+          .collection('grades')
+          .doc(exam.id);
+
+      await gradeDocRef.set({
+        'gradeId': exam.id,
+        'schoolId': schoolId,
+        'classId': exam.classId,
+        'className': exam.className,
+        'subjectId': exam.subjectId,
+        'subjectName': exam.subjectName,
+        'teacherId': exam.teacherId,
+        'teacherName': exam.teacherName,
+        'title': exam.title,
+        'category': exam.gradeCategory,
+        'maxScore': 100.0,
+        'date': exam.createdAt.toIso8601String().split('T')[0],
+        'tahunAjaran': exam.tahunAjaran,
+        'semester': exam.semester,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await gradeDocRef.update({
+        'scores.${submission.studentId}': {
+          'score': finalScore,
+          'notes': 'Hasil Ujian Online (Termasuk Essay): ${exam.title}',
+        },
+      });
+    }
+  }
+
   /// Menghapus ujian beserta seluruh hasil pengerjaan & dokumen grades terkait
   Future<void> deleteExam(String schoolId, String examId) async {
     // 1. Update status ujian ke archived
@@ -188,5 +281,13 @@ class ExamService {
         .collection('grades')
         .doc(examId)
         .delete();
+  }
+
+  /// Memperbarui daftar murid yang diizinkan mengikuti ujian susulan
+  Future<void> updateSusulanStudents(
+      String schoolId, String examId, List<String> studentIds) async {
+    await _examsRef(schoolId).doc(examId).update({
+      'susulanStudentIds': studentIds,
+    });
   }
 }

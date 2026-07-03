@@ -164,6 +164,39 @@ class ExcelImportService {
         );
       }
 
+      // Cek kuota guru di sekolah jika diset
+      final schoolDoc = await _db.collection('schools').doc(schoolId).get();
+      if (schoolDoc.exists) {
+        final schoolData = schoolDoc.data();
+        final teacherQuota = schoolData?['teacherQuota'] as int?;
+        if (teacherQuota != null && teacherQuota > 0) {
+          final countSnap = await _db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('teachers')
+              .count()
+              .get();
+          final currentCount = countSnap.count ?? 0;
+          if (currentCount + validatedTeachers.length > teacherQuota) {
+            final slotsLeft = teacherQuota - currentCount;
+            errors.add(
+              '🔒 Batas kuota Guru tercapai!\n'
+              '   • Kapasitas: $teacherQuota guru\n'
+              '   • Terdaftar saat ini: $currentCount guru\n'
+              '   • Slot tersisa: $slotsLeft slot\n'
+              '   • Mencoba mengimpor: ${validatedTeachers.length} guru\n\n'
+              '   Kurangi jumlah data di file Excel atau minta Super Admin untuk meningkatkan kuota.',
+            );
+            return ExcelImportResult(
+              successCount: 0,
+              duplicateCount: 0,
+              failedCount: errors.length,
+              errors: errors,
+            );
+          }
+        }
+      }
+
       // Pass 2: Firestore Insertions
       int success = 0;
       for (int i = 0; i < validatedTeachers.length; i++) {
@@ -334,6 +367,52 @@ class ExcelImportService {
           failedCount: errors.length,
           errors: errors,
         );
+      }
+
+      // Cek kuota murid di sekolah jika diset
+      final schoolDoc = await _db.collection('schools').doc(schoolId).get();
+      if (schoolDoc.exists) {
+        final schoolData = schoolDoc.data();
+        final studentQuota = schoolData?['studentQuota'] as int?;
+        if (studentQuota != null && studentQuota > 0) {
+          // Hitung total murid aktif: Total Murid - Murid Lulus
+          final totalSnap = await _db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('students')
+              .count()
+              .get();
+          final totalCount = totalSnap.count ?? 0;
+
+          final graduatedSnap = await _db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('students')
+              .where('lulus', isEqualTo: true)
+              .count()
+              .get();
+          final graduatedCount = graduatedSnap.count ?? 0;
+
+          final activeCount = totalCount - graduatedCount;
+
+          if (activeCount + validatedStudents.length > studentQuota) {
+            final slotsLeft = studentQuota - activeCount;
+            errors.add(
+              '🔒 Batas kuota Murid aktif tercapai!\n'
+              '   • Kapasitas: $studentQuota murid aktif\n'
+              '   • Aktif saat ini: $activeCount murid\n'
+              '   • Slot tersisa: $slotsLeft slot\n'
+              '   • Mencoba mengimpor: ${validatedStudents.length} murid\n\n'
+              '   Kurangi jumlah data di file Excel atau minta Super Admin untuk meningkatkan kuota.',
+            );
+            return ExcelImportResult(
+              successCount: 0,
+              duplicateCount: 0,
+              failedCount: errors.length,
+              errors: errors,
+            );
+          }
+        }
       }
 
       // Pass 2: Firestore Insertions

@@ -33,6 +33,38 @@ class StudentService {
       throw ('NIS sudah terdaftar');
     }
 
+    // Cek kuota murid di sekolah jika diset
+    final schoolDoc = await _db.collection('schools').doc(schoolId).get();
+    if (schoolDoc.exists) {
+      final schoolData = schoolDoc.data();
+      final studentQuota = schoolData?['studentQuota'] as int?;
+      if (studentQuota != null && studentQuota > 0) {
+        // Hitung total murid aktif: Total Murid - Murid Lulus
+        final totalSnap = await _db
+            .collection('schools')
+            .doc(schoolId)
+            .collection('students')
+            .count()
+            .get();
+        final totalCount = totalSnap.count ?? 0;
+
+        final graduatedSnap = await _db
+            .collection('schools')
+            .doc(schoolId)
+            .collection('students')
+            .where('lulus', isEqualTo: true)
+            .count()
+            .get();
+        final graduatedCount = graduatedSnap.count ?? 0;
+
+        final activeCount = totalCount - graduatedCount;
+
+        if (activeCount >= studentQuota) {
+          throw ('Kuota murid aktif untuk sekolah ini sudah penuh ($studentQuota). Silakan hubungi Super Admin.');
+        }
+      }
+    }
+
     final doc = _db
         .collection('schools')
         .doc(schoolId)

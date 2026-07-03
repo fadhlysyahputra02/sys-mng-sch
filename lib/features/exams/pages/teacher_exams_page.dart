@@ -8,6 +8,8 @@ import '../models/exam_model.dart';
 import '../models/exam_submission_model.dart';
 import '../services/exam_service.dart';
 import 'teacher_create_exam_page.dart';
+import 'teacher_grade_exam_page.dart';
+import '../../students/data/student_service.dart';
 
 class TeacherExamsPage extends StatefulWidget {
   final String teacherId;
@@ -90,6 +92,149 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
         _isLoadingClasses = false;
       });
     }
+  }
+
+  void _manageSusulanStudents(BuildContext context, Exam exam) {
+    final user = SessionService.currentUser!;
+    final checkedStudentIds = List<String>.from(exam.susulanStudentIds).obs;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
+            final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final cardBgColor = isDark ? const Color(0xFF0F0C20) : Colors.white;
+            final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              decoration: BoxDecoration(
+                color: cardBgColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+                border: Border.all(color: cardBorderColor),
+              ),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Atur Ujian Susulan',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: titleColor),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: titleColor),
+                        onPressed: () => Get.back(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Pilih murid yang diizinkan mengikuti ujian susulan ini setelah batas waktu berakhir.',
+                    style: TextStyle(fontSize: 12, color: titleColor.withValues(alpha: 0.6)),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: StudentService().getStudentsByClass(exam.classId, schoolId: user.schoolId),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) {
+                          return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: titleColor)));
+                        }
+
+                        final docs = snapshot.data?.docs ?? [];
+                        if (docs.isEmpty) {
+                          return Center(
+                            child: Text(
+                              'Tidak ada murid di kelas ini.',
+                              style: TextStyle(color: titleColor.withValues(alpha: 0.5)),
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: docs.length,
+                          itemBuilder: (context, index) {
+                            final doc = docs[index];
+                            final studentId = doc.id;
+                            final name = doc.data()['nama'] ?? '';
+
+                            return Obx(() {
+                              final isChecked = checkedStudentIds.contains(studentId);
+                              return CheckboxListTile(
+                                activeColor: const Color(0xFF8B5CF6),
+                                title: Text(name, style: TextStyle(color: titleColor, fontSize: 14)),
+                                value: isChecked,
+                                onChanged: (val) {
+                                  if (val == true) {
+                                    checkedStudentIds.add(studentId);
+                                  } else {
+                                    checkedStudentIds.remove(studentId);
+                                  }
+                                },
+                              );
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          await _examService.updateSusulanStudents(
+                            user.schoolId,
+                            exam.id,
+                            checkedStudentIds.toList(),
+                          );
+                          Get.back();
+                          Get.snackbar(
+                            'Sukses',
+                            'Pengaturan ujian susulan berhasil disimpan.',
+                            backgroundColor: const Color(0xFF10B981),
+                            colorText: Colors.white,
+                          );
+                        } catch (e) {
+                          Get.snackbar(
+                            'Gagal',
+                            'Gagal menyimpan: $e',
+                            backgroundColor: Colors.redAccent,
+                            colorText: Colors.white,
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8B5CF6),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Simpan Pengaturan', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _confirmDeleteExam(BuildContext context, Exam exam) {
@@ -203,50 +348,84 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                     itemBuilder: (context, index) {
                       final sub = submissions[index];
                       final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(sub.submittedAt);
+                      final hasEssay = exam.questions.any((q) => q.type == 'essay');
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: cardBgColor,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: cardBorderColor),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () {
+                              Get.back(); // Close bottom sheet
+                              Get.to(() => TeacherGradeExamPage(
+                                    exam: exam,
+                                    submission: sub,
+                                  ));
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    sub.studentName,
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          sub.studentName,
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Dikumpulkan: $dateStr${exam.questions.any((q) => q.type == 'multiple_choice') ? '\nBenar PG: ${sub.correctCount} | Salah PG: ${sub.incorrectCount}' : ''}',
+                                          style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6), height: 1.4),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Dikumpulkan: $dateStr\nBenar: ${sub.correctCount} | Salah: ${sub.incorrectCount}',
-                                    style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6), height: 1.4),
-                                  ),
+                                  const SizedBox(width: 8),
+                                  if (hasEssay && !sub.isGraded)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Text(
+                                        'Perlu Koreksi',
+                                        style: TextStyle(
+                                          color: Colors.amber,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: (sub.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        '${sub.score.toInt()}',
+                                        style: TextStyle(
+                                          color: sub.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: (sub.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${sub.score.toInt()}',
-                                style: TextStyle(
-                                  color: sub.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       );
                     },
@@ -396,9 +575,19 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
-                                            IconButton(
-                                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
-                                              onPressed: () => _confirmDeleteExam(context, exam),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.people_alt_outlined, color: Color(0xFF8B5CF6), size: 20),
+                                                  onPressed: () => _manageSusulanStudents(context, exam),
+                                                  tooltip: 'Atur Ujian Susulan',
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                                                  onPressed: () => _confirmDeleteExam(context, exam),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),

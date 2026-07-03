@@ -52,8 +52,14 @@ class _AddStudentPageState extends State<AddStudentPage> {
       debugPrint(e.toString());
 
       if (mounted) {
-        final errorMsg = e.toString().replaceAll('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
+        final errorMsg = e.toString().replaceAll('Exception: ', '').replaceAll('Exception ', '');
+        if (errorMsg.contains('Kuota murid')) {
+          final match = RegExp(r'\((\d+)\)').firstMatch(errorMsg);
+          final quotaVal = match != null ? int.tryParse(match.group(1) ?? '0') ?? 0 : 0;
+          _showQuotaFullDialog(context: context, userType: 'Murid', quota: quotaVal);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
+        }
       }
     } finally {
       if (mounted) {
@@ -62,6 +68,125 @@ class _AddStudentPageState extends State<AddStudentPage> {
         });
       }
     }
+  }
+
+  void _showQuotaFullDialog({
+    required BuildContext context,
+    required String userType,
+    required int quota,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subTextColor = isDark
+            ? Colors.white70
+            : const Color(0xFF1E1B4B).withOpacity(0.65);
+
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          backgroundColor: isDark ? const Color(0xFF151026) : Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon badge
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.lock_outline_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 44,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Title
+                Text(
+                  'Batas Kuota $userType Tercapai',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+
+                // Quota capacity pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: const Color(0xFFEF4444).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    'Kapasitas: $quota $userType Aktif',
+                    style: const TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Description
+                Text(
+                  'Sekolah Anda telah mencapai batas maksimal pengguna $userType yang ditetapkan oleh Super Admin. Pendaftaran $userType baru tidak dapat dilakukan saat ini.',
+                  style: TextStyle(
+                    color: subTextColor,
+                    fontSize: 13,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444).withOpacity(0.1),
+                      foregroundColor: const Color(0xFFEF4444),
+                      shadowColor: Colors.transparent,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: const Color(0xFFEF4444).withOpacity(0.3),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Mengerti',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -148,12 +273,12 @@ class _AddStudentPageState extends State<AddStudentPage> {
                                     children: [
                                       Text(
                                         'Registrasi Murid Baru',
-                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                                        style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Murid terdaftar dapat login menggunakan NIS ini.',
-                                        style: TextStyle(fontSize: 12, color: subTextColor),
+                                        'Masukkan detail identitas siswa di bawah ini.',
+                                        style: TextStyle(color: subTextColor, fontSize: 11),
                                       ),
                                     ],
                                   ),
@@ -161,140 +286,146 @@ class _AddStudentPageState extends State<AddStudentPage> {
                               ],
                             ),
                           ),
-
                           const SizedBox(height: 20),
 
-                          // Form fields
                           _buildField(
                             controller: namaController,
                             label: 'Nama Lengkap',
-                            icon: Icons.person_outline_rounded,
+                            icon: Icons.person_rounded,
                             isDark: isDark,
                             textColor: textColor,
                             subTextColor: subTextColor,
                             cardBgColor: cardBgColor,
                             borderColor: borderColor,
-                            validator: (v) => (v == null || v.isEmpty) ? 'Nama wajib diisi' : null,
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return 'Nama tidak boleh kosong';
+                              }
+                              return null;
+                            },
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
+
                           _buildField(
                             controller: nisController,
-                            label: 'NIS (Nomor Induk Siswa)',
-                            icon: Icons.badge_outlined,
+                            label: 'Nomor Induk Siswa (NIS)',
+                            icon: Icons.badge_rounded,
                             keyboardType: TextInputType.number,
                             isDark: isDark,
                             textColor: textColor,
                             subTextColor: subTextColor,
                             cardBgColor: cardBgColor,
                             borderColor: borderColor,
-                            validator: (v) => (v == null || v.isEmpty) ? 'NIS wajib diisi' : null,
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return 'NIS tidak boleh kosong';
+                              }
+                              return null;
+                            },
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
+
+                          // Dropdown gender
                           Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                             decoration: BoxDecoration(
                               color: cardBgColor,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: borderColor),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                             child: DropdownButtonFormField<String>(
                               value: _selectedGender,
+                              style: TextStyle(color: textColor, fontSize: 15),
+                              dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
                               decoration: InputDecoration(
                                 labelText: 'Jenis Kelamin',
                                 labelStyle: TextStyle(color: subTextColor, fontSize: 14),
                                 prefixIcon: const Icon(Icons.wc_rounded, color: Color(0xFF0EA5E9), size: 20),
                                 border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               ),
-                              dropdownColor: isDark ? const Color(0xFF1E1B4B) : Colors.white,
-                              style: TextStyle(color: textColor, fontSize: 15),
-                              items: ['Laki-laki', 'Perempuan'].map((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(value),
+                              items: ['Laki-laki', 'Perempuan'].map((g) {
+                                return DropdownMenuItem(
+                                  value: g,
+                                  child: Text(g, style: TextStyle(color: textColor)),
                                 );
                               }).toList(),
-                              onChanged: (newValue) {
+                              onChanged: (val) {
                                 setState(() {
-                                  _selectedGender = newValue;
+                                  _selectedGender = val;
                                 });
                               },
-                              validator: (v) => (v == null || v.isEmpty) ? 'Pilih jenis kelamin' : null,
+                              validator: (val) => val == null ? 'Pilih jenis kelamin' : null,
                             ),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
+
                           _buildField(
-                            controller: addressController,
-                            label: 'Alamat',
-                            icon: Icons.home_outlined,
+                            controller: tanggalLahirController,
+                            label: 'Tanggal Lahir (DD-MM-YYYY)',
+                            icon: Icons.calendar_today_rounded,
                             isDark: isDark,
                             textColor: textColor,
                             subTextColor: subTextColor,
                             cardBgColor: cardBgColor,
                             borderColor: borderColor,
-                            maxLines: 3,
-                          ),
-                          const SizedBox(height: 14),
-                          GestureDetector(
-                            onTap: () async {
-                              final pickedDate = await showDatePicker(
-                                context: context,
-                                initialDate: DateTime(2010),
-                                firstDate: DateTime(1990),
-                                lastDate: DateTime.now(),
-                                builder: (context, child) {
-                                  return Theme(
-                                    data: Theme.of(context).copyWith(
-                                      colorScheme: ColorScheme.fromSeed(
-                                        seedColor: const Color(0xFF0EA5E9),
-                                        brightness: isDark ? Brightness.dark : Brightness.light,
-                                      ),
-                                    ),
-                                    child: child!,
-                                  );
-                                },
-                              );
-                              if (pickedDate != null) {
-                                tanggalLahirController.text = "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return 'Tanggal lahir tidak boleh kosong';
                               }
+                              // Simple date regex check (DD-MM-YYYY)
+                              final reg = RegExp(r'^\d{2}-\d{2}-\d{4}$');
+                              if (!reg.hasMatch(val.trim())) {
+                                return 'Format harus DD-MM-YYYY (contoh: 15-08-2008)';
+                              }
+                              return null;
                             },
-                            child: AbsorbPointer(
-                              child: _buildField(
-                                controller: tanggalLahirController,
-                                label: 'Tanggal Lahir',
-                                icon: Icons.calendar_month_rounded,
-                                isDark: isDark,
-                                textColor: textColor,
-                                subTextColor: subTextColor,
-                                cardBgColor: cardBgColor,
-                                borderColor: borderColor,
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Tanggal lahir wajib diisi' : null,
-                              ),
-                            ),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
+
                           _buildField(
                             controller: angkatanController,
-                            label: 'Angkatan Masuk (Tahun)',
-                            icon: Icons.calendar_today_rounded,
+                            label: 'Tahun Angkatan',
+                            icon: Icons.school_rounded,
                             keyboardType: TextInputType.number,
                             isDark: isDark,
                             textColor: textColor,
                             subTextColor: subTextColor,
                             cardBgColor: cardBgColor,
                             borderColor: borderColor,
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Angkatan wajib diisi';
-                              if (int.tryParse(v.trim()) == null) return 'Angkatan harus berupa tahun (angka)';
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return 'Tahun angkatan tidak boleh kosong';
+                              }
+                              final year = int.tryParse(val.trim());
+                              if (year == null || year < 1900 || year > 2100) {
+                                return 'Tahun angkatan tidak valid';
+                              }
                               return null;
                             },
                           ),
+                          const SizedBox(height: 16),
 
+                          _buildField(
+                            controller: addressController,
+                            label: 'Alamat Rumah',
+                            icon: Icons.home_rounded,
+                            maxLines: 3,
+                            isDark: isDark,
+                            textColor: textColor,
+                            subTextColor: subTextColor,
+                            cardBgColor: cardBgColor,
+                            borderColor: borderColor,
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return 'Alamat tidak boleh kosong';
+                              }
+                              return null;
+                            },
+                          ),
                           const SizedBox(height: 32),
 
-                          // Submit button
+                          // Button
                           Container(
-                            height: 54,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
                                 colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],

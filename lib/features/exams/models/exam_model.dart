@@ -5,12 +5,16 @@ class ExamQuestion {
   final String questionText;
   final List<String> options;
   final int correctOptionIndex;
+  final String type; // 'multiple_choice' or 'essay'
+  final int points;
 
   ExamQuestion({
     required this.id,
     required this.questionText,
     required this.options,
     required this.correctOptionIndex,
+    this.type = 'multiple_choice',
+    this.points = 10,
   });
 
   factory ExamQuestion.fromMap(Map<String, dynamic> map) {
@@ -19,6 +23,8 @@ class ExamQuestion {
       questionText: map['questionText'] ?? '',
       options: List<String>.from(map['options'] ?? []),
       correctOptionIndex: map['correctOptionIndex'] ?? 0,
+      type: map['type'] ?? 'multiple_choice',
+      points: map['points'] ?? 10,
     );
   }
 
@@ -28,6 +34,8 @@ class ExamQuestion {
       'questionText': questionText,
       'options': options,
       'correctOptionIndex': correctOptionIndex,
+      'type': type,
+      'points': points,
     };
   }
 }
@@ -51,6 +59,7 @@ class Exam {
   final DateTime dueDate;
   final String status;
   final List<ExamQuestion> questions;
+  final List<String> susulanStudentIds;
 
   Exam({
     required this.id,
@@ -71,6 +80,7 @@ class Exam {
     required this.dueDate,
     required this.status,
     required this.questions,
+    this.susulanStudentIds = const [],
   });
 
   factory Exam.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -98,6 +108,7 @@ class Exam {
       dueDate: (data['dueDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       status: data['status'] ?? 'active',
       questions: questionsList,
+      susulanStudentIds: List<String>.from(data['susulanStudentIds'] ?? []),
     );
   }
 
@@ -120,6 +131,7 @@ class Exam {
       'dueDate': Timestamp.fromDate(dueDate),
       'status': status,
       'questions': questions.map((q) => q.toMap()).toList(),
+      'susulanStudentIds': susulanStudentIds,
     };
   }
 }

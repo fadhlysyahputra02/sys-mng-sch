@@ -59,6 +59,8 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
         'questionController': TextEditingController(),
         'options': List.generate(4, (_) => TextEditingController()),
         'correctIndex': 0,
+        'type': 'multiple_choice',
+        'pointsController': TextEditingController(text: '10'),
       });
     });
   }
@@ -113,6 +115,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     setState(() {
       final q = _questionsData.removeAt(index);
       q['questionController'].dispose();
+      q['pointsController'].dispose();
       for (final ctrl in (q['options'] as List<TextEditingController>)) {
         ctrl.dispose();
       }
@@ -210,15 +213,26 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
       for (int i = 0; i < _questionsData.length; i++) {
         final qMap = _questionsData[i];
         final qText = (qMap['questionController'] as TextEditingController).text.trim();
-        final List<String> optList = (qMap['options'] as List<TextEditingController>)
-            .map((ctrl) => ctrl.text.trim())
-            .toList();
+        final type = qMap['type'] as String? ?? 'multiple_choice';
+        final points = int.tryParse((qMap['pointsController'] as TextEditingController).text.trim()) ?? 10;
+
+        List<String> optList = [];
+        int correctIdx = 0;
+
+        if (type == 'multiple_choice') {
+          optList = (qMap['options'] as List<TextEditingController>)
+              .map((ctrl) => ctrl.text.trim())
+              .toList();
+          correctIdx = qMap['correctIndex'] as int;
+        }
 
         questionsList.add(ExamQuestion(
           id: 'q_${i + 1}_${DateTime.now().millisecondsSinceEpoch}',
           questionText: qText,
           options: optList,
-          correctOptionIndex: qMap['correctIndex'] as int,
+          correctOptionIndex: correctIdx,
+          type: type,
+          points: points,
         ));
       }
 
@@ -267,6 +281,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     _durationController.dispose();
     for (final q in _questionsData) {
       q['questionController'].dispose();
+      q['pointsController'].dispose();
       for (final ctrl in (q['options'] as List<TextEditingController>)) {
         ctrl.dispose();
       }
@@ -279,6 +294,13 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
+        int totalExamPoints = 0;
+        for (final q in _questionsData) {
+          final ptsVal = (q['pointsController'] as TextEditingController).text.trim();
+          final pts = int.tryParse(ptsVal) ?? 0;
+          totalExamPoints += pts;
+        }
+
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -634,7 +656,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    'Soal Ujian Pilihan Ganda',
+                                    'Daftar Soal Ujian',
                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: titleColor),
                                   ),
                                 ],
@@ -649,6 +671,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                   final qMap = _questionsData[index];
                                   final qCtrl = qMap['questionController'] as TextEditingController;
                                   final optCtrls = qMap['options'] as List<TextEditingController>;
+                                  final qType = qMap['type'] as String? ?? 'multiple_choice';
 
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 20),
@@ -675,7 +698,85 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                           ],
                                         ),
                                         const SizedBox(height: 8),
+                                        // Input Tipe & Poin Soal
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              flex: 2,
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text('Tipe Soal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: titleColor)),
+                                                  const SizedBox(height: 6),
+                                                  DropdownButtonFormField<String>(
+                                                    value: qType,
+                                                    dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                                    decoration: InputDecoration(
+                                                      fillColor: inputFillColor,
+                                                      filled: true,
+                                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                                      enabledBorder: OutlineInputBorder(
+                                                        borderRadius: BorderRadius.circular(10),
+                                                        borderSide: BorderSide(color: cardBorderColor),
+                                                      ),
+                                                    ),
+                                                    style: TextStyle(color: titleColor, fontSize: 13),
+                                                    items: const [
+                                                      DropdownMenuItem(value: 'multiple_choice', child: Text('Pilihan Ganda')),
+                                                      DropdownMenuItem(value: 'essay', child: Text('Essay')),
+                                                    ],
+                                                    onChanged: (val) {
+                                                      if (val != null) {
+                                                        setState(() {
+                                                          qMap['type'] = val;
+                                                        });
+                                                      }
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              flex: 1,
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text('Poin Soal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: titleColor)),
+                                                  const SizedBox(height: 6),
+                                                  TextFormField(
+                                                    controller: qMap['pointsController'] as TextEditingController,
+                                                    keyboardType: TextInputType.number,
+                                                    style: TextStyle(color: titleColor, fontSize: 13),
+                                                    decoration: InputDecoration(
+                                                      fillColor: inputFillColor,
+                                                      filled: true,
+                                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                                      enabledBorder: OutlineInputBorder(
+                                                        borderRadius: BorderRadius.circular(10),
+                                                        borderSide: BorderSide(color: cardBorderColor),
+                                                      ),
+                                                    ),
+                                                    onChanged: (val) {
+                                                      setState(() {});
+                                                    },
+                                                    validator: (val) {
+                                                      final p = int.tryParse(val ?? '');
+                                                      if (p == null || p <= 0) return 'Invalid';
+                                                      return null;
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
                                         // Input Pertanyaan
+                                        Text('Pertanyaan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: titleColor)),
+                                        const SizedBox(height: 6),
                                         TextFormField(
                                           controller: qCtrl,
                                           maxLines: 2,
@@ -694,114 +795,116 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                           ),
                                           validator: (val) => val == null || val.trim().isEmpty ? 'Soal tidak boleh kosong' : null,
                                         ),
-                                        const SizedBox(height: 16),
 
-                                        // Input Pilihan Jawaban (Dinamis)
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              'Pilihan Jawaban (tandai jawaban benar)',
-                                              style: TextStyle(fontWeight: FontWeight.w600, color: subTextColor, fontSize: 11),
-                                            ),
-                                            Row(
-                                              children: [
-                                                // Tombol hapus opsi
-                                                if (optCtrls.length > 2)
-                                                  GestureDetector(
-                                                    onTap: () => _removeOption(index, optCtrls.length - 1),
-                                                    child: Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.redAccent.withValues(alpha: 0.1),
-                                                        borderRadius: BorderRadius.circular(6),
-                                                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-                                                      ),
-                                                      child: const Icon(Icons.remove_rounded, size: 14, color: Colors.redAccent),
-                                                    ),
-                                                  ),
-                                                const SizedBox(width: 6),
-                                                // Tombol tambah opsi
-                                                if (optCtrls.length < 10)
-                                                  GestureDetector(
-                                                    onTap: () => _addOption(index),
-                                                    child: Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                                                        borderRadius: BorderRadius.circular(6),
-                                                        border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
-                                                      ),
-                                                      child: const Icon(Icons.add_rounded, size: 14, color: Color(0xFF8B5CF6)),
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-
-                                        Column(
-                                          children: List.generate(optCtrls.length, (optIdx) {
-                                            final charLabel = String.fromCharCode(65 + optIdx); // A, B, C, D, E, ...
-                                            final isCorrect = qMap['correctIndex'] == optIdx;
-
-                                            return Padding(
-                                              padding: const EdgeInsets.only(bottom: 8.0),
-                                              child: Row(
+                                        // Input Pilihan Jawaban (Hanya jika Pilihan Ganda)
+                                        if (qType == 'multiple_choice') ...[
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                'Pilihan Jawaban (tandai jawaban benar)',
+                                                style: TextStyle(fontWeight: FontWeight.w600, color: subTextColor, fontSize: 11),
+                                              ),
+                                              Row(
                                                 children: [
-                                                  Radio<int>(
-                                                    value: optIdx,
-                                                    groupValue: qMap['correctIndex'] as int,
-                                                    activeColor: const Color(0xFF8B5CF6),
-                                                    onChanged: (val) {
-                                                      if (val != null) {
-                                                        setState(() {
-                                                          qMap['correctIndex'] = val;
-                                                        });
-                                                      }
-                                                    },
-                                                  ),
-                                                  Expanded(
-                                                    child: TextFormField(
-                                                      controller: optCtrls[optIdx],
-                                                      style: TextStyle(
-                                                        color: titleColor,
-                                                        fontSize: 13,
-                                                        fontWeight: isCorrect ? FontWeight.bold : FontWeight.normal,
-                                                      ),
-                                                      decoration: InputDecoration(
-                                                        hintText: 'Pilihan $charLabel',
-                                                        hintStyle: TextStyle(color: subTextColor, fontSize: 12),
-                                                        fillColor: isCorrect
-                                                            ? const Color(0xFF8B5CF6).withValues(alpha: 0.08)
-                                                            : inputFillColor,
-                                                        filled: true,
-                                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                                        enabledBorder: OutlineInputBorder(
-                                                          borderRadius: BorderRadius.circular(10),
-                                                          borderSide: BorderSide(
-                                                            color: isCorrect ? const Color(0xFF8B5CF6) : cardBorderColor,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      validator: (val) => val == null || val.trim().isEmpty ? 'Pilihan tidak boleh kosong' : null,
-                                                    ),
-                                                  ),
-                                                  // Tombol hapus opsi individual
+                                                  // Tombol hapus opsi
                                                   if (optCtrls.length > 2)
-                                                    IconButton(
-                                                      icon: const Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
-                                                      onPressed: () => _removeOption(index, optIdx),
-                                                      padding: EdgeInsets.zero,
-                                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                    GestureDetector(
+                                                      onTap: () => _removeOption(index, optCtrls.length - 1),
+                                                      child: Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.redAccent.withValues(alpha: 0.1),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                                                        ),
+                                                        child: const Icon(Icons.remove_rounded, size: 14, color: Colors.redAccent),
+                                                      ),
+                                                    ),
+                                                  const SizedBox(width: 6),
+                                                  // Tombol tambah opsi
+                                                  if (optCtrls.length < 10)
+                                                    GestureDetector(
+                                                      onTap: () => _addOption(index),
+                                                      child: Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                          border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                                                        ),
+                                                        child: const Icon(Icons.add_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                                                      ),
                                                     ),
                                                 ],
                                               ),
-                                            );
-                                          }),
-                                        ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+
+                                          Column(
+                                            children: List.generate(optCtrls.length, (optIdx) {
+                                              final charLabel = String.fromCharCode(65 + optIdx); // A, B, C, D, E, ...
+                                              final isCorrect = qMap['correctIndex'] == optIdx;
+
+                                              return Padding(
+                                                padding: const EdgeInsets.only(bottom: 8.0),
+                                                child: Row(
+                                                  children: [
+                                                    Radio<int>(
+                                                      value: optIdx,
+                                                      groupValue: qMap['correctIndex'] as int,
+                                                      activeColor: const Color(0xFF8B5CF6),
+                                                      onChanged: (val) {
+                                                        if (val != null) {
+                                                          setState(() {
+                                                            qMap['correctIndex'] = val;
+                                                          });
+                                                        }
+                                                      },
+                                                    ),
+                                                    Expanded(
+                                                      child: TextFormField(
+                                                        controller: optCtrls[optIdx],
+                                                        style: TextStyle(
+                                                          color: titleColor,
+                                                          fontSize: 13,
+                                                          fontWeight: isCorrect ? FontWeight.bold : FontWeight.normal,
+                                                        ),
+                                                        decoration: InputDecoration(
+                                                          hintText: 'Pilihan $charLabel',
+                                                          hintStyle: TextStyle(color: subTextColor, fontSize: 12),
+                                                          fillColor: isCorrect
+                                                              ? const Color(0xFF8B5CF6).withValues(alpha: 0.08)
+                                                              : inputFillColor,
+                                                          filled: true,
+                                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                                          enabledBorder: OutlineInputBorder(
+                                                            borderRadius: BorderRadius.circular(10),
+                                                            borderSide: BorderSide(
+                                                              color: isCorrect ? const Color(0xFF8B5CF6) : cardBorderColor,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        validator: (val) => val == null || val.trim().isEmpty ? 'Pilihan tidak boleh kosong' : null,
+                                                      ),
+                                                    ),
+                                                    // Tombol hapus opsi individual
+                                                    if (optCtrls.length > 2)
+                                                      IconButton(
+                                                        icon: const Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
+                                                        onPressed: () => _removeOption(index, optIdx),
+                                                        padding: EdgeInsets.zero,
+                                                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                      ),
+                                                  ],
+                                                ),
+                                              );
+                                            }),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   );
@@ -823,6 +926,37 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                 ),
                               ),
                               const SizedBox(height: 32),
+
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Total Poin Ujian:',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: titleColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      '$totalExamPoints Poin',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Color(0xFF8B5CF6),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 24),
 
                               // Submit Button
                               ElevatedButton(

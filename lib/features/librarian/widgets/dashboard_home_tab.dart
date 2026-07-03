@@ -104,19 +104,12 @@ class DashboardHomeTab extends StatelessWidget {
                 children: [
                   const Text(
                     'Layanan Perpustakaan Digital',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Kelola katalog buku, sirkulasi peminjaman, serta kehadiran pengunjung dengan mudah dan efisien.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.black.withOpacity(0.85),
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.85)),
                   ),
                   const SizedBox(height: 18),
                   Center(
@@ -132,33 +125,29 @@ class DashboardHomeTab extends StatelessWidget {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
                         ),
                         OutlinedButton.icon(
-                          onPressed: () => onTabChange(2), // Switch to Loans Tab
+                          onPressed: () => onTabChange(2),
                           icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: Colors.black),
                           label: const Text('Catat Peminjaman', style: TextStyle(color: Colors.black)),
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.black, width: 1.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
                 ],
               ),
             ),
           ),
 
-          // Stream Metrics
+          // Metrics
           StreamBuilder<QuerySnapshot>(
             stream: _libraryService.getBooks(),
             builder: (context, booksSnapshot) {
@@ -169,16 +158,14 @@ class DashboardHomeTab extends StatelessWidget {
                     stream: _libraryService.getVisitors(),
                     builder: (context, visitorsSnapshot) {
                       final totalBooks = booksSnapshot.data?.docs.length ?? 0;
-                      
                       final activeLoans = (loansSnapshot.data?.docs ?? [])
                           .where((doc) => doc['status'] == 'Dipinjam')
                           .length;
-
                       final todayVisitors = (visitorsSnapshot.data?.docs ?? [])
                           .where((doc) {
-                            final timestamp = doc['timestamp'] as Timestamp?;
-                            if (timestamp == null) return false;
-                            return _isToday(timestamp.toDate());
+                            final ts = doc['timestamp'] as Timestamp?;
+                            if (ts == null) return false;
+                            return _isToday(ts.toDate());
                           })
                           .length;
 
@@ -190,24 +177,9 @@ class DashboardHomeTab extends StatelessWidget {
                         mainAxisSpacing: 16,
                         childAspectRatio: 2.2,
                         children: [
-                          _buildMetricCard(
-                            title: 'Katalog Buku',
-                            value: '$totalBooks Buku',
-                            icon: Icons.menu_book_rounded,
-                            color: const Color(0xFF6366F1),
-                          ),
-                          _buildMetricCard(
-                            title: 'Peminjaman Aktif',
-                            value: '$activeLoans Transaksi',
-                            icon: Icons.swap_horiz_rounded,
-                            color: const Color(0xFF10B981),
-                          ),
-                          _buildMetricCard(
-                            title: 'Pengunjung Hari Ini',
-                            value: '$todayVisitors Siswa',
-                            icon: Icons.people_rounded,
-                            color: const Color(0xFFF59E0B),
-                          ),
+                          _buildMetricCard(title: 'Katalog Buku', value: '$totalBooks Buku', icon: Icons.menu_book_rounded, color: const Color(0xFF6366F1)),
+                          _buildMetricCard(title: 'Peminjaman Aktif', value: '$activeLoans Transaksi', icon: Icons.swap_horiz_rounded, color: const Color(0xFF10B981)),
+                          _buildMetricCard(title: 'Pengunjung Hari Ini', value: '$todayVisitors Siswa', icon: Icons.people_rounded, color: const Color(0xFFF59E0B)),
                         ],
                       );
                     },
@@ -218,17 +190,64 @@ class DashboardHomeTab extends StatelessWidget {
           ),
 
           const SizedBox(height: 32),
+
+          // Notifikasi Buku Terlambat
+          StreamBuilder<QuerySnapshot>(
+            stream: _libraryService.getLoans(),
+            builder: (context, snapshot) {
+              final overdue = (snapshot.data?.docs ?? []).where((doc) {
+                final d = doc.data() as Map<String, dynamic>;
+                if (d['status'] != 'Dipinjam') return false;
+                final dueDate = (d['dueDate'] as Timestamp?)?.toDate();
+                return dueDate != null && DateTime.now().isAfter(dueDate);
+              }).toList();
+
+              if (overdue.isEmpty) return const SizedBox.shrink();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.notifications_active_rounded, color: Colors.red, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Buku Belum Dikembalikan (${overdue.length})',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Buku berikut telah melewati tanggal pengembalian.',
+                    style: TextStyle(fontSize: 12, color: subtitleColor),
+                  ),
+                  const SizedBox(height: 12),
+                  ...overdue.map((doc) {
+                    final d = doc.data() as Map<String, dynamic>;
+                    final dueDate = (d['dueDate'] as Timestamp?)!.toDate();
+                    final daysLate = DateTime.now().difference(dueDate).inDays;
+                    return _buildOverdueBanner(
+                      bookTitle: d['bookTitle'] ?? '-',
+                      studentName: d['studentName'] ?? '-',
+                      className: d['className'] ?? '-',
+                      daysLate: daysLate < 1 ? 1 : daysLate,
+                      textColor: textColor,
+                    );
+                  }),
+                  const SizedBox(height: 20),
+                ],
+              );
+            },
+          ),
+
+          // Kunjungan Hari Ini
           Text(
             'Kunjungan Hari Ini',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
           ),
           const SizedBox(height: 12),
 
-          // Recent Visitors list
           StreamBuilder<QuerySnapshot>(
             stream: _libraryService.getVisitors(),
             builder: (context, snapshot) {
@@ -290,50 +309,76 @@ class DashboardHomeTab extends StatelessWidget {
                             color: const Color(0xFFF59E0B).withOpacity(0.12),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.person_outline_rounded,
-                            color: Color(0xFFF59E0B),
-                            size: 20,
-                          ),
+                          child: const Icon(Icons.person_outline_rounded, color: Color(0xFFF59E0B), size: 20),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: textColor,
-                                ),
-                              ),
+                              Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
                               const SizedBox(height: 2),
-                              Text(
-                                'NIS: $nis • Kelas $className',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: subtitleColor,
-                                ),
-                              ),
+                              Text('NIS: $nis • Kelas $className', style: TextStyle(fontSize: 12, color: subtitleColor)),
                             ],
                           ),
                         ),
-                        Text(
-                          formattedTime,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: subtitleColor,
-                          ),
-                        ),
+                        Text(formattedTime, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: subtitleColor)),
                       ],
                     ),
                   );
                 },
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverdueBanner({
+    required String bookTitle,
+    required String studentName,
+    required String className,
+    required int daysLate,
+    required Color textColor,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: Colors.red.withOpacity(0.12), shape: BoxShape.circle),
+            child: const Icon(Icons.alarm_off_rounded, color: Colors.red, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bookTitle,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text('$studentName • Kelas $className', style: TextStyle(fontSize: 12, color: textColor.withOpacity(0.7))),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: Colors.red.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+            child: Text('+$daysLate hari', style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -356,24 +401,13 @@ class DashboardHomeTab extends StatelessWidget {
         color: cardBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: borderCol),
-        boxShadow: isDark
-            ? []
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(16),
-            ),
+            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 16),
@@ -382,22 +416,9 @@ class DashboardHomeTab extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white70 : const Color(0xFF1E1B4B).withOpacity(0.6),
-                  ),
-                ),
+                Text(title, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : const Color(0xFF1E1B4B).withOpacity(0.6))),
                 const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
+                Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
               ],
             ),
           ),

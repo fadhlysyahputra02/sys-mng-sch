@@ -27,6 +27,15 @@ class StudentExamsPage extends StatefulWidget {
 class _StudentExamsPageState extends State<StudentExamsPage> {
   final _examService = ExamService();
   late final Future<String> _studentDocIdFuture;
+  final Map<String, Stream<ExamSubmission?>> _submissionStreams = {};
+
+  Stream<ExamSubmission?> _getSubmissionStream(String schoolId, String examId, String studentId) {
+    final key = '${examId}_$studentId';
+    if (!_submissionStreams.containsKey(key)) {
+      _submissionStreams[key] = _examService.getExamSubmissionStream(schoolId, examId, studentId);
+    }
+    return _submissionStreams[key]!;
+  }
 
   @override
   void initState() {
@@ -130,11 +139,12 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                     itemCount: exams.length,
                     itemBuilder: (context, index) {
                       final exam = exams[index];
-                      final isExpired = DateTime.now().isAfter(exam.dueDate);
+                      final isSusulan = exam.susulanStudentIds.contains(studentDocId);
+                      final isExpired = DateTime.now().isAfter(exam.dueDate) && !isSusulan;
                       final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(exam.dueDate);
 
                       return StreamBuilder<ExamSubmission?>(
-                        stream: _examService.getExamSubmissionStream(user.schoolId, exam.id, studentDocId),
+                        stream: _getSubmissionStream(user.schoolId, exam.id, studentDocId),
                         builder: (context, subSnapshot) {
                           final submission = subSnapshot.data;
                           final bool hasCompleted = submission != null;
@@ -166,12 +176,34 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                            color: (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
+                                                ? Colors.amber.withValues(alpha: 0.15)
+                                                : const Color(0xFF10B981).withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
+                                                ? 'Sedang Dikoreksi'
+                                                : 'Selesai',
+                                            style: TextStyle(
+                                              color: (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
+                                                  ? Colors.amber
+                                                  : const Color(0xFF10B981),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        )
+                                      else if (isSusulan && DateTime.now().isAfter(exam.dueDate))
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: const Text(
-                                            'Selesai',
-                                            style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 10),
+                                            'Susulan',
+                                            style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold, fontSize: 10),
                                           ),
                                         )
                                       else if (isExpired)
@@ -234,16 +266,32 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text(
-                                            'Jawaban Benar: ${submission.correctCount} / ${exam.questions.length}',
-                                            style: TextStyle(fontSize: 12, color: titleColor, fontWeight: FontWeight.w600),
+                                          Expanded(
+                                            child: Text(
+                                              (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
+                                                  ? 'Jawaban terkirim, menunggu penilaian essay.'
+                                                  : 'Jawaban Benar: ${submission.correctCount} / ${exam.questions.where((q) => q.type != 'essay').length} PG',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: titleColor,
+                                                fontWeight: FontWeight.w600,
+                                                fontStyle: (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
+                                                    ? FontStyle.italic
+                                                    : FontStyle.normal,
+                                              ),
+                                            ),
                                           ),
+                                          const SizedBox(width: 12),
                                           Text(
-                                            'Skor: ${submission.score.toInt()}',
+                                            (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
+                                                ? 'Skor: --'
+                                                : 'Skor: ${submission.score.toInt()}',
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: submission.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent,
+                                              color: (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
+                                                  ? Colors.amber
+                                                  : (submission.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent),
                                             ),
                                           ),
                                         ],

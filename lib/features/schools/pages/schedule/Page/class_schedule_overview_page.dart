@@ -548,26 +548,11 @@ class ClassScheduleOverviewPage extends StatelessWidget {
     );
 
     try {
-      final schoolId = SessionService.currentUser!.schoolId;
-      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(schoolId).get();
-      if (context.mounted) {
-        Navigator.pop(context); // Tutup loading dialog
-      }
-
-      final plan = (schoolDoc.data()?['plan'] ?? 'FREE').toString().toUpperCase();
-
-      if (plan == 'FREE') {
-        if (context.mounted) {
-          _showPremiumDialog(context, 'Fitur generate jadwal otomatis hanya tersedia untuk sekolah dengan Paket BASIC atau PRO.');
-        }
-      } else {
-        Get.to(() => const AutoScheduleGeneratorPage());
-      }
+      Get.to(() => const AutoScheduleGeneratorPage());
     } catch (e) {
       if (context.mounted) {
-        Navigator.pop(context); // Tutup loading dialog jika error
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memeriksa status paket: $e')),
+          SnackBar(content: Text('Gagal: $e')),
         );
       }
     }

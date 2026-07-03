@@ -37,8 +37,17 @@ class StudentService {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getStudentsByClass(
-    String classId,
-  ) {
+    String classId, {
+    String? schoolId,
+  }) {
+    if (schoolId != null) {
+      return _firestore
+          .collection('schools')
+          .doc(schoolId)
+          .collection('students')
+          .where('classId', isEqualTo: classId)
+          .snapshots();
+    }
     return _firestore
         .collectionGroup('students')
         .where('classId', isEqualTo: classId)

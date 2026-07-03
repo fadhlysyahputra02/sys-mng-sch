@@ -92,8 +92,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('Petugas', Icons.security_rounded, Color(0xFF8B5CF6)),
     _MenuData('E-Rapor', Icons.description_rounded, Color(0xFF8B5CF6)),
     _MenuData('Pelanggaran Murid', Icons.report_problem_rounded, Color(0xFFEF4444)),
-    _MenuData('Statistik Akademik', Icons.bar_chart_rounded, Color(0xFF6366F1), badge: 'BASIC'),
-    _MenuData('Analitik Sekolah', Icons.analytics_rounded, Color(0xFFEC4899), badge: 'PRO'),
+    _MenuData('Statistik Akademik', Icons.bar_chart_rounded, Color(0xFF6366F1)),
+    _MenuData('Analitik Sekolah', Icons.analytics_rounded, Color(0xFFEC4899)),
   ];
 
   void _onMenuTap(String title) async {
@@ -392,9 +392,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   'Admin Sekolah',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6)),
                 ),
-              ),
-              const SizedBox(width: 8),
-              _buildPlanBadge(),
+              ), // Removed plan badge display
             ],
           ),
           const SizedBox(height: 16),
@@ -446,69 +444,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildPlanBadge() {
-    Color badgeColor;
-    Gradient badgeGradient;
-    IconData icon;
-    String label = _plan;
 
-    if (label == 'PRO') {
-      badgeColor = const Color(0xFFD97706);
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      icon = Icons.workspace_premium_rounded;
-    } else if (label == 'BASIC') {
-      badgeColor = const Color(0xFF2563EB);
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      icon = Icons.star_rounded;
-    } else {
-      badgeColor = const Color(0xFF4B5563);
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      icon = Icons.shield_outlined;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: badgeGradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: badgeColor.withValues(alpha: 0.3),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 12),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 10,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSectionTitle(String title, IconData icon, bool isDark) {
     final iconColor = isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
@@ -783,9 +719,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                            ),
-                      const SizedBox(height: 4),
-                      _buildPlanBadgeSidebar(),
+                            ), // Removed plan badge display
                     ],
                   ),
                 ),
@@ -892,47 +826,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     );
   }
 
-  Widget _buildPlanBadgeSidebar() {
-    Gradient badgeGradient;
-    String label = _plan;
 
-    if (label == 'PRO') {
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    } else if (label == 'BASIC') {
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    } else {
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        gradient: badgeGradient,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 8,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
 
   Widget _buildSidebarLogoutItem(bool isDark) {
     return Material(
@@ -1577,9 +1471,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                       'Admin Sekolah',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6)),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  _buildPlanBadge(),
+                  ), // Removed plan badge display
                 ],
               ),
               const SizedBox(height: 14),

@@ -22,6 +22,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
   bool _hasStarted = false;
   int _currentQuestionIndex = 0;
   final Map<String, int> _selectedAnswers = {}; // Map questionId -> optionIndex
+  final Map<String, String> _essayAnswers = {}; // Map questionId -> essayAnswerText
 
   int _secondsRemaining = 0;
   Timer? _timer;
@@ -80,6 +81,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
         studentId: widget.studentDocId ?? user.uid,
         studentName: user.nama,
         answers: _selectedAnswers,
+        essayAnswers: _essayAnswers,
       );
 
       Get.back();
@@ -98,7 +100,19 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
   }
 
   Future<void> _submitExamManual() async {
-    final unansweredCount = widget.exam.questions.length - _selectedAnswers.length;
+    int answeredCount = 0;
+    for (final q in widget.exam.questions) {
+      if (q.type == 'essay') {
+        if (_essayAnswers[q.id]?.trim().isNotEmpty == true) {
+          answeredCount++;
+        }
+      } else {
+        if (_selectedAnswers.containsKey(q.id)) {
+          answeredCount++;
+        }
+      }
+    }
+    final unansweredCount = widget.exam.questions.length - answeredCount;
     final isDark = AuthBackground.isDarkMode.value;
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
@@ -143,6 +157,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
           studentId: widget.studentDocId ?? user.uid,
           studentName: user.nama,
           answers: _selectedAnswers,
+          essayAnswers: _essayAnswers,
         );
 
         Get.back();
@@ -247,9 +262,21 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Soal ${_currentQuestionIndex + 1} dari $totalQuestions',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: titleColor),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Soal ${_currentQuestionIndex + 1} dari $totalQuestions',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: titleColor),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${currentQuestion.type == 'essay' ? 'Essay' : 'Pilihan Ganda'} • ${currentQuestion.points} Poin',
+                                  style: TextStyle(fontSize: 12, color: const Color(0xFF8B5CF6), fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -279,7 +306,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
                         ],
                       ),
                       const SizedBox(height: 16),
-
+ 
                       // Linear Progress Bar
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
@@ -291,7 +318,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
                         ),
                       ),
                       const SizedBox(height: 32),
-
+ 
                       // Question Body
                       Expanded(
                         child: SingleChildScrollView(
@@ -312,76 +339,101 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
                                 ),
                               ),
                               const SizedBox(height: 24),
-
-                              // Option Cards
-                              ...List.generate(currentQuestion.options.length, (optIdx) {
-                                final isSelected = selectedOption == optIdx;
-                                final optionChar = String.fromCharCode(65 + optIdx); // A, B, C, D
-
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12.0),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(16),
-                                      onTap: () {
-                                        setState(() {
-                                          _selectedAnswers[currentQuestion.id] = optIdx;
-                                        });
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? const Color(0xFF8B5CF6).withValues(alpha: 0.1)
-                                              : cardBgColor,
-                                          borderRadius: BorderRadius.circular(16),
-                                          border: Border.all(
-                                            color: isSelected ? const Color(0xFF8B5CF6) : cardBorderColor,
-                                            width: isSelected ? 2 : 1,
+ 
+                              if (currentQuestion.type == 'essay') ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: cardBgColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: cardBorderColor),
+                                  ),
+                                  child: TextFormField(
+                                    key: ValueKey(currentQuestion.id),
+                                    initialValue: _essayAnswers[currentQuestion.id] ?? '',
+                                    maxLines: 8,
+                                    style: TextStyle(color: titleColor, fontSize: 14),
+                                    decoration: InputDecoration(
+                                      hintText: 'Tulis jawaban essay Anda di sini...',
+                                      hintStyle: TextStyle(color: subTextColor, fontSize: 13),
+                                      border: InputBorder.none,
+                                    ),
+                                    onChanged: (val) {
+                                      _essayAnswers[currentQuestion.id] = val;
+                                    },
+                                  ),
+                                ),
+                              ] else ...[
+                                // Option Cards
+                                ...List.generate(currentQuestion.options.length, (optIdx) {
+                                  final isSelected = selectedOption == optIdx;
+                                  final optionChar = String.fromCharCode(65 + optIdx); // A, B, C, D
+ 
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12.0),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(16),
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedAnswers[currentQuestion.id] = optIdx;
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? const Color(0xFF8B5CF6).withValues(alpha: 0.1)
+                                                : cardBgColor,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: isSelected ? const Color(0xFF8B5CF6) : cardBorderColor,
+                                              width: isSelected ? 2 : 1,
+                                            ),
                                           ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 32,
-                                              height: 32,
-                                              decoration: BoxDecoration(
-                                                color: isSelected ? const Color(0xFF8B5CF6) : Colors.transparent,
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: isSelected ? const Color(0xFF8B5CF6) : cardBorderColor,
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 32,
+                                                height: 32,
+                                                decoration: BoxDecoration(
+                                                  color: isSelected ? const Color(0xFF8B5CF6) : Colors.transparent,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: isSelected ? const Color(0xFF8B5CF6) : cardBorderColor,
+                                                  ),
                                                 ),
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  optionChar,
-                                                  style: TextStyle(
-                                                    color: isSelected ? Colors.white : titleColor,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12,
+                                                child: Center(
+                                                  child: Text(
+                                                    optionChar,
+                                                    style: TextStyle(
+                                                      color: isSelected ? Colors.white : titleColor,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 12,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
-                                            ),
-                                            const SizedBox(width: 14),
-                                            Expanded(
-                                              child: Text(
-                                                currentQuestion.options[optIdx],
-                                                style: TextStyle(
-                                                  color: titleColor,
-                                                  fontSize: 14,
-                                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                              const SizedBox(width: 14),
+                                              Expanded(
+                                                child: Text(
+                                                  currentQuestion.options[optIdx],
+                                                  style: TextStyle(
+                                                    color: titleColor,
+                                                    fontSize: 14,
+                                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }),
+                                  );
+                                }),
+                              ],
                             ],
                           ),
                         ),
@@ -449,6 +501,19 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
 
   Widget _buildInstructionScreen(
       bool isDark, Color titleColor, Color subTextColor, Color cardBgColor, Color cardBorderColor) {
+    final totalQuestions = widget.exam.questions.length;
+    final pgCount = widget.exam.questions.where((q) => q.type == 'multiple_choice' || q.type == '').length;
+    final essayCount = widget.exam.questions.where((q) => q.type == 'essay').length;
+
+    String questionComposition = '';
+    if (pgCount > 0 && essayCount > 0) {
+      questionComposition = 'Terdiri dari $totalQuestions soal ($pgCount Pilihan Ganda & $essayCount Essay).';
+    } else if (essayCount > 0) {
+      questionComposition = 'Terdiri dari $essayCount soal Essay.';
+    } else {
+      questionComposition = 'Terdiri dari $pgCount soal Pilihan Ganda.';
+    }
+
     return Scaffold(
       body: AuthBackground(
         child: Center(
@@ -491,7 +556,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
                     Text('Aturan & Instruksi Ujian:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
                     const SizedBox(height: 10),
                     _buildRuleItem(Icons.timer_rounded, 'Durasi pengerjaan adalah ${widget.exam.durationMinutes} menit.', titleColor),
-                    _buildRuleItem(Icons.list_alt_rounded, 'Terdiri dari ${widget.exam.questions.length} soal pilihan ganda.', titleColor),
+                    _buildRuleItem(Icons.list_alt_rounded, questionComposition, titleColor),
                     _buildRuleItem(Icons.warning_amber_rounded, 'Meninggalkan aplikasi saat ujian berjalan akan memicu penyerahan jawaban otomatis.', titleColor),
                     _buildRuleItem(Icons.verified_user_rounded, 'Pastikan koneksi internet stabil sebelum menekan tombol Mulai.', titleColor),
                     const SizedBox(height: 24),

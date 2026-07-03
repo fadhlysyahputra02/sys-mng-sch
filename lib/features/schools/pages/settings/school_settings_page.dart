@@ -27,6 +27,9 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
   late final TabController _tabController;
   final _formKey = GlobalKey<FormState>();
 
+  // ── Identitas Sekolah ─────────────────────────────────────────────
+  final _schoolNameController = TextEditingController();
+
   // ── Akun ──────────────────────────────────────────────────────────
   final _currentPasswordController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -84,6 +87,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
 
         setState(() {
           _logoBase64 = data['logoBase64'];
+          _schoolNameController.text = data['name'] ?? data['nama'] ?? '';
           _tahunAjaranController.text = data['tahunAjaran'] ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
           _activeSemester = data['semester'] ?? 'Semester 1';
           _jamMasukController.text = data['jamMasuk'] ?? '07:15';
@@ -172,14 +176,24 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
       }
     }
 
+    final schoolName = _schoolNameController.text.trim();
+    if (schoolName.isEmpty) {
+      _snack('Nama sekolah tidak boleh kosong');
+      return;
+    }
+
     try {
       setState(() => _isSavingAkun = true);
 
-      // Simpan logo
+      // Simpan logo & nama sekolah
       await FirebaseFirestore.instance
           .collection('schools')
           .doc(widget.schoolId)
-          .update({'logoBase64': _logoBase64});
+          .update({
+        'logoBase64': _logoBase64,
+        'name': schoolName,
+        'nama': schoolName,
+      });
 
       // Ubah password jika diisi
       if (password.isNotEmpty) {
@@ -563,6 +577,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
     _cminusController.dispose();
     _tahunAjaranController.dispose();
     _jamMasukController.dispose();
+    _schoolNameController.dispose();
     super.dispose();
   }
 
@@ -850,6 +865,27 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
             ),
           ),
 
+          const SizedBox(height: 32),
+
+          // ── Nama Sekolah ───────────────────────────────────────────
+          _sectionLabel('Nama Sekolah', Icons.school_outlined, isDark),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _schoolNameController,
+            style: TextStyle(color: textPrimary, fontSize: 14),
+            decoration: InputDecoration(
+              fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+              filled: true,
+              hintText: 'Masukkan nama sekolah',
+              hintStyle: TextStyle(color: textSecondary, fontSize: 13),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: cardBorder),
+              ),
+              prefixIcon: Icon(Icons.school_rounded, color: const Color(0xFF6366F1), size: 20),
+            ),
+          ),
           const SizedBox(height: 32),
 
           // ── Password ──────────────────────────────────────────────

@@ -25,6 +25,7 @@ class LibraryService {
   // --- BOOK OPERATIONS ---
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getBooks() {
+    if (schoolId.isEmpty) return const Stream.empty();
     return _booksRef.orderBy('createdAt', descending: true).snapshots();
   }
 
@@ -36,6 +37,7 @@ class LibraryService {
     required String isbn,
     required int stok,
     required String rak,
+    required String klasifikasi,
   }) async {
     if (schoolId.isEmpty) throw 'Sekolah tidak teridentifikasi';
 
@@ -49,6 +51,7 @@ class LibraryService {
       'isbn': isbn,
       'stok': stok,
       'rak': rak,
+      'klasifikasi': klasifikasi,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -62,6 +65,7 @@ class LibraryService {
     required String isbn,
     required int stok,
     required String rak,
+    required String klasifikasi,
   }) async {
     await _booksRef.doc(bookId).update({
       'judul': judul,
@@ -71,6 +75,7 @@ class LibraryService {
       'isbn': isbn,
       'stok': stok,
       'rak': rak,
+      'klasifikasi': klasifikasi,
     });
   }
 
@@ -81,6 +86,7 @@ class LibraryService {
   // --- VISITOR LOG OPERATIONS ---
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getVisitors() {
+    if (schoolId.isEmpty) return const Stream.empty();
     return _visitorsRef.orderBy('timestamp', descending: true).snapshots();
   }
 
@@ -106,6 +112,7 @@ class LibraryService {
   // --- LOAN OPERATIONS ---
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getLoans() {
+    if (schoolId.isEmpty) return const Stream.empty();
     return _loansRef.orderBy('loanDate', descending: true).snapshots();
   }
 
@@ -176,6 +183,17 @@ class LibraryService {
       });
 
       transaction.update(bookDocRef, {'stok': currentStock + 1});
+    });
+  }
+
+  Future<void> reportLostBook({
+    required String loanId,
+    required String bookId,
+  }) async {
+    final loanDocRef = _loansRef.doc(loanId);
+    await loanDocRef.update({
+      'status': 'Hilang',
+      'returnDate': FieldValue.serverTimestamp(),
     });
   }
 }

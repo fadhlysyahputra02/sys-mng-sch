@@ -52,6 +52,7 @@ class _BookListTabState extends State<BookListTab> {
   }
 
   void _showBookDialog({String? bookId, Map<String, dynamic>? initialData}) {
+    String? selectedKlasifikasi = 'Umum';
     if (initialData != null) {
       _judulController.text = initialData['judul'] ?? '';
       _pengarangController.text = initialData['pengarang'] ?? '';
@@ -60,6 +61,7 @@ class _BookListTabState extends State<BookListTab> {
       _isbnController.text = initialData['isbn'] ?? '';
       _stokController.text = (initialData['stok'] ?? 0).toString();
       _rakController.text = initialData['rak'] ?? '';
+      selectedKlasifikasi = initialData['klasifikasi'] ?? 'Umum';
     } else {
       _judulController.clear();
       _pengarangController.clear();
@@ -202,6 +204,40 @@ class _BookListTabState extends State<BookListTab> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+
+                      // Klasifikasi
+                      DropdownButtonFormField<String>(
+                        dropdownColor: widget.isDark ? const Color(0xFF1E1B4B) : Colors.white,
+                        value: selectedKlasifikasi,
+                        style: TextStyle(color: textColor),
+                        decoration: InputDecoration(
+                          labelText: 'Klasifikasi Buku',
+                          labelStyle: TextStyle(color: subTextColor, fontSize: 13),
+                          filled: true,
+                          fillColor: fieldFill,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: fieldBorder),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+                          ),
+                          prefixIcon: Icon(Icons.category_rounded, color: const Color(0xFF6366F1), size: 20),
+                        ),
+                        items: ['Matematika', 'Sains', 'Umum', 'Seni', 'Other'].map((k) {
+                          return DropdownMenuItem<String>(
+                            value: k,
+                            child: Text(k, style: TextStyle(color: textColor)),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setStateDialog(() {
+                            selectedKlasifikasi = val;
+                          });
+                        },
+                      ),
                       const SizedBox(height: 24),
 
                       // Actions
@@ -242,6 +278,7 @@ class _BookListTabState extends State<BookListTab> {
                                           isbn: isbn,
                                           stok: stok,
                                           rak: rak,
+                                          klasifikasi: selectedKlasifikasi ?? 'Umum',
                                         );
                                         _showNotification('Berhasil', 'Informasi buku berhasil diperbarui.', true);
                                       } else {
@@ -253,6 +290,7 @@ class _BookListTabState extends State<BookListTab> {
                                           isbn: isbn,
                                           stok: stok,
                                           rak: rak,
+                                          klasifikasi: selectedKlasifikasi ?? 'Umum',
                                         );
                                         _showNotification('Berhasil', 'Buku baru berhasil terdaftar.', true);
                                       }
@@ -567,6 +605,7 @@ class _BookListTabState extends State<BookListTab> {
                               // Badges Row
                               Wrap(
                                 spacing: 8,
+                                runSpacing: 6,
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -593,6 +632,21 @@ class _BookListTabState extends State<BookListTab> {
                                       'Rak: $rak',
                                       style: const TextStyle(
                                         color: Colors.blue,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF6366F1).withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      data['klasifikasi'] ?? 'Umum',
+                                      style: const TextStyle(
+                                        color: Color(0xFF6366F1),
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
                                       ),

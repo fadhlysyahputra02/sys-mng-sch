@@ -170,127 +170,136 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
         final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
 
-        return Scaffold(
-          body: AuthBackground(
-            child: SafeArea(
-              child: Column(
-                children: [
-                  // App Bar Area
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _schoolName,
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-                                overflow: TextOverflow.ellipsis,
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance.collection('schools').doc(_schoolId).snapshots(),
+          builder: (context, schoolSnap) {
+            final schoolData = schoolSnap.data?.data() ?? widget.school;
+            final teacherQuota = schoolData['teacherQuota'] as int?;
+            final studentQuota = schoolData['studentQuota'] as int?;
+
+            return Scaffold(
+              body: AuthBackground(
+                child: SafeArea(
+                  child: Column(
+                    children: [
+                      // App Bar Area
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _schoolName,
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'Daftar & Statistik Pengguna Sekolah',
+                                    style: TextStyle(fontSize: 12, color: subTextColor),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                'Daftar & Statistik Pengguna Sekolah',
-                                style: TextStyle(fontSize: 12, color: subTextColor),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-
-                  // Counts / Statistics Dashboard Card
-                  _buildCountsDashboard(cardBgColor, borderColor, textColor, subTextColor),
-
-                  const SizedBox(height: 16),
-
-                  // Search Field
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
-                      controller: _searchController,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        hintText: 'Cari berdasarkan nama/identitas...',
-                        hintStyle: TextStyle(color: subTextColor),
-                        prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(Icons.clear_rounded, color: subTextColor),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() => _searchQuery = '');
-                                },
-                              )
-                            : null,
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(color: borderColor),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
-                        ),
-                        filled: true,
-                        fillColor: cardBgColor,
                       ),
-                      onChanged: (val) {
-                        setState(() {
-                          _searchQuery = val.trim().toLowerCase();
-                        });
-                      },
-                    ),
-                  ),
 
-                  const SizedBox(height: 16),
+                      // Counts / Statistics Dashboard Card
+                      _buildCountsDashboard(cardBgColor, borderColor, textColor, subTextColor, teacherQuota: teacherQuota, studentQuota: studentQuota),
 
-                  // Tab Bar Selector
-                  TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    labelColor: const Color(0xFF6366F1),
-                    unselectedLabelColor: subTextColor,
-                    indicatorColor: const Color(0xFF6366F1),
-                    indicatorWeight: 3,
-                    tabs: const [
-                      Tab(text: 'Murid'),
-                      Tab(text: 'Guru'),
-                      Tab(text: 'Admin'),
-                      Tab(text: 'TU'),
-                      Tab(text: 'Petugas'),
+                      const SizedBox(height: 16),
+
+                      // Search Field
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: TextField(
+                          controller: _searchController,
+                          style: TextStyle(color: textColor),
+                          decoration: InputDecoration(
+                            hintText: 'Cari berdasarkan nama/identitas...',
+                            hintStyle: TextStyle(color: subTextColor),
+                            prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(Icons.clear_rounded, color: subTextColor),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() => _searchQuery = '');
+                                    },
+                                  )
+                                : null,
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                            ),
+                            filled: true,
+                            fillColor: cardBgColor,
+                          ),
+                          onChanged: (val) {
+                            setState(() {
+                              _searchQuery = val.trim().toLowerCase();
+                            });
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Tab Bar Selector
+                      TabBar(
+                        controller: _tabController,
+                        isScrollable: true,
+                        labelColor: const Color(0xFF6366F1),
+                        unselectedLabelColor: subTextColor,
+                        indicatorColor: const Color(0xFF6366F1),
+                        indicatorWeight: 3,
+                        tabs: const [
+                          Tab(text: 'Murid'),
+                          Tab(text: 'Guru'),
+                          Tab(text: 'Admin'),
+                          Tab(text: 'TU'),
+                          Tab(text: 'Petugas'),
+                        ],
+                      ),
+
+                      // Tab Body
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildStudentsTab(cardBgColor, borderColor, textColor, subTextColor, studentQuota: studentQuota),
+                            _buildTeachersTab(cardBgColor, borderColor, textColor, subTextColor, teacherQuota: teacherQuota),
+                            _buildRoleUsersTab('school_admin', cardBgColor, borderColor, textColor, subTextColor),
+                            _buildRoleUsersTab('tu', cardBgColor, borderColor, textColor, subTextColor),
+                            _buildRoleUsersTab('officer', cardBgColor, borderColor, textColor, subTextColor),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-
-                  // Tab Body
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildStudentsTab(cardBgColor, borderColor, textColor, subTextColor),
-                        _buildTeachersTab(cardBgColor, borderColor, textColor, subTextColor),
-                        _buildRoleUsersTab('school_admin', cardBgColor, borderColor, textColor, subTextColor),
-                        _buildRoleUsersTab('tu', cardBgColor, borderColor, textColor, subTextColor),
-                        _buildRoleUsersTab('officer', cardBgColor, borderColor, textColor, subTextColor),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          }
         );
       },
     );
   }
 
   // Dashboard ringkasan user
-  Widget _buildCountsDashboard(Color bg, Color border, Color text, Color subtext) {
+  Widget _buildCountsDashboard(Color bg, Color border, Color text, Color subtext, {int? teacherQuota, int? studentQuota}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
@@ -311,8 +320,8 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildCountItem('Murid', _getStudentsCountStream(), const Color(0xFF0EA5E9), text),
-                _buildCountItem('Guru', _getTeachersCountStream(), const Color(0xFF10B981), text),
+                _buildCountItem('Murid Aktif', _getActiveStudentsCountStream(), const Color(0xFF0EA5E9), text, quota: studentQuota),
+                _buildCountItem('Guru', _getTeachersCountStream(), const Color(0xFF10B981), text, quota: teacherQuota),
                 _buildCountItem('Admin', _getRoleUsersCountStream('school_admin'), const Color(0xFFEC4899), text),
                 _buildCountItem('TU', _getRoleUsersCountStream('tu'), const Color(0xFFF59E0B), text),
                 _buildCountItem('Petugas', _getRoleUsersCountStream('officer'), const Color(0xFF8B5CF6), text),
@@ -324,33 +333,43 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
     );
   }
 
-  Widget _buildCountItem(String label, Stream<int> countStream, Color dotColor, Color textColor) {
+  Widget _buildCountItem(String label, Stream<int> countStream, Color dotColor, Color textColor, {int? quota}) {
     return Expanded(
       child: StreamBuilder<int>(
         stream: countStream,
         builder: (context, snapshot) {
           final countVal = snapshot.data ?? 0;
+          final quotaStr = quota != null ? '/$quota' : '';
           return Column(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
                   Container(
                     width: 6,
                     height: 6,
+                    margin: const EdgeInsets.only(bottom: 3),
                     decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     countVal.toString(),
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: textColor),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: textColor),
                   ),
+                  if (quotaStr.isNotEmpty)
+                    Text(
+                      quotaStr,
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.normal, color: textColor.withValues(alpha: 0.5)),
+                    ),
                 ],
               ),
               const SizedBox(height: 2),
               Text(
                 label,
                 style: const TextStyle(fontSize: 10, color: Colors.grey),
+                textAlign: TextAlign.center,
               ),
             ],
           );
@@ -360,13 +379,13 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
   }
 
   // Streams untuk statistik hitungan
-  Stream<int> _getStudentsCountStream() {
+  Stream<int> _getActiveStudentsCountStream() {
     return FirebaseFirestore.instance
         .collection('schools')
         .doc(_schoolId)
         .collection('students')
         .snapshots()
-        .map((snap) => snap.docs.length);
+        .map((snap) => snap.docs.where((doc) => doc.data()['lulus'] != true).length);
   }
 
   Stream<int> _getTeachersCountStream() {
@@ -388,7 +407,7 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
   }
 
   // Tab 1: Murid
-  Widget _buildStudentsTab(Color bg, Color border, Color text, Color subtext) {
+  Widget _buildStudentsTab(Color bg, Color border, Color text, Color subtext, {int? studentQuota}) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('schools')
@@ -407,76 +426,129 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
           return name.contains(_searchQuery) || nis.contains(_searchQuery);
         }).toList();
 
-        if (filtered.isEmpty) return _buildEmptyPlaceholder('Murid');
+        final totalCount = docs.length;
+        final graduatedCount = docs.where((doc) => doc.data()['lulus'] == true).length;
+        final activeCount = totalCount - graduatedCount;
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: filtered.length,
-          itemBuilder: (context, index) {
-            final data = filtered[index].data();
-            final name = data['nama'] ?? 'Tanpa Nama';
-            final nis = data['nis'] ?? '-';
-            final gender = data['gender'] ?? '-';
-            final alamat = data['alamat'] ?? '-';
-            final tglLahir = data['tanggalLahir'] ?? '-';
-            final angkatan = data['angkatan'] ?? '-';
-            final isRegister = data['sudahRegister'] ?? false;
-            final active = data['aktif'] ?? true;
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        return Column(
+          children: [
+            if (studentQuota != null && studentQuota > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
                     children: [
+                      const Icon(Icons.admin_panel_settings_rounded, color: Color(0xFF6366F1), size: 20),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: text),
-                            ),
-                            const SizedBox(height: 6),
-                            _buildStatusBadge(active, isRegister, lulus: data['lulus'] == true),
-                          ],
+                        child: Text(
+                          'Kuota Murid Aktif: $activeCount / $studentQuota',
+                          style: TextStyle(
+                            color: text,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
-                        onPressed: () => _confirmDeleteUser(
-                          uid: data['uid'] ?? '',
-                          documentId: filtered[index].id,
-                          role: 'student',
-                          name: name,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (activeCount >= studentQuota ? Colors.redAccent : Colors.green).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          activeCount >= studentQuota ? 'Penuh' : 'Tersedia',
+                          style: TextStyle(
+                            color: activeCount >= studentQuota ? Colors.redAccent : Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const Divider(height: 20),
-                  _buildDetailRow('NIS', nis, text),
-                  _buildDetailRow('Jenis Kelamin', gender, text),
-                  _buildDetailRow('Tanggal Lahir', tglLahir, text),
-                  _buildDetailRow('Angkatan', angkatan, text),
-                  _buildDetailRow('Alamat', alamat, text),
-                ],
+                ),
               ),
-            );
-          },
+            Expanded(
+              child: filtered.isEmpty
+                  ? _buildEmptyPlaceholder('Murid')
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final data = filtered[index].data();
+                        final name = data['nama'] ?? 'Tanpa Nama';
+                        final nis = data['nis'] ?? '-';
+                        final gender = data['gender'] ?? '-';
+                        final alamat = data['alamat'] ?? '-';
+                        final tglLahir = data['tanggalLahir'] ?? '-';
+                        final angkatan = data['angkatan'] ?? '-';
+                        final isRegister = data['sudahRegister'] ?? false;
+                        final active = data['aktif'] ?? true;
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: bg,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: text),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        _buildStatusBadge(active, isRegister, lulus: data['lulus'] == true),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
+                                    onPressed: () => _confirmDeleteUser(
+                                      uid: data['uid'] ?? '',
+                                      documentId: filtered[index].id,
+                                      role: 'student',
+                                      name: name,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 20),
+                              _buildDetailRow('NIS', nis, text),
+                              _buildDetailRow('Jenis Kelamin', gender, text),
+                              _buildDetailRow('Tanggal Lahir', tglLahir, text),
+                              _buildDetailRow('Angkatan', angkatan, text),
+                              _buildDetailRow('Alamat', alamat, text),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         );
       },
     );
   }
 
   // Tab 2: Guru
-  Widget _buildTeachersTab(Color bg, Color border, Color text, Color subtext) {
+  Widget _buildTeachersTab(Color bg, Color border, Color text, Color subtext, {int? teacherQuota}) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('schools')
@@ -495,65 +567,116 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
           return name.contains(_searchQuery) || nip.contains(_searchQuery);
         }).toList();
 
-        if (filtered.isEmpty) return _buildEmptyPlaceholder('Guru');
+        final totalCount = docs.length;
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: filtered.length,
-          itemBuilder: (context, index) {
-            final data = filtered[index].data();
-            final name = data['nama'] ?? 'Tanpa Nama';
-            final nip = data['nip'] ?? '-';
-            final gender = data['gender'] ?? '-';
-            final alamat = data['alamat'] ?? '-';
-            final isRegister = data['sudahRegister'] ?? false;
-            final active = data['aktif'] ?? true;
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        return Column(
+          children: [
+            if (teacherQuota != null && teacherQuota > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
                     children: [
+                      const Icon(Icons.admin_panel_settings_rounded, color: Color(0xFF10B981), size: 20),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: text),
-                            ),
-                            const SizedBox(height: 6),
-                            _buildStatusBadge(active, isRegister),
-                          ],
+                        child: Text(
+                          'Kuota Guru: $totalCount / $teacherQuota',
+                          style: TextStyle(
+                            color: text,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
-                        onPressed: () => _confirmDeleteUser(
-                          uid: data['uid'] ?? '',
-                          documentId: filtered[index].id,
-                          role: 'teacher',
-                          name: name,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (totalCount >= teacherQuota ? Colors.redAccent : Colors.green).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          totalCount >= teacherQuota ? 'Penuh' : 'Tersedia',
+                          style: TextStyle(
+                            color: totalCount >= teacherQuota ? Colors.redAccent : Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const Divider(height: 20),
-                  _buildDetailRow('NIP', nip, text),
-                  _buildDetailRow('Jenis Kelamin', gender, text),
-                  _buildDetailRow('Alamat', alamat, text),
-                ],
+                ),
               ),
-            );
-          },
+            Expanded(
+              child: filtered.isEmpty
+                  ? _buildEmptyPlaceholder('Guru')
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final data = filtered[index].data();
+                        final name = data['nama'] ?? 'Tanpa Nama';
+                        final nip = data['nip'] ?? '-';
+                        final gender = data['gender'] ?? '-';
+                        final alamat = data['alamat'] ?? '-';
+                        final isRegister = data['sudahRegister'] ?? false;
+                        final active = data['aktif'] ?? true;
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: bg,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: text),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        _buildStatusBadge(active, isRegister),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
+                                    onPressed: () => _confirmDeleteUser(
+                                      uid: data['uid'] ?? '',
+                                      documentId: filtered[index].id,
+                                      role: 'teacher',
+                                      name: name,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 20),
+                              _buildDetailRow('NIP', nip, text),
+                              _buildDetailRow('Jenis Kelamin', gender, text),
+                              _buildDetailRow('Alamat', alamat, text),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         );
       },
     );

@@ -1276,37 +1276,22 @@ class ClassInfoPage extends StatelessWidget {
     );
 
     try {
-      final schoolId = SessionService.currentUser!.schoolId;
-      final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(schoolId).get();
       if (context.mounted) {
-        Navigator.pop(context); // Tutup loading dialog
-      }
-
-      final plan = (schoolDoc.data()?['plan'] ?? 'FREE').toString().toUpperCase();
-
-      if (plan == 'FREE') {
-        if (context.mounted) {
-          _showPremiumDialog(context, 'Fitur Alokasi Jam Pelajaran hanya tersedia untuk sekolah dengan Paket BASIC atau PRO.');
-        }
-      } else {
-        if (context.mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ClassSubjectQuotaPage(
-                classId: classId,
-                className: className,
-                initialQuotas: quotas,
-              ),
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ClassSubjectQuotaPage(
+              classId: classId,
+              className: className,
+              initialQuotas: quotas,
             ),
-          );
-        }
+          ),
+        );
       }
     } catch (e) {
       if (context.mounted) {
-        Navigator.pop(context); // Tutup loading dialog jika error
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memeriksa status paket: $e')),
+          SnackBar(content: Text('Gagal: $e')),
         );
       }
     }

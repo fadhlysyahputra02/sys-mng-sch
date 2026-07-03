@@ -566,6 +566,83 @@ class _LoanListTabState extends State<LoanListTab> {
     }
   }
 
+  void _reportLostBook(String loanId, String bookId, String title, String studentName) async {
+    final dialogBg = widget.isDark ? const Color(0xFF1E1B4B) : Colors.white;
+    final dialogBorder = widget.isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.08);
+    final textColor = widget.isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: dialogBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: dialogBorder),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 10),
+            Text('Laporkan Buku Hilang', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Apakah Anda yakin ingin melaporkan buku "$title" yang dipinjam oleh $studentName sebagai HILANG?',
+              style: TextStyle(color: textColor.withOpacity(0.8), fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, color: Colors.red, size: 18),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Stok buku tidak akan bertambah kembali. Status pinjaman akan ditandai sebagai Hilang.',
+                      style: TextStyle(color: Colors.red, fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('Batal', style: TextStyle(color: textColor.withOpacity(0.5))),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Ya, Laporkan Hilang', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _libraryService.reportLostBook(loanId: loanId, bookId: bookId);
+        _showNotification('Dilaporkan', 'Buku "$title" ditandai sebagai hilang.', false);
+      } catch (e) {
+        _showNotification('Gagal', e.toString(), false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final textColor = widget.isDark ? Colors.white : const Color(0xFF1E1B4B);
@@ -676,6 +753,7 @@ class _LoanListTabState extends State<LoanListTab> {
                   final fine = data['fine'] as double? ?? 0.0;
 
                   final bool isOverdue = status == 'Dipinjam' && dueDate != null && DateTime.now().isAfter(dueDate);
+                  final bool isLost = status == 'Hilang';
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -684,7 +762,11 @@ class _LoanListTabState extends State<LoanListTab> {
                       color: cardBg,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isOverdue ? Colors.red.withOpacity(0.3) : fieldBorder,
+                        color: isLost
+                            ? Colors.deepOrange.withOpacity(0.4)
+                            : isOverdue
+                                ? Colors.red.withOpacity(0.3)
+                                : fieldBorder,
                       ),
                       boxShadow: widget.isDark
                           ? []
@@ -786,17 +868,31 @@ class _LoanListTabState extends State<LoanListTab> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: (status == 'Kembali'
-                                    ? const Color(0xFF10B981)
-                                    : (isOverdue ? Colors.red : Colors.orange)).withOpacity(0.12),
+                                color: (isLost
+                                    ? Colors.deepOrange
+                                    : status == 'Kembali'
+                                        ? const Color(0xFF10B981)
+                                        : isOverdue
+                                            ? Colors.red
+                                            : Colors.orange).withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                status == 'Kembali' ? 'Kembali' : (isOverdue ? 'Terlambat' : 'Dipinjam'),
+                                isLost
+                                    ? 'Hilang'
+                                    : status == 'Kembali'
+                                        ? 'Kembali'
+                                        : isOverdue
+                                            ? 'Terlambat'
+                                            : 'Dipinjam',
                                 style: TextStyle(
-                                  color: status == 'Kembali'
-                                      ? const Color(0xFF10B981)
-                                      : (isOverdue ? Colors.red : Colors.orange),
+                                  color: isLost
+                                      ? Colors.deepOrange
+                                      : status == 'Kembali'
+                                          ? const Color(0xFF10B981)
+                                          : isOverdue
+                                              ? Colors.red
+                                              : Colors.orange,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -814,6 +910,19 @@ class _LoanListTabState extends State<LoanListTab> {
                                 child: const Text(
                                   'Kembalikan',
                                   style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              OutlinedButton(
+                                onPressed: () => _reportLostBook(id, bookId, bookTitle, studentName),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.red, width: 1.5),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                ),
+                                child: const Text(
+                                  'Hilang',
+                                  style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ],

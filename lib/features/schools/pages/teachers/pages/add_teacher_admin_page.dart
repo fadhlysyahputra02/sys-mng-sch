@@ -31,6 +31,35 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
 
       final nip = nipController.text.trim();
 
+      // Cek kuota guru di sekolah jika diset
+      final schoolDoc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .get();
+      if (schoolDoc.exists) {
+        final schoolData = schoolDoc.data();
+        final teacherQuota = schoolData?['teacherQuota'] as int?;
+        if (teacherQuota != null && teacherQuota > 0) {
+          final countSnap = await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(widget.schoolId)
+              .collection('teachers')
+              .count()
+              .get();
+          final currentCount = countSnap.count ?? 0;
+          if (currentCount >= teacherQuota) {
+            if (mounted) {
+              _showQuotaFullDialog(
+                context: context,
+                userType: 'Guru',
+                quota: teacherQuota,
+              );
+            }
+            return;
+          }
+        }
+      }
+
       final existingTeacher = await FirebaseFirestore.instance
           .collection('schools')
           .doc(widget.schoolId)
@@ -292,6 +321,125 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showQuotaFullDialog({
+    required BuildContext context,
+    required String userType,
+    required int quota,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subTextColor = isDark
+            ? Colors.white70
+            : const Color(0xFF1E1B4B).withOpacity(0.65);
+
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          backgroundColor: isDark ? const Color(0xFF151026) : Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon badge
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.lock_outline_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 44,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Title
+                Text(
+                  'Batas Kuota $userType Tercapai',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+
+                // Quota badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: const Color(0xFFEF4444).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    'Kapasitas: $quota $userType',
+                    style: const TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Description
+                Text(
+                  'Sekolah Anda telah mencapai batas maksimal pengguna $userType yang ditetapkan oleh Super Admin. Pendaftaran $userType baru tidak dapat dilakukan saat ini.',
+                  style: TextStyle(
+                    color: subTextColor,
+                    fontSize: 13,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444).withOpacity(0.1),
+                      foregroundColor: const Color(0xFFEF4444),
+                      shadowColor: Colors.transparent,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: const Color(0xFFEF4444).withOpacity(0.3),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Mengerti',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
                   ),
