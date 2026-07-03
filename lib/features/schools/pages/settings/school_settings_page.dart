@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../authentication/widgets/auth_background.dart';
+import '../../../authentication/widgets/theme_toggle_button.dart';
 import '../../../../core/services/semester_state_service.dart';
 import '../../../../core/services/session_service.dart';
 
@@ -626,6 +627,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
                             ),
                           ),
                         ),
+                        const ThemeToggleButton(),
                       ],
                     ),
                   ),

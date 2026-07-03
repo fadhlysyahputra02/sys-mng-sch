@@ -671,7 +671,7 @@ class _StudentDashboardState extends State<StudentDashboard>
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'QR Absensi Siswa',
+                'QR Saya',
                 style: TextStyle(
                   color: textColor,
                   fontSize: 20,
@@ -1418,18 +1418,7 @@ class _StudentDashboardState extends State<StudentDashboard>
             : const Color(0xFF6366F1),
       },
 
-      {
-        'title': 'Bank Soal & Quiz',
-        'icon': Icons.quiz_rounded,
-        'color': const Color(0xFF14B8A6),
-        'badge': 'BASIC',
-      },
-      {
-        'title': 'News Feed Sekolah',
-        'icon': Icons.newspaper_rounded,
-        'color': const Color(0xFF0EA5E9),
-        'badge': 'PRO',
-      },
+
       {
         'title': 'Keuangan & SPP',
         'icon': Icons.payments_rounded,
@@ -1988,14 +1977,8 @@ class _StudentDashboardState extends State<StudentDashboard>
           icon: const Icon(Icons.verified_rounded, color: Colors.white),
         );
         break;
-      case 'Bank Soal & Quiz':
-        Get.toNamed(AppRoutes.comingSoonBankSoalMurid);
-        break;
       case 'Surat Izin Digital':
         Get.toNamed(AppRoutes.comingSoonSuratIzinMurid);
-        break;
-      case 'News Feed Sekolah':
-        Get.toNamed(AppRoutes.comingSoonNewsFeedMurid);
         break;
       case 'Keuangan & SPP':
         if (_studentDocId == null) {

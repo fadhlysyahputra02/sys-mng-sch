@@ -789,7 +789,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'QR Absensi Guru',
+                'QR Saya',
                 style: TextStyle(
                   color: textColor,
                   fontSize: 20,
@@ -1491,11 +1491,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           'icon': Icons.menu_book_rounded,
           'color': const Color(0xFF6366F1),
         },
-        {
-          'title': 'Scan Kunjungan Perpustakaan',
-          'icon': Icons.qr_code_scanner_rounded,
-          'color': const Color(0xFF8B5CF6),
-        },
       ],
       {
         'title': 'Input Nilai',
@@ -1554,13 +1549,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'icon': Icons.manage_accounts_rounded,
         'color': const Color(0xFF64748B),
         'badge': null,
-      },
-
-      {
-        'title': 'News Feed Sekolah',
-        'icon': Icons.newspaper_rounded,
-        'color': const Color(0xFF0EA5E9),
-        'badge': 'PRO',
       },
     ];
 
@@ -1634,8 +1622,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     }
                   } else if (menu['title'] == 'Dashboard Perpustakaan') {
                     Get.to(() => const LibrarianDashboardPage());
-                  } else if (menu['title'] == 'Scan Kunjungan Perpustakaan') {
-                    await _scanLibraryVisitor(context);
                   } else if (menu['title'] == 'Jadwal Mengajar') {
                     Get.to(() => TeacherSchedulePage(teacherId: _teacherDocId!));
                   } else if (menu['title'] == 'Absensi Murid') {
@@ -1694,8 +1680,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 } else if (menu['title'] == 'Pengaturan Profil') {
                   await Get.to(() => const TeacherSettingsPage());
                   _resolveTeacherDocId();
-                } else if (menu['title'] == 'News Feed Sekolah') {
-                  Get.toNamed(AppRoutes.comingSoonNewsFeedGuru);
+
                 } else if (menu['title'] == 'Input Pelanggaran') {
                   Get.to(() => TeacherStudentViolationsPage(teacherId: _teacherDocId!));
                 } else {

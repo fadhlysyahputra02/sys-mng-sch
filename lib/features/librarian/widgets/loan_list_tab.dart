@@ -728,6 +728,18 @@ class _LoanListTabState extends State<LoanListTab> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
+              if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline_rounded, size: 48, color: Colors.red.withOpacity(0.5)),
+                      const SizedBox(height: 12),
+                      Text('Gagal memuat data: ${snapshot.error}', style: TextStyle(color: subTextColor), textAlign: TextAlign.center),
+                    ],
+                  ),
+                );
+              }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return Center(
                   child: Column(
@@ -771,7 +783,7 @@ class _LoanListTabState extends State<LoanListTab> {
                   final dueDate = (data['dueDate'] as Timestamp?)?.toDate();
                   final returnDate = (data['returnDate'] as Timestamp?)?.toDate();
                   final status = data['status'] ?? 'Dipinjam';
-                  final fine = data['fine'] as double? ?? 0.0;
+                  final fine = (data['fine'] as num?)?.toDouble() ?? 0.0;
 
                   final bool isOverdue = status == 'Dipinjam' && dueDate != null && DateTime.now().isAfter(dueDate);
                   final bool isLost = status == 'Hilang';

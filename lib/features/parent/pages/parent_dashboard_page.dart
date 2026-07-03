@@ -133,42 +133,75 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
 
   Future<void> _logout() async {
     final isDark = AuthBackground.isDarkMode.value;
-    final confirm = await Get.dialog<bool>(
-      AlertDialog(
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Keluar Akun',
-          style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF1E1B4B),
-            fontWeight: FontWeight.bold,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.1),
           ),
         ),
+        title: Row(
+          children: [
+            const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+            const SizedBox(width: 10),
+            Text(
+              'Konfirmasi Keluar',
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
         content: Text(
-          'Apakah Anda yakin ingin keluar?',
+          'Apakah Anda yakin ingin keluar dari akun Anda?',
           style: TextStyle(
             color: isDark
                 ? Colors.white70
                 : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
+            fontSize: 14,
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Batal'),
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.5)
+                    : const Color(0xFF1E1B4B).withValues(alpha: 0.5),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
-            onPressed: () => Get.back(result: true),
+            onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-            child: const Text('Keluar'),
+            child: const Text(
+              'Keluar',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
     );
 
-    if (confirm == true) await AppAuthService.logout();
+    if (confirm == true) {
+      await AppAuthService.logout();
+    }
   }
 
   @override
@@ -236,8 +269,8 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                 ),
                                 IconButton(
                                   onPressed: _logout,
-                                  icon: Icon(Icons.power_settings_new_rounded,
-                                      color: const Color(0xFFEF4444)),
+                                  icon: const Icon(Icons.logout_rounded,
+                                      color: Color(0xFFEF4444)),
                                 ),
                               ],
                             ),
@@ -324,19 +357,11 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                       color:
                                           textColor.withValues(alpha: 0.1)),
                                   const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      _heroSmallInfo(
-                                          Icons.business_rounded,
-                                          _schoolName ?? 'Sekolah',
-                                          textColor),
-                                      _heroSmallInfo(
-                                          Icons.calendar_today_rounded,
-                                          _tahunAjaran ?? '-',
-                                          textColor),
-                                    ],
+                                  Center(
+                                    child: _heroSmallInfo(
+                                        Icons.business_rounded,
+                                        _schoolName ?? 'Sekolah',
+                                        textColor),
                                   ),
                                   const SizedBox(height: 10),
                                   Container(
@@ -347,22 +372,14 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                       color: textColor.withValues(alpha: 0.05),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.event_note_rounded,
-                                            color: textColor.withValues(alpha: 0.8),
-                                            size: 14),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'Semester ${_semester ?? '-'} • Tahun Ajaran ${_tahunAjaran ?? '-'}',
-                                          style: TextStyle(
-                                            color: textColor,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
+                                    child: Text(
+                                      '${_semester ?? '-'} • Tahun Ajaran ${_tahunAjaran ?? '-'}',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -603,15 +620,8 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                 'waliKelasName': _waliKelas ?? 'Wali Kelas',
               },
             ),
-        'badge': 'PRO',
       },
-      {
-        'title': 'News Feed Sekolah',
-        'icon': Icons.newspaper_rounded,
-        'color': const Color(0xFF0EA5E9),
-        'onTap': () => Get.toNamed(AppRoutes.comingSoonNewsFeedOrtu),
-        'badge': 'PRO',
-      },
+
       {
         'title': 'Tagihan SPP & Keuangan',
         'icon': Icons.payments_rounded,

@@ -61,7 +61,7 @@ class StudentQrIdentityPage extends StatelessWidget {
                               color: textColor),
                         ),
                         Text(
-                          'Kartu QR Saya',
+                          'QR Saya',
                           style: TextStyle(
                             color: textColor,
                             fontSize: 18,

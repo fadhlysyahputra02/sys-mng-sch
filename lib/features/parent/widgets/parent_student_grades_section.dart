@@ -31,10 +31,10 @@ class ParentStudentGradesSection extends StatefulWidget {
 
   @override
   State<ParentStudentGradesSection> createState() =>
-      _ParentStudentGradesSectionState();
+      ParentStudentGradesSectionState();
 }
 
-class _ParentStudentGradesSectionState extends State<ParentStudentGradesSection> {
+class ParentStudentGradesSectionState extends State<ParentStudentGradesSection> {
   Map<String, Map<String, dynamic>> _groupedGrades = {};
   Map<String, double> _subjectWeightedAvg = {};
   final Set<String> _expandedSubjects = {};
@@ -45,10 +45,10 @@ class _ParentStudentGradesSectionState extends State<ParentStudentGradesSection>
   @override
   void initState() {
     super.initState();
-    _loadGrades();
+    loadGrades();
   }
 
-  Future<void> _loadGrades() async {
+  Future<void> loadGrades() async {
     setState(() {
       _isLoading = true;
       _error = null;
@@ -87,13 +87,13 @@ class _ParentStudentGradesSectionState extends State<ParentStudentGradesSection>
 
         final studentScoreData =
             (scores[widget.studentId] ?? scores[fallbackKey]) as Map<String, dynamic>? ?? {};
-        final double score = (studentScoreData['score'] ?? 0.0) as double;
+        final double score = (studentScoreData['score'] as num?)?.toDouble() ?? 0.0;
         final String notes = (studentScoreData['notes'] ?? '').toString();
         final String subjectName = data['subjectName'] ?? 'Mata Pelajaran';
         final String subjectId = data['subjectId'] ?? '';
         final String category = data['category'] ?? 'Tugas';
         final String title = data['title'] ?? 'Penilaian';
-        final double maxScore = (data['maxScore'] ?? 100.0) as double;
+        final double maxScore = (data['maxScore'] as num?)?.toDouble() ?? 100.0;
         final String date = data['date'] ?? '-';
 
         grouped.putIfAbsent(
@@ -320,7 +320,7 @@ class _ParentStudentGradesSectionState extends State<ParentStudentGradesSection>
             ),
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: _loadGrades,
+              onPressed: loadGrades,
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Coba Lagi'),
             ),
@@ -388,11 +388,6 @@ class _ParentStudentGradesSectionState extends State<ParentStudentGradesSection>
                   ),
                 ],
               ),
-            ),
-            IconButton(
-              onPressed: _loadGrades,
-              icon: Icon(Icons.refresh_rounded, color: subTextColor, size: 20),
-              tooltip: 'Refresh',
             ),
           ],
         ),

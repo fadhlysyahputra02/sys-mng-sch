@@ -92,8 +92,6 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('Petugas', Icons.security_rounded, Color(0xFF8B5CF6)),
     _MenuData('E-Rapor', Icons.description_rounded, Color(0xFF8B5CF6)),
     _MenuData('Pelanggaran Murid', Icons.report_problem_rounded, Color(0xFFEF4444)),
-    _MenuData('Statistik Akademik', Icons.bar_chart_rounded, Color(0xFF6366F1)),
-    _MenuData('Analitik Sekolah', Icons.analytics_rounded, Color(0xFFEC4899)),
   ];
 
   void _onMenuTap(String title) async {
@@ -139,12 +137,6 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         break;
       case 'Laporan Mengajar':
         Get.to(() => const AdminTeachingReportsPage());
-        break;
-      case 'Statistik Akademik':
-        Get.toNamed(AppRoutes.comingSoonStatistikAdmin);
-        break;
-      case 'Analitik Sekolah':
-        Get.toNamed(AppRoutes.comingSoonAnalitikAdmin);
         break;
     }
   }

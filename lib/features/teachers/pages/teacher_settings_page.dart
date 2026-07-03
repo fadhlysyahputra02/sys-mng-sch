@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../authentication/widgets/theme_toggle_button.dart';
 
 class TeacherSettingsPage extends StatefulWidget {
   final bool hideBackButton;
@@ -313,6 +314,9 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
                     'Pengaturan',
                     style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 20),
                   ),
+                  actions: const [
+                    ThemeToggleButton(),
+                  ],
                 ),
 
                 SliverToBoxAdapter(
@@ -438,39 +442,6 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
                                 style: TextStyle(color: textSecondaryColor, fontSize: 13),
                               ),
                               const SizedBox(height: 12),
-                              // Upload hint
-                              GestureDetector(
-                                onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.upload_rounded,
-                                        color: const Color(0xFF8B5CF6),
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        _fotoBase64 == null ? 'Upload Foto Profil' : 'Ganti Foto Profil',
-                                        style: const TextStyle(
-                                          color: Color(0xFF8B5CF6),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
                             ],
                           ),
                         ),

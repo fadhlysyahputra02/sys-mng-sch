@@ -64,7 +64,7 @@ class AuthBackground extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFF6366F1).withValues(alpha: isDark ? 0.18 : 0.08), // Violet glow
+                        const Color(0xFF6366F1).withValues(alpha: isDark ? 0.35 : 0.20), // Violet glow
                         const Color(0xFF6366F1).withValues(alpha: 0.0),
                       ],
                     ),
@@ -82,7 +82,7 @@ class AuthBackground extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFFD946EF).withValues(alpha: isDark ? 0.12 : 0.06), // Pink/Magenta glow
+                        const Color(0xFFD946EF).withValues(alpha: isDark ? 0.25 : 0.15), // Pink/Magenta glow
                         const Color(0xFFD946EF).withValues(alpha: 0.0),
                       ],
                     ),
@@ -115,11 +115,11 @@ class AuthPatternPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // 1. Fluid Abstract Shapes (Blobs)
     final blobPaint1 = Paint()
-      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02)
+      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08)
       ..style = PaintingStyle.fill;
       
     final blobPaint2 = Paint()
-      ..color = const Color(0xFF6366F1).withValues(alpha: isDarkMode ? 0.04 : 0.03)
+      ..color = const Color(0xFF6366F1).withValues(alpha: isDarkMode ? 0.12 : 0.10)
       ..style = PaintingStyle.fill;
 
     final path1 = Path();
@@ -146,7 +146,7 @@ class AuthPatternPainter extends CustomPainter {
 
     // 2. Menggambar Ornamen Gelombang Abstrak Melengkung
     final pathPaint = Paint()
-      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.035) : Colors.black.withValues(alpha: 0.04)
+      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.12)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
@@ -178,7 +178,7 @@ class AuthPatternPainter extends CustomPainter {
 
     // 3. Menggambar Motif Titik-Titik Halus (Dot Pattern)
     final dotPaint = Paint()
-      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05)
+      ..color = isDarkMode ? Colors.white.withValues(alpha: 0.18) : Colors.black.withValues(alpha: 0.15)
       ..style = PaintingStyle.fill;
 
     // Grid Dot Kiri Atas
@@ -212,7 +212,7 @@ class AuthPatternPainter extends CustomPainter {
 
     // 4. Garis Diagonal Dinamis Menyilang
     final accentPaint = Paint()
-      ..color = const Color(0xFF6366F1).withValues(alpha: isDarkMode ? 0.12 : 0.08)
+      ..color = const Color(0xFF6366F1).withValues(alpha: isDarkMode ? 0.25 : 0.20)
       ..strokeWidth = 1.0;
     
     canvas.drawLine(
@@ -224,7 +224,7 @@ class AuthPatternPainter extends CustomPainter {
       Offset(size.width * 0.4, size.height * 0.55),
       3.0,
       Paint()
-        ..color = const Color(0xFF6366F1).withValues(alpha: isDarkMode ? 0.25 : 0.15)
+        ..color = const Color(0xFF6366F1).withValues(alpha: isDarkMode ? 0.45 : 0.35)
         ..style = PaintingStyle.fill,
     );
   }
