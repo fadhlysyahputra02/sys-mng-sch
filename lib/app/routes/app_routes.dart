@@ -34,6 +34,9 @@ class AppRoutes {
   // Route untuk TU (Tata Usaha)
   static const tuDashboard = '/tu/dashboard';
 
+  // Route untuk dashboard persetujuan (Admin & TU)
+  static const approvalDashboard = '/approval-dashboard';
+
   // Route untuk Librarian (Perpustakaan)
   static const librarianDashboard = '/librarian/dashboard';
 

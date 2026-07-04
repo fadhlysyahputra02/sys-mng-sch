@@ -216,6 +216,106 @@ class SchoolService {
     });
   }
 
+  // Update import excel teacher toggle
+  Future<void> updateImportExcelTeacherToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'enableImportExcelTeacher': enabled,
+    });
+  }
+
+  // Update import excel student toggle
+  Future<void> updateImportExcelStudentToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'enableImportExcelStudent': enabled,
+    });
+  }
+
+  // Update schedule features toggle
+  Future<void> updateScheduleFeaturesToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'enableScheduleFeatures': enabled,
+    });
+  }
+
+  // Update student attendance recap toggle
+  Future<void> updateStudentAttendanceRecapToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'enableStudentAttendanceRecap': enabled,
+    });
+  }
+
+  // Update teacher attendance recap toggle
+  Future<void> updateTeacherAttendanceRecapToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'enableTeacherAttendanceRecap': enabled,
+    });
+  }
+
+  // Update e-rapor toggle
+  Future<void> updateERaporToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'enableERapor': enabled,
+    });
+  }
+
+  // Update realtime control toggle
+  Future<void> updateRealtimeControlToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'enableRealtimeControl': enabled,
+    });
+  }
+
+  // Update online exam toggle
+  Future<void> updateOnlineExamToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'enableOnlineExam': enabled,
+    });
+  }
+
+  // Update chat toggle
+  Future<void> updateChatToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'enableChat': enabled,
+    });
+  }
+
+  // Update student leave request toggle
+  Future<void> updateStudentLeaveRequestToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).update({
+      'enableStudentLeaveRequest': enabled,
+    });
+  }
+
   // Update school quotas
   Future<void> updateSchoolQuotas({
     required String domain,

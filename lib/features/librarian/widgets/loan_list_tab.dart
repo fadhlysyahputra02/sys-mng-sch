@@ -482,12 +482,14 @@ class _LoanListTabState extends State<LoanListTab> {
 
   void _returnBook(String loanId, String bookId, String title, DateTime dueDate) async {
     final now = DateTime.now();
-    final isLate = now.isAfter(dueDate);
+    final today = DateTime(now.year, now.month, now.day);
+    final due = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    final isLate = today.isAfter(due);
     int lateDays = 0;
     double fine = 0.0;
 
     if (isLate) {
-      lateDays = now.difference(dueDate).inDays;
+      lateDays = today.difference(due).inDays;
       if (lateDays > 0) {
         fine = lateDays * 1000.0; // Denda Rp 1.000 per hari
       }
@@ -785,7 +787,15 @@ class _LoanListTabState extends State<LoanListTab> {
                   final status = data['status'] ?? 'Dipinjam';
                   final fine = (data['fine'] as num?)?.toDouble() ?? 0.0;
 
-                  final bool isOverdue = status == 'Dipinjam' && dueDate != null && DateTime.now().isAfter(dueDate);
+                  final bool isOverdue;
+                  if (status == 'Dipinjam' && dueDate != null) {
+                    final now = DateTime.now();
+                    final today = DateTime(now.year, now.month, now.day);
+                    final due = DateTime(dueDate.year, dueDate.month, dueDate.day);
+                    isOverdue = today.isAfter(due);
+                  } else {
+                    isOverdue = false;
+                  }
                   final bool isLost = status == 'Hilang';
 
                   return Container(
@@ -811,93 +821,91 @@ class _LoanListTabState extends State<LoanListTab> {
                               ),
                             ],
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Book Title
-                              Text(
-                                bookTitle,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: textColor,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-
-                              // Student Info
-                              Row(
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 1),
-                                    child: Icon(Icons.person_outline_rounded, size: 14, color: subTextColor),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      '$studentName (NIS: $studentNis • Kelas $className)',
-                                      style: TextStyle(fontSize: 12, color: subTextColor),
+                                  // Book Title
+                                  Text(
+                                    bookTitle,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: textColor,
                                     ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
+                                  const SizedBox(height: 6),
 
-                              // Date details
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 1),
-                                    child: Icon(Icons.calendar_today_rounded, size: 14, color: subTextColor),
+                                  // Student Info
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 1),
+                                        child: Icon(Icons.person_outline_rounded, size: 14, color: subTextColor),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          '$studentName (NIS: $studentNis • Kelas $className)',
+                                          style: TextStyle(fontSize: 12, color: subTextColor),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      'Pinjam: ${loanDate != null ? "${loanDate.day}/${loanDate.month}/${loanDate.year}" : "-"} • '
-                                      'Tempo: ${dueDate != null ? "${dueDate.day}/${dueDate.month}/${dueDate.year}" : "-"}',
-                                      style: TextStyle(fontSize: 12, color: subTextColor),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                  const SizedBox(height: 4),
 
-                              if (returnDate != null) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.check_circle_outline_rounded, size: 14, color: Color(0xFF10B981)),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Kembali: ${returnDate.day}/${returnDate.month}/${returnDate.year}',
-                                      style: const TextStyle(fontSize: 12, color: Color(0xFF10B981)),
+                                  // Date details
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 1),
+                                        child: Icon(Icons.calendar_today_rounded, size: 14, color: subTextColor),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Pinjam: ${loanDate != null ? "${loanDate.day}/${loanDate.month}/${loanDate.year}" : "-"} • '
+                                          'Tempo: ${dueDate != null ? "${dueDate.day}/${dueDate.month}/${dueDate.year}" : "-"}',
+                                          style: TextStyle(fontSize: 12, color: subTextColor),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  if (returnDate != null) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.check_circle_outline_rounded, size: 14, color: Color(0xFF10B981)),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Kembali: ${returnDate.day}/${returnDate.month}/${returnDate.year}',
+                                          style: const TextStyle(fontSize: 12, color: Color(0xFF10B981)),
+                                        ),
+                                      ],
                                     ),
                                   ],
-                                ),
-                              ],
 
-                              if (fine > 0) ...[
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Denda Terbayar: Rp ${fine.toStringAsFixed(0)}',
-                                  style: const TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(width: 16),
-
-                        // Status Badge or Return Action
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
+                                  if (fine > 0) ...[
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Denda Terbayar: Rp ${fine.toStringAsFixed(0)}',
+                                      style: const TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            // Status Badge
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
@@ -931,36 +939,48 @@ class _LoanListTabState extends State<LoanListTab> {
                                 ),
                               ),
                             ),
-                            if (status == 'Dipinjam') ...[
-                              const SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: () => _returnBook(id, bookId, bookTitle, dueDate!),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF10B981),
+                          ],
+                        ),
+                        if (status == 'Dipinjam') ...[
+                          const SizedBox(height: 12),
+                          Divider(
+                            color: fieldBorder,
+                            thickness: 1,
+                            height: 1,
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () => _reportLostBook(id, bookId, bookTitle, studentName),
+                                icon: const Icon(Icons.error_outline_rounded, size: 14, color: Colors.redAccent),
+                                label: const Text('Laporkan Hilang'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                  side: const BorderSide(color: Colors.redAccent, width: 1.2),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                ),
-                                child: const Text(
-                                  'Kembalikan',
-                                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                  textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
                               ),
-                              const SizedBox(height: 6),
-                              OutlinedButton(
-                                onPressed: () => _reportLostBook(id, bookId, bookTitle, studentName),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Colors.red, width: 1.5),
+                              const SizedBox(width: 8),
+                              ElevatedButton.icon(
+                                onPressed: () => _returnBook(id, bookId, bookTitle, dueDate!),
+                                icon: const Icon(Icons.assignment_turned_in_rounded, size: 14, color: Colors.white),
+                                label: const Text('Tandai Kembali'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                ),
-                                child: const Text(
-                                  'Hilang',
-                                  style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ],
-                          ],
-                        ),
+                          ),
+                        ],
                       ],
                     ),
                   );

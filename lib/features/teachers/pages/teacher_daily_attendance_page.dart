@@ -27,6 +27,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
 
   int _selectedMonth = DateTime.now().month;
   int _selectedYear = DateTime.now().year;
+  DateTime? _teacherCreatedAt;
 
   final List<String> _monthNames = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -40,9 +41,25 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
   }
 
   Future<void> _loadSchoolConfig() async {
-    setState(() {
-      _isLoadingSchoolConfig = false;
-    });
+    try {
+      final schoolId = SessionService.currentUser?.schoolId ?? '';
+      final doc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('teachers')
+          .doc(widget.teacherId)
+          .get();
+      final data = doc.data();
+      if (data != null && data['createdAt'] != null) {
+        final ts = data['createdAt'] as Timestamp;
+        _teacherCreatedAt = ts.toDate();
+      }
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _isLoadingSchoolConfig = false;
+      });
+    }
   }
 
   String _getFormattedDate() {
@@ -370,9 +387,20 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                     ),
                                     style: TextStyle(color: textColor, fontSize: 13),
                                     items: List.generate(12, (index) {
+                                      final month = index + 1;
+                                      final minMonth = (_teacherCreatedAt != null && _selectedYear == _teacherCreatedAt!.year)
+                                          ? _teacherCreatedAt!.month
+                                          : 1;
+                                      final isDisabled = month < minMonth;
                                       return DropdownMenuItem<int>(
-                                        value: index + 1,
-                                        child: Text(_monthNames[index]),
+                                        value: month,
+                                        enabled: !isDisabled,
+                                        child: Text(
+                                          _monthNames[index],
+                                          style: TextStyle(
+                                            color: isDisabled ? Colors.grey.withValues(alpha: 0.4) : null,
+                                          ),
+                                        ),
                                       );
                                     }),
                                     onChanged: (val) {
@@ -401,16 +429,29 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                       ),
                                     ),
                                     style: TextStyle(color: textColor, fontSize: 13),
-                                    items: List.generate(5, (index) {
-                                      final year = DateTime.now().year - 2 + index;
-                                      return DropdownMenuItem<int>(
-                                        value: year,
-                                        child: Text(year.toString()),
-                                      );
-                                    }),
+                                    items: () {
+                                      final startYear = _teacherCreatedAt?.year ?? (DateTime.now().year - 2);
+                                      final endYear = DateTime.now().year;
+                                      final count = (endYear - startYear + 1).clamp(1, 20);
+                                      return List.generate(count, (index) {
+                                        final year = startYear + index;
+                                        return DropdownMenuItem<int>(
+                                          value: year,
+                                          child: Text(year.toString()),
+                                        );
+                                      });
+                                    }(),
                                     onChanged: (val) {
                                       if (val != null) {
-                                        setState(() => _selectedYear = val);
+                                        final minMonth = (_teacherCreatedAt != null && val == _teacherCreatedAt!.year)
+                                            ? _teacherCreatedAt!.month
+                                            : 1;
+                                        setState(() {
+                                          _selectedYear = val;
+                                          if (_selectedMonth < minMonth) {
+                                            _selectedMonth = minMonth;
+                                          }
+                                        });
                                       }
                                     },
                                   ),

@@ -32,6 +32,7 @@ import '../../features/officer/pages/monthly_recap_page.dart';
 import '../../features/tu/pages/tu_dashboard_page.dart';
 import '../../features/librarian/pages/librarian_dashboard_page.dart';
 import '../../features/shared/coming_soon_page.dart';
+import '../../features/schools/pages/approvals/approval_dashboard_page.dart';
 
 import 'app_routes.dart';
 
@@ -139,6 +140,8 @@ class AppPages {
 
     // Route untuk TU
     GetPage(name: AppRoutes.tuDashboard, page: () => const TuDashboardPage()),
+
+    GetPage(name: AppRoutes.approvalDashboard, page: () => const ApprovalDashboardPage()),
 
     // Route untuk Librarian (Perpustakaan)
     GetPage(name: AppRoutes.librarianDashboard, page: () => const LibrarianDashboardPage()),

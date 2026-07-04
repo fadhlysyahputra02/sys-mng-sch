@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 
 import '../../../core/services/session_service.dart';
@@ -23,6 +24,8 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
   String _searchQuery = '';
   Timer? _cleanupTimer;
   Map<String, Map<String, dynamic>>? _cachedSchedules;
+  StreamSubscription<DocumentSnapshot>? _schoolSub;
+  bool _lockDialogShown = false;
 
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _schedulesStream;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _attendanceStream;
@@ -66,13 +69,69 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
     );
     _behaviorStream = _studentService.getBehaviorRecords(user.schoolId);
 
+    _listenToAccess(user.schoolId);
+
     _startAutoCleanup();
+  }
+
+  void _listenToAccess(String schoolId) {
+    _schoolSub = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(schoolId)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        final bool enabled = data['enableRealtimeControl'] ?? false;
+        if (!enabled && !_lockDialogShown && mounted) {
+          _lockDialogShown = true;
+          _showPremiumDialogAndExit();
+        }
+      }
+    });
+  }
+
+  void _showPremiumDialogAndExit() {
+    final isDark = AuthBackground.isDarkMode.value;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.lock_rounded, color: Colors.amber),
+              SizedBox(width: 8),
+              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+            ],
+          ),
+          content: Text(
+            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+                if (mounted) {
+                  Get.offAllNamed('/teacher'); // Exit to Dashboard
+                }
+              },
+              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _cleanupTimer?.cancel();
+    _schoolSub?.cancel();
     super.dispose();
   }
 

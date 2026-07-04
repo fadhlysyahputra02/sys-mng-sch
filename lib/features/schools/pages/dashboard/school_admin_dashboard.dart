@@ -25,6 +25,7 @@ import '../teachers/pages/admin_teacher_attendance_page.dart';
 import '../rapor/school_admin_rapor_page.dart';
 import '../violations/admin_violations_history_page.dart';
 import '../../../../core/widgets/motif_card.dart';
+import '../approvals/approval_dashboard_page.dart';
 
 class SchoolAdminDashboard extends StatefulWidget {
   const SchoolAdminDashboard({super.key});
@@ -92,6 +93,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('Petugas', Icons.security_rounded, Color(0xFF8B5CF6)),
     _MenuData('E-Rapor', Icons.description_rounded, Color(0xFF8B5CF6)),
     _MenuData('Pelanggaran Murid', Icons.report_problem_rounded, Color(0xFFEF4444)),
+    _MenuData('Persetujuan', Icons.edit_note_rounded, Color(0xFF10B981)),
   ];
 
   void _onMenuTap(String title) async {
@@ -137,6 +139,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         break;
       case 'Laporan Mengajar':
         Get.to(() => const AdminTeachingReportsPage());
+        break;
+      case 'Persetujuan':
+        Get.to(() => const ApprovalDashboardPage());
         break;
     }
   }
@@ -751,6 +756,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Pelanggaran Murid', Icons.report_problem_rounded, 12, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
+                _buildSidebarItem('Persetujuan', Icons.edit_note_rounded, 13, const Color(0xFF10B981), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem('Laporan Mengajar', Icons.edit_document, 14, const Color(0xFFF59E0B), isDark),
+                const SizedBox(height: 4),
                 _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
             ),
@@ -882,6 +891,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         return const SchoolAdminRaporPage(hideBackButton: true);
       case 12:
         return const AdminViolationsHistoryPage(hideBackButton: true);
+      case 13:
+        return const ApprovalDashboardPage(hideBackButton: true);
+      case 14:
+        return const AdminTeachingReportsPage();
       default:
         return _buildDesktopDashboardHome(isDark);
     }

@@ -18,6 +18,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedClassFilter = 'Semua Kelas';
+  int _selectedTab = 0; // 0: History, 1: Leaderboard
 
   @override
   void dispose() {
@@ -241,6 +242,78 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                               );
                             },
                           ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: inputFillColor,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedTab = 0;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: _selectedTab == 0
+                                            ? const Color(0xFF8B5CF6)
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          'Riwayat Pelanggaran',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: _selectedTab == 0
+                                                ? Colors.white
+                                                : textColor.withValues(alpha: 0.6),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedTab = 1;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: _selectedTab == 1
+                                            ? const Color(0xFF8B5CF6)
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          'Poin Tertinggi',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: _selectedTab == 1
+                                                ? Colors.white
+                                                : textColor.withValues(alpha: 0.6),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -272,7 +345,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                         return matchesSearch && matchesClass;
                       }).toList();
 
-                      if (filteredDocs.isEmpty) {
+                       if (filteredDocs.isEmpty) {
                         return SliverFillRemaining(
                           hasScrollBody: false,
                           child: Center(
@@ -280,13 +353,17 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
-                                  Icons.check_circle_outline_rounded,
+                                  _selectedTab == 0
+                                      ? Icons.check_circle_outline_rounded
+                                      : Icons.emoji_events_outlined,
                                   size: 64,
                                   color: const Color(0xFF10B981).withValues(alpha: 0.3),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Tidak ada catatan pelanggaran murid.',
+                                  _selectedTab == 0
+                                      ? 'Tidak ada catatan pelanggaran murid.'
+                                      : 'Tidak ada peringkat poin pelanggaran.',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: subTextColor,
@@ -294,6 +371,141 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                                   ),
                                 ),
                               ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      if (_selectedTab == 1) {
+                        final Map<String, _StudentPoints> studentPointsMap = {};
+                        for (final doc in filteredDocs) {
+                          final data = doc.data();
+                          final studentId = data['studentId'] as String? ?? '';
+                          final studentName = data['studentName'] as String? ?? 'Murid';
+                          final className = data['className'] as String? ?? 'Kelas';
+                          final poin = data['poin'] as int? ?? 0;
+                          
+                          if (studentId.isNotEmpty) {
+                            if (studentPointsMap.containsKey(studentId)) {
+                              final existing = studentPointsMap[studentId]!;
+                              studentPointsMap[studentId] = _StudentPoints(
+                                studentId: studentId,
+                                studentName: existing.studentName,
+                                className: existing.className,
+                                totalPoints: existing.totalPoints + poin,
+                              );
+                            } else {
+                              studentPointsMap[studentId] = _StudentPoints(
+                                studentId: studentId,
+                                studentName: studentName,
+                                className: className,
+                                totalPoints: poin,
+                              );
+                            }
+                          }
+                        }
+
+                        final leaderboard = studentPointsMap.values.toList()
+                          ..sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+
+                        return SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final item = leaderboard[index];
+                                final rank = index + 1;
+                                final Color rankColor;
+                                if (rank == 1) {
+                                  rankColor = const Color(0xFFF59E0B);
+                                } else if (rank == 2) {
+                                  rankColor = const Color(0xFF94A3B8);
+                                } else if (rank == 3) {
+                                  rankColor = const Color(0xFFB45309);
+                                } else {
+                                  rankColor = textColor.withValues(alpha: 0.6);
+                                }
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: cardBgColor,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: cardBorderColor),
+                                    boxShadow: isDark ? [] : [
+                                      BoxShadow(
+                                        color: shadowColor,
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          color: rank <= 3
+                                              ? rankColor.withValues(alpha: 0.15)
+                                              : Colors.transparent,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '$rank',
+                                            style: TextStyle(
+                                              color: rankColor,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item.studentName,
+                                              style: TextStyle(
+                                                color: textColor,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Kelas: ${item.className}',
+                                              style: TextStyle(
+                                                color: subTextColor,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          '-${item.totalPoints} Poin',
+                                          style: const TextStyle(
+                                            color: Color(0xFFEF4444),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              childCount: leaderboard.length,
                             ),
                           ),
                         );
@@ -416,4 +628,18 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
       },
     );
   }
+}
+
+class _StudentPoints {
+  final String studentId;
+  final String studentName;
+  final String className;
+  final int totalPoints;
+
+  _StudentPoints({
+    required this.studentId,
+    required this.studentName,
+    required this.className,
+    required this.totalPoints,
+  });
 }

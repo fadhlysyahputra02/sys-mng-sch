@@ -53,26 +53,28 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+        final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
 
-    return AuthBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: Text(
-            'Keuangan & SPP - ${widget.studentName}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: textColor),
-            onPressed: () => Get.back(),
-          ),
-        ),
+        return AuthBackground(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              title: Text(
+                'Keuangan & SPP - ${widget.studentName}',
+                style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+              ),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: textColor),
+                onPressed: () => Get.back(),
+              ),
+            ),
         body: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
@@ -144,6 +146,8 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
           ),
         ),
       ),
+    );
+    },
     );
   }
 

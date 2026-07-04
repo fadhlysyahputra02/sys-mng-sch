@@ -119,7 +119,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 7)),
+      lastDate: DateTime.now(),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -708,24 +708,71 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                       if (snapshot.connectionState != ConnectionState.waiting && !snapshot.hasError)
                         Padding(
                           padding: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
-                          child: TextButton(
-                            onPressed: () => _exportAllRecapPdf(context, allSchedules),
-                            style: TextButton.styleFrom(
-                              backgroundColor: const Color(0xFF8B5CF6),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                            child: const Text(
-                              'unduh rekapan absen',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
+                          child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                            stream: FirebaseFirestore.instance.collection('schools').doc(user.schoolId).snapshots(),
+                            builder: (context, schoolSnap) {
+                              final bool isRecapEnabled = schoolSnap.data?.data()?['enableERapor'] ?? false;
+                              return TextButton(
+                                onPressed: () {
+                                  if (!isRecapEnabled && schoolSnap.connectionState != ConnectionState.waiting) {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        backgroundColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                        title: Row(
+                                          children: [
+                                            const Icon(Icons.lock_rounded, color: Colors.amber),
+                                            const SizedBox(width: 8),
+                                            Text('Fitur Terkunci', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                                          ],
+                                        ),
+                                        content: Text(
+                                          'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+                                          style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('OK', style: TextStyle(color: Color(0xFF8B5CF6))),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  } else if (isRecapEnabled) {
+                                    _exportAllRecapPdf(context, allSchedules);
+                                  }
+                                },
+                                style: TextButton.styleFrom(
+                                  backgroundColor: (!isRecapEnabled && schoolSnap.connectionState != ConnectionState.waiting) 
+                                      ? Colors.grey.shade800 
+                                      : const Color(0xFF8B5CF6),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (!isRecapEnabled && schoolSnap.connectionState != ConnectionState.waiting)
+                                      const Padding(
+                                        padding: EdgeInsets.only(right: 4),
+                                        child: Icon(Icons.lock_rounded, size: 14, color: Colors.white70),
+                                      ),
+                                    const Text(
+                                      'unduh rekapan absen',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                         ),
                     ],

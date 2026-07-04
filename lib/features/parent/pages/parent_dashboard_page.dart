@@ -6,6 +6,7 @@ import '../../../app/routes/app_routes.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../authentication/widgets/theme_toggle_button.dart';
 import '../../chat/widgets/chat_unread_badge.dart';
 import '../../schools/services/school_service.dart';
 import '../../students/pages/student_tasks_page.dart';
@@ -267,10 +268,10 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                     ],
                                   ),
                                 ),
+                                const ThemeToggleButton(),
                                 IconButton(
                                   onPressed: _logout,
-                                  icon: const Icon(Icons.logout_rounded,
-                                      color: Color(0xFFEF4444)),
+                                  icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
                                 ),
                               ],
                             ),

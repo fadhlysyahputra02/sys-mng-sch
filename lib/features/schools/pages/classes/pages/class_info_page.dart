@@ -235,14 +235,7 @@ class ClassInfoPage extends StatelessWidget {
                                               color: const Color(0xFF6366F1).withValues(alpha: 0.15),
                                               borderRadius: BorderRadius.circular(6),
                                             ),
-                                            child: const Text(
-                                              'BASIC',
-                                              style: TextStyle(
-                                                color: Color(0xFF6366F1),
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
+                                            
                                           ),
                                         ],
                                       ),
@@ -1276,6 +1269,51 @@ class ClassInfoPage extends StatelessWidget {
     );
 
     try {
+      final user = SessionService.currentUser;
+      final schoolId = user?.schoolId ?? '';
+      
+      final schoolDoc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .get();
+          
+      final schoolData = schoolDoc.data();
+      final bool enableScheduleFeatures = schoolData?['enableScheduleFeatures'] ?? false;
+      
+      if (context.mounted) {
+        Navigator.pop(context); // Dismiss loading dialog
+      }
+
+      if ((user?.role == 'school_admin' || user?.role == 'tu') && !enableScheduleFeatures) {
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF151026),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.lock_rounded, color: Colors.amber),
+                  SizedBox(width: 8),
+                  Text('Fitur Terkunci', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+              content: const Text(
+                'Fitur Alokasi Jam Pelajaran dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK', style: TextStyle(color: Color(0xFF8B5CF6))),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
       if (context.mounted) {
         Navigator.push(
           context,
@@ -1290,6 +1328,7 @@ class ClassInfoPage extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
+        Navigator.pop(context); // Dismiss loading dialog on error
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal: $e')),
         );

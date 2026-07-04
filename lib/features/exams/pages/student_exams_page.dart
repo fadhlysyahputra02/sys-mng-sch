@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
@@ -28,6 +29,9 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
   final _examService = ExamService();
   late final Future<String> _studentDocIdFuture;
   final Map<String, Stream<ExamSubmission?>> _submissionStreams = {};
+  
+  StreamSubscription<DocumentSnapshot>? _schoolSub;
+  bool _lockDialogShown = false;
 
   Stream<ExamSubmission?> _getSubmissionStream(String schoolId, String examId, String studentId) {
     final key = '${examId}_$studentId';
@@ -44,6 +48,66 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
     _studentDocIdFuture = StudentService()
         .getStudentDocByUid(user.schoolId, user.uid)
         .then((doc) => doc?.id ?? user.uid);
+    _listenToAccess();
+  }
+
+  void _listenToAccess() {
+    final user = SessionService.currentUser!;
+    _schoolSub = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(user.schoolId)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        final bool enabled = data['enableOnlineExam'] ?? false;
+        if (!enabled && !_lockDialogShown && mounted) {
+          _lockDialogShown = true;
+          _showPremiumDialogAndExit();
+        }
+      }
+    });
+  }
+
+  void _showPremiumDialogAndExit() {
+    final isDark = AuthBackground.isDarkMode.value;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.lock_rounded, color: Colors.amber),
+              SizedBox(width: 8),
+              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+            ],
+          ),
+          content: Text(
+            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+                if (mounted) {
+                  final role = SessionService.currentUser?.role;
+                  if (role == 'parent') {
+                    Get.offAllNamed('/parent');
+                  } else {
+                    Get.offAllNamed('/student');
+                  }
+                }
+              },
+              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -391,5 +455,11 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
     );
       },
     );
+  }
+  
+  @override
+  void dispose() {
+    _schoolSub?.cancel();
+    super.dispose();
   }
 }

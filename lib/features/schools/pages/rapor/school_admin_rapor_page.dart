@@ -35,12 +35,95 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
   StreamSubscription? _classesSubscription;
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _classes = [];
   bool _isLoadingClasses = true;
+  bool _isAccessChecking = false;
+  bool _isAccessGranted = true;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _accessSubscription;
+  bool _lockDialogShown = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSchoolConfig();
-    _listenToClasses();
+    _listenToAccess();
+  }
+
+  void _listenToAccess() {
+    final user = SessionService.currentUser;
+    if (user?.role != 'school_admin' && user?.role != 'tu') {
+      setState(() {
+        _isAccessChecking = false;
+        _isAccessGranted = true;
+      });
+      _loadSchoolConfig();
+      _listenToClasses();
+      return;
+    }
+
+    setState(() => _isAccessChecking = true);
+
+    _accessSubscription = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(user!.schoolId)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
+      final bool enabled = snap.data()?['enableERapor'] ?? false;
+
+      if (!enabled) {
+        setState(() {
+          _isAccessChecking = false;
+          _isAccessGranted = false;
+        });
+        if (!_lockDialogShown) {
+          _lockDialogShown = true;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF151026),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.lock_rounded, color: Colors.amber),
+                  SizedBox(width: 8),
+                  Text('Fitur Terkunci', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+              content: const Text(
+                'Fitur E-Rapor dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Get.back();
+                  },
+                  child: const Text('OK', style: TextStyle(color: Color(0xFF8B5CF6))),
+                ),
+              ],
+            ),
+          ).then((_) => _lockDialogShown = false);
+        }
+      } else {
+        final wasBlocked = !_isAccessGranted;
+        setState(() {
+          _isAccessChecking = false;
+          _isAccessGranted = true;
+        });
+        // Load data if: feature was previously blocked, or first time loading
+        if (wasBlocked || _classes.isEmpty) {
+          _loadSchoolConfig();
+          _listenToClasses();
+        }
+      }
+    }, onError: (e) {
+      setState(() {
+        _isAccessChecking = false;
+        _isAccessGranted = true;
+      });
+      _loadSchoolConfig();
+      _listenToClasses();
+    });
   }
 
   void _listenToClasses() {
@@ -101,6 +184,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
 
   @override
   void dispose() {
+    _accessSubscription?.cancel();
     _classesSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -108,6 +192,19 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isAccessChecking) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F0B1E),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),
+      );
+    }
+    if (!_isAccessGranted) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F0B1E),
+        body: SizedBox.shrink(),
+      );
+    }
+
     final user = SessionService.currentUser!;
     final schoolId = user.schoolId;
 

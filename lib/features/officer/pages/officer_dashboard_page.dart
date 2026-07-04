@@ -8,6 +8,7 @@ import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
 import '../../teachers/pages/teacher_settings_page.dart';
+import '../../schools/pages/teachers/pages/admin_teacher_attendance_page.dart';
 
 import '../../../core/widgets/motif_card.dart';
 
@@ -267,9 +268,9 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                             childAspectRatio: 1.1,
                             children: [
                               _buildMenuCard(
-                                title: 'Rekap Harian',
-                                icon: Icons.bar_chart_rounded,
-                                color: const Color(0xFF6366F1),
+                                title: 'Rekap Murid',
+                                icon: Icons.school_rounded,
+                                color: const Color(0xFF10B981),
                                 onTap: () => Get.toNamed(AppRoutes.officerRecap),
                                 textColor: textColor,
                                 cardBg: cardBg,
@@ -277,14 +278,14 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                                 isDisabled: !scanMuridEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Rekap Bulanan',
-                                icon: Icons.calendar_month_rounded,
-                                color: const Color(0xFF7C3AED),
-                                onTap: () => Get.toNamed(AppRoutes.officerMonthlyRecap),
+                                title: 'Rekap Guru',
+                                icon: Icons.assignment_ind_rounded,
+                                color: const Color(0xFF3B82F6),
+                                onTap: () => Get.to(() => const AdminTeacherAttendancePage(isMonthly: false)),
                                 textColor: textColor,
                                 cardBg: cardBg,
                                 cardBorder: cardBorder,
-                                isDisabled: !scanMuridEnabled,
+                                isDisabled: !scanGuruEnabled,
                               ),
                             ],
                           ),

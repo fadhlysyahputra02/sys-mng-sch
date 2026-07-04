@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -27,11 +28,102 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
   DateTime _selectedDate = DateTime.now();
   List<Map<String, dynamic>> _recapData = [];
   bool _isLoading = false;
+  bool _isAccessChecking = false;
+  bool _isAccessGranted = true;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _accessSubscription;
+  bool _lockDialogShown = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
+    _listenToAccess();
+  }
+
+  @override
+  void dispose() {
+    _accessSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenToAccess() {
+    final user = SessionService.currentUser;
+    if (user?.role != 'school_admin' && user?.role != 'tu') {
+      // Non-restricted roles: load data directly
+      setState(() {
+        _isAccessChecking = false;
+        _isAccessGranted = true;
+      });
+      _fetchData();
+      return;
+    }
+
+    setState(() => _isAccessChecking = true);
+
+    _accessSubscription = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(user!.schoolId)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
+      final bool enabled = snap.data()?['enableStudentAttendanceRecap'] ?? false;
+
+      if (!enabled) {
+        setState(() {
+          _isAccessChecking = false;
+          _isAccessGranted = false;
+        });
+        if (!_lockDialogShown) {
+          _lockDialogShown = true;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF151026),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.lock_rounded, color: Colors.amber),
+                  SizedBox(width: 8),
+                  Text('Fitur Terkunci', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+              content: const Text(
+                'Fitur Rekap Absensi Siswa dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Get.back();
+                  },
+                  child: const Text('OK', style: TextStyle(color: Color(0xFF8B5CF6))),
+                ),
+              ],
+            ),
+          ).then((_) => _lockDialogShown = false);
+        }
+      } else {
+        final wasBlocked = !_isAccessGranted;
+        setState(() {
+          _isAccessChecking = false;
+          _isAccessGranted = true;
+        });
+        if (wasBlocked) {
+          // Re-enabled: reload data
+          _fetchData();
+        } else if (_recapData.isEmpty && !_isLoading) {
+          _fetchData();
+        }
+      }
+    }, onError: (e) {
+      // On error, grant access to prevent false lockouts
+      setState(() {
+        _isAccessChecking = false;
+        _isAccessGranted = true;
+      });
+      _fetchData();
+    });
   }
 
   Future<void> _fetchData() async {
@@ -84,16 +176,22 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
               pw.Text('Tanggal: ${DateFormat('dd MMMM yyyy').format(_selectedDate)}'),
               pw.SizedBox(height: 24),
               pw.Table.fromTextArray(
-                headers: ['No', 'Nama Siswa', 'Kelas', 'Waktu', 'Status', 'Metode'],
+                headers: ['No', 'Nama Siswa', 'Kelas', 'Masuk', 'Pulang', 'Status', 'Metode'],
                 data: List<List<String>>.generate(_recapData.length, (index) {
                   final item = _recapData[index];
-                  final time = (item['timestamp'] as dynamic)?.toDate();
-                  final timeStr = time != null ? DateFormat('HH:mm').format(time) : '-';
+                  final checkInTimestamp = item['checkInTime'] ?? item['timestamp'];
+                  final checkInTime = (checkInTimestamp as Timestamp?)?.toDate();
+                  final checkInStr = checkInTime != null ? DateFormat('HH:mm').format(checkInTime) : '-';
+
+                  final checkOutTimestamp = item['checkOutTime'];
+                  final checkOutTime = (checkOutTimestamp as Timestamp?)?.toDate();
+                  final checkOutStr = checkOutTime != null ? DateFormat('HH:mm').format(checkOutTime) : '-';
                   return [
                     (index + 1).toString(),
                     item['studentName'] ?? '-',
                     item['className'] ?? '-',
-                    timeStr,
+                    checkInStr,
+                    checkOutStr,
                     (item['status'] ?? '-').toString().toUpperCase(),
                     item['method'] == 'qr_scan' ? 'QR Code' : 'Manual',
                   ];
@@ -121,21 +219,28 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
         TextCellValue('No'),
         TextCellValue('Nama Siswa'),
         TextCellValue('Kelas'),
-        TextCellValue('Waktu'),
+        TextCellValue('Masuk'),
+        TextCellValue('Pulang'),
         TextCellValue('Status'),
         TextCellValue('Metode'),
       ]);
 
       for (int i = 0; i < _recapData.length; i++) {
         final item = _recapData[i];
-        final time = (item['timestamp'] as dynamic)?.toDate();
-        final timeStr = time != null ? DateFormat('HH:mm').format(time) : '-';
+        final checkInTimestamp = item['checkInTime'] ?? item['timestamp'];
+        final checkInTime = (checkInTimestamp as Timestamp?)?.toDate();
+        final checkInStr = checkInTime != null ? DateFormat('HH:mm').format(checkInTime) : '-';
+
+        final checkOutTimestamp = item['checkOutTime'];
+        final checkOutTime = (checkOutTimestamp as Timestamp?)?.toDate();
+        final checkOutStr = checkOutTime != null ? DateFormat('HH:mm').format(checkOutTime) : '-';
         
         sheetObject.appendRow([
           IntCellValue(i + 1),
           TextCellValue(item['studentName'] ?? '-'),
           TextCellValue(item['className'] ?? '-'),
-          TextCellValue(timeStr),
+          TextCellValue(checkInStr),
+          TextCellValue(checkOutStr),
           TextCellValue((item['status'] ?? '-').toString().toUpperCase()),
           TextCellValue(item['method'] == 'qr_scan' ? 'QR Code' : 'Manual'),
         ]);
@@ -177,6 +282,19 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isAccessChecking) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F0B1E),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),
+      );
+    }
+    if (!_isAccessGranted) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F0B1E),
+        body: SizedBox.shrink(),
+      );
+    }
+
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
@@ -322,7 +440,8 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
                         children: [
                           Expanded(flex: 2, child: Text('Siswa', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
                           Expanded(flex: 1, child: Text('Kelas', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-                          Expanded(flex: 1, child: Text('Jam', style: TextStyle(color: textColor, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                          Expanded(flex: 1, child: Text('Masuk', style: TextStyle(color: textColor, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                          Expanded(flex: 1, child: Text('Pulang', style: TextStyle(color: textColor, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
                           Expanded(flex: 1, child: Text('Status', style: TextStyle(color: textColor, fontWeight: FontWeight.bold), textAlign: TextAlign.end)),
                         ],
                       ),
@@ -346,8 +465,14 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
                                 itemBuilder: (context, index) {
                                   final item = _recapData[index];
                                   final isHadir = item['status'] == 'hadir';
-                                  final time = (item['timestamp'] as dynamic)?.toDate();
-                                  final timeStr = time != null ? DateFormat('HH:mm').format(time) : '-';
+                                  
+                                  final checkInTimestamp = item['checkInTime'] ?? item['timestamp'];
+                                  final checkInTime = (checkInTimestamp as Timestamp?)?.toDate();
+                                  final checkInStr = checkInTime != null ? DateFormat('HH:mm').format(checkInTime) : '-';
+
+                                  final checkOutTimestamp = item['checkOutTime'];
+                                  final checkOutTime = (checkOutTimestamp as Timestamp?)?.toDate();
+                                  final checkOutStr = checkOutTime != null ? DateFormat('HH:mm').format(checkOutTime) : '-';
                                   
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -370,7 +495,15 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
                                         Expanded(
                                           flex: 1,
                                           child: Text(
-                                            timeStr,
+                                            checkInStr,
+                                            style: TextStyle(color: subTextColor),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 1,
+                                          child: Text(
+                                            checkOutStr,
                                             style: TextStyle(color: subTextColor),
                                             textAlign: TextAlign.center,
                                           ),

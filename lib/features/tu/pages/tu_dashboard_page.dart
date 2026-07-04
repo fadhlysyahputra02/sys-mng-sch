@@ -26,6 +26,7 @@ import '../../../core/widgets/motif_card.dart';
 import 'tu_payment_dashboard.dart';
 import '../../schools/pages/grades/school_admin_grades_page.dart';
 import '../../schools/pages/rapor/school_admin_rapor_page.dart';
+import '../../schools/pages/approvals/approval_dashboard_page.dart';
 
 class TuDashboardPage extends StatefulWidget {
   const TuDashboardPage({super.key});
@@ -324,6 +325,12 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
       'color': const Color(0xFFEF4444),
       'onTap': () => Get.to(() => const AdminViolationsHistoryPage()),
     },
+    {
+      'title': 'Persetujuan',
+      'icon': Icons.edit_note_rounded,
+      'color': const Color(0xFF10B981),
+      'onTap': () => Get.to(() => const ApprovalDashboardPage()),
+    },
   ];
 
   @override
@@ -474,6 +481,8 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Pelanggaran Murid', Icons.warning_amber_rounded, 13, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
+                _buildSidebarItem('Persetujuan', Icons.edit_note_rounded, 14, const Color(0xFF10B981), isDark),
+                const SizedBox(height: 4),
                 _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
             ),
@@ -580,6 +589,8 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
         return SchoolAdminRaporPage(hideBackButton: true);
       case 13:
         return const AdminViolationsHistoryPage(hideBackButton: true);
+      case 14:
+        return const ApprovalDashboardPage(hideBackButton: true);
       
       default:
         return _buildDesktopDashboardHome(isDark);

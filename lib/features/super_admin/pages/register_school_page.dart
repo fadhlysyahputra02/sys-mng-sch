@@ -430,6 +430,286 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
     }
   }
 
+  Future<void> _toggleImportExcelTeacher(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableImportExcelTeacher'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateImportExcelTeacherToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Fitur Import Excel Guru ${school['namaSekolah']} diaktifkan!' 
+            : 'Fitur Import Excel Guru ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleImportExcelStudent(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableImportExcelStudent'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateImportExcelStudentToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Fitur Import Excel Murid ${school['namaSekolah']} diaktifkan!' 
+            : 'Fitur Import Excel Murid ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleScheduleFeatures(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableScheduleFeatures'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateScheduleFeaturesToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Fitur Jadwal ${school['namaSekolah']} diaktifkan!' 
+            : 'Fitur Jadwal ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleStudentAttendanceRecap(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableStudentAttendanceRecap'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateStudentAttendanceRecapToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Rekap Absensi Siswa ${school['namaSekolah']} diaktifkan!' 
+            : 'Rekap Absensi Siswa ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleTeacherAttendanceRecap(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableTeacherAttendanceRecap'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateTeacherAttendanceRecapToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Rekap Absensi Guru ${school['namaSekolah']} diaktifkan!' 
+            : 'Rekap Absensi Guru ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleERapor(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableERapor'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateERaporToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Fitur E-Rapor ${school['namaSekolah']} diaktifkan!' 
+            : 'Fitur E-Rapor ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleRealtimeControl(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableRealtimeControl'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateRealtimeControlToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Fitur Realtime Control ${school['namaSekolah']} diaktifkan!' 
+            : 'Fitur Realtime Control ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleOnlineExam(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableOnlineExam'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateOnlineExamToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Fitur Ujian Online ${school['namaSekolah']} diaktifkan!' 
+            : 'Fitur Ujian Online ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleChat(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableChat'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateChatToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Fitur Chat ${school['namaSekolah']} diaktifkan!' 
+            : 'Fitur Chat ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleStudentLeaveRequest(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableStudentLeaveRequest'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateStudentLeaveRequestToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Fitur Surat Izin Siswa ${school['namaSekolah']} diaktifkan!' 
+            : 'Fitur Surat Izin Siswa ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _handleResetPassword(Map<String, dynamic> school) async {
     setState(() => _isLoading = true);
     try {
@@ -1353,7 +1633,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
           StreamBuilder<List<Map<String, dynamic>>>(
             stream: schoolService.getSchoolsStream(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
@@ -1494,41 +1774,167 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 12),
+                                  const Divider(color: Colors.white10),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Bypass Kunci Jadwal',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['allowBypassScheduleLock'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleBypassScheduleLock(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur Import Excel Guru',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableImportExcelTeacher'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleImportExcelTeacher(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur Import Excel Murid',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableImportExcelStudent'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleImportExcelStudent(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur Jadwal (Alokasi & Auto Gen)',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableScheduleFeatures'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleScheduleFeatures(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur Rekap Absensi Siswa',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableStudentAttendanceRecap'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleStudentAttendanceRecap(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur Rekap Absensi Guru',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableTeacherAttendanceRecap'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleTeacherAttendanceRecap(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur E-Rapor',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableERapor'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleERapor(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur Realtime Control',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableRealtimeControl'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleRealtimeControl(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur Ujian Online',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableOnlineExam'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleOnlineExam(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur Chat',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableChat'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleChat(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur Surat Izin Siswa',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableStudentLeaveRequest'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleStudentLeaveRequest(school),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
                                    Row(
                                      mainAxisAlignment: MainAxisAlignment.end,
                                      children: [
-                                       // Toggle Bypass Schedule Lock (Icon Only)
-                                       Builder(
-                                         builder: (context) {
-                                           final bool allowBypass = school['allowBypassScheduleLock'] ?? false;
-                                           return Container(
-                                             decoration: BoxDecoration(
-                                               color: allowBypass
-                                                   ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                                                   : Colors.grey.withValues(alpha: 0.1),
-                                               shape: BoxShape.circle,
-                                               border: Border.all(
-                                                 color: allowBypass
-                                                     ? const Color(0xFF10B981).withValues(alpha: 0.2)
-                                                     : Colors.grey.withValues(alpha: 0.2),
-                                               ),
-                                             ),
-                                             child: IconButton(
-                                               icon: Icon(
-                                                 allowBypass ? Icons.lock_open_rounded : Icons.lock_rounded,
-                                                 color: allowBypass ? const Color(0xFF10B981) : Colors.grey,
-                                                 size: 20,
-                                               ),
-                                               tooltip: allowBypass ? 'Kunci Jadwal (Aktif)' : 'Bypass Kunci Jadwal (Nonaktif)',
-                                               onPressed: () => _toggleBypassScheduleLock(school),
-                                               constraints: const BoxConstraints(),
-                                               padding: const EdgeInsets.all(8),
-                                             ),
-                                           );
-                                         }
-                                       ),
-                                       const SizedBox(width: 10),
                                        // Edit Quota button (Icon Only)
                                        Container(
                                          decoration: BoxDecoration(

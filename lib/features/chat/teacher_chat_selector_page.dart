@@ -1,10 +1,12 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../authentication/widgets/auth_background.dart';
 import 'teacher_chat_list_page.dart';
-import 'teacher_parent_chat_list_page.dart'; // akan dibuat nanti, atau pakai yang sudah ada
+import 'teacher_parent_chat_list_page.dart';
 
-class TeacherChatSelectorPage extends StatelessWidget {
+class TeacherChatSelectorPage extends StatefulWidget {
   final String schoolId;
   final String teacherDocId;
   final String teacherName;
@@ -15,6 +17,79 @@ class TeacherChatSelectorPage extends StatelessWidget {
     required this.teacherDocId,
     required this.teacherName,
   });
+
+  @override
+  State<TeacherChatSelectorPage> createState() => _TeacherChatSelectorPageState();
+}
+
+class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
+  StreamSubscription<DocumentSnapshot>? _schoolSub;
+  bool _lockDialogShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToSchoolConfig();
+  }
+
+  void _listenToSchoolConfig() {
+    _schoolSub = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .snapshots()
+        .listen((doc) {
+      if (!doc.exists) return;
+      final data = doc.data() as Map<String, dynamic>;
+      final isEnabled = data['enableChat'] ?? false;
+
+      if (!isEnabled && !_lockDialogShown && mounted) {
+        _lockDialogShown = true;
+        _showPremiumDialogAndExit();
+      }
+    });
+  }
+
+  void _showPremiumDialogAndExit() {
+    final isDark = AuthBackground.isDarkMode.value;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.lock_rounded, color: Colors.amber),
+              SizedBox(width: 8),
+              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+            ],
+          ),
+          content: Text(
+            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+                if (mounted) {
+                  Get.offAllNamed('/teacher'); // Exit to Dashboard
+                }
+              },
+              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _schoolSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,9 +184,9 @@ class TeacherChatSelectorPage extends StatelessWidget {
                           onTap: () {
                             Get.to(
                               () => TeacherChatListPage(
-                                schoolId: schoolId,
-                                teacherDocId: teacherDocId,
-                                teacherName: teacherName,
+                                schoolId: widget.schoolId,
+                                teacherDocId: widget.teacherDocId,
+                                teacherName: widget.teacherName,
                               ),
                             );
                           },
@@ -135,9 +210,9 @@ class TeacherChatSelectorPage extends StatelessWidget {
                           onTap: () {
                             Get.to(
                               () => TeacherParentChatListPage(
-                                schoolId: schoolId,
-                                teacherDocId: teacherDocId,
-                                teacherName: teacherName,
+                                schoolId: widget.schoolId,
+                                teacherDocId: widget.teacherDocId,
+                                teacherName: widget.teacherName,
                               ),
                             );
                           },

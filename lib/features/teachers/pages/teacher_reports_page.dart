@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
@@ -59,11 +60,68 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
 
   String _tahunAjaran = '';
   String _activeSemester = '';
+  
+  StreamSubscription<DocumentSnapshot>? _schoolSub;
+  bool _lockDialogShown = false;
 
   @override
   void initState() {
     super.initState();
     _loadAllData();
+    _listenToAccess();
+  }
+
+  void _listenToAccess() {
+    _schoolSub = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        final bool enabled = data['enableERapor'] ?? false;
+        if (!enabled && !_lockDialogShown && mounted) {
+          _lockDialogShown = true;
+          _showPremiumDialogAndExit();
+        }
+      }
+    });
+  }
+
+  void _showPremiumDialogAndExit() {
+    final isDark = AuthBackground.isDarkMode.value;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.lock_rounded, color: Colors.amber),
+              SizedBox(width: 8),
+              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+            ],
+          ),
+          content: Text(
+            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+                if (mounted) {
+                  Get.offAllNamed('/teacher'); // Exit to Dashboard
+                }
+              },
+              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _loadAllData() async {
@@ -688,6 +746,12 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _schoolSub?.cancel();
+    super.dispose();
   }
 }
 

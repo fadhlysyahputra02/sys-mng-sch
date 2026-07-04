@@ -90,6 +90,27 @@ class LibraryService {
     return _visitorsRef.orderBy('timestamp', descending: true).snapshots();
   }
 
+  Future<void> cleanOldVisitors() async {
+    if (schoolId.isEmpty) return;
+    try {
+      final sixtyDaysAgo = DateTime.now().subtract(const Duration(days: 60));
+      final snapshot = await _visitorsRef
+          .where('timestamp', isLessThan: Timestamp.fromDate(sixtyDaysAgo))
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final batch = _db.batch();
+        for (var doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+    } catch (e) {
+      // Ignore or log error
+      print('Error cleaning old visitors: $e');
+    }
+  }
+
   Future<void> recordVisitor({
     required String studentId,
     required String studentNis,

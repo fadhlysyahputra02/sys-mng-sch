@@ -75,9 +75,9 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
 
       // 3. Hitung total guru aktif
       final totalGuruQuery = await FirebaseFirestore.instance
-          .collection('users')
-          .where('schoolId', isEqualTo: user.schoolId)
-          .where('role', isEqualTo: 'teacher')
+          .collection('schools')
+          .doc(user.schoolId)
+          .collection('teachers')
           .count()
           .get();
 
@@ -437,9 +437,9 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
     try {
       final user = SessionService.currentUser!;
       final query = await FirebaseFirestore.instance
-          .collection('users')
-          .where('schoolId', isEqualTo: user.schoolId)
-          .where('role', isEqualTo: 'teacher')
+          .collection('schools')
+          .doc(user.schoolId)
+          .collection('teachers')
           .get();
 
       final list = query.docs.map((doc) {
@@ -1082,27 +1082,28 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                   ? Colors.white.withValues(alpha: 0.1)
                   : Colors.black.withValues(alpha: 0.08);
 
-              return Scaffold(
-                extendBodyBehindAppBar: false,
-                appBar: AppBar(
+              return AuthBackground(
+                child: Scaffold(
                   backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  iconTheme: IconThemeData(color: textColor),
-                  title: Text(
-                    pageTitle,
-                    style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                  extendBodyBehindAppBar: false,
+                  appBar: AppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    iconTheme: IconThemeData(color: textColor),
+                    title: Text(
+                      pageTitle,
+                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                    ),
+                    bottom: tabs.length <= 1
+                        ? null
+                        : TabBar(
+                            indicatorColor: const Color(0xFF6366F1),
+                            labelColor: textColor,
+                            unselectedLabelColor: subTextColor,
+                            tabs: tabs.map((tab) => Tab(text: tab)).toList(),
+                          ),
                   ),
-                  bottom: tabs.length <= 1
-                      ? null
-                      : TabBar(
-                          indicatorColor: const Color(0xFF6366F1),
-                          labelColor: textColor,
-                          unselectedLabelColor: subTextColor,
-                          tabs: tabs.map((tab) => Tab(text: tab)).toList(),
-                        ),
-                ),
-                body: AuthBackground(
-                  child: SafeArea(
+                  body: SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
                       child: Column(

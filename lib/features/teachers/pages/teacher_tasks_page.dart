@@ -102,8 +102,36 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
     return '$dayName, ${dateTime.day} $monthName ${dateTime.year} - ${DateFormat('HH:mm').format(dateTime.toLocal())} WIB';
   }
 
-  Future<void> _confirmDelete(BuildContext context, String schoolId, String taskId, String title) async {
+  Future<void> _confirmDelete(BuildContext context, String schoolId, Task task) async {
     final isDark = AuthBackground.isDarkMode.value;
+
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('taskDeleteRequests')
+          .where('taskId', isEqualTo: task.id)
+          .where('status', isEqualTo: 'pending')
+          .get();
+          
+      if (query.docs.isNotEmpty) {
+        if (context.mounted) {
+          Get.snackbar(
+            'Info',
+            'Pengajuan hapus tugas sedang menunggu persetujuan Admin/TU.',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: const Color(0xFFF59E0B),
+            colorText: Colors.white,
+            borderRadius: 12,
+            margin: const EdgeInsets.all(16),
+          );
+        }
+        return;
+      }
+    } catch (e) {
+      // Ignore
+    }
+
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -116,10 +144,10 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
         ),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B)),
             const SizedBox(width: 10),
             Text(
-              'Hapus Tugas',
+              'Ajukan Hapus Tugas',
               style: TextStyle(
                 color: isDark ? Colors.white : const Color(0xFF1E1B4B),
                 fontWeight: FontWeight.bold,
@@ -129,7 +157,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin menghapus tugas "$title" beserta seluruh file jawaban murid di dalamnya? Tindakan ini tidak dapat dibatalkan.',
+          'Apakah Anda yakin ingin mengajukan penghapusan tugas "${task.title}" ke Admin/TU? Penghapusan akan menghapus seluruh file jawaban murid.',
           style: TextStyle(
             color: isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
             fontSize: 14,
@@ -151,11 +179,11 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
+              backgroundColor: const Color(0xFFF59E0B),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Ajukan', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -163,11 +191,25 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
 
     if (confirm == true) {
       try {
-        await _taskService.deleteTask(schoolId, taskId);
+        await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('taskDeleteRequests')
+            .add({
+          'taskId': task.id,
+          'taskTitle': task.title,
+          'className': task.className,
+          'subjectName': task.subjectName,
+          'requestedBy': task.teacherId,
+          'requestedByName': SessionService.currentUser?.nama ?? task.teacherName,
+          'requestedAt': FieldValue.serverTimestamp(),
+          'status': 'pending',
+        });
+        
         if (context.mounted) {
           Get.snackbar(
             'Sukses',
-            'Tugas berhasil dihapus',
+            'Pengajuan penghapusan tugas berhasil dikirim.',
             snackPosition: SnackPosition.TOP,
             backgroundColor: const Color(0xFF10B981),
             colorText: Colors.white,
@@ -179,7 +221,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
         if (context.mounted) {
           Get.snackbar(
             'Gagal',
-            'Gagal menghapus tugas: $e',
+            'Gagal mengirim pengajuan: $e',
             snackPosition: SnackPosition.TOP,
             backgroundColor: const Color(0xFFEF4444),
             colorText: Colors.white,
@@ -189,6 +231,40 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
         }
       }
     }
+  }
+
+  Widget _buildDeleteRequestBadge(String status) {
+    final isPending = status == 'pending';
+    final isRejected = status == 'rejected';
+    if (!isPending && !isRejected) return const SizedBox.shrink();
+
+    final color = isPending ? const Color(0xFFF59E0B) : const Color(0xFFEF4444);
+    final text = isPending ? 'Menunggu Persetujuan' : 'Hapus Ditolak';
+    final icon = isPending ? Icons.hourglass_empty_rounded : Icons.cancel_outlined;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -407,16 +483,47 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
 
                 // List Data
                 if (!_isLoadingSchedules)
-                  StreamBuilder<List<Task>>(
-                    stream: _taskService.getTasksByTeacher(
-                      schoolId: user.schoolId,
-                      teacherId: widget.teacherId,
-                      classId: _selectedFilterClassId,
-                      subjectId: _selectedFilterSubjectId,
-                      tahunAjaran: _tahunAjaran ?? '-',
-                      semester: _activeSemester ?? '-',
-                    ),
-                    builder: (context, snapshot) {
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection('schools')
+                        .doc(user.schoolId)
+                        .collection('taskDeleteRequests')
+                        .where('requestedBy', isEqualTo: widget.teacherId)
+                        .snapshots(),
+                    builder: (context, requestsSnapshot) {
+                      final requestsDocs = requestsSnapshot.data?.docs ?? [];
+                      final Map<String, String> requestStatusMap = {};
+                      
+                      // Sort ascending by requestedAt so the latest overrides
+                      final sortedRequests = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(requestsDocs)
+                        ..sort((a, b) {
+                          final ta = a.data()['requestedAt'] as Timestamp?;
+                          final tb = b.data()['requestedAt'] as Timestamp?;
+                          if (ta == null && tb == null) return 0;
+                          if (ta == null) return -1;
+                          if (tb == null) return 1;
+                          return ta.compareTo(tb);
+                        });
+
+                      for (final doc in sortedRequests) {
+                        final data = doc.data();
+                        final taskId = data['taskId'] as String?;
+                        final status = data['status'] as String?;
+                        if (taskId != null && status != null) {
+                          requestStatusMap[taskId] = status;
+                        }
+                      }
+
+                      return StreamBuilder<List<Task>>(
+                        stream: _taskService.getTasksByTeacher(
+                          schoolId: user.schoolId,
+                          teacherId: widget.teacherId,
+                          classId: _selectedFilterClassId,
+                          subjectId: _selectedFilterSubjectId,
+                          tahunAjaran: _tahunAjaran ?? '-',
+                          semester: _activeSemester ?? '-',
+                        ),
+                        builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         return SliverFillRemaining(
                           child: Center(
@@ -517,27 +624,35 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                             Row(
                                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                               children: [
-                                                // Category/Subject Tag
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-                                                    borderRadius: BorderRadius.circular(10),
-                                                    border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
-                                                  ),
-                                                  child: Text(
-                                                    task.subjectName,
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF3B82F6),
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.bold,
+                                                // Category/Subject Tag & Request Status Badge
+                                                Row(
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                                                        borderRadius: BorderRadius.circular(10),
+                                                        border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+                                                      ),
+                                                      child: Text(
+                                                        task.subjectName,
+                                                        style: const TextStyle(
+                                                          color: Color(0xFF3B82F6),
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
                                                     ),
-                                                  ),
+                                                    if (requestStatusMap[task.id] != null) ...[
+                                                      const SizedBox(width: 8),
+                                                      _buildDeleteRequestBadge(requestStatusMap[task.id]!),
+                                                    ],
+                                                  ],
                                                 ),
                                                 IconButton(
                                                   icon: const Icon(Icons.delete_rounded, color: Color(0xFFEF4444), size: 20),
                                                   tooltip: 'Hapus Tugas',
-                                                  onPressed: () => _confirmDelete(context, user.schoolId, task.id, task.title),
+                                                  onPressed: () => _confirmDelete(context, user.schoolId, task),
                                                 ),
                                               ],
                                             ),
@@ -630,8 +745,10 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                         ),
                       );
                     },
-                  ),
-              ],
+                  );
+                },
+              ),
+          ],
             ),
           ),
           floatingActionButton: FloatingActionButton(

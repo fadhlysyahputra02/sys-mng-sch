@@ -37,8 +37,8 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
 
   // Data maps
   List<Map<String, dynamic>> _students = [];
-  // Map of studentId -> { dateStr: status }
-  Map<String, Map<String, String>> _attendanceMap = {};
+  // Map of studentId -> { dateStr: { 'status': status, 'hasCheckedOut': hasCheckedOut } }
+  Map<String, Map<String, Map<String, dynamic>>> _attendanceMap = {};
 
   final List<String> _monthNames = [
     'Januari',
@@ -179,15 +179,19 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
           .toList();
 
       // Build attendanceMap: studentId -> { dateStr -> status }
-      final Map<String, Map<String, String>> tempMap = {};
+      final Map<String, Map<String, Map<String, dynamic>>> tempMap = {};
       for (final doc in filteredDocs) {
         final studentId = doc['studentId'] as String?;
         final date = doc['date'] as String?;
         final status = doc['status'] as String?;
+        final checkOutTime = doc['checkOutTime'];
 
         if (studentId != null && date != null && status != null) {
           tempMap.putIfAbsent(studentId, () => {});
-          tempMap[studentId]![date] = status.toLowerCase();
+          tempMap[studentId]![date] = {
+            'status': status.toLowerCase(),
+            'hasCheckedOut': checkOutTime != null,
+          };
         }
       }
 
@@ -210,9 +214,13 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
     int alpha = 0;
     int izin = 0;
     int sakit = 0;
+    int pulang = 0;
 
     final records = _attendanceMap[studentId] ?? {};
-    for (final status in records.values) {
+    for (final record in records.values) {
+      final status = record['status'] as String?;
+      final hasCheckedOut = record['hasCheckedOut'] as bool? ?? false;
+
       switch (status) {
         case 'hadir':
           hadir++;
@@ -230,6 +238,9 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
           sakit++;
           break;
       }
+      if (hasCheckedOut) {
+        pulang++;
+      }
     }
 
     return {
@@ -238,6 +249,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
       'alpha': alpha,
       'izin': izin,
       'sakit': sakit,
+      'pulang': pulang,
     };
   }
 
@@ -271,6 +283,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                 'Nama Siswa',
                 'Hadir (H)',
                 'Terlambat (T)',
+                'Pulang (P)',
                 'Izin (I)',
                 'Sakit (S)',
                 'Alpha (A)',
@@ -287,6 +300,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                   student['nama'] ?? '-',
                   counts['hadir'].toString(),
                   counts['terlambat'].toString(),
+                  counts['pulang'].toString(),
                   counts['izin'].toString(),
                   counts['sakit'].toString(),
                   counts['alpha'].toString(),
@@ -323,7 +337,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
       ]);
       sheetObject.appendRow([]); // Empty spacer row
 
-      // Headers (Columns: No, Nama Siswa, 1 - 31, H, T, I, S, A)
+      // Headers (Columns: No, Nama Siswa, 1 - 31, H, T, P, I, S, A)
       List<CellValue> headers = [
         TextCellValue('No'),
         TextCellValue('Nama Siswa'),
@@ -334,6 +348,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
       headers.addAll([
         TextCellValue('H (Hadir)'),
         TextCellValue('T (Terlambat)'),
+        TextCellValue('P (Pulang)'),
         TextCellValue('I (Izin)'),
         TextCellValue('S (Sakit)'),
         TextCellValue('A (Alpha)'),
@@ -355,7 +370,8 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
         // Populate days
         for (int d = 1; d <= daysInMonth; d++) {
           final dateKey = '$computedYear-${_selectedMonth.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
-          final status = studentRecords[dateKey];
+          final record = studentRecords[dateKey];
+          final status = record?['status'] as String?;
 
           String code = '-';
           if (status != null) {
@@ -384,6 +400,7 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
         row.addAll([
           IntCellValue(counts['hadir'] ?? 0),
           IntCellValue(counts['terlambat'] ?? 0),
+          IntCellValue(counts['pulang'] ?? 0),
           IntCellValue(counts['izin'] ?? 0),
           IntCellValue(counts['sakit'] ?? 0),
           IntCellValue(counts['alpha'] ?? 0),
@@ -741,6 +758,14 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                                                 label: 'Terlambat',
                                                 count: counts['terlambat']!,
                                                 color: const Color(0xFFF59E0B),
+                                              ),
+                                              const SizedBox(width: 8),
+
+                                              // Teal (Pulang)
+                                              _buildInfoPill(
+                                                label: 'Pulang',
+                                                count: counts['pulang'] ?? 0,
+                                                color: const Color(0xFF0D9488),
                                               ),
                                               const SizedBox(width: 8),
 

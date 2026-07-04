@@ -88,7 +88,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
 
         setState(() {
           _logoBase64 = data['logoBase64'];
-          _schoolNameController.text = data['name'] ?? data['nama'] ?? '';
+          _schoolNameController.text = data['namaSekolah'] ?? data['name'] ?? data['nama'] ?? '';
           _tahunAjaranController.text = data['tahunAjaran'] ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
           _activeSemester = data['semester'] ?? 'Semester 1';
           _jamMasukController.text = data['jamMasuk'] ?? '07:15';
@@ -192,8 +192,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
           .doc(widget.schoolId)
           .update({
         'logoBase64': _logoBase64,
-        'name': schoolName,
-        'nama': schoolName,
+        'namaSekolah': schoolName,
       });
 
       // Ubah password jika diisi

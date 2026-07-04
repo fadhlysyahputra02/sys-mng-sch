@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -29,6 +30,10 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
   late bool _isMonthlyRecap;
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = DateTime.now().month;
+  bool _isAccessChecking = false;
+  bool _isAccessGranted = true;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _accessSubscription;
+  bool _lockDialogShown = false;
 
   final List<String> _monthNames = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -39,6 +44,83 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
   void initState() {
     super.initState();
     _isMonthlyRecap = widget.isMonthly;
+    _listenToAccess();
+  }
+
+  @override
+  void dispose() {
+    _accessSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenToAccess() {
+    final user = SessionService.currentUser;
+    if (user?.role != 'school_admin' && user?.role != 'tu') {
+      setState(() {
+        _isAccessChecking = false;
+        _isAccessGranted = true;
+      });
+      return;
+    }
+
+    setState(() => _isAccessChecking = true);
+
+    _accessSubscription = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(user!.schoolId)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
+      final bool enabled = snap.data()?['enableTeacherAttendanceRecap'] ?? false;
+
+      if (!enabled) {
+        setState(() {
+          _isAccessChecking = false;
+          _isAccessGranted = false;
+        });
+        if (!_lockDialogShown) {
+          _lockDialogShown = true;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF151026),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.lock_rounded, color: Colors.amber),
+                  SizedBox(width: 8),
+                  Text('Fitur Terkunci', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+              content: const Text(
+                'Fitur Rekap Absensi Guru dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Get.back();
+                  },
+                  child: const Text('OK', style: TextStyle(color: Color(0xFF8B5CF6))),
+                ),
+              ],
+            ),
+          ).then((_) => _lockDialogShown = false);
+        }
+      } else {
+        setState(() {
+          _isAccessChecking = false;
+          _isAccessGranted = true;
+        });
+      }
+    }, onError: (e) {
+      setState(() {
+        _isAccessChecking = false;
+        _isAccessGranted = true;
+      });
+    });
   }
 
   DateTime _selectedDate = DateTime.now();
@@ -441,6 +523,7 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
         final d = doc.data();
         final tId = d['teacherId'] as String?;
         final status = d['status'] as String?;
+        final checkOutTime = d['checkOutTime'];
         if (tId != null && status != null) {
           recapMap.putIfAbsent(tId, () => {
             'hadir': 0,
@@ -448,12 +531,16 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
             'sakit': 0,
             'izin': 0,
             'alfa': 0,
+            'pulang': 0,
           });
           final normStatus = status.toLowerCase();
           if (recapMap[tId]!.containsKey(normStatus)) {
             recapMap[tId]![normStatus] = recapMap[tId]![normStatus]! + 1;
           } else if (normStatus == 'alfa' || normStatus == 'alpha') {
             recapMap[tId]!['alfa'] = recapMap[tId]!['alfa']! + 1;
+          }
+          if (checkOutTime != null) {
+            recapMap[tId]!['pulang'] = recapMap[tId]!['pulang']! + 1;
           }
         }
       }
@@ -477,7 +564,7 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
               pw.Text('Periode: ${_monthNames[_selectedMonth - 1]} $_selectedYear'),
               pw.SizedBox(height: 20),
               pw.Table.fromTextArray(
-                headers: ['No', 'Nama Guru', 'NIP', 'Hadir', 'Telat', 'Sakit', 'Izin', 'Alfa'],
+                headers: ['No', 'Nama Guru', 'NIP', 'Hadir', 'Telat', 'Pulang', 'Sakit', 'Izin', 'Alfa'],
                 data: List<List<String>>.generate(sortedTeachers.length, (index) {
                   final doc = sortedTeachers[index];
                   final tData = doc.data();
@@ -491,6 +578,7 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                     'sakit': 0,
                     'izin': 0,
                     'alfa': 0,
+                    'pulang': 0,
                   };
 
                   return [
@@ -499,6 +587,7 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                     nip,
                     counts['hadir'].toString(),
                     counts['terlambat'].toString(),
+                    counts['pulang'].toString(),
                     counts['sakit'].toString(),
                     counts['izin'].toString(),
                     counts['alfa'].toString(),
@@ -553,6 +642,7 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
         final d = doc.data();
         final tId = d['teacherId'] as String?;
         final status = d['status'] as String?;
+        final checkOutTime = d['checkOutTime'];
         if (tId != null && status != null) {
           recapMap.putIfAbsent(tId, () => {
             'hadir': 0,
@@ -560,12 +650,16 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
             'sakit': 0,
             'izin': 0,
             'alfa': 0,
+            'pulang': 0,
           });
           final normStatus = status.toLowerCase();
           if (recapMap[tId]!.containsKey(normStatus)) {
             recapMap[tId]![normStatus] = recapMap[tId]![normStatus]! + 1;
           } else if (normStatus == 'alfa' || normStatus == 'alpha') {
             recapMap[tId]!['alfa'] = recapMap[tId]!['alfa']! + 1;
+          }
+          if (checkOutTime != null) {
+            recapMap[tId]!['pulang'] = recapMap[tId]!['pulang']! + 1;
           }
         }
       }
@@ -587,6 +681,7 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
         TextCellValue('NIP'),
         TextCellValue('Hadir'),
         TextCellValue('Telat'),
+        TextCellValue('Pulang'),
         TextCellValue('Sakit'),
         TextCellValue('Izin'),
         TextCellValue('Alfa'),
@@ -605,6 +700,7 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
           'sakit': 0,
           'izin': 0,
           'alfa': 0,
+          'pulang': 0,
         };
 
         sheetObject.appendRow([
@@ -613,6 +709,7 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
           TextCellValue(nip),
           IntCellValue(counts['hadir']!),
           IntCellValue(counts['terlambat']!),
+          IntCellValue(counts['pulang']!),
           IntCellValue(counts['sakit']!),
           IntCellValue(counts['izin']!),
           IntCellValue(counts['alfa']!),
@@ -979,9 +1076,23 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
 
   @override
   Widget build(BuildContext context) {
+    if (_isAccessChecking) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F0B1E),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),
+      );
+    }
+    if (!_isAccessGranted) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F0B1E),
+        body: SizedBox.shrink(),
+      );
+    }
+
     final user = SessionService.currentUser!;
     final schoolId = user.schoolId;
     final dateStr = _getDateStr(_selectedDate);
+    final isAdmin = user.role == 'school_admin';
 
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
@@ -1331,7 +1442,8 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                               final nip = tData['nip'] ?? '';
                               
                               final attendance = attMap[tId];
-                              final status = attendance != null ? (attendance['status'] ?? 'hadir') : 'alfa';
+                              String status = attendance != null ? (attendance['status'] ?? 'hadir').toString().toLowerCase() : 'alfa';
+                              if (status == 'alpha') status = 'alfa';
 
                               if (status == 'hadir') countHadir++;
                               if (status == 'terlambat') countTerlambat++;
@@ -1439,13 +1551,13 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                                               child: Material(
                                                 color: Colors.transparent,
                                                 child: InkWell(
-                                                  onTap: () => _showEditAttendanceModal(
+                                                  onTap: isAdmin ? () => _showEditAttendanceModal(
                                                     schoolId: schoolId,
                                                     teacherId: tId,
                                                     teacherName: name,
                                                     nip: nip,
                                                     currentData: att,
-                                                  ),
+                                                  ) : null,
                                                   borderRadius: BorderRadius.circular(16),
                                                   child: Padding(
                                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1530,6 +1642,7 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                                 final d = doc.data();
                                 final tId = d['teacherId'] as String?;
                                 final status = d['status'] as String?;
+                                final checkOutTime = d['checkOutTime'];
                                 if (tId != null && status != null) {
                                   recapMap.putIfAbsent(tId, () => {
                                     'hadir': 0,
@@ -1537,12 +1650,16 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                                     'sakit': 0,
                                     'izin': 0,
                                     'alfa': 0,
+                                    'pulang': 0,
                                   });
                                   final normStatus = status.toLowerCase();
                                   if (recapMap[tId]!.containsKey(normStatus)) {
                                     recapMap[tId]![normStatus] = recapMap[tId]![normStatus]! + 1;
                                   } else if (normStatus == 'alfa' || normStatus == 'alpha') {
                                     recapMap[tId]!['alfa'] = recapMap[tId]!['alfa']! + 1;
+                                  }
+                                  if (checkOutTime != null) {
+                                    recapMap[tId]!['pulang'] = recapMap[tId]!['pulang']! + 1;
                                   }
                                 }
                               }
@@ -1595,6 +1712,7 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                                   'sakit': 0,
                                   'izin': 0,
                                   'alfa': 0,
+                                  'pulang': 0,
                                 };
 
                                 return Container(
@@ -1643,15 +1761,23 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                                       const SizedBox(height: 16),
                                       const Divider(height: 1),
                                       const SizedBox(height: 12),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          _buildCountBadge('Hadir', counts['hadir']!, const Color(0xFF10B981)),
-                                          _buildCountBadge('Telat', counts['terlambat']!, const Color(0xFFF59E0B)),
-                                          _buildCountBadge('Sakit', counts['sakit']!, const Color(0xFF3B82F6)),
-                                          _buildCountBadge('Izin', counts['izin']!, const Color(0xFF8B5CF6)),
-                                          _buildCountBadge('Alfa', counts['alfa']!, const Color(0xFFEF4444)),
-                                        ],
+                                      SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: Row(
+                                          children: [
+                                            _buildCountBadge('Hadir', counts['hadir']!, const Color(0xFF10B981)),
+                                            const SizedBox(width: 8),
+                                            _buildCountBadge('Telat', counts['terlambat']!, const Color(0xFFF59E0B)),
+                                            const SizedBox(width: 8),
+                                            _buildCountBadge('Pulang', counts['pulang'] ?? 0, const Color(0xFF0D9488)),
+                                            const SizedBox(width: 8),
+                                            _buildCountBadge('Sakit', counts['sakit']!, const Color(0xFF3B82F6)),
+                                            const SizedBox(width: 8),
+                                            _buildCountBadge('Izin', counts['izin']!, const Color(0xFF8B5CF6)),
+                                            const SizedBox(width: 8),
+                                            _buildCountBadge('Alfa', counts['alfa']!, const Color(0xFFEF4444)),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),

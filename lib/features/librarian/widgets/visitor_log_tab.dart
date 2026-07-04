@@ -18,6 +18,12 @@ class _VisitorLogTabState extends State<VisitorLogTab> {
   final LibraryService _libraryService = LibraryService();
   String _searchQuery = '';
 
+  @override
+  void initState() {
+    super.initState();
+    _libraryService.cleanOldVisitors();
+  }
+
   void _showNotification(String title, String message, bool isSuccess) {
     Get.snackbar(
       title,
@@ -144,8 +150,15 @@ class _VisitorLogTabState extends State<VisitorLogTab> {
                 );
               }
 
+              final sixtyDaysAgo = DateTime.now().subtract(const Duration(days: 60));
               final visitors = snapshot.data!.docs.where((doc) {
                 final d = doc.data() as Map<String, dynamic>;
+                
+                final timestamp = (d['timestamp'] as Timestamp?)?.toDate();
+                if (timestamp != null && timestamp.isBefore(sixtyDaysAgo)) {
+                  return false;
+                }
+
                 final name = (d['studentName'] ?? '').toString().toLowerCase();
                 final nis = (d['studentNis'] ?? '').toString().toLowerCase();
                 final className = (d['className'] ?? '').toString().toLowerCase();

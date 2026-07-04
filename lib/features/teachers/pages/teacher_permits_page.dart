@@ -37,6 +37,8 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
   bool _isLoadingInfo = true;
   StreamSubscription? _schedulesSub;
   StreamSubscription? _classesSub;
+  StreamSubscription<DocumentSnapshot>? _schoolSub;
+  bool _lockDialogShown = false;
 
   @override
   void initState() {
@@ -58,7 +60,61 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
       }
       _isArgumentsLoaded = true;
       _loadTeacherClassesInfo();
+      _listenToSchoolConfig();
     }
+  }
+
+  void _listenToSchoolConfig() {
+    _schoolSub = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(_schoolId)
+        .snapshots()
+        .listen((doc) {
+      if (!doc.exists) return;
+      final data = doc.data() as Map<String, dynamic>;
+      final bool enabled = data['enableStudentLeaveRequest'] ?? false;
+
+      if (!enabled && !_lockDialogShown && mounted) {
+        _lockDialogShown = true;
+        _showPremiumDialogAndExit();
+      }
+    });
+  }
+
+  void _showPremiumDialogAndExit() {
+    final isDark = AuthBackground.isDarkMode.value;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_rounded, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text('Fitur Terkunci', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+            ],
+          ),
+          content: Text(
+            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+                if (mounted) {
+                  Get.offAllNamed('/teacher'); // Exit to Dashboard
+                }
+              },
+              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _loadTeacherClassesInfo() {
@@ -114,6 +170,7 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
     _tabController.dispose();
     _schedulesSub?.cancel();
     _classesSub?.cancel();
+    _schoolSub?.cancel();
     super.dispose();
   }
 

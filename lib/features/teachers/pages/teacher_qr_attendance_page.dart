@@ -309,9 +309,93 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                             const SizedBox(width: 8),
                             Text(
                               isToday ? 'Murid Hadir (Real-time)' : 'Murid Hadir (Riwayat)',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: titleColor),
                             ),
                             const Spacer(),
+                            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('schools')
+                                  .doc(user.schoolId)
+                                  .collection('attendanceEditRequests')
+                                  .where('scheduleId', isEqualTo: scheduleId)
+                                  .where('dateStr', isEqualTo: dateStr)
+                                  .snapshots(),
+                              builder: (context, requestSnapshot) {
+                                final requests = requestSnapshot.data?.docs ?? [];
+                                final hasApproved = requests.any((doc) => doc.data()['status'] == 'approved');
+                                final hasPending = requests.any((doc) => doc.data()['status'] == 'pending');
+
+                                if (hasApproved) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle_outline_rounded, size: 12, color: Color(0xFF10B981)),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Mode Edit Aktif',
+                                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                } else if (hasPending) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(
+                                          width: 10,
+                                          height: 10,
+                                          child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.amber),
+                                        ),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'Menunggu Persetujuan',
+                                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.amber),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                } else {
+                                  return TextButton.icon(
+                                    onPressed: () => _requestEditDialog(
+                                      context,
+                                      user.schoolId,
+                                      scheduleId,
+                                      widget.scheduleData['subjectName'] ?? '',
+                                      widget.scheduleData['className'] ?? '',
+                                      dateStr,
+                                    ),
+                                    icon: const Icon(Icons.edit_note_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                                    label: const Text(
+                                      'Edit Absensi',
+                                      style: TextStyle(color: Color(0xFF8B5CF6), fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      backgroundColor: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 8),
                             StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                               stream: FirebaseFirestore.instance
                                   .collection('schools')
@@ -383,12 +467,24 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                             final allStudents = classSnapshot.data?.docs ?? [];
 
                             return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                              stream: _studentService.getScheduleAttendanceListStream(
-                                schoolId: user.schoolId,
-                                scheduleId: scheduleId,
-                                dateStr: dateStr,
-                              ),
-                              builder: (context, attendanceSnapshot) {
+                              stream: FirebaseFirestore.instance
+                                  .collection('schools')
+                                  .doc(user.schoolId)
+                                  .collection('attendanceEditRequests')
+                                  .where('scheduleId', isEqualTo: scheduleId)
+                                  .where('dateStr', isEqualTo: dateStr)
+                                  .where('status', isEqualTo: 'approved')
+                                  .snapshots(),
+                              builder: (context, requestSnapshot) {
+                                final hasApprovedEdit = (requestSnapshot.data?.docs ?? []).isNotEmpty;
+
+                                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                  stream: _studentService.getScheduleAttendanceListStream(
+                                    schoolId: user.schoolId,
+                                    scheduleId: scheduleId,
+                                    dateStr: dateStr,
+                                  ),
+                                  builder: (context, attendanceSnapshot) {
                                 if (attendanceSnapshot.hasError) {
                                   return Container(
                                     padding: const EdgeInsets.all(16),
@@ -514,46 +610,79 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                       if (status == 'Izin') statusColor = const Color(0xFF3B82F6);
                                       if (status == 'Sakit') statusColor = const Color(0xFFF59E0B);
 
-                                      return Container(
-                                        margin: const EdgeInsets.only(bottom: 12),
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: cardBgColor,
+                                      return Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () {
+                                            if (hasApprovedEdit) {
+                                              _showManualAttendanceDialog(
+                                                context,
+                                                user.schoolId,
+                                                item['studentId'] as String,
+                                                studentName as String,
+                                                scheduleId,
+                                                widget.scheduleData['subjectName'] ?? '',
+                                                widget.scheduleData['className'] ?? '',
+                                                classId,
+                                                dateStr,
+                                              );
+                                            } else {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('Harap ajukan izin "Edit Absensi" dan disetujui Admin/TU terlebih dahulu.'),
+                                                  backgroundColor: Colors.orange,
+                                                ),
+                                              );
+                                            }
+                                          },
                                           borderRadius: BorderRadius.circular(16),
-                                          border: Border.all(color: cardBorderColor),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            CircleAvatar(
-                                              backgroundColor: statusColor.withValues(alpha: 0.2),
-                                              child: Icon(Icons.person_rounded, color: statusColor),
+                                          child: Container(
+                                            margin: const EdgeInsets.only(bottom: 12),
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                            decoration: BoxDecoration(
+                                              color: cardBgColor,
+                                              borderRadius: BorderRadius.circular(16),
+                                              border: Border.all(color: cardBorderColor),
                                             ),
-                                            const SizedBox(width: 14),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    studentName,
-                                                    style: TextStyle(fontWeight: FontWeight.bold, color: titleColor, fontSize: 15),
+                                            child: Row(
+                                              children: [
+                                                CircleAvatar(
+                                                  backgroundColor: statusColor.withValues(alpha: 0.2),
+                                                  child: Icon(Icons.person_rounded, color: statusColor),
+                                                ),
+                                                const SizedBox(width: 14),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        studentName,
+                                                        style: TextStyle(fontWeight: FontWeight.bold, color: titleColor, fontSize: 15),
+                                                      ),
+                                                      const SizedBox(height: 2),
+                                                      Text(
+                                                        'Status: $status • Metode: $method',
+                                                        style: TextStyle(fontSize: 11, color: subTextColor),
+                                                      ),
+                                                    ],
                                                   ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    'Status: $status • Metode: $method',
-                                                    style: TextStyle(fontSize: 11, color: subTextColor),
-                                                  ),
-                                                ],
-                                              ),
+                                                ),
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                                  children: [
+                                                    Text(
+                                                      _formatTime(timestamp),
+                                                      style: TextStyle(fontWeight: FontWeight.bold, color: statusColor, fontSize: 13),
+                                                    ),
+                                                    if (hasApprovedEdit) ...[
+                                                      const SizedBox(height: 2),
+                                                      Icon(Icons.edit_note_rounded, size: 14, color: subTextColor.withValues(alpha: 0.5)),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ],
                                             ),
-                                            Text(
-                                              _formatTime(timestamp),
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: statusColor,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          ],
+                                          ),
                                         ),
                                       );
                                     } else {
@@ -570,17 +699,26 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                           color: Colors.transparent,
                                           child: InkWell(
                                             onTap: () {
-                                              _showManualAttendanceDialog(
-                                                context,
-                                                user.schoolId,
-                                                item['studentId'],
-                                                studentName,
-                                                scheduleId,
-                                                widget.scheduleData['subjectName'] ?? '',
-                                                widget.scheduleData['className'] ?? '',
-                                                classId,
-                                                dateStr,
-                                              );
+                                              if (isToday || hasApprovedEdit) {
+                                                _showManualAttendanceDialog(
+                                                  context,
+                                                  user.schoolId,
+                                                  item['studentId'],
+                                                  studentName,
+                                                  scheduleId,
+                                                  widget.scheduleData['subjectName'] ?? '',
+                                                  widget.scheduleData['className'] ?? '',
+                                                  classId,
+                                                  dateStr,
+                                                );
+                                              } else {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text('Harap ajukan izin "Edit Absensi" dan disetujui Admin/TU terlebih dahulu untuk tanggal lampau.'),
+                                                    backgroundColor: Colors.orange,
+                                                  ),
+                                                );
+                                              }
                                             },
                                             borderRadius: BorderRadius.circular(16),
                                             child: Padding(
@@ -633,7 +771,9 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                               },
                             );
                           },
-                        ),
+                        );
+                      },
+                    ),
 
                         const SizedBox(height: 40),
                       ],
@@ -643,21 +783,43 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
               ],
             ),
           ),
-          floatingActionButton: isPassed ? null : FloatingActionButton.extended(
-            onPressed: () => _showTeachingReportDialog(
-              user.schoolId,
-              user.uid,
-              user.nama,
-              classId,
-              className,
-              subjectName,
-              scheduleId,
-              dateStr,
-            ),
-            backgroundColor: const Color(0xFF8B5CF6),
-            icon: const Icon(Icons.edit_document, color: Colors.white),
-            label: const Text('Isi Laporan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
+          floatingActionButton: isPassed
+              ? null
+              : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('schools')
+                      .doc(user.schoolId)
+                      .collection('teaching_reports')
+                      .where('scheduleId', isEqualTo: scheduleId)
+                      .where('date', isEqualTo: dateStr)
+                      .snapshots(),
+                  builder: (context, reportSnapshot) {
+                    final hasReport = (reportSnapshot.data?.docs ?? []).isNotEmpty;
+                    return FloatingActionButton.extended(
+                      onPressed: hasReport
+                          ? null
+                          : () => _showTeachingReportDialog(
+                                user.schoolId,
+                                user.uid,
+                                user.nama,
+                                classId,
+                                className,
+                                subjectName,
+                                scheduleId,
+                                dateStr,
+                              ),
+                      backgroundColor: hasReport ? Colors.grey : const Color(0xFF8B5CF6),
+                      icon: Icon(
+                        hasReport ? Icons.check_circle_rounded : Icons.edit_document,
+                        color: Colors.white,
+                      ),
+                      label: Text(
+                        hasReport ? 'Laporan Selesai Diisi' : 'Isi Laporan',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  },
+                ),
         );
       },
     );
@@ -827,6 +989,116 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
     );
   }
 
+  /// Shows a dialog to submit a session-level edit request
+  void _requestEditDialog(
+    BuildContext context,
+    String schoolId,
+    String scheduleId,
+    String subjectName,
+    String className,
+    String dateStr,
+  ) {
+    final reasonController = TextEditingController();
+    bool isSubmitting = false;
+    final teacher = SessionService.currentUser!;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Ajukan Izin Edit Absensi', style: TextStyle(fontWeight: FontWeight.bold)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Kelas: $className • $subjectName', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Text('Tanggal: ${_getFormattedIndonesianDate(dateStr)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: reasonController,
+                      decoration: InputDecoration(
+                        labelText: 'Alasan Koreksi / Edit',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      maxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (reasonController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Alasan tidak boleh kosong'), backgroundColor: Colors.red),
+                            );
+                            return;
+                          }
+                          setDialogState(() => isSubmitting = true);
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('schools')
+                                .doc(schoolId)
+                                .collection('attendanceEditRequests')
+                                .add({
+                              'scheduleId': scheduleId,
+                              'dateStr': dateStr,
+                              'className': className,
+                              'subjectName': subjectName,
+                              'requestedBy': teacher.uid,
+                              'requestedByName': teacher.nama,
+                              'reason': reasonController.text.trim(),
+                              'status': 'pending',
+                              'requestedAt': FieldValue.serverTimestamp(),
+                              'reviewedBy': null,
+                              'reviewedAt': null,
+                            });
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Pengajuan izin edit berhasil dikirim ke Admin/TU'),
+                                  backgroundColor: Color(0xFF10B981),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() => isSubmitting = false);
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Gagal mengirim: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Kirim Pengajuan', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   void _showTeachingReportDialog(
     String schoolId,

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:sys_mng_school/core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import '../../../services/excel_import_service.dart';
 import 'add_student_admin_page.dart';
@@ -488,11 +489,55 @@ class _StudentListPageState extends State<StudentListPage> {
     );
 
     try {
+      final user = SessionService.currentUser;
+      final schoolDoc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .get();
+          
+      final schoolData = schoolDoc.data();
+      final bool enableImportExcelStudent = schoolData?['enableImportExcelStudent'] ?? false;
+      
+      if (context.mounted) {
+        Navigator.pop(context); // Dismiss loading dialog
+      }
+
+      if ((user?.role == 'school_admin' || user?.role == 'tu') && !enableImportExcelStudent) {
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF151026),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.lock_rounded, color: Colors.amber),
+                  SizedBox(width: 8),
+                  Text('Fitur Terkunci', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+              content: const Text(
+                'Fitur Import Excel dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK', style: TextStyle(color: Color(0xFF8B5CF6))),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
       if (context.mounted) {
         _showImportGuide(context);
       }
     } catch (e) {
       if (context.mounted) {
+        Navigator.pop(context); // Dismiss loading dialog on error
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal: $e')),
         );

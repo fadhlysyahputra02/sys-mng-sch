@@ -252,7 +252,11 @@ class DashboardHomeTab extends StatelessWidget {
                 final d = doc.data() as Map<String, dynamic>;
                 if (d['status'] != 'Dipinjam') return false;
                 final dueDate = (d['dueDate'] as Timestamp?)?.toDate();
-                return dueDate != null && DateTime.now().isAfter(dueDate);
+                if (dueDate == null) return false;
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
+                final due = DateTime(dueDate.year, dueDate.month, dueDate.day);
+                return today.isAfter(due);
               }).toList();
 
               if (overdue.isEmpty) return const SizedBox.shrink();
@@ -279,7 +283,10 @@ class DashboardHomeTab extends StatelessWidget {
                   ...overdue.map((doc) {
                     final d = doc.data() as Map<String, dynamic>;
                     final dueDate = (d['dueDate'] as Timestamp?)!.toDate();
-                    final daysLate = DateTime.now().difference(dueDate).inDays;
+                    final now = DateTime.now();
+                    final today = DateTime(now.year, now.month, now.day);
+                    final due = DateTime(dueDate.year, dueDate.month, dueDate.day);
+                    final daysLate = today.difference(due).inDays;
                     return _buildOverdueBanner(
                       bookTitle: d['bookTitle'] ?? '-',
                       studentName: d['studentName'] ?? '-',
