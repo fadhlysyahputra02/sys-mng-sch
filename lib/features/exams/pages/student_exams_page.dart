@@ -410,10 +410,54 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                                 icon: const Icon(Icons.warning_amber_rounded, color: Colors.black),
                                               );
                                             } else {
-                                              Get.to(() => StudentTakeExamPage(
-                                                exam: exam,
-                                                studentDocId: studentDocId,
-                                              ));
+                                              bool isPermittedOrSick = false;
+                                              String blockedReason = '';
+
+                                              // 1. Check daily attendance record
+                                              for (final doc in attendanceSnapshot.docs) {
+                                                if (doc.id == '${studentDocId}_$dateStr') {
+                                                  final status = (doc.data()['status'] ?? '').toString().toLowerCase();
+                                                  if (status == 'sakit' || status == 'izin') {
+                                                    isPermittedOrSick = true;
+                                                    blockedReason = status == 'sakit' ? 'Sakit' : 'Izin';
+                                                  }
+                                                  break;
+                                                }
+                                              }
+
+                                              // 2. Check subject-specific attendance record
+                                              if (!isPermittedOrSick) {
+                                                for (final doc in attendanceSnapshot.docs) {
+                                                  final data = doc.data();
+                                                  if (data['subjectName'] != null &&
+                                                      data['subjectName'].toString().trim().toLowerCase() == exam.subjectName.trim().toLowerCase()) {
+                                                    final status = (data['status'] ?? '').toString().toLowerCase();
+                                                    if (status == 'sakit' || status == 'izin') {
+                                                      isPermittedOrSick = true;
+                                                      blockedReason = status == 'sakit' ? 'Sakit' : 'Izin';
+                                                    }
+                                                    break;
+                                                  }
+                                                }
+                                              }
+
+                                              if (isPermittedOrSick) {
+                                                Get.snackbar(
+                                                  'Akses Ditolak',
+                                                  'Anda tidak dapat mengikuti ujian online karena status Anda hari ini atau di mata pelajaran ini adalah: $blockedReason.',
+                                                  snackPosition: SnackPosition.TOP,
+                                                  backgroundColor: Colors.redAccent,
+                                                  colorText: Colors.white,
+                                                  margin: const EdgeInsets.all(16),
+                                                  borderRadius: 12,
+                                                  icon: const Icon(Icons.block_rounded, color: Colors.white),
+                                                );
+                                              } else {
+                                                Get.to(() => StudentTakeExamPage(
+                                                  exam: exam,
+                                                  studentDocId: studentDocId,
+                                                ));
+                                              }
                                             }
                                           } catch (e) {
                                             Get.back(); // close loading dialog

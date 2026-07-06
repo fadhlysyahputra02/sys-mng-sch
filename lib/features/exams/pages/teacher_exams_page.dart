@@ -340,159 +340,302 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
     final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+    final user = SessionService.currentUser!;
 
     Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0F0C20) : Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(28),
-            topRight: Radius.circular(28),
-          ),
-          border: Border(top: BorderSide(color: cardBorderColor)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hasil Ujian Murid',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
-                      ),
-                      Text(
-                        exam.title,
-                        style: TextStyle(fontSize: 12, color: titleColor.withValues(alpha: 0.6)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.close, color: titleColor),
-                  onPressed: () => Get.back(),
-                ),
-              ],
+      DefaultTabController(
+        length: 2,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F0C20) : Colors.white,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: StreamBuilder<List<ExamSubmission>>(
-                stream: _examService.getExamSubmissions(SessionService.currentUser!.schoolId, exam.id),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final submissions = snapshot.data ?? [];
-                  if (submissions.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'Belum ada murid yang mengumpulkan ujian.',
-                        style: TextStyle(color: titleColor.withValues(alpha: 0.5), fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: submissions.length,
-                    itemBuilder: (context, index) {
-                      final sub = submissions[index];
-                      final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(sub.submittedAt);
-                      final hasEssay = exam.questions.any((q) => q.type == 'essay');
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: cardBgColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: cardBorderColor),
+            border: Border(top: BorderSide(color: cardBorderColor)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hasil Ujian Murid',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                         ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () {
-                              Get.back(); // Close bottom sheet
-                              Get.to(() => TeacherGradeExamPage(
-                                    exam: exam,
-                                    submission: sub,
-                                  ));
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          sub.studentName,
-                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Dikumpulkan: $dateStr${exam.questions.any((q) => q.type == 'multiple_choice') ? '\nBenar PG: ${sub.correctCount} | Salah PG: ${sub.incorrectCount}' : ''}',
-                                          style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6), height: 1.4),
-                                        ),
-                                      ],
-                                    ),
+                        Text(
+                          exam.title,
+                          style: TextStyle(fontSize: 12, color: titleColor.withValues(alpha: 0.6)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: titleColor),
+                    onPressed: () => Get.back(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: StreamBuilder<List<ExamSubmission>>(
+                  stream: _examService.getExamSubmissions(user.schoolId, exam.id),
+                  builder: (context, submissionSnapshot) {
+                    if (submissionSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final submissions = submissionSnapshot.data ?? [];
+
+                    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: StudentService().getStudentsByClass(exam.classId, schoolId: user.schoolId),
+                      builder: (context, studentSnapshot) {
+                        if (studentSnapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        final studentDocs = studentSnapshot.data?.docs ?? [];
+                        final Map<String, ExamSubmission> submissionMap = {
+                          for (var sub in submissions) sub.studentId: sub
+                        };
+
+                        final notSubmittedStudents = studentDocs.where((doc) => !submissionMap.containsKey(doc.id)).toList();
+                        notSubmittedStudents.sort((a, b) {
+                          final nameA = a.data()['nama']?.toString().toLowerCase() ?? '';
+                          final nameB = b.data()['nama']?.toString().toLowerCase() ?? '';
+                          return nameA.compareTo(nameB);
+                        });
+
+                        return Column(
+                          children: [
+                            TabBar(
+                              labelColor: const Color(0xFF8B5CF6),
+                              unselectedLabelColor: titleColor.withValues(alpha: 0.6),
+                              indicatorColor: const Color(0xFF8B5CF6),
+                              indicatorSize: TabBarIndicatorSize.tab,
+                              dividerColor: Colors.transparent,
+                              tabs: [
+                                Tab(
+                                  child: Text(
+                                    'Sudah (${submissions.length})',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
-                                  const SizedBox(width: 8),
-                                  if (hasEssay && !sub.isGraded)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Text(
-                                        'Perlu Koreksi',
-                                        style: TextStyle(
-                                          color: Colors.amber,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
+                                ),
+                                Tab(
+                                  child: Text(
+                                    'Belum (${notSubmittedStudents.length})',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Expanded(
+                              child: TabBarView(
+                                children: [
+                                  // TAB 1: SUDAH MENGERJAKAN
+                                  submissions.isEmpty
+                                      ? Center(
+                                          child: Text(
+                                            'Belum ada murid yang mengumpulkan ujian.',
+                                            style: TextStyle(color: titleColor.withValues(alpha: 0.5), fontSize: 13),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        )
+                                      : ListView.builder(
+                                          physics: const BouncingScrollPhysics(),
+                                          itemCount: submissions.length,
+                                          itemBuilder: (context, index) {
+                                            final sub = submissions[index];
+                                            final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(sub.submittedAt);
+                                            final hasEssay = exam.questions.any((q) => q.type == 'essay');
+
+                                            return Container(
+                                              margin: const EdgeInsets.only(bottom: 12),
+                                              decoration: BoxDecoration(
+                                                color: cardBgColor,
+                                                borderRadius: BorderRadius.circular(16),
+                                                border: Border.all(color: cardBorderColor),
+                                              ),
+                                              child: Material(
+                                                color: Colors.transparent,
+                                                child: InkWell(
+                                                  borderRadius: BorderRadius.circular(16),
+                                                  onTap: () {
+                                                    Get.back(); // Close bottom sheet
+                                                    Get.to(() => TeacherGradeExamPage(
+                                                          exam: exam,
+                                                          submission: sub,
+                                                        ));
+                                                  },
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.all(16),
+                                                    child: Row(
+                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      children: [
+                                                        Expanded(
+                                                          child: Column(
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            children: [
+                                                              Text(
+                                                                sub.studentName,
+                                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
+                                                              ),
+                                                              const SizedBox(height: 4),
+                                                              Text(
+                                                                'Dikumpulkan: $dateStr${exam.questions.any((q) => q.type == 'multiple_choice') ? '\nBenar PG: ${sub.correctCount} | Salah PG: ${sub.incorrectCount}' : ''}',
+                                                                style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6), height: 1.4),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        if (hasEssay && !sub.isGraded)
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                            decoration: BoxDecoration(
+                                                              color: Colors.amber.withValues(alpha: 0.15),
+                                                              borderRadius: BorderRadius.circular(10),
+                                                            ),
+                                                            child: const Text(
+                                                              'Perlu Koreksi',
+                                                              style: TextStyle(
+                                                                color: Colors.amber,
+                                                                fontWeight: FontWeight.bold,
+                                                                fontSize: 12,
+                                                              ),
+                                                            ),
+                                                          )
+                                                        else
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                            decoration: BoxDecoration(
+                                                              color: (sub.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent).withValues(alpha: 0.15),
+                                                              borderRadius: BorderRadius.circular(12),
+                                                            ),
+                                                            child: Text(
+                                                              '${sub.score.toInt()}',
+                                                              style: TextStyle(
+                                                                color: sub.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent,
+                                                                fontWeight: FontWeight.bold,
+                                                                fontSize: 18,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
                                         ),
-                                      ),
-                                    )
-                                  else
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: (sub.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent).withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        '${sub.score.toInt()}',
-                                        style: TextStyle(
-                                          color: sub.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18,
+
+                                  // TAB 2: BELUM MENGERJAKAN
+                                  notSubmittedStudents.isEmpty
+                                      ? Center(
+                                          child: Text(
+                                            'Semua murid sudah mengumpulkan ujian.',
+                                            style: TextStyle(color: titleColor.withValues(alpha: 0.5), fontSize: 13),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        )
+                                      : ListView.builder(
+                                          physics: const BouncingScrollPhysics(),
+                                          itemCount: notSubmittedStudents.length,
+                                          itemBuilder: (context, index) {
+                                            final student = notSubmittedStudents[index].data();
+                                            final studentId = notSubmittedStudents[index].id;
+                                            final name = student['nama'] ?? 'Murid';
+                                            final nis = student['nis'] ?? '-';
+                                            final isSusulan = exam.susulanStudentIds.contains(studentId);
+
+                                            return Container(
+                                              margin: const EdgeInsets.only(bottom: 12),
+                                              decoration: BoxDecoration(
+                                                color: cardBgColor,
+                                                borderRadius: BorderRadius.circular(16),
+                                                border: Border.all(color: cardBorderColor),
+                                              ),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(16),
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text(
+                                                            name,
+                                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
+                                                          ),
+                                                          const SizedBox(height: 4),
+                                                          Text(
+                                                            'NIS: $nis',
+                                                            style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6)),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    if (isSusulan)
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                                                          borderRadius: BorderRadius.circular(8),
+                                                        ),
+                                                        child: const Text(
+                                                          'Susulan',
+                                                          style: TextStyle(
+                                                            color: Color(0xFF8B5CF6),
+                                                            fontWeight: FontWeight.bold,
+                                                            fontSize: 10,
+                                                          ),
+                                                        ),
+                                                      )
+                                                    else
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.redAccent.withValues(alpha: 0.15),
+                                                          borderRadius: BorderRadius.circular(8),
+                                                        ),
+                                                        child: const Text(
+                                                          'Belum',
+                                                          style: TextStyle(
+                                                            color: Colors.redAccent,
+                                                            fontWeight: FontWeight.bold,
+                                                            fontSize: 10,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          },
                                         ),
-                                      ),
-                                    ),
                                 ],
                               ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       isScrollControlled: true,

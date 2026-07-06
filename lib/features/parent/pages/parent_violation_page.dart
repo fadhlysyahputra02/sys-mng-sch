@@ -262,6 +262,69 @@ class ParentViolationPage extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
+                            if (data['imageUrl'] != null && (data['imageUrl'] as String).isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => Dialog(
+                                      backgroundColor: Colors.transparent,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Align(
+                                            alignment: Alignment.topRight,
+                                            child: IconButton(
+                                              icon: const Icon(Icons.close_rounded, color: Colors.white, size: 30),
+                                              onPressed: () => Navigator.pop(ctx),
+                                            ),
+                                          ),
+                                          InteractiveViewer(
+                                            child: Image.network(
+                                              data['imageUrl'] as String,
+                                              fit: BoxFit.contain,
+                                              loadingBuilder: (context, child, loadingProgress) {
+                                                if (loadingProgress == null) return child;
+                                                return const Center(child: CircularProgressIndicator(color: Colors.white));
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    data['imageUrl'] as String,
+                                    height: 80,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        height: 80,
+                                        color: Colors.black12,
+                                        child: const Center(
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        height: 80,
+                                        color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                                        child: const Center(
+                                          child: Icon(Icons.broken_image_rounded, color: Color(0xFFEF4444), size: 20),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

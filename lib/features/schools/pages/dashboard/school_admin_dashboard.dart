@@ -26,6 +26,8 @@ import '../rapor/school_admin_rapor_page.dart';
 import '../violations/admin_violations_history_page.dart';
 import '../../../../core/widgets/motif_card.dart';
 import '../approvals/approval_dashboard_page.dart';
+import '../../../../core/localization/app_localization.dart';
+
 
 class SchoolAdminDashboard extends StatefulWidget {
   const SchoolAdminDashboard({super.key});
@@ -96,6 +98,45 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('Persetujuan', Icons.edit_note_rounded, Color(0xFF10B981)),
   ];
 
+  String _getMenuTranslation(String originalTitle) {
+    switch (originalTitle) {
+      case 'Dashboard':
+        return AppLocalization.isIndonesian ? 'Dashboard' : 'Dashboard';
+      case 'Manajemen Guru':
+        return AppLocalization.isIndonesian ? 'Manajemen Guru' : 'Teacher Management';
+      case 'Manajemen Siswa':
+        return AppLocalization.isIndonesian ? 'Manajemen Siswa' : 'Student Management';
+      case 'Mata Pelajaran':
+        return AppLocalization.isIndonesian ? 'Mata Pelajaran' : 'Subjects';
+      case 'Kelas':
+        return AppLocalization.isIndonesian ? 'Kelas' : 'Classes';
+      case 'Jadwal':
+        return AppLocalization.isIndonesian ? 'Jadwal' : 'Schedule';
+      case 'Rekap Absensi':
+        return AppLocalization.isIndonesian ? 'Rekap Absensi' : 'Attendance Recap';
+      case 'Notifikasi':
+        return AppLocalization.isIndonesian ? 'Notifikasi' : 'Notifications';
+      case 'Petugas':
+        return AppLocalization.isIndonesian ? 'Petugas' : 'Staff/Officers';
+      case 'Rekap Nilai':
+        return AppLocalization.isIndonesian ? 'Rekap Nilai' : 'Grades Recap';
+      case 'E-Rapor':
+        return AppLocalization.isIndonesian ? 'E-Rapor' : 'E-Report Card';
+      case 'Pelanggaran Murid':
+        return AppLocalization.isIndonesian ? 'Pelanggaran Murid' : 'Student Infractions';
+      case 'Persetujuan':
+        return AppLocalization.isIndonesian ? 'Persetujuan' : 'Approvals';
+
+
+      case 'Laporan Mengajar':
+        return AppLocalization.isIndonesian ? 'Laporan Mengajar' : 'Teaching Reports';
+      case 'Pengaturan':
+        return AppLocalization.isIndonesian ? 'Pengaturan' : 'Settings';
+      default:
+        return originalTitle;
+    }
+  }
+
   void _onMenuTap(String title) async {
     switch (title) {
       case 'E-Rapor':
@@ -143,24 +184,32 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       case 'Persetujuan':
         Get.to(() => const ApprovalDashboardPage());
         break;
+
     }
   }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour >= 0 && hour <= 10) return 'Selamat Pagi';
-    if (hour <= 14) return 'Selamat Siang';
-    if (hour <= 18) return 'Selamat Sore';
-    return 'Selamat Malam';
+    if (hour >= 0 && hour <= 10) return AppLocalization.isIndonesian ? 'Selamat Pagi' : 'Good Morning';
+    if (hour <= 14) return AppLocalization.isIndonesian ? 'Selamat Siang' : 'Good Afternoon';
+    if (hour <= 18) return AppLocalization.isIndonesian ? 'Selamat Sore' : 'Good Evening';
+    return AppLocalization.isIndonesian ? 'Selamat Malam' : 'Good Night';
   }
 
   String _getFormattedDate() {
     final now = DateTime.now();
-    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    final months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
+    final days = AppLocalization.isIndonesian
+        ? ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+        : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final months = AppLocalization.isIndonesian
+        ? [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+          ]
+        : [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+          ];
     final dayName = days[now.weekday % 7];
     final monthName = months[now.month - 1];
     return '$dayName, ${now.day} $monthName ${now.year}';
@@ -175,13 +224,18 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth < 850) {
-              return _buildMobileLayout(isDark);
-            } else {
-              return _buildDesktopLayout(isDark);
-            }
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 850) {
+                  return _buildMobileLayout(isDark);
+                } else {
+                  return _buildDesktopLayout(isDark);
+                }
+              },
+            );
           },
         );
       },
@@ -224,7 +278,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   ),
                   child: IconButton(
                     icon: Icon(Icons.settings_rounded, color: iconColor, size: 20),
-                    tooltip: 'Pengaturan',
+                    tooltip: AppLocalization.isIndonesian ? 'Pengaturan' : 'Settings',
                     onPressed: () async {
                       final updated = await Get.to(() => SchoolSettingsPage(schoolId: schoolId));
                       if (updated == true) {
@@ -242,7 +296,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   ),
                   child: IconButton(
                     icon: Icon(Icons.logout_rounded, color: iconColor, size: 20),
-                    tooltip: 'Keluar',
+                    tooltip: AppLocalization.isIndonesian ? 'Keluar' : 'Logout',
                     onPressed: _logout,
                   ),
                 ),
@@ -468,7 +522,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     final bool isActive = [
       'Manajemen Guru', 'Manajemen Siswa', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi',
       'Pengaturan', 'Petugas', 'Rekap Absensi', 'Rekap Nilai', 'Laporan Mengajar',
-      'E-Rapor', 'Pelanggaran Murid',
+      'E-Rapor', 'Pelanggaran Murid', 'Persetujuan',
     ].contains(menu.title);
 
     final cardBg = isActive
@@ -531,7 +585,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      menu.title,
+                      _getMenuTranslation(menu.title),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: titleColor,
@@ -549,7 +603,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          'Segera Hadir',
+                          AppLocalization.isIndonesian ? 'Segera Hadir' : 'Coming Soon',
                           style: TextStyle(
                             color: upcomingText,
                             fontSize: 9,
@@ -760,6 +814,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Laporan Mengajar', Icons.edit_document, 14, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
+                const SizedBox(height: 4),
                 _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
             ),
@@ -813,7 +868,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               ),
               const SizedBox(width: 12),
               Text(
-                title,
+                _getMenuTranslation(title),
                 style: TextStyle(
                   color: textColor,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -849,7 +904,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               ),
               const SizedBox(width: 12),
               Text(
-                'Keluar',
+                AppLocalization.isIndonesian ? 'Keluar' : 'Logout',
                 style: TextStyle(
                   color: Colors.red.shade400,
                   fontWeight: FontWeight.bold,
@@ -895,6 +950,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         return const ApprovalDashboardPage(hideBackButton: true);
       case 14:
         return const AdminTeachingReportsPage();
+
       default:
         return _buildDesktopDashboardHome(isDark);
     }
@@ -1800,7 +1856,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               ),
               const SizedBox(height: 20),
               Text(
-                'Konfirmasi Logout',
+                AppLocalization.isIndonesian ? 'Konfirmasi Logout' : 'Confirm Logout',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 20,
@@ -1810,7 +1866,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Apakah Anda yakin ingin keluar dari aplikasi?',
+                AppLocalization.isIndonesian
+                    ? 'Apakah Anda yakin ingin keluar dari aplikasi?'
+                    : 'Are you sure you want to exit the application?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -1834,7 +1892,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                       ),
                     ),
                     onPressed: () => Get.back(result: false),
-                    child: Text('Batal', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E1B4B))),
+                    child: Text(AppLocalization.cancelButton, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E1B4B))),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1851,7 +1909,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     ),
                     onPressed: () => Get.back(result: true),
                     icon: const Icon(Icons.logout_rounded, size: 18),
-                    label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: Text(AppLocalization.isIndonesian ? 'Keluar' : 'Logout', style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],

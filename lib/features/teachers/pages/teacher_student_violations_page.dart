@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../students/data/student_service.dart';
@@ -30,6 +34,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
   DateTime _selectedDate = DateTime.now();
   bool _isSaving = false;
   String _studentSearchQuery = '';
+  XFile? _selectedImage;
 
   final List<String> _jenisOptions = [
     'Terlambat',
@@ -86,6 +91,170 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
     }
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        imageQuality: 70,
+      );
+      if (picked != null) {
+        // Tampilkan loading dialog sederhana selama pemrosesan gambar
+        Get.dialog(
+          const Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF8B5CF6),
+            ),
+          ),
+          barrierDismissible: false,
+        );
+
+        final processed = await _processImage(picked);
+        
+        Get.back(); // Tutup loading dialog
+
+        setState(() {
+          _selectedImage = processed;
+        });
+      }
+    } catch (e) {
+      if (Get.isDialogOpen ?? false) Get.back();
+      Get.snackbar(
+        'Gagal',
+        'Gagal memilih gambar: $e',
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<XFile?> _processImage(XFile originalFile) async {
+    try {
+      final bytes = await originalFile.readAsBytes();
+      var decodedImage = img.decodeImage(bytes);
+      if (decodedImage == null) return originalFile;
+
+      // 1. Potong gambar ke aspek rasio 4:5 (portrait) jika bertipe landscape/terlalu lebar
+      final currentRatio = decodedImage.width / decodedImage.height;
+      const targetRatio = 0.8; // 4:5 portrait
+      if (currentRatio > targetRatio) {
+        final cropWidth = (decodedImage.height * targetRatio).toInt();
+        final cropHeight = decodedImage.height;
+        final startX = ((decodedImage.width - cropWidth) / 2).toInt();
+        final startY = 0;
+        decodedImage = img.copyCrop(
+          decodedImage,
+          x: startX,
+          y: startY,
+          width: cropWidth,
+          height: cropHeight,
+        );
+      }
+
+      // 2. Tambahkan watermark tanggal, hari, dan waktu di bagian bawah gambar
+      final now = DateTime.now();
+      final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      final dayName = days[now.weekday % 7];
+      final dateText = '$dayName, ${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+      final font = decodedImage.width > 1200
+          ? img.arial48
+          : (decodedImage.width > 600 ? img.arial24 : img.arial14);
+
+      final textHeight = font.lineHeight;
+      final padding = 16;
+      final rectHeight = textHeight + (padding * 2);
+
+      img.fillRect(
+        decodedImage,
+        x1: 0,
+        y1: (decodedImage.height - rectHeight).toInt(),
+        x2: decodedImage.width,
+        y2: decodedImage.height,
+        color: img.ColorRgba8(0, 0, 0, 150),
+      );
+
+      img.drawString(
+        decodedImage,
+        dateText,
+        font: font,
+        x: padding,
+        y: (decodedImage.height - rectHeight + padding).toInt(),
+        color: img.ColorRgb8(255, 255, 255),
+      );
+
+      // 3. Simpan gambar hasil pemrosesan ke file sementara
+      final modifiedBytes = img.encodeJpg(decodedImage, quality: 80);
+      
+      if (kIsWeb) {
+        return XFile.fromData(
+          Uint8List.fromList(modifiedBytes),
+          mimeType: 'image/jpeg',
+          name: originalFile.name,
+        );
+      } else {
+        final tempDir = Directory.systemTemp;
+        final tempFile = File('${tempDir.path}/processed_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        await tempFile.writeAsBytes(modifiedBytes);
+        return XFile(tempFile.path);
+      }
+    } catch (e) {
+      debugPrint('Error processing image: $e');
+      return originalFile;
+    }
+  }
+
+  void _showImagePickerOptions() {
+    final isDark = AuthBackground.isDarkMode.value;
+    final bgColor = isDark ? const Color(0xFF1E1B4B) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Pilih Sumber Foto Bukti',
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: Icon(Icons.camera_alt_rounded, color: const Color(0xFF8B5CF6)),
+              title: Text('Kamera Langsung', style: TextStyle(color: textColor)),
+              onTap: () {
+                Get.back();
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.photo_library_rounded, color: const Color(0xFF8B5CF6)),
+              title: Text('Pilih dari Galeri', style: TextStyle(color: textColor)),
+              onTap: () {
+                Get.back();
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveViolation() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedStudentId == null) {
@@ -117,6 +286,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
         keterangan: _keteranganController.text.trim(),
         date: _selectedDate,
         recordedBy: user.nama,
+        imageFile: _selectedImage,
       );
 
       // Reset form
@@ -131,6 +301,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
         _selectedJenis = 'Terlambat';
         _poinController.text = '10';
         _selectedDate = DateTime.now();
+        _selectedImage = null;
       });
 
       Get.snackbar(
@@ -547,6 +718,91 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 ),
                               ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Bukti Foto (Opsional)',
+                                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              const SizedBox(height: 8),
+                              if (_selectedImage != null)
+                                Container(
+                                  height: 180,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: cardBorderColor),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: SizedBox(
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                          child: kIsWeb
+                                              ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
+                                              : Image.file(File(_selectedImage!.path), fit: BoxFit.cover),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: CircleAvatar(
+                                          backgroundColor: Colors.black.withValues(alpha: 0.6),
+                                          child: IconButton(
+                                            icon: const Icon(Icons.close_rounded, color: Colors.white),
+                                            onPressed: () {
+                                              setState(() {
+                                                _selectedImage = null;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                InkWell(
+                                  onTap: _showImagePickerOptions,
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 24),
+                                    decoration: BoxDecoration(
+                                      color: inputFillColor,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: cardBorderColor,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        const Icon(
+                                          Icons.add_a_photo_rounded,
+                                          color: Color(0xFF8B5CF6),
+                                          size: 32,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Unggah Bukti Foto',
+                                          style: TextStyle(
+                                            color: textColor,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Kamera langsung atau pilih dari galeri',
+                                          style: TextStyle(
+                                            color: subTextColor,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               const SizedBox(height: 32),
 
                               ElevatedButton(

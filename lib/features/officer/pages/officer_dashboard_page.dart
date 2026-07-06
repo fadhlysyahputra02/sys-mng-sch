@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/services/app_auth_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
 import '../../teachers/pages/teacher_settings_page.dart';
@@ -66,9 +66,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
   }
 
   void _logout() async {
-    await FirebaseAuth.instance.signOut();
-    SessionService.currentUser = null;
-    Get.offAllNamed(AppRoutes.login);
+    await AppAuthService.logout();
   }
 
   @override

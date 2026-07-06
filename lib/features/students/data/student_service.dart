@@ -1,4 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
 
 import '../model/student_model.dart';
 
@@ -284,6 +288,12 @@ class StudentService {
     required String semester,
   }) async {
     final docId = '${studentId}_${scheduleId}';
+    final now = Timestamp.now();
+    final logEntry = {
+      'type': type,
+      'description': description,
+      'timestamp': now,
+    };
     await _firestore
         .collection('schools')
         .doc(schoolId)
@@ -301,8 +311,10 @@ class StudentService {
       'timestamp': FieldValue.serverTimestamp(),
       'tahunAjaran': tahunAjaran,
       'semester': semester,
+      'activityLog': FieldValue.arrayUnion([logEntry]),
     }, SetOptions(merge: true));
   }
+
 
   /// Stream behavioral violations sorted by timestamp descending
   Stream<QuerySnapshot<Map<String, dynamic>>> getBehaviorRecords(String schoolId) {
@@ -408,7 +420,33 @@ class StudentService {
     required String keterangan,
     required DateTime date,
     required String recordedBy,
+    XFile? imageFile,
   }) async {
+    String? imageUrl;
+
+    if (imageFile != null) {
+      try {
+        final fileName = 'violation_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('schools')
+            .child(schoolId)
+            .child('violations')
+            .child(studentId)
+            .child(fileName);
+
+        final bytes = await imageFile.readAsBytes();
+        final uploadTask = storageRef.putData(
+          bytes,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        final snapshot = await uploadTask;
+        imageUrl = await snapshot.ref.getDownloadURL();
+      } catch (e) {
+        debugPrint('Error uploading violation image: $e');
+      }
+    }
+
     await _firestore
         .collection('schools')
         .doc(schoolId)
@@ -423,6 +461,7 @@ class StudentService {
       'date': Timestamp.fromDate(date),
       'recordedBy': recordedBy,
       'createdAt': FieldValue.serverTimestamp(),
+      if (imageUrl != null) 'imageUrl': imageUrl,
     });
   }
 

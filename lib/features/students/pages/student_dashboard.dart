@@ -23,6 +23,7 @@ import 'student_attendance_history_page.dart';
 import 'student_grades_page.dart';
 import 'student_tasks_page.dart';
 import '../../exams/pages/student_exams_page.dart';
+
 import '../../../core/widgets/flip_card.dart';
 import '../../../core/widgets/motif_card.dart';
 import '../../parent/pages/parent_violation_page.dart';
@@ -58,6 +59,7 @@ class _StudentDashboardState extends State<StudentDashboard>
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _attendanceSubscription;
   Timer? _selfHealTimer;
+  AppLifecycleState? _lastState;
 
   @override
   void initState() {
@@ -67,6 +69,8 @@ class _StudentDashboardState extends State<StudentDashboard>
     _lastReportedTime = null;
     _lastReportedState = null;
     _lastReportedIsLocked = null;
+
+    _lastState = WidgetsBinding.instance.lifecycleState;
 
     WidgetsBinding.instance.addObserver(this);
     _resolveStudentDocId();
@@ -97,9 +101,12 @@ class _StudentDashboardState extends State<StudentDashboard>
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     debugPrint('=== AppLifecycleState changed to: $state ===');
 
-    if (state == AppLifecycleState.paused) {
+    final wasResumed = _lastState == AppLifecycleState.resumed;
+    _lastState = state;
+
+    if (state == AppLifecycleState.inactive && wasResumed) {
       debugPrint(
-        'App paused - checking lock screen status with delay for iOS brightness animation...',
+        'App inactive from resumed - checking lock screen status with delay for iOS brightness animation...',
       );
       // Memberi jeda 500ms agar animasi layar mati di iOS (brightness turun ke 0.0) selesai
       await Future.delayed(const Duration(milliseconds: 500));
@@ -153,28 +160,21 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Future<void> _checkAndReportBehaviorViolation({bool isLocked = false}) async {
-    if (_plan == 'FREE') return;
     if (_studentData?['lulus'] == true) return;
     final user = SessionService.currentUser;
     debugPrint(
       'Behavior violation check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className',
     );
-    if (user == null || _studentDocId == null || _className == null) {
-      debugPrint('Behavior check aborted: missing user, docId, or className.');
+    if (user == null || _studentDocId == null) {
+      debugPrint('Behavior check aborted: missing user or docId.');
       return;
     }
 
-    final todayHari = _getTodayHariIndonesian();
-    final dateStr = _getTodayDateStr();
-    debugPrint(
-      'Current dateStr: $dateStr, day: $todayHari, cached hasCheckedIn: $_hasCheckedInToday, cached schedules: ${_todaySchedules.length}',
-    );
-
-    // Synchronously check active schedule from cached today schedules
-    Map<String, dynamic>? activeSchedule;
     final nowTime = DateTime.now();
     final nowMinutes = nowTime.hour * 60 + nowTime.minute;
 
+    // Synchronously check active schedule from cached today schedules
+    Map<String, dynamic>? activeSchedule;
     for (final s in _todaySchedules) {
       final jamMulai = s['jamMulai'] ?? '00:00';
       final jamSelesai = s['jamSelesai'] ?? '00:00';
@@ -182,19 +182,12 @@ class _StudentDashboardState extends State<StudentDashboard>
       final endMinutes = _timeToMinutes(jamSelesai);
       if (nowMinutes >= startMinutes && nowMinutes <= endMinutes) {
         activeSchedule = s;
-        debugPrint('Found active schedule synchronously: ${s['subjectName']}');
+        debugPrint('Found active schedule synchronously: ${s["subjectName"]}');
         break;
       }
     }
 
-    // If neither is true, then do not report
-    if (activeSchedule == null && !_hasCheckedInToday) {
-      debugPrint(
-        'Behavior check: No active schedule right now and no check-ins today. Aborting report.',
-      );
-      return;
-    }
-
+    // Resolve scheduleId and subjectName
     String scheduleId = 'general';
     String subjectName = 'Absensi Hari Ini';
 
@@ -220,15 +213,16 @@ class _StudentDashboardState extends State<StudentDashboard>
     }
 
     final name = _studentData?['nama'] ?? 'Murid';
+    final className = _className ?? '-';
     debugPrint(
-      'Reporting violation synchronously/immediately to Firestore for student $name (Class $_className)...',
+      'Reporting violation to Firestore for student $name (Class $className)...',
     );
     try {
       await _studentService.reportBehaviorViolation(
         schoolId: user.schoolId,
         studentId: _studentDocId!,
         studentName: name,
-        className: _className!,
+        className: className,
         scheduleId: scheduleId,
         subjectName: subjectName,
         type: isLocked
@@ -237,10 +231,10 @@ class _StudentDashboardState extends State<StudentDashboard>
         description: isLocked
             ? (activeSchedule != null
                   ? 'Device murid mati atau layar terkunci saat jam pelajaran $subjectName sedang berlangsung.'
-                  : 'Device murid mati atau layar terkunci setelah melakukan absensi pelajaran $subjectName hari ini.')
+                  : 'Device murid mati atau layar terkunci.')
             : (activeSchedule != null
                   ? 'Murid terdeteksi meninggalkan aplikasi absensi saat jam pelajaran $subjectName sedang berlangsung.'
-                  : 'Murid terdeteksi meninggalkan aplikasi absensi setelah melakukan absensi pelajaran $subjectName hari ini.'),
+                  : 'Murid terdeteksi meninggalkan aplikasi absensi.'),
         tahunAjaran: _tahunAjaran ?? '-',
         semester: _activeSemester ?? '-',
       );
@@ -257,30 +251,26 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Future<void> _checkAndReportBehaviorReturn() async {
-    if (_plan == 'FREE') return;
     if (_studentData?['lulus'] == true) return;
     final user = SessionService.currentUser;
     debugPrint(
       'Behavior return check initiated: User: ${user?.uid}, DocId: $_studentDocId, Class: $_className',
     );
-    if (user == null || _studentDocId == null || _className == null) {
+    if (user == null || _studentDocId == null) {
       debugPrint(
-        'Behavior return check aborted: missing user, docId, or className.',
+        'Behavior return check aborted: missing user or docId.',
       );
       return;
     }
 
-    final todayHari = _getTodayHariIndonesian();
-    final dateStr = _getTodayDateStr();
+    final nowTime = DateTime.now();
+    final nowMinutes = nowTime.hour * 60 + nowTime.minute;
     debugPrint(
-      'Current dateStr: $dateStr, day: $todayHari, cached hasCheckedIn: $_hasCheckedInToday, cached schedules: ${_todaySchedules.length}',
+      'Behavior return: cached hasCheckedIn: $_hasCheckedInToday, cached schedules: ${_todaySchedules.length}',
     );
 
     // Synchronously check active schedule from cached today schedules
     Map<String, dynamic>? activeSchedule;
-    final nowTime = DateTime.now();
-    final nowMinutes = nowTime.hour * 60 + nowTime.minute;
-
     for (final s in _todaySchedules) {
       final jamMulai = s['jamMulai'] ?? '00:00';
       final jamSelesai = s['jamSelesai'] ?? '00:00';
@@ -288,19 +278,12 @@ class _StudentDashboardState extends State<StudentDashboard>
       final endMinutes = _timeToMinutes(jamSelesai);
       if (nowMinutes >= startMinutes && nowMinutes <= endMinutes) {
         activeSchedule = s;
-        debugPrint('Found active schedule synchronously: ${s['subjectName']}');
+        debugPrint('Found active schedule: ${s["subjectName"]}');
         break;
       }
     }
 
-    // If neither is true, then do not report
-    if (activeSchedule == null && !_hasCheckedInToday) {
-      debugPrint(
-        'Behavior return check: No active schedule right now and no check-ins today. Aborting report.',
-      );
-      return;
-    }
-
+    // Resolve scheduleId and subjectName
     String scheduleId = 'general';
     String subjectName = 'Absensi Hari Ini';
 
@@ -323,21 +306,22 @@ class _StudentDashboardState extends State<StudentDashboard>
     }
 
     final name = _studentData?['nama'] ?? 'Murid';
+    final className = _className ?? '-';
     debugPrint(
-      'Reporting return/standby synchronously/immediately to Firestore for student $name (Class $_className)...',
+      'Reporting return/standby to Firestore for student $name (Class $className)...',
     );
     try {
       await _studentService.reportBehaviorViolation(
         schoolId: user.schoolId,
         studentId: _studentDocId!,
         studentName: name,
-        className: _className!,
+        className: className,
         scheduleId: scheduleId,
         subjectName: subjectName,
         type: 'Kembali ke Aplikasi (Standby)',
         description: activeSchedule != null
             ? 'Murid terdeteksi kembali membuka aplikasi absensi (standby) saat jam pelajaran $subjectName sedang berlangsung.'
-            : 'Murid terdeteksi kembali membuka aplikasi absensi (standby) setelah melakukan absensi pelajaran $subjectName hari ini.',
+            : 'Murid terdeteksi kembali membuka aplikasi absensi (standby).',
         tahunAjaran: _tahunAjaran ?? '-',
         semester: _activeSemester ?? '-',
       );
@@ -354,10 +338,9 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Future<void> _reportLogoutBehavior() async {
-    if (_plan == 'FREE') return;
     if (_studentData?['lulus'] == true) return;
     final user = SessionService.currentUser;
-    if (user == null || _studentDocId == null || _className == null) {
+    if (user == null || _studentDocId == null) {
       return;
     }
 
@@ -378,7 +361,8 @@ class _StudentDashboardState extends State<StudentDashboard>
     }
 
     if (activeSchedule == null && !_hasCheckedInToday) {
-      return;
+      // Still report logout even without active schedule or check-in
+      // so that the record can be created in Firestore
     }
 
     String scheduleId = 'general';
@@ -394,19 +378,20 @@ class _StudentDashboardState extends State<StudentDashboard>
     }
 
     final name = _studentData?['nama'] ?? 'Murid';
+    final className = _className ?? '-';
     try {
       await _studentService
           .reportBehaviorViolation(
             schoolId: user.schoolId,
             studentId: _studentDocId!,
             studentName: name,
-            className: _className!,
+            className: className,
             scheduleId: scheduleId,
             subjectName: subjectName,
             type: 'Meninggalkan Layar Absensi (Logout)',
             description: activeSchedule != null
                 ? 'Murid terdeteksi melakukan logout saat jam pelajaran $subjectName sedang berlangsung.'
-                : 'Murid terdeteksi melakukan logout setelah melakukan absensi pelajaran $subjectName hari ini.',
+                : 'Murid terdeteksi melakukan logout.',
             tahunAjaran: _tahunAjaran ?? '-',
             semester: _activeSemester ?? '-',
           )
@@ -561,10 +546,9 @@ class _StudentDashboardState extends State<StudentDashboard>
               if (nowMinutes > endMinutes) {
                 shouldDelete = true;
               }
-            } else {
-              // Not in today's schedules (might be orphaned)
-              shouldDelete = true;
             }
+            // Jika schedule tidak ditemukan di cache hari ini, biarkan record tetap ada
+            // (bisa jadi cache belum ter-load). TTL 24h akan menghapusnya nanti.
           }
         } else {
           shouldDelete = true;
@@ -1403,6 +1387,8 @@ class _StudentDashboardState extends State<StudentDashboard>
         'icon': Icons.quiz_rounded,
         'color': const Color(0xFF8B5CF6),
       },
+
+
       {
         'title': 'Pelanggaran',
         'icon': Icons.warning_amber_rounded,
@@ -1846,6 +1832,8 @@ class _StudentDashboardState extends State<StudentDashboard>
           Get.to(() => StudentExamsPage(classId: classId));
         }
         break;
+
+
       case 'Pelanggaran':
         if (_studentDocId == null) {
           Get.snackbar(

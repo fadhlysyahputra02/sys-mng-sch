@@ -6,6 +6,7 @@ import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
 import '../services/exam_service.dart';
 
+
 class TeacherCreateExamPage extends StatefulWidget {
   final String teacherId;
   final Map<String, Map<String, dynamic>> classMap;
@@ -179,16 +180,16 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedClassId == null || _selectedSubjectId == null) {
-      Get.snackbar('Peringatan', 'Pilih kelas dan mata pelajaran target',
-          backgroundColor: Colors.amber, colorText: Colors.black);
-      return;
-    }
+        Get.snackbar('Peringatan', 'Pilih kelas dan mata pelajaran target',
+            backgroundColor: Colors.amber, colorText: Colors.black);
+        return;
+      }
 
-    if (_selectedDueDate == null || _selectedDueTime == null) {
-      Get.snackbar('Peringatan', 'Tentukan tenggat tanggal dan jam ujian',
-          backgroundColor: Colors.amber, colorText: Colors.black);
-      return;
-    }
+      if (_selectedDueDate == null || _selectedDueTime == null) {
+        Get.snackbar('Peringatan', 'Tentukan tenggat tanggal dan jam ujian',
+            backgroundColor: Colors.amber, colorText: Colors.black);
+        return;
+      }
 
     setState(() {
       _isSaving = true;
@@ -197,12 +198,12 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     final user = SessionService.currentUser!;
     try {
       final finalDueDate = DateTime(
-        _selectedDueDate!.year,
-        _selectedDueDate!.month,
-        _selectedDueDate!.day,
-        _selectedDueTime!.hour,
-        _selectedDueTime!.minute,
-      );
+              _selectedDueDate!.year,
+              _selectedDueDate!.month,
+              _selectedDueDate!.day,
+              _selectedDueTime!.hour,
+              _selectedDueTime!.minute,
+            );
 
       final className = widget.classMap[_selectedClassId!]?['className']?.toString() ?? 'Kelas';
       final subjects = widget.classMap[_selectedClassId!]?['subjects'] as Map<String, String>? ?? {};
@@ -236,7 +237,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
         ));
       }
 
-      await _examService.createExam(
+      final newExamId = await _examService.createExam(
         schoolId: user.schoolId,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
@@ -361,68 +362,69 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Kelas Dropdown
-                              Text('Kelas Target', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
-                              const SizedBox(height: 8),
-                              DropdownButtonFormField<String>(
-                                value: _selectedClassId,
-                                dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-                                decoration: InputDecoration(
-                                  fillColor: inputFillColor,
-                                  filled: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: cardBorderColor),
-                                  ),
-                                ),
-                                style: TextStyle(color: titleColor, fontSize: 14),
-                                items: widget.classMap.keys.map((classId) {
-                                  return DropdownMenuItem(
-                                    value: classId,
-                                    child: Text(widget.classMap[classId]?['className']?.toString() ?? ''),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  setState(() {
-                                    _selectedClassId = val;
-                                    _selectedSubjectId = null;
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 20),
 
-                              // Mapel Dropdown
-                              Text('Mata Pelajaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
-                              const SizedBox(height: 8),
-                              DropdownButtonFormField<String>(
-                                value: _selectedSubjectId,
-                                dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-                                decoration: InputDecoration(
-                                  fillColor: inputFillColor,
-                                  filled: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: cardBorderColor),
+                                // Kelas Dropdown
+                                Text('Kelas Target', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                                const SizedBox(height: 8),
+                                DropdownButtonFormField<String>(
+                                  value: _selectedClassId,
+                                  dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                  decoration: InputDecoration(
+                                    fillColor: inputFillColor,
+                                    filled: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: cardBorderColor),
+                                    ),
                                   ),
+                                  style: TextStyle(color: titleColor, fontSize: 14),
+                                  items: widget.classMap.keys.map((classId) {
+                                    return DropdownMenuItem(
+                                      value: classId,
+                                      child: Text(widget.classMap[classId]?['className']?.toString() ?? ''),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _selectedClassId = val;
+                                      _selectedSubjectId = null;
+                                    });
+                                  },
                                 ),
-                                style: TextStyle(color: titleColor, fontSize: 14),
-                                items: currentSubjectsList.keys.map((subjectId) {
-                                  return DropdownMenuItem(
-                                    value: subjectId,
-                                    child: Text(currentSubjectsList[subjectId] ?? ''),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  setState(() {
-                                    _selectedSubjectId = val;
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 20),
+                                const SizedBox(height: 20),
+
+                                // Mapel Dropdown
+                                Text('Mata Pelajaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                                const SizedBox(height: 8),
+                                DropdownButtonFormField<String>(
+                                  value: _selectedSubjectId,
+                                  dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                  decoration: InputDecoration(
+                                    fillColor: inputFillColor,
+                                    filled: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: cardBorderColor),
+                                    ),
+                                  ),
+                                  style: TextStyle(color: titleColor, fontSize: 14),
+                                  items: currentSubjectsList.keys.map((subjectId) {
+                                    return DropdownMenuItem(
+                                      value: subjectId,
+                                      child: Text(currentSubjectsList[subjectId] ?? ''),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _selectedSubjectId = val;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 20),
 
                               // Judul Ujian
                               Text('Judul Ujian', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
@@ -635,8 +637,6 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                   items: const [
                                     DropdownMenuItem(value: 'Kuis', child: Text('Kuis')),
                                     DropdownMenuItem(value: 'Ulangan Harian', child: Text('Ulangan Harian')),
-                                    DropdownMenuItem(value: 'UTS', child: Text('UTS')),
-                                    DropdownMenuItem(value: 'UAS', child: Text('UAS')),
                                   ],
                                   onChanged: (val) {
                                     if (val != null) {

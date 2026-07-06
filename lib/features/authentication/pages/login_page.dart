@@ -12,7 +12,9 @@ import '../../../core/services/session_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../../core/services/notification_listener_service.dart';
 import '../../../core/services/push_notification_service.dart';
+import '../../../core/localization/app_localization.dart';
 import '../widgets/auth_background.dart';
+import '../widgets/language_toggle_button.dart';
 import '../widgets/theme_toggle_button.dart';
 
 
@@ -31,6 +33,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _schoolLogoBase64;
+  String? _schoolName;
 
   @override
   void initState() {
@@ -57,19 +60,40 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedSchoolId = prefs.getString('last_school_id');
+      final cachedSchoolName = prefs.getString('last_school_name');
+
+      if (cachedSchoolName != null && cachedSchoolName.isNotEmpty && mounted) {
+        setState(() {
+          _schoolName = cachedSchoolName;
+        });
+      }
+
       if (cachedSchoolId != null && cachedSchoolId.isNotEmpty) {
         final schoolDoc = await FirebaseFirestore.instance
             .collection('schools')
             .doc(cachedSchoolId)
             .get();
         if (schoolDoc.exists && mounted) {
+          final schoolData = schoolDoc.data();
           setState(() {
-            _schoolLogoBase64 = schoolDoc.data()?['logoBase64'] as String?;
+            _schoolLogoBase64 = schoolData?['logoBase64'] as String?;
+            final schoolName = schoolData?['namaSekolah'] as String?;
+            if (schoolName != null && schoolName.isNotEmpty) {
+              _schoolName = schoolName;
+              prefs.setString('last_school_name', schoolName);
+            }
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _schoolName = null;
+            _schoolLogoBase64 = null;
           });
         }
       }
     } catch (e) {
-      debugPrint('Error loading cached school logo: $e');
+      debugPrint('Error loading cached school logo/name: $e');
     }
   }
 
@@ -125,8 +149,8 @@ class _LoginPageState extends State<LoginPage> {
 
     if (email.isEmpty || password.isEmpty) {
       _showNotification(
-        title: 'Formulir Tidak Lengkap',
-        message: 'Silakan isi kolom email dan password.',
+        title: AppLocalization.loginIncomplete,
+        message: AppLocalization.loginIncompleteMsg,
         isSuccess: false,
       );
       return;
@@ -157,12 +181,10 @@ class _LoginPageState extends State<LoginPage> {
             setState(() => _isLoading = false);
           }
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Akun Anda sedang dinonaktifkan. Harap hubungi admin untuk informasi lebih lanjut.',
-              ),
-              backgroundColor: Color(0xFFEF4444),
-              duration: Duration(seconds: 6),
+            SnackBar(
+              content: Text(AppLocalization.accountDisabled),
+              backgroundColor: const Color(0xFFEF4444),
+              duration: const Duration(seconds: 6),
             ),
           );
           return;
@@ -190,12 +212,10 @@ class _LoginPageState extends State<LoginPage> {
             setState(() => _isLoading = false);
           }
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Password Anda telah direset oleh admin. Silakan gunakan password baru yang diberikan admin untuk login.',
-              ),
-              backgroundColor: Color(0xFFEF4444),
-              duration: Duration(seconds: 5),
+            SnackBar(
+              content: Text(AppLocalization.passwordResetByAdmin),
+              backgroundColor: const Color(0xFFEF4444),
+              duration: const Duration(seconds: 5),
             ),
           );
           return;
@@ -239,17 +259,32 @@ class _LoginPageState extends State<LoginPage> {
       // Daftar perangkat untuk push notification
       PushNotificationService().registerUserDevice();
 
-      // Save last logged in email
+      // Save last logged in email and cache school details
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('last_logged_in_email', email);
-        // Cache schoolId for logo display on next login
+        
         final schoolId = SessionService.currentUser?.schoolId;
-        if (schoolId != null) {
+        if (schoolId != null && schoolId.isNotEmpty) {
           await prefs.setString('last_school_id', schoolId);
+          
+          final schoolDoc = await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(schoolId)
+              .get();
+          if (schoolDoc.exists) {
+            final schoolData = schoolDoc.data();
+            final schoolName = schoolData?['namaSekolah'] as String?;
+            if (schoolName != null && schoolName.isNotEmpty) {
+              await prefs.setString('last_school_name', schoolName);
+            }
+          }
+        } else {
+          await prefs.remove('last_school_id');
+          await prefs.remove('last_school_name');
         }
       } catch (e) {
-        debugPrint('Error saving last email: $e');
+        debugPrint('Error saving last email/school: $e');
       }
 
       debugPrint('USER DATA: $userData');
@@ -268,8 +303,8 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       _showNotification(
-        title: 'Login Berhasil',
-        message: 'Selamat datang kembali di aplikasi!',
+        title: AppLocalization.loginSuccess,
+        message: AppLocalization.loginSuccessMsg,
         isSuccess: true,
       );
 
@@ -312,19 +347,19 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       debugPrint('LOGIN ERROR: $e');
-      String errorMessage = 'Email atau password salah.';
+      String errorMessage = AppLocalization.loginDefaultError;
       if (e.toString().contains('user-not-found')) {
-        errorMessage = 'Akun tidak ditemukan.';
+        errorMessage = AppLocalization.accountNotFound;
       } else if (e.toString().contains('wrong-password')) {
-        errorMessage = 'Password salah.';
+        errorMessage = AppLocalization.wrongPassword;
       } else if (e.toString().contains('invalid-email')) {
-        errorMessage = 'Format email tidak valid.';
+        errorMessage = AppLocalization.invalidEmail;
       } else if (e.toString().contains('Exception:')) {
         errorMessage = e.toString().replaceFirst('Exception: ', '');
       }
 
       _showNotification(
-        title: 'Login Gagal',
+        title: AppLocalization.loginFailed,
         message: errorMessage,
         isSuccess: false,
       );
@@ -379,7 +414,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Reset Password',
+                      AppLocalization.resetPassword,
                       style: TextStyle(
                         color: titleColor,
                         fontSize: 20,
@@ -388,7 +423,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Masukkan email terdaftar Anda untuk menerima tautan reset password.',
+                      AppLocalization.resetPasswordSubtitle,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: subtitleColor,
@@ -467,8 +502,8 @@ class _LoginPageState extends State<LoginPage> {
                                         if (dialogContext.mounted) {
                                           Navigator.pop(dialogContext);
                                           _showNotification(
-                                            title: 'Email Terkirim',
-                                            message: 'Tautan reset password telah dikirim ke $email',
+                                            title: AppLocalization.emailSent,
+                                            message: AppLocalization.emailSentMsg(email),
                                             isSuccess: true,
                                           );
                                         }
@@ -476,7 +511,7 @@ class _LoginPageState extends State<LoginPage> {
                                         if (dialogContext.mounted) {
                                           setState(() => isResetting = false);
                                           _showNotification(
-                                            title: 'Gagal',
+                                            title: AppLocalization.sendFailed,
                                             message: e.toString().replaceFirst('Exception: ', ''),
                                             isSuccess: false,
                                           );
@@ -500,9 +535,9 @@ class _LoginPageState extends State<LoginPage> {
                                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                       ),
                                     )
-                                  : const Text(
-                                      'Kirim',
-                                      style: TextStyle(
+                                  : Text(
+                                      AppLocalization.sendButton,
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -524,9 +559,20 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, _, __) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
+            return _buildContent(context, isDark);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context, bool isDark) {
         final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subtitleColor = isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF1E1B4B).withOpacity(0.6);
         final cardColor = isDark ? Colors.white.withOpacity(0.06) : Colors.white;
@@ -543,6 +589,7 @@ class _LoginPageState extends State<LoginPage> {
             elevation: 0,
             automaticallyImplyLeading: false,
             actions: const [
+              LanguageToggleButton(),
               ThemeToggleButton(),
             ],
           ),
@@ -629,13 +676,27 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 8),
                     
                     Text(
-                      'Sistem Manajemen Sekolah Modern',
+                      AppLocalization.loginSubtitle,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
                         color: subtitleColor,
                       ),
                     ),
+                    
+                    if (_schoolName != null && _schoolName!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _schoolName!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                     
                     const SizedBox(height: 36),
                     
@@ -679,7 +740,7 @@ class _LoginPageState extends State<LoginPage> {
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Text(
-                                    'MASUK KE AKUN',
+                                    AppLocalization.loginTitle,
                                     textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 16,
@@ -701,7 +762,7 @@ class _LoginPageState extends State<LoginPage> {
                               FocusScope.of(context).nextFocus();
                             },
                             decoration: InputDecoration(
-                              labelText: 'Email',
+                              labelText: AppLocalization.emailLabel,
                               labelStyle: TextStyle(color: labelColor),
                               prefixIcon: Icon(
                                 Icons.email_outlined,
@@ -737,7 +798,7 @@ class _LoginPageState extends State<LoginPage> {
                               if (!_isLoading) _handleLogin();
                             },
                             decoration: InputDecoration(
-                              labelText: 'Password',
+                              labelText: AppLocalization.passwordLabel,
                               labelStyle: TextStyle(color: labelColor),
                               prefixIcon: Icon(
                                 Icons.lock_outline,
@@ -786,7 +847,7 @@ class _LoginPageState extends State<LoginPage> {
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               child: Text(
-                                'Lupa Password?',
+                                AppLocalization.forgotPassword,
                                 style: TextStyle(
                                   color: isDark ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
                                   fontSize: 13,
@@ -835,9 +896,9 @@ class _LoginPageState extends State<LoginPage> {
                                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                       ),
                                     )
-                                  : const Text(
-                                      'MASUK',
-                                      style: TextStyle(
+                                  : Text(
+                                      AppLocalization.loginButton,
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
@@ -863,15 +924,15 @@ class _LoginPageState extends State<LoginPage> {
                       },
                       child: RichText(
                         text: TextSpan(
-                          text: "Belum punya akun? ",
+                          text: AppLocalization.noAccount,
                           style: TextStyle(
                             color: isDark ? Colors.white.withOpacity(0.6) : const Color(0xFF1E1B4B).withOpacity(0.6),
                             fontSize: 14,
                           ),
-                          children: const [
+                          children: [
                             TextSpan(
-                              text: 'Daftar Sekarang',
-                              style: TextStyle(
+                              text: AppLocalization.registerNow,
+                              style: const TextStyle(
                                 color: Color(0xFF8B5CF6),
                                 fontWeight: FontWeight.bold,
                               ),
@@ -886,15 +947,15 @@ class _LoginPageState extends State<LoginPage> {
                       },
                       child: RichText(
                         text: TextSpan(
-                          text: 'Orang tua? ',
+                          text: AppLocalization.isParent,
                           style: TextStyle(
                             color: isDark ? Colors.white.withOpacity(0.6) : const Color(0xFF1E1B4B).withOpacity(0.6),
                             fontSize: 14,
                           ),
-                          children: const [
+                          children: [
                             TextSpan(
-                              text: 'Daftar sebagai Orang Tua',
-                              style: TextStyle(
+                              text: AppLocalization.registerAsParent,
+                              style: const TextStyle(
                                 color: Color(0xFF6366F1),
                                 fontWeight: FontWeight.bold,
                               ),
@@ -909,7 +970,5 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         );
-      },
-    );
   }
 }

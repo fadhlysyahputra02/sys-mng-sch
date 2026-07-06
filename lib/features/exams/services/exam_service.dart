@@ -14,7 +14,7 @@ class ExamService {
   }
 
   /// Membuat ujian baru
-  Future<void> createExam({
+  Future<String> createExam({
     required String schoolId,
     required String title,
     required String description,
@@ -55,6 +55,7 @@ class ExamService {
     );
 
     await docRef.set(exam.toFirestore());
+    return docRef.id;
   }
 
   /// Stream list ujian untuk kelas tertentu

@@ -213,6 +213,11 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
       return;
     }
 
+    if (newPassword == currentPassword) {
+      _showNotification(title: 'Gagal', message: 'Password baru tidak boleh sama dengan password saat ini', isSuccess: false);
+      return;
+    }
+
     if (newPassword != confirmPassword) {
       _showNotification(title: 'Gagal', message: 'Konfirmasi password tidak cocok', isSuccess: false);
       return;
@@ -500,7 +505,10 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
                                 obscure: _obscureNew,
                                 onToggle: () => setState(() => _obscureNew = !_obscureNew),
                                 isDark: isDark,
+                                onChanged: (_) => setState(() {}),
                               ),
+
+                              _buildPasswordRequirements(_newPasswordController.text, isDark),
 
                               const SizedBox(height: 18),
 
@@ -512,55 +520,76 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
                                 obscure: _obscureConfirm,
                                 onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
                                 isDark: isDark,
+                                onChanged: (_) => setState(() {}),
                               ),
 
                               const SizedBox(height: 28),
 
                               // Tombol Simpan
-                              Container(
-                                height: 52,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _changePassword,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
-                                    shape: RoundedRectangleBorder(
+                              Builder(
+                                builder: (context) {
+                                  final currentPass = _currentPasswordController.text;
+                                  final newPass = _newPasswordController.text;
+                                  final confirmPass = _confirmPasswordController.text;
+
+                                  final hasUppercase = RegExp(r'[A-Z]').hasMatch(newPass);
+                                  final hasLowercase = RegExp(r'[a-z]').hasMatch(newPass);
+                                  final hasNumber = RegExp(r'[0-9]').hasMatch(newPass);
+                                  final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(newPass);
+                                  final isNewPasswordValid = newPass.length >= 6 && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
+
+                                  final canSubmit = currentPass.isNotEmpty && isNewPasswordValid && confirmPass == newPass;
+
+                                  return Container(
+                                    height: 52,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(16),
+                                      gradient: LinearGradient(
+                                        colors: canSubmit
+                                            ? [const Color(0xFF8B5CF6), const Color(0xFFD946EF)]
+                                            : [Colors.grey.shade400, Colors.grey.shade400],
+                                      ),
+                                      boxShadow: canSubmit
+                                          ? [
+                                              BoxShadow(
+                                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ]
+                                          : [],
                                     ),
-                                  ),
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          height: 24,
-                                          width: 24,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                          ),
-                                        )
-                                      : const Text(
-                                          'SIMPAN PASSWORD',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            letterSpacing: 1.2,
-                                          ),
+                                    child: ElevatedButton(
+                                      onPressed: (_isLoading || !canSubmit) ? null : _changePassword,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
                                         ),
-                                ),
+                                      ),
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              height: 24,
+                                              width: 24,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                              ),
+                                            )
+                                          : const Text(
+                                              'SIMPAN PASSWORD',
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                                letterSpacing: 1.2,
+                                              ),
+                                            ),
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -586,6 +615,7 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
     required bool obscure,
     required VoidCallback onToggle,
     required bool isDark,
+    ValueChanged<String>? onChanged,
   }) {
     final fieldBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
     final fieldBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
@@ -603,6 +633,7 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
         controller: controller,
         obscureText: obscure,
         style: TextStyle(color: textStyleColor),
+        onChanged: onChanged,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: labelColor),
@@ -617,6 +648,54 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordRequirements(String password, bool isDark) {
+    final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+    final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+    final hasNumber = RegExp(r'[0-9]').hasMatch(password);
+    final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(password);
+
+    final activeColor = const Color(0xFF10B981);
+    final inactiveColor = isDark ? Colors.white38 : Colors.black38;
+    final itemTextColor = isDark ? Colors.white70 : Colors.black87;
+
+    Widget buildItem(String label, bool isMet) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          children: [
+            Icon(
+              isMet ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
+              color: isMet ? activeColor : inactiveColor,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isMet ? activeColor : itemTextColor,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, left: 6, right: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buildItem('Minimal 6 karakter', password.length >= 6),
+          buildItem('Memiliki huruf besar (A-Z)', hasUppercase),
+          buildItem('Memiliki huruf kecil (a-z)', hasLowercase),
+          buildItem('Memiliki angka (0-9)', hasNumber),
+          buildItem('Memiliki karakter khusus (!@#\$%^&* dll)', hasSpecialChar),
+        ],
       ),
     );
   }

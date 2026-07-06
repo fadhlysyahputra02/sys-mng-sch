@@ -24,13 +24,13 @@ import 'teacher_reports_page.dart';
 import 'teacher_daily_attendance_page.dart';
 import 'teacher_tasks_page.dart';
 import '../../../core/widgets/flip_card.dart';
-
 import 'teacher_permits_page.dart';
 import '../../exams/pages/teacher_exams_page.dart';
 import 'teacher_student_violations_page.dart';
 import '../../librarian/services/library_service.dart';
 import '../../students/pages/student_qr_scanner_page.dart';
 import '../../officer/pages/officer_dashboard_page.dart';
+
 
 import '../../../core/widgets/motif_card.dart';
 
@@ -1507,6 +1507,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'icon': Icons.quiz_rounded,
         'color': const Color(0xFF8B5CF6),
       },
+
       {
         'title': 'Chat',
         'icon': Icons.chat_rounded,
@@ -1647,6 +1648,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   Get.to(() => TeacherTasksPage(teacherId: _teacherDocId!));
                 } else if (menu['title'] == 'Ujian Online') {
                   Get.to(() => TeacherExamsPage(teacherId: _teacherDocId!));
+
                 } else if (menu['title'] == 'Laporan & Rapor') {
                   Get.to(
                     () => TeacherReportsPage(
@@ -1683,6 +1685,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
                 } else if (menu['title'] == 'Input Pelanggaran') {
                   Get.to(() => TeacherStudentViolationsPage(teacherId: _teacherDocId!));
+
                 } else {
                   Get.snackbar(
                     'Info',
@@ -2044,6 +2047,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Input Pelanggaran', Icons.report_problem_rounded, 12, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
+
                 _buildSidebarItem('Pengaturan Profil', Icons.settings_rounded, 11, const Color(0xFF64748B), isDark),
               ],
             ),
@@ -2312,6 +2316,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         } else {
           return const Center(child: Text("Akses ditolak. Anda bukan petugas perpustakaan."));
         }
+
       default:
         return _buildDesktopDashboardHome(isDark);
     }

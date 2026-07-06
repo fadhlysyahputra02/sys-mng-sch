@@ -8,8 +8,10 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../schools/services/school_service.dart';
 import '../widgets/auth_background.dart';
+import '../widgets/language_toggle_button.dart';
 import '../widgets/theme_toggle_button.dart';
 import 'parent_register_page.dart';
+import '../../../core/localization/app_localization.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -138,7 +140,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   void _showError(String message) {
     _showNotification(
-      title: 'Registrasi Gagal',
+      title: AppLocalization.registrationFailed,
       message: message,
       isSuccess: false,
     );
@@ -185,7 +187,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'PILIH SEKOLAH',
+                        AppLocalization.isIndonesian ? 'PILIH SEKOLAH' : 'SELECT SCHOOL',
                         style: TextStyle(
                           color: titleColor,
                           fontSize: 16,
@@ -204,7 +206,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   TextField(
                     style: TextStyle(color: inputStyleColor),
                     decoration: InputDecoration(
-                      hintText: 'Cari nama sekolah...',
+                      hintText: AppLocalization.searchSchool,
                       hintStyle: TextStyle(color: hintTextColor),
                       prefixIcon: Icon(Icons.search_rounded, color: searchIconColor),
                       enabledBorder: OutlineInputBorder(
@@ -244,7 +246,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     size: 48, color: notFoundIconColor),
                                 const SizedBox(height: 12),
                                 Text(
-                                  'Sekolah tidak ditemukan',
+                                  AppLocalization.schoolNotFound,
                                   style: TextStyle(color: notFoundTextColor),
                                 ),
                               ],
@@ -654,9 +656,27 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, _, __) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
+            return _buildContent(context, isDark);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context, bool isDark) {
+        final isParent = selectedRole == 'parent';
+        final hasUppercase = RegExp(r'[A-Z]').hasMatch(passwordController.text);
+        final hasLowercase = RegExp(r'[a-z]').hasMatch(passwordController.text);
+        final hasNumber = RegExp(r'[0-9]').hasMatch(passwordController.text);
+        final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(passwordController.text);
+        final isPasswordValid = isParent || (hasUppercase && hasLowercase && hasNumber && hasSpecialChar);
+
         final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subtitleColor = isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF1E1B4B).withOpacity(0.6);
         final cardColor = isDark ? Colors.white.withOpacity(0.06) : Colors.white;
@@ -673,6 +693,7 @@ class _RegisterPageState extends State<RegisterPage> {
             elevation: 0,
             automaticallyImplyLeading: false,
             actions: const [
+              LanguageToggleButton(),
               ThemeToggleButton(),
             ],
           ),
@@ -746,7 +767,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     const SizedBox(height: 16),
 
                     Text(
-                      'REGISTRASI',
+                      AppLocalization.registerTitle,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -758,7 +779,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     const SizedBox(height: 6),
 
                     Text(
-                      'Daftarkan akun Anda untuk mengakses sistem',
+                      AppLocalization.registerSubtitle,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 13,
@@ -814,7 +835,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 Padding(
                                   padding: const EdgeInsets.only(left: 4, bottom: 12),
                                   child: Text(
-                                    'Daftar Sebagai',
+                                    AppLocalization.selectRole,
                                     style: TextStyle(
                                       color: labelColor,
                                       fontSize: 13,
@@ -825,13 +846,13 @@ class _RegisterPageState extends State<RegisterPage> {
                                 Row(
                                   children: [
                                     _buildRoleCard(
-                                      title: 'Admin',
+                                      title: AppLocalization.schoolAdmin,
                                       icon: Icons.admin_panel_settings_rounded,
                                       value: 'school_admin',
                                     ),
                                     const SizedBox(width: 12),
                                     _buildRoleCard(
-                                      title: 'Guru',
+                                      title: AppLocalization.teacher,
                                       icon: Icons.school_rounded,
                                       value: 'teacher',
                                     ),
@@ -841,13 +862,13 @@ class _RegisterPageState extends State<RegisterPage> {
                                 Row(
                                   children: [
                                     _buildRoleCard(
-                                      title: 'Murid',
+                                      title: AppLocalization.student,
                                       icon: Icons.face_rounded,
                                       value: 'student',
                                     ),
                                     const SizedBox(width: 12),
                                     _buildRoleCard(
-                                      title: 'Orang Tua',
+                                      title: AppLocalization.isParent.trim(),
                                       icon: Icons.family_restroom_rounded,
                                       value: 'parent',
                                     ),
@@ -872,7 +893,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   borderRadius: BorderRadius.circular(16),
                                   child: InputDecorator(
                                     decoration: InputDecoration(
-                                      labelText: 'Pilih Sekolah',
+                                      labelText: AppLocalization.selectSchool,
                                       labelStyle: TextStyle(color: labelColor),
                                       prefixIcon: Icon(
                                         Icons.account_balance_rounded,
@@ -902,7 +923,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     child: Text(
                                       _selectedSekolah != null
                                           ? (_selectedSekolah!['namaSekolah'] ?? '')
-                                          : 'Pilih nama sekolah',
+                                          : AppLocalization.chooseSchool,
                                       style: TextStyle(
                                         color: _selectedSekolah != null
                                             ? textColor
@@ -934,7 +955,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      'Daftar sebagai orang tua memerlukan scan QR dari akun anak. Tap tombol di bawah untuk melanjutkan.',
+                                      AppLocalization.isIndonesian
+                                           ? 'Daftar sebagai orang tua memerlukan scan QR dari akun anak. Tap tombol di bawah untuk melanjutkan.'
+                                           : 'Registering as a parent requires scanning the QR code from the child\'s account. Tap the button below to continue.',
                                       style: TextStyle(
                                         color: textColor,
                                         fontSize: 13,
@@ -955,7 +978,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               style: TextStyle(color: textColor),
                               textCapitalization: TextCapitalization.words,
                               decoration: InputDecoration(
-                                labelText: 'Nama Lengkap',
+                                labelText: AppLocalization.fullName,
                                 labelStyle: TextStyle(color: labelColor),
                                 prefixIcon: Icon(
                                   Icons.person_pin_rounded,
@@ -985,7 +1008,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               controller: kodeController,
                               style: TextStyle(color: textColor),
                               decoration: InputDecoration(
-                                labelText: 'Kode Registrasi',
+                                labelText: AppLocalization.schoolCode,
                                 labelStyle: TextStyle(color: labelColor),
                                 prefixIcon: Icon(
                                   Icons.key_rounded,
@@ -1057,7 +1080,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             style: TextStyle(color: textColor),
                             keyboardType: TextInputType.emailAddress,
                             decoration: InputDecoration(
-                              labelText: 'Email',
+                              labelText: AppLocalization.emailLabel,
                               labelStyle: TextStyle(color: labelColor),
                               prefixIcon: Icon(
                                 Icons.email_outlined,
@@ -1087,8 +1110,9 @@ class _RegisterPageState extends State<RegisterPage> {
                             controller: passwordController,
                             obscureText: _obscurePassword,
                             style: TextStyle(color: textColor),
+                            onChanged: (_) => setState(() {}),
                             decoration: InputDecoration(
-                              labelText: 'Password',
+                              labelText: AppLocalization.passwordLabel,
                               labelStyle: TextStyle(color: labelColor),
                               prefixIcon: Icon(
                                 Icons.lock_outline,
@@ -1124,6 +1148,9 @@ class _RegisterPageState extends State<RegisterPage> {
                               fillColor: fieldFillColor,
                             ),
                           ),
+                          if (selectedRole != 'parent') ...[
+                            _buildPasswordRequirements(passwordController.text, isDark),
+                          ],
 
                           const SizedBox(height: 18),
 
@@ -1132,7 +1159,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             obscureText: _obscureConfirmPassword,
                             style: TextStyle(color: textColor),
                             decoration: InputDecoration(
-                              labelText: 'Konfirmasi Password',
+                              labelText: AppLocalization.confirmPassword,
                               labelStyle: TextStyle(color: labelColor),
                               prefixIcon: Icon(
                                 Icons.lock_outline,
@@ -1194,7 +1221,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               ],
                             ),
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _onRegister,
+                              onPressed: (_isLoading || !isPasswordValid) ? null : _onRegister,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,
                                 shadowColor: Colors.transparent,
@@ -1213,8 +1240,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                     )
                                   : Text(
                                       selectedRole == 'parent'
-                                          ? 'LANJUT DAFTAR ORANG TUA'
-                                          : 'DAFTAR',
+                                          ? (AppLocalization.isIndonesian ? 'LANJUT DAFTAR ORANG TUA' : 'CONTINUE REGISTER AS PARENT')
+                                          : AppLocalization.registerButton,
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -1239,13 +1266,13 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                             child: Text(
-                              'KEMBALI KE LOGIN',
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                               AppLocalization.isIndonesian ? 'KEMBALI KE LOGIN' : 'BACK TO LOGIN',
+                               style: TextStyle(
+                                 color: textColor,
+                                 fontSize: 14,
+                                 fontWeight: FontWeight.bold,
+                               ),
+                             ),
                           ),
                         ],
                       ),
@@ -1262,7 +1289,52 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
         );
-      },
+  }
+
+  Widget _buildPasswordRequirements(String password, bool isDark) {
+    final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+    final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+    final hasNumber = RegExp(r'[0-9]').hasMatch(password);
+    final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(password);
+
+    final activeColor = const Color(0xFF10B981);
+    final inactiveColor = isDark ? Colors.white38 : Colors.black38;
+    final textColor = isDark ? Colors.white70 : Colors.black87;
+
+    Widget buildItem(String label, bool isMet) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          children: [
+            Icon(
+              isMet ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
+              color: isMet ? activeColor : inactiveColor,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isMet ? activeColor : textColor,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, left: 6, right: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buildItem('Memiliki huruf besar (A-Z)', hasUppercase),
+          buildItem('Memiliki huruf kecil (a-z)', hasLowercase),
+          buildItem('Memiliki angka (0-9)', hasNumber),
+          buildItem('Memiliki karakter khusus (!@#\$%^&* dll)', hasSpecialChar),
+        ],
+      ),
     );
   }
 }

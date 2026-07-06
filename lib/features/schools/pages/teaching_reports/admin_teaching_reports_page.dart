@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/services/session_service.dart';
 import '../../../authentication/widgets/auth_background.dart';
 import '../../../teachers/services/teaching_report_service.dart';
+import '../../../../core/localization/app_localization.dart';
 
 class AdminTeachingReportsPage extends StatefulWidget {
   const AdminTeachingReportsPage({super.key});
@@ -60,6 +61,9 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -90,7 +94,7 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                     ),
                   ),
                   title: Text(
-                    'Laporan Mengajar',
+                    AppLocalization.isIndonesian ? 'Laporan Mengajar' : 'Teaching Reports',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                   ),
                 ),
@@ -112,7 +116,9 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                             style: TextStyle(color: titleColor),
                             decoration: InputDecoration(
                               icon: Icon(Icons.search_rounded, color: subTextColor),
-                              hintText: 'Cari nama guru atau mata pelajaran...',
+                              hintText: AppLocalization.isIndonesian
+                                  ? 'Cari nama guru atau mata pelajaran...'
+                                  : 'Search teacher name or subject...',
                               hintStyle: TextStyle(color: subTextColor),
                               border: InputBorder.none,
                             ),
@@ -130,7 +136,7 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                           stream: _reportService.getReportsStream(user.schoolId),
                           builder: (context, snapshot) {
                             if (snapshot.hasError) {
-                              return const Center(child: Text('Terjadi kesalahan memuat data', style: TextStyle(color: Colors.red)));
+                              return Center(child: Text(AppLocalization.isIndonesian ? 'Terjadi kesalahan memuat data' : 'An error occurred loading data', style: const TextStyle(color: Colors.red)));
                             }
                             if (snapshot.connectionState == ConnectionState.waiting) {
                               return const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6)));
@@ -195,9 +201,9 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                                   children: [
                                     Expanded(
                                       child: _buildDropdown(
-                                        title: 'Tahun Ajaran',
+                                        title: AppLocalization.isIndonesian ? 'Tahun Ajaran' : 'Academic Year',
                                         value: _selectedTahunAjaran,
-                                        items: ['Semua', ...tahunAjarans],
+                                        items: [AppLocalization.isIndonesian ? 'Semua' : 'All', ...tahunAjarans],
                                         onChanged: (val) => setState(() => _selectedTahunAjaran = val),
                                         searchBg: searchBg,
                                         titleColor: titleColor,
@@ -208,9 +214,9 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: _buildDropdown(
-                                        title: 'Semester',
+                                        title: AppLocalization.isIndonesian ? 'Semester' : 'Semester',
                                         value: _selectedSemester,
-                                        items: ['Semua', ...semesters],
+                                        items: [AppLocalization.isIndonesian ? 'Semua' : 'All', ...semesters],
                                         onChanged: (val) => setState(() => _selectedSemester = val),
                                         searchBg: searchBg,
                                         titleColor: titleColor,
@@ -227,9 +233,9 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                                   children: [
                                     Expanded(
                                       child: _buildDropdown(
-                                        title: 'Guru',
-                                        value: _selectedTeacher ?? 'Semua Guru',
-                                        items: ['Semua Guru', ...teachers],
+                                        title: AppLocalization.isIndonesian ? 'Guru' : 'Teacher',
+                                        value: _selectedTeacher ?? (AppLocalization.isIndonesian ? 'Semua Guru' : 'All Teachers'),
+                                        items: [AppLocalization.isIndonesian ? 'Semua Guru' : 'All Teachers', ...teachers],
                                         onChanged: (val) => setState(() => _selectedTeacher = val),
                                         searchBg: searchBg,
                                         titleColor: titleColor,
@@ -240,9 +246,9 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: _buildDropdown(
-                                        title: 'Kelas',
-                                        value: _selectedClass ?? 'Semua Kelas',
-                                        items: ['Semua Kelas', ...classes],
+                                        title: AppLocalization.isIndonesian ? 'Kelas' : 'Class',
+                                        value: _selectedClass ?? (AppLocalization.isIndonesian ? 'Semua Kelas' : 'All Classes'),
+                                        items: [AppLocalization.isIndonesian ? 'Semua Kelas' : 'All Classes', ...classes],
                                         onChanged: (val) => setState(() => _selectedClass = val),
                                         searchBg: searchBg,
                                         titleColor: titleColor,
@@ -263,7 +269,9 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                                           Icon(Icons.edit_document, size: 64, color: subTextColor.withValues(alpha: 0.5)),
                                           const SizedBox(height: 16),
                                           Text(
-                                            'Tidak ada laporan mengajar ditemukan',
+                                            AppLocalization.isIndonesian
+                                                ? 'Tidak ada laporan mengajar ditemukan'
+                                                : 'No teaching reports found',
                                             style: TextStyle(color: subTextColor, fontSize: 14),
                                             textAlign: TextAlign.center,
                                           ),
@@ -353,7 +361,7 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              'Materi Diajarkan:',
+                                              AppLocalization.isIndonesian ? 'Materi Diajarkan:' : 'Materials Taught:',
                                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: subTextColor),
                                             ),
                                             const SizedBox(height: 4),
@@ -364,7 +372,7 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                                             if (catatan.isNotEmpty) ...[
                                               const SizedBox(height: 12),
                                               Text(
-                                                'Catatan Tambahan:',
+                                                AppLocalization.isIndonesian ? 'Catatan Tambahan:' : 'Additional Notes:',
                                                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: subTextColor),
                                               ),
                                               const SizedBox(height: 4),
@@ -393,6 +401,8 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
             ),
           ),
         );
+          },
+        );
       },
     );
   }
@@ -409,7 +419,7 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
   }) {
     // Pastikan value ada di items (mencegah error jika data berubah)
     final safeValue = items.contains(value) ? value : items.first;
-    final isSearchable = title == 'Guru' || title == 'Kelas';
+    final isSearchable = title == 'Guru' || title == 'Teacher' || title == 'Kelas' || title == 'Class';
 
     if (isSearchable) {
       return InkWell(
@@ -502,7 +512,7 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
-                  Text('Pilih $title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor)),
+                  Text(AppLocalization.isIndonesian ? 'Pilih $title' : 'Select $title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor)),
                 ],
               ),
               contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
@@ -514,7 +524,7 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                     TextField(
                       style: TextStyle(color: titleColor),
                       decoration: InputDecoration(
-                        hintText: 'Cari $title...',
+                        hintText: AppLocalization.isIndonesian ? 'Cari $title...' : 'Search $title...',
                         hintStyle: TextStyle(color: subTextColor),
                         prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
                         filled: true,
@@ -579,7 +589,7 @@ class _AdminTeachingReportsPageState extends State<AdminTeachingReportsPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text('Tutup', style: TextStyle(color: subTextColor, fontWeight: FontWeight.bold)),
+                  child: Text(AppLocalization.isIndonesian ? 'Tutup' : 'Close', style: TextStyle(color: subTextColor, fontWeight: FontWeight.bold)),
                 ),
               ],
             );

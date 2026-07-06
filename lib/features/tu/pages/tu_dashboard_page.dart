@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/services/app_auth_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
 
@@ -27,6 +27,7 @@ import 'tu_payment_dashboard.dart';
 import '../../schools/pages/grades/school_admin_grades_page.dart';
 import '../../schools/pages/rapor/school_admin_rapor_page.dart';
 import '../../schools/pages/approvals/approval_dashboard_page.dart';
+
 
 class TuDashboardPage extends StatefulWidget {
   const TuDashboardPage({super.key});
@@ -91,9 +92,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
   }
 
   void _logout() async {
-    await FirebaseAuth.instance.signOut();
-    SessionService.currentUser = null;
-    Get.offAllNamed(AppRoutes.login);
+    await AppAuthService.logout();
   }
 
   void _showAbsensiSelectionDialog() {
@@ -591,6 +590,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
         return const AdminViolationsHistoryPage(hideBackButton: true);
       case 14:
         return const ApprovalDashboardPage(hideBackButton: true);
+
       
       default:
         return _buildDesktopDashboardHome(isDark);

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 
 import '../../../core/services/session_service.dart';
@@ -24,8 +23,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
   String _searchQuery = '';
   Timer? _cleanupTimer;
   Map<String, Map<String, dynamic>>? _cachedSchedules;
-  StreamSubscription<DocumentSnapshot>? _schoolSub;
-  bool _lockDialogShown = false;
+  final Set<String> _expandedRows = {}; // studentId set for expanded activity log rows
 
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _schedulesStream;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _attendanceStream;
@@ -69,69 +67,13 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
     );
     _behaviorStream = _studentService.getBehaviorRecords(user.schoolId);
 
-    _listenToAccess(user.schoolId);
-
     _startAutoCleanup();
-  }
-
-  void _listenToAccess(String schoolId) {
-    _schoolSub = FirebaseFirestore.instance
-        .collection('schools')
-        .doc(schoolId)
-        .snapshots()
-        .listen((doc) {
-      if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-        final bool enabled = data['enableRealtimeControl'] ?? false;
-        if (!enabled && !_lockDialogShown && mounted) {
-          _lockDialogShown = true;
-          _showPremiumDialogAndExit();
-        }
-      }
-    });
-  }
-
-  void _showPremiumDialogAndExit() {
-    final isDark = AuthBackground.isDarkMode.value;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
-            children: [
-              Icon(Icons.lock_rounded, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
-            ],
-          ),
-          content: Text(
-            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
-            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext); // Close dialog
-                if (mounted) {
-                  Get.offAllNamed('/teacher'); // Exit to Dashboard
-                }
-              },
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _cleanupTimer?.cancel();
-    _schoolSub?.cancel();
     super.dispose();
   }
 
@@ -160,9 +102,17 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
             .get();
         _cachedSchedules = {};
         for (final doc in schedulesSnapshot.docs) {
-          _cachedSchedules![doc.id] = doc.data();
+          final data = doc.data();
+          // Index by the 'scheduleId' field (same value stored in behavior records),
+          // falling back to doc.id if the field is missing.
+          final sid = (data['scheduleId'] as String?) ?? doc.id;
+          _cachedSchedules![sid] = data;
+          // Also index by doc.id as a secondary key in case they differ.
+          if (sid != doc.id) {
+            _cachedSchedules![doc.id] = data;
+          }
         }
-        debugPrint('Auto-cleanup: Cached ${_cachedSchedules!.length} class schedules.');
+        debugPrint('Auto-cleanup: Cached ${_cachedSchedules!.length} class schedule entries.');
       }
 
       // 2. Fetch all behavior records
@@ -192,49 +142,50 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
         debugPrint('  - scheduleId: $scheduleId');
         debugPrint('  - timestamp: $timestamp');
 
-        if (timestamp != null) {
-          final recordDate = timestamp.toDate();
-          final isToday = recordDate.year == now.year &&
-                          recordDate.month == now.month &&
-                          recordDate.day == now.day;
+        if (timestamp == null) {
+          // Timestamp is null: this can happen when FieldValue.serverTimestamp()
+          // hasn't been resolved yet (pending write). NEVER delete these —
+          // they are either very recent or will resolve soon.
+          reason = 'Timestamp is null (pending server write) — keeping';
+          debugPrint('  -> Outcome: $reason');
+          continue;
+        }
 
-          debugPrint('  - recordDate: $recordDate, isToday: $isToday');
+        final recordDate = timestamp.toDate();
+        final isToday = recordDate.year == now.year &&
+            recordDate.month == now.month &&
+            recordDate.day == now.day;
 
-          if (!isToday) {
-            shouldDelete = true;
-            reason = 'Not created today (Created on $recordDate)';
-          } else {
-            // Created today: check if class hours have finished
-            if (scheduleId != null && scheduleId != 'general') {
-              final schedule = _cachedSchedules![scheduleId];
-              if (schedule != null) {
-                final jamMulai = schedule['jamMulai'] ?? '00:00';
-                final jamSelesai = schedule['jamSelesai'] ?? '00:00';
-                final nowMinutes = now.hour * 60 + now.minute;
-                final endMinutes = _timeToMinutes(jamSelesai);
-                debugPrint('  - Schedule found: $jamMulai - $jamSelesai. nowMinutes: $nowMinutes, endMinutes: $endMinutes');
-                if (nowMinutes > endMinutes) {
-                  shouldDelete = true;
-                  reason = 'Today\'s class ended at $jamSelesai (now: ${now.hour}:${now.minute})';
-                } else {
-                  reason = 'Today\'s class is ongoing or hasn\'t started yet (ends at $jamSelesai)';
-                }
-              } else {
-                shouldDelete = true;
-                reason = 'Schedule ID $scheduleId not found in cached schedules';
-              }
+        debugPrint('  - recordDate: $recordDate, isToday: $isToday');
+
+        if (!isToday) {
+          shouldDelete = true;
+          reason = 'Not created today (Created on $recordDate)';
+        } else if (scheduleId != null && scheduleId != 'general') {
+          final schedule = _cachedSchedules![scheduleId];
+          if (schedule != null) {
+            final jamMulai = schedule['jamMulai'] ?? '00:00';
+            final jamSelesai = schedule['jamSelesai'] ?? '00:00';
+            final nowMinutes = now.hour * 60 + now.minute;
+            final endMinutes = _timeToMinutes(jamSelesai);
+            debugPrint('  - Schedule found: $jamMulai - $jamSelesai. nowMinutes: $nowMinutes, endMinutes: $endMinutes');
+            if (nowMinutes > endMinutes) {
+              shouldDelete = true;
+              reason = 'Today\'s class ended at $jamSelesai (now: ${now.hour}:${now.minute})';
             } else {
-              reason = 'Schedule ID is general or null, keeping until 24h fallback';
+              reason = 'Today\'s class is ongoing or hasn\'t started yet (ends at $jamSelesai)';
             }
+          } else {
+            // Schedule not found in cache → could be a cross-school or stale cache.
+            // Do NOT delete — let TTL handle it.
+            reason = 'Schedule ID $scheduleId not found in cache — keeping (will expire via TTL)';
           }
         } else {
-          // If timestamp is null, we should delete it to avoid leaving orphaned records forever
-          shouldDelete = true;
-          reason = 'Timestamp is null (orphaned/corrupted record)';
+          reason = 'Schedule ID is general or null, keeping until 24h fallback';
         }
 
         // Fallback TTL: older than 24 hours
-        if (!shouldDelete && timestamp != null) {
+        if (!shouldDelete) {
           final timeDiff = now.difference(timestamp.toDate());
           if (timeDiff > ttlDuration) {
             shouldDelete = true;
@@ -261,6 +212,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
       debugPrint('Auto-cleanup stack trace: $stackTrace');
     }
   }
+
 
   Future<void> _confirmClearAll(BuildContext context, String schoolId) async {
     final bool isDark = AuthBackground.isDarkMode.value;
@@ -615,20 +567,76 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
 
                             final behaviorDocs = behaviorSnapshot.data?.docs ?? [];
 
+                            // Pre-build map: studentId -> latest behavior record
+                            final Map<String, Map<String, dynamic>> behaviorByStudent = {};
+                            final today = DateTime.now();
+                            for (final bDoc in behaviorDocs) {
+                              final bData = bDoc.data();
+                              final bStudentId = (bData['studentId'] as String?) ?? '';
+                              if (bStudentId.isEmpty) continue;
+                              final ts = bData['timestamp'];
+                              final recordTime = ts is Timestamp ? ts.toDate() : null;
+                              // Only include today's records
+                              if (recordTime != null) {
+                                final isToday = recordTime.year == today.year &&
+                                    recordTime.month == today.month &&
+                                    recordTime.day == today.day;
+                                if (!isToday) continue;
+                              }
+                              final existing = behaviorByStudent[bStudentId];
+                              if (existing == null) {
+                                behaviorByStudent[bStudentId] = bData;
+                              } else {
+                                final existingTs = existing['timestamp'];
+                                final existingTime = existingTs is Timestamp ? existingTs.toDate() : null;
+                                if (recordTime != null &&
+                                    (existingTime == null || recordTime.isAfter(existingTime))) {
+                                  behaviorByStudent[bStudentId] = bData;
+                                }
+                              }
+                            }
+
                             // Filter attendance by Search query and active schedules only
                             final targetScheduleIds = activeScheduleIds;
                             final filteredAttendance = attendanceDocs.where((doc) {
                               final data = doc.data();
                               final studentName = (data['studentName'] ?? '').toString().toLowerCase();
                               final scheduleId = (data['scheduleId'] ?? '').toString();
-
                               final matchesSearch = studentName.contains(_searchQuery);
                               final matchesSchedule = targetScheduleIds.contains(scheduleId);
-
                               return matchesSearch && matchesSchedule;
                             }).toList();
 
-                            if (filteredAttendance.isEmpty) {
+                            // Build combined student list: attendance students + behavior-only students
+                            // This ensures students who left the app appear even if not in filtered attendance
+                            final attendanceStudentIds = filteredAttendance
+                                .map((doc) => (doc.data()['studentId'] as String?) ?? '')
+                                .toSet();
+
+                            final List<Map<String, dynamic>> combinedStudents =
+                                filteredAttendance.map((doc) => doc.data()).toList();
+
+                            // Add students from behavior records not already in attendance
+                            for (final entry in behaviorByStudent.entries) {
+                              final bStudentId = entry.key;
+                              final bData = entry.value;
+                              if (attendanceStudentIds.contains(bStudentId)) continue;
+
+                              // Only include if behavior record scheduleId matches teacher's active/today schedules
+                              final bScheduleId = (bData['scheduleId'] as String?) ?? '';
+                              final matchesTeacherSchedule = activeScheduleIds.contains(bScheduleId) ||
+                                  todayScheduleIds.contains(bScheduleId) ||
+                                  bScheduleId == 'general';
+                              if (!matchesTeacherSchedule) continue;
+
+                              // Filter by search query
+                              final bStudentName = (bData['studentName'] ?? '').toString().toLowerCase();
+                              if (_searchQuery.isNotEmpty && !bStudentName.contains(_searchQuery)) continue;
+
+                              combinedStudents.add(bData);
+                            }
+
+                            if (combinedStudents.isEmpty) {
                               return SliverFillRemaining(
                                 hasScrollBody: false,
                                 child: Padding(
@@ -732,23 +740,14 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                                   SliverList(
                                     delegate: SliverChildBuilderDelegate(
                                       (context, index) {
-                                        final doc = filteredAttendance[index];
-                                        final data = doc.data();
-                                        final studentId = data['studentId'] ?? '';
+                                        final data = combinedStudents[index];
+                                        final studentId = (data['studentId'] as String?) ?? '';
                                         final studentName = data['studentName'] ?? 'Murid';
                                         final className = data['className'] ?? 'Kelas';
                                         final subjectName = data['subjectName'] ?? 'Pelajaran';
-                                        final scheduleId = data['scheduleId'] ?? '';
 
-                                        // Find the latest behavior record for this student and specific schedule
-                                        Map<String, dynamic>? latestRecord;
-                                        for (final bDoc in behaviorDocs) {
-                                          final bData = bDoc.data();
-                                          if (bData['studentId'] == studentId && bData['scheduleId'] == scheduleId) {
-                                            latestRecord = bData;
-                                            break;
-                                          }
-                                        }
+                                        // Look up latest behavior record from pre-built map (O(1))
+                                        final latestRecord = behaviorByStudent[studentId];
 
                                         final type = latestRecord?['type']?.toString() ?? '';
                                         final isKeluar = type.toLowerCase().contains('meninggalkan') ||
@@ -757,105 +756,233 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                                         final isScreenOff = type.toLowerCase().contains('layar mati') || type.toLowerCase().contains('terkunci');
                                         final isStandby = !isKeluar && !isScreenOff;
 
-                                        final borderThemeColor = isKeluar ? const Color(0xFFEF4444) : const Color(0xFF10B981);
-                                        final isLastRow = index == filteredAttendance.length - 1;
+                                        // Activity log from behavior record
+                                        final activityLog = (latestRecord?['activityLog'] as List<dynamic>?) ?? [];
+                                        final logCount = activityLog.length;
+                                        final keluarCount = activityLog.where((e) {
+                                          final t = (e['type'] as String? ?? '').toLowerCase();
+                                          return t.contains('meninggalkan') || t.contains('keluar') || t.contains('logout');
+                                        }).length;
+                                        final standbyCount = activityLog.where((e) {
+                                          final t = (e['type'] as String? ?? '').toLowerCase();
+                                          return t.contains('standby') || t.contains('kembali');
+                                        }).length;
+                                        final isExpanded = _expandedRows.contains(studentId);
+                                        final borderThemeColor = isKeluar
+                                            ? const Color(0xFFEF4444)
+                                            : isScreenOff
+                                                ? const Color(0xFFF59E0B)
+                                                : const Color(0xFF10B981);
+                                        final isLastRow = index == combinedStudents.length - 1;
 
-                                        final rowWidget = Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                          decoration: BoxDecoration(
-                                            color: tableRowBg,
-                                            border: Border(
-                                              left: BorderSide(color: borderThemeColor.withValues(alpha: 0.6), width: 4),
-                                              right: BorderSide(color: tableRowBorderRight),
-                                              bottom: BorderSide(
-                                                color: isLastRow
-                                                    ? tableRowBorderRight
-                                                    : tableRowBorder,
+                                        final rowWidget = Column(
+                                          children: [
+                                            GestureDetector(
+                                              onTap: logCount > 0 ? () {
+                                                setState(() {
+                                                  if (isExpanded) {
+                                                    _expandedRows.remove(studentId);
+                                                  } else {
+                                                    _expandedRows.add(studentId);
+                                                  }
+                                                });
+                                              } : null,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                                decoration: BoxDecoration(
+                                                  color: tableRowBg,
+                                                  border: Border(
+                                                    left: BorderSide(color: borderThemeColor.withValues(alpha: 0.6), width: 4),
+                                                    right: BorderSide(color: tableRowBorderRight),
+                                                    bottom: BorderSide(
+                                                      color: isExpanded ? Colors.transparent : (isLastRow ? tableRowBorderRight : tableRowBorder),
+                                                    ),
+                                                    top: index == 0 ? BorderSide.none : BorderSide(color: tableRowBorder),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Expanded(
+                                                      flex: 3,
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text(
+                                                            studentName,
+                                                            style: TextStyle(
+                                                              color: textColor,
+                                                              fontWeight: FontWeight.bold,
+                                                              fontSize: 13,
+                                                            ),
+                                                          ),
+                                                          if (logCount > 0) ...
+                                                            [
+                                                              const SizedBox(height: 3),
+                                                              Row(
+                                                                children: [
+                                                                  Icon(Icons.history_rounded, size: 10, color: subTextColor),
+                                                                  const SizedBox(width: 3),
+                                                                  Text(
+                                                                    '$logCount log  •  🔴$keluarCount keluar  •  🟢$standbyCount standby',
+                                                                    style: TextStyle(color: subTextColor, fontSize: 9.5),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ],
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    Expanded(
+                                                      flex: 2,
+                                                      child: Text(
+                                                        className,
+                                                        style: TextStyle(color: subTextColor, fontSize: 12),
+                                                      ),
+                                                    ),
+                                                    Expanded(
+                                                      flex: 2,
+                                                      child: Text(
+                                                        subjectName,
+                                                        style: TextStyle(color: subTextColor, fontSize: 12),
+                                                      ),
+                                                    ),
+                                                    Expanded(
+                                                      flex: 3,
+                                                      child: Row(
+                                                        mainAxisAlignment: MainAxisAlignment.center,
+                                                        children: [
+                                                          FittedBox(
+                                                            fit: BoxFit.scaleDown,
+                                                            child: Row(
+                                                              children: [
+                                                                if (isStandby) ...[
+                                                                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 16),
+                                                                  const SizedBox(width: 4),
+                                                                  const Text('Standby', style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold)),
+                                                                ] else if (isKeluar) ...[
+                                                                  const Icon(Icons.cancel_rounded, color: Color(0xFFEF4444), size: 16),
+                                                                  const SizedBox(width: 4),
+                                                                  const Text('Keluar', style: TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.bold)),
+                                                                ] else if (isScreenOff) ...[
+                                                                  const Icon(Icons.phone_locked_rounded, color: Color(0xFFF59E0B), size: 16),
+                                                                  const SizedBox(width: 4),
+                                                                  const Text('Screen Off', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold)),
+                                                                ],
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          if (logCount > 0) ...
+                                                            [
+                                                              const SizedBox(width: 6),
+                                                              AnimatedRotation(
+                                                                turns: isExpanded ? 0.5 : 0.0,
+                                                                duration: const Duration(milliseconds: 200),
+                                                                child: Icon(Icons.expand_more_rounded, size: 16, color: subTextColor),
+                                                              ),
+                                                            ],
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                              top: index == 0
-                                                  ? BorderSide.none
-                                                  : BorderSide(color: tableRowBorder),
                                             ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
-                                                flex: 3,
-                                                child: Text(
-                                                  studentName,
-                                                  style: TextStyle(
-                                                    color: textColor,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
+                                            // Expandable Activity Log
+                                            if (isExpanded && logCount > 0)
+                                              Container(
+                                                width: double.infinity,
+                                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                                decoration: BoxDecoration(
+                                                  color: isDark
+                                                      ? Colors.white.withValues(alpha: 0.03)
+                                                      : const Color(0xFFF8F7FF),
+                                                  border: Border(
+                                                    left: BorderSide(color: borderThemeColor.withValues(alpha: 0.4), width: 4),
+                                                    right: BorderSide(color: tableRowBorderRight),
+                                                    bottom: BorderSide(color: isLastRow ? tableRowBorderRight : tableRowBorder),
                                                   ),
                                                 ),
-                                              ),
-                                              Expanded(
-                                                flex: 2,
-                                                child: Text(
-                                                  className,
-                                                  style: TextStyle(
-                                                    color: subTextColor,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ),
-                                              Expanded(
-                                                flex: 2,
-                                                child: Text(
-                                                  subjectName,
-                                                  style: TextStyle(
-                                                    color: subTextColor,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ),
-                                              Expanded(
-                                                flex: 3,
-                                                child: FittedBox(
-                                                  fit: BoxFit.scaleDown,
-                                                  child: Row(
-                                                    mainAxisAlignment: MainAxisAlignment.center,
-                                                    children: [
-                                                      if (isStandby) ...[
-                                                        const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 16),
-                                                        const SizedBox(width: 4),
-                                                        const Text(
-                                                          'Standby',
-                                                          style: TextStyle(
-                                                            color: Color(0xFF10B981),
-                                                            fontSize: 12,
-                                                            fontWeight: FontWeight.bold,
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Log Aktivitas',
+                                                      style: TextStyle(
+                                                        color: subTextColor,
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.bold,
+                                                        letterSpacing: 0.8,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    // Sort log by timestamp descending (most recent first)
+                                                    ...(() {
+                                                      final sortedLog = List<dynamic>.from(activityLog);
+                                                      sortedLog.sort((a, b) {
+                                                        final ta = a['timestamp'];
+                                                        final tb = b['timestamp'];
+                                                        final dateA = ta is Timestamp ? ta.toDate() : DateTime(0);
+                                                        final dateB = tb is Timestamp ? tb.toDate() : DateTime(0);
+                                                        return dateB.compareTo(dateA);
+                                                      });
+                                                      return sortedLog.asMap().entries.map((entry) {
+                                                        final i = entry.key;
+                                                        final log = entry.value as Map<String, dynamic>;
+                                                        final logType = (log['type'] as String? ?? '');
+                                                        final logTs = log['timestamp'];
+                                                        final logTime = logTs is Timestamp ? logTs.toDate() : null;
+                                                        final isLogKeluar = logType.toLowerCase().contains('meninggalkan') ||
+                                                            logType.toLowerCase().contains('keluar') ||
+                                                            logType.toLowerCase().contains('logout');
+                                                        final isLogScreen = logType.toLowerCase().contains('layar mati') ||
+                                                            logType.toLowerCase().contains('terkunci');
+                                                        final logColor = isLogKeluar
+                                                            ? const Color(0xFFEF4444)
+                                                            : isLogScreen
+                                                                ? const Color(0xFFF59E0B)
+                                                                : const Color(0xFF10B981);
+                                                        final logIcon = isLogKeluar
+                                                            ? Icons.cancel_rounded
+                                                            : isLogScreen
+                                                                ? Icons.phone_locked_rounded
+                                                                : Icons.check_circle_rounded;
+                                                        final timeStr = logTime != null
+                                                            ? '${logTime.hour.toString().padLeft(2, '0')}:${logTime.minute.toString().padLeft(2, '0')}:${logTime.second.toString().padLeft(2, '0')}'
+                                                            : '--:--:--';
+                                                        return Padding(
+                                                          key: ValueKey(i),
+                                                          padding: const EdgeInsets.only(bottom: 6),
+                                                          child: Row(
+                                                            children: [
+                                                              Icon(logIcon, size: 12, color: logColor),
+                                                              const SizedBox(width: 6),
+                                                              Expanded(
+                                                                child: Text(
+                                                                  logType,
+                                                                  style: TextStyle(
+                                                                    color: logColor,
+                                                                    fontSize: 11,
+                                                                    fontWeight: FontWeight.w600,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              Text(
+                                                                timeStr,
+                                                                style: TextStyle(
+                                                                  color: subTextColor,
+                                                                  fontSize: 10,
+                                                                  fontFamily: 'monospace',
+                                                                ),
+                                                              ),
+                                                            ],
                                                           ),
-                                                        ),
-                                                      ] else if (isKeluar) ...[
-                                                        const Icon(Icons.cancel_rounded, color: Color(0xFFEF4444), size: 16),
-                                                        const SizedBox(width: 4),
-                                                        const Text(
-                                                          'Keluar',
-                                                          style: TextStyle(
-                                                            color: Color(0xFFEF4444),
-                                                            fontSize: 12,
-                                                            fontWeight: FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                      ] else if (isScreenOff) ...[
-                                                        const SizedBox(width: 4),
-                                                        const Text(
-                                                          'Screen Off',
-                                                          style: TextStyle(
-                                                            color: Color(0xFF10B981),
-                                                            fontSize: 11,
-                                                            fontWeight: FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ],
-                                                  ),
+                                                        );
+                                                      }).toList();
+                                                    })(),
+                                                  ],
                                                 ),
                                               ),
-                                            ],
-                                          ),
+                                          ],
                                         );
 
                                         if (isLastRow) {
@@ -866,7 +993,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                                         }
                                         return rowWidget;
                                       },
-                                      childCount: filteredAttendance.length,
+                                      childCount: combinedStudents.length,
                                     ),
                                   ),
                                 ],

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../../core/services/session_service.dart';
 import '../../../authentication/widgets/auth_background.dart';
 import '../../../students/data/student_service.dart';
+import '../../../../core/localization/app_localization.dart';
 
 class AdminViolationsHistoryPage extends StatefulWidget {
   final bool hideBackButton;
@@ -41,7 +42,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
             const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
             const SizedBox(width: 10),
             Text(
-              'Hapus Catatan',
+              AppLocalization.isIndonesian ? 'Hapus Catatan' : 'Delete Record',
               style: TextStyle(
                 color: isDark ? Colors.white : const Color(0xFF1E1B4B),
                 fontWeight: FontWeight.bold,
@@ -51,7 +52,9 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin menghapus catatan pelanggaran ini? Poin murid akan kembali normal.',
+          AppLocalization.isIndonesian
+              ? 'Apakah Anda yakin ingin menghapus catatan pelanggaran ini? Poin murid akan kembali normal.'
+              : 'Are you sure you want to delete this violation record? Student points will return to normal.',
           style: TextStyle(
             color: isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
             fontSize: 14,
@@ -61,7 +64,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Batal',
+              AppLocalization.cancelButton,
               style: TextStyle(
                 color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5),
                 fontWeight: FontWeight.w600,
@@ -75,7 +78,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppLocalization.isIndonesian ? 'Hapus' : 'Delete', style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -85,15 +88,15 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
       try {
         await _studentService.deleteViolation(schoolId, violationId);
         Get.snackbar(
-          'Sukses',
-          'Catatan pelanggaran berhasil dihapus.',
+          AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+          AppLocalization.isIndonesian ? 'Catatan pelanggaran berhasil dihapus.' : 'Violation record successfully deleted.',
           backgroundColor: const Color(0xFF10B981),
           colorText: Colors.white,
         );
       } catch (e) {
         Get.snackbar(
           'Error',
-          'Gagal menghapus pelanggaran: $e',
+          '${AppLocalization.isIndonesian ? "Gagal menghapus pelanggaran" : "Failed to delete violation"}: $e',
           backgroundColor: const Color(0xFFEF4444),
           colorText: Colors.white,
         );
@@ -109,6 +112,9 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
         final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -144,7 +150,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                             ),
                           ),
                     title: Text(
-                      'Riwayat Pelanggaran Murid',
+                      AppLocalization.isIndonesian ? 'Riwayat Pelanggaran Murid' : 'Student Violations History',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
                     ),
                   ),
@@ -165,7 +171,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                             },
                             style: TextStyle(color: textColor, fontSize: 14),
                             decoration: InputDecoration(
-                              hintText: 'Cari nama murid...',
+                              hintText: AppLocalization.isIndonesian ? 'Cari nama murid...' : 'Search student name...',
                               hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                               prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
                               suffixIcon: _searchQuery.isNotEmpty
@@ -231,7 +237,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                                 items: classOptions.map((opt) {
                                   return DropdownMenuItem<String>(
                                     value: opt,
-                                    child: Text(opt),
+                                    child: Text(opt == 'Semua Kelas' ? (AppLocalization.isIndonesian ? 'Semua Kelas' : 'All Classes') : opt),
                                   );
                                 }).toList(),
                                 onChanged: (val) {
@@ -268,7 +274,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                                       ),
                                       child: Center(
                                         child: Text(
-                                          'Riwayat Pelanggaran',
+                                          AppLocalization.isIndonesian ? 'Riwayat Pelanggaran' : 'Violations History',
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
@@ -298,7 +304,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                                       ),
                                       child: Center(
                                         child: Text(
-                                          'Poin Tertinggi',
+                                          AppLocalization.isIndonesian ? 'Poin Tertinggi' : 'Highest Points',
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
@@ -362,8 +368,8 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                                 const SizedBox(height: 16),
                                 Text(
                                   _selectedTab == 0
-                                      ? 'Tidak ada catatan pelanggaran murid.'
-                                      : 'Tidak ada peringkat poin pelanggaran.',
+                                      ? (AppLocalization.isIndonesian ? 'Tidak ada catatan pelanggaran murid.' : 'No student violation records.')
+                                      : (AppLocalization.isIndonesian ? 'Tidak ada peringkat poin pelanggaran.' : 'No violation points ranking.'),
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: subTextColor,
@@ -477,7 +483,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                                               ),
                                             ),
                                             Text(
-                                              'Kelas: ${item.className}',
+                                              '${AppLocalization.isIndonesian ? "Kelas" : "Class"}: ${item.className}',
                                               style: TextStyle(
                                                 color: subTextColor,
                                                 fontSize: 12,
@@ -493,7 +499,7 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                         child: Text(
-                                          '-${item.totalPoints} Poin',
+                                          '-${item.totalPoints} ${AppLocalization.isIndonesian ? "Poin" : "Points"}',
                                           style: const TextStyle(
                                             color: Color(0xFFEF4444),
                                             fontWeight: FontWeight.bold,
@@ -557,14 +563,14 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                                           ),
                                         ),
                                         Text(
-                                          '-$poin Poin',
+                                          '-$poin ${AppLocalization.isIndonesian ? "Poin" : "Points"}',
                                           style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 14),
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      'Kelas: $className',
+                                      '${AppLocalization.isIndonesian ? "Kelas" : "Class"}: $className',
                                       style: TextStyle(color: subTextColor, fontSize: 12),
                                     ),
                                     const SizedBox(height: 12),
@@ -592,14 +598,85 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
                                         ),
                                       ),
                                     ],
-                                    const SizedBox(height: 12),
-                                    Divider(color: cardBorderColor, height: 1),
-                                    const SizedBox(height: 12),
+                                    if (data['imageUrl'] != null && (data['imageUrl'] as String).isNotEmpty) ...[
+                                       const SizedBox(height: 12),
+                                       GestureDetector(
+                                         onTap: () {
+                                           showDialog(
+                                             context: context,
+                                             builder: (ctx) => Dialog(
+                                               backgroundColor: Colors.transparent,
+                                               child: Column(
+                                                 mainAxisSize: MainAxisSize.min,
+                                                 children: [
+                                                   Align(
+                                                     alignment: Alignment.topRight,
+                                                     child: IconButton(
+                                                       icon: const Icon(Icons.close_rounded, color: Colors.white, size: 30),
+                                                       onPressed: () => Navigator.pop(ctx),
+                                                     ),
+                                                   ),
+                                                   InteractiveViewer(
+                                                     child: Image.network(
+                                                       data['imageUrl'] as String,
+                                                       fit: BoxFit.contain,
+                                                       loadingBuilder: (context, child, loadingProgress) {
+                                                         if (loadingProgress == null) return child;
+                                                         return const Center(child: CircularProgressIndicator(color: Colors.white));
+                                                       },
+                                                     ),
+                                                   ),
+                                                 ],
+                                               ),
+                                             ),
+                                           );
+                                         },
+                                         child: ClipRRect(
+                                           borderRadius: BorderRadius.circular(12),
+                                           child: Image.network(
+                                             data['imageUrl'] as String,
+                                             height: 120,
+                                             width: double.infinity,
+                                             fit: BoxFit.cover,
+                                             loadingBuilder: (context, child, loadingProgress) {
+                                               if (loadingProgress == null) return child;
+                                               return Container(
+                                                 height: 120,
+                                                 color: cardBorderColor.withValues(alpha: 0.1),
+                                                 child: const Center(
+                                                   child: CircularProgressIndicator(strokeWidth: 2),
+                                                 ),
+                                               );
+                                             },
+                                             errorBuilder: (context, error, stackTrace) {
+                                               return Container(
+                                                 height: 120,
+                                                 color: Colors.red.withValues(alpha: 0.1),
+                                                 child: Row(
+                                                   mainAxisAlignment: MainAxisAlignment.center,
+                                                   children: [
+                                                     const Icon(Icons.broken_image_rounded, color: Colors.red),
+                                                     const SizedBox(width: 8),
+                                                     Text(
+                                                       'Gagal memuat gambar',
+                                                       style: TextStyle(color: textColor, fontSize: 12),
+                                                     ),
+                                                   ],
+                                                 ),
+                                               );
+                                             },
+                                           ),
+                                         ),
+                                       ),
+                                     ],
+                                     const SizedBox(height: 12),
+                                     Divider(color: cardBorderColor, height: 1),
+                                     const SizedBox(height: 12),
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
-                                          'Oleh: $recordedBy • $dateStr',
+                                          '${AppLocalization.isIndonesian ? "Oleh" : "By"}: $recordedBy • $dateStr',
                                           style: TextStyle(color: subTextColor, fontSize: 11),
                                         ),
                                         IconButton(
@@ -624,6 +701,8 @@ class _AdminViolationsHistoryPageState extends State<AdminViolationsHistoryPage>
               ),
             ),
           ),
+        );
+          },
         );
       },
     );

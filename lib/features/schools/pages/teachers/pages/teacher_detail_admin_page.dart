@@ -562,111 +562,155 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
     final String? newPassword = await showDialog<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: dialogBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: BorderSide(color: borderColor, width: 1.5),
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        builder: (context, setState) {
+          final pass = newPasswordController.text;
+          final hasUppercase = RegExp(r'[A-Z]').hasMatch(pass);
+          final hasLowercase = RegExp(r'[a-z]').hasMatch(pass);
+          final hasNumber = RegExp(r'[0-9]').hasMatch(pass);
+          final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(pass);
+          final isPasswordValid = pass.length >= 6 && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
+
+          Widget buildRequirementItem(String label, bool isMet) {
+            final activeColor = const Color(0xFF10B981);
+            final inactiveColor = isDark ? Colors.white38 : Colors.black38;
+            final itemTextColor = isDark ? Colors.white70 : Colors.black87;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Row(
+                children: [
+                  Icon(
+                    isMet ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
+                    color: isMet ? activeColor : inactiveColor,
+                    size: 15,
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(Icons.lock_reset_rounded, color: Colors.white, size: 26),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Reset Password Guru',
-                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Masukkan password baru untuk guru ${teacher['nama']}. Guru dapat langsung login menggunakan password baru ini.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: subTextColor, fontSize: 13, height: 1.5),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                decoration: BoxDecoration(
-                  color: cardBgColor,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: borderColor),
-                ),
-                child: TextField(
-                  controller: newPasswordController,
-                  obscureText: obscurePassword,
-                  style: TextStyle(color: textColor),
-                  decoration: InputDecoration(
-                    labelText: 'Password Baru',
-                    labelStyle: TextStyle(color: subTextColor),
-                    prefixIcon: Icon(Icons.lock_outline_rounded, color: subTextColor),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        color: subTextColor,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: isMet ? activeColor : itemTextColor,
+                        fontSize: 12,
                       ),
-                      onPressed: () => setState(() => obscurePassword = !obscurePassword),
                     ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          actions: [
-            Row(
+            );
+          }
+
+          return AlertDialog(
+            backgroundColor: dialogBg,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(color: borderColor, width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      side: BorderSide(color: borderColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                     ),
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: Text('Batal', style: TextStyle(color: textColor)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.lock_reset_rounded, color: Colors.white, size: 26),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Reset Password Guru',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Masukkan password baru untuk guru ${teacher['nama']}. Guru dapat langsung login menggunakan password baru ini.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: subTextColor, fontSize: 13, height: 1.5),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                    color: cardBgColor,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: TextField(
+                    controller: newPasswordController,
+                    obscureText: obscurePassword,
+                    style: TextStyle(color: textColor),
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Password Baru',
+                      labelStyle: TextStyle(color: subTextColor),
+                      prefixIcon: Icon(Icons.lock_outline_rounded, color: subTextColor),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: subTextColor,
+                        ),
+                        onPressed: () => setState(() => obscurePassword = !obscurePassword),
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      final pass = newPasswordController.text.trim();
-                      if (pass.length < 6) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Password minimal 6 karakter.'),
-                            backgroundColor: Color(0xFFEF4444),
-                          ),
-                        );
-                        return;
-                      }
-                      Navigator.pop(dialogContext, pass);
-                    },
-                    child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      buildRequirementItem('Minimal 6 karakter', pass.length >= 6),
+                      buildRequirementItem('Memiliki huruf besar (A-Z)', hasUppercase),
+                      buildRequirementItem('Memiliki huruf kecil (a-z)', hasLowercase),
+                      buildRequirementItem('Memiliki angka (0-9)', hasNumber),
+                      buildRequirementItem('Memiliki karakter khusus (!@#\$%^&* dll)', hasSpecialChar),
+                    ],
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        side: BorderSide(color: borderColor),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: Text('Batal', style: TextStyle(color: textColor)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: !isPasswordValid
+                          ? null
+                          : () {
+                              Navigator.pop(dialogContext, newPasswordController.text.trim());
+                            },
+                      child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
 

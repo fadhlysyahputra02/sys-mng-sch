@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../authentication/widgets/auth_background.dart';
 import '../../../../core/services/session_service.dart';
 import '../../../tasks/services/task_service.dart';
+import '../../../../core/localization/app_localization.dart';
 
 // ─────────────────────────────────────────────
 //  MODEL: Approval Category
@@ -119,6 +120,9 @@ class _ApprovalDashboardPageState extends State<ApprovalDashboardPage> {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
         final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
@@ -147,8 +151,8 @@ class _ApprovalDashboardPageState extends State<ApprovalDashboardPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Persetujuan', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: titleColor)),
-                              Text('Pilih kategori perizinan', style: TextStyle(fontSize: 12, color: iconColor.withValues(alpha: 0.5))),
+                              Text(AppLocalization.isIndonesian ? 'Persetujuan' : 'Approvals', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: titleColor)),
+                              Text(AppLocalization.isIndonesian ? 'Pilih kategori perizinan' : 'Select permission category', style: TextStyle(fontSize: 12, color: iconColor.withValues(alpha: 0.5))),
                             ],
                           ),
                         ),
@@ -166,7 +170,7 @@ class _ApprovalDashboardPageState extends State<ApprovalDashboardPage> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Data lebih dari 7 hari dihapus otomatis.',
+                          AppLocalization.isIndonesian ? 'Data lebih dari 7 hari dihapus otomatis.' : 'Data older than 7 days is automatically deleted.',
                           style: TextStyle(fontSize: 11, color: subColor),
                         ),
                       ),
@@ -190,6 +194,8 @@ class _ApprovalDashboardPageState extends State<ApprovalDashboardPage> {
               ],
             ),
           ),
+        );
+          },
         );
       },
     );
@@ -244,13 +250,17 @@ class _ApprovalDashboardPageState extends State<ApprovalDashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        cat.label,
+                        cat.collection == 'attendanceEditRequests'
+                            ? (AppLocalization.isIndonesian ? 'Persetujuan Koreksi Absensi' : 'Attendance Correction Approval')
+                            : (AppLocalization.isIndonesian ? 'Persetujuan Penghapusan Tugas' : 'Task Deletion Approval'),
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        cat.subtitle,
-                        style: TextStyle(fontSize: 12, color: subColor, height: 1.4),
+                        cat.collection == 'attendanceEditRequests'
+                            ? (AppLocalization.isIndonesian ? 'Izin guru untuk mengedit data absensi kelas' : 'Teacher permission to edit class attendance data')
+                            : (AppLocalization.isIndonesian ? 'Pengajuan penghapusan tugas beserta jawaban murid' : 'Request to delete tasks and student answers'),
+                        style: TextStyle(fontSize: 12, color: subColor),
                       ),
                     ],
                   ),
@@ -350,13 +360,13 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
           .update({'status': 'approved', 'reviewedBy': reviewerName, 'reviewedAt': FieldValue.serverTimestamp()});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pengajuan disetujui'), backgroundColor: Color(0xFF10B981)),
+          SnackBar(content: Text(AppLocalization.isIndonesian ? 'Pengajuan disetujui' : 'Request approved'), backgroundColor: const Color(0xFF10B981)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menyetujui: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${AppLocalization.isIndonesian ? "Gagal menyetujui" : "Failed to approve"}: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -370,13 +380,13 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
           .update({'status': 'rejected', 'reviewedBy': reviewerName, 'reviewedAt': FieldValue.serverTimestamp()});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pengajuan ditolak'), backgroundColor: Color(0xFFEF4444)),
+          SnackBar(content: Text(AppLocalization.isIndonesian ? 'Pengajuan ditolak' : 'Request rejected'), backgroundColor: const Color(0xFFEF4444)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menolak: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${AppLocalization.isIndonesian ? "Gagal menolak" : "Failed to reject"}: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -410,8 +420,10 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
   String _formatTimestamp(Timestamp? ts) {
     if (ts == null) return '-';
     final dt = ts.toDate().toLocal();
-    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
-    return '${dt.day} ${months[dt.month - 1]} ${dt.year}, ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')} WIB';
+    final months = AppLocalization.isIndonesian
+        ? ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des']
+        : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}, ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')} ${AppLocalization.isIndonesian ? "WIB" : "local"}';
   }
 
   Widget _buildRequestCard(Map<String, dynamic> data, String requestId, bool isDark, bool isPending) {
@@ -443,7 +455,7 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
           const SizedBox(height: 10),
           Divider(height: 1, color: isDark ? Colors.white12 : Colors.black12),
           const SizedBox(height: 10),
-          Text('Guru mengajukan penghapusan tugas beserta seluruh jawaban murid.', style: TextStyle(fontSize: 12, color: subColor, height: 1.4)),
+          Text(AppLocalization.isIndonesian ? 'Guru mengajukan penghapusan tugas beserta seluruh jawaban murid.' : 'Teacher requests task deletion along with all student answers.', style: TextStyle(fontSize: 12, color: subColor, height: 1.4)),
         ],
       );
     } else {
@@ -475,7 +487,7 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
           const SizedBox(height: 10),
           Divider(height: 1, color: isDark ? Colors.white12 : Colors.black12),
           const SizedBox(height: 10),
-          Text('Guru mengajukan izin untuk mengedit data absensi sesi kelas ini.', style: TextStyle(fontSize: 12, color: subColor, height: 1.4)),
+          Text(AppLocalization.isIndonesian ? 'Guru mengajukan izin untuk mengedit data absensi sesi kelas ini.' : 'Teacher requests permission to edit attendance data for this class session.', style: TextStyle(fontSize: 12, color: subColor, height: 1.4)),
           if (reason.isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(
@@ -514,7 +526,9 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        status == 'approved' ? 'Izin Edit: AKTIF' : 'Izin Edit: NONAKTIF',
+                        status == 'approved'
+                            ? (AppLocalization.isIndonesian ? 'Izin Edit: AKTIF' : 'Edit Permit: ACTIVE')
+                            : (AppLocalization.isIndonesian ? 'Izin Edit: NONAKTIF' : 'Edit Permit: INACTIVE'),
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: status == 'approved' ? const Color(0xFF10B981) : Colors.grey),
                       ),
                     ],
@@ -566,7 +580,12 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
                   child: Icon(widget.category.icon, color: widget.category.color, size: 18),
                 ),
                 const SizedBox(width: 10),
-                Text(widget.category.label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: widget.category.color)),
+                Text(
+                  widget.category.collection == 'attendanceEditRequests'
+                      ? (AppLocalization.isIndonesian ? 'Persetujuan Koreksi Absensi' : 'Attendance Correction Approval')
+                      : (AppLocalization.isIndonesian ? 'Persetujuan Penghapusan Tugas' : 'Task Deletion Approval'),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: widget.category.color),
+                ),
                 const Spacer(),
                 // Status badge
                 Container(
@@ -618,12 +637,12 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
                         padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
                       icon: const Icon(Icons.close_rounded, size: 16),
-                      label: const Text('Tolak', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      label: Text(AppLocalization.isIndonesian ? 'Tolak' : 'Reject', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       onPressed: () => _showConfirmDialog(
-                        title: 'Tolak Pengajuan',
-                        message: 'Pengajuan izin akan ditolak.',
+                        title: AppLocalization.isIndonesian ? 'Tolak Pengajuan' : 'Reject Request',
+                        message: AppLocalization.isIndonesian ? 'Pengajuan izin akan ditolak.' : 'Permission request will be rejected.',
                         confirmColor: const Color(0xFFEF4444),
-                        confirmLabel: 'Tolak',
+                        confirmLabel: AppLocalization.isIndonesian ? 'Tolak' : 'Reject',
                         onConfirm: () => _rejectRequest(requestId, reviewerName),
                       ),
                     ),
@@ -638,12 +657,12 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
                         padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
                       icon: const Icon(Icons.check_rounded, size: 16),
-                      label: const Text('Setujui', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      label: Text(AppLocalization.isIndonesian ? 'Setujui' : 'Approve', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       onPressed: () => _showConfirmDialog(
-                        title: 'Setujui Pengajuan',
-                        message: 'Menyetujui pengajuan izin ini.',
+                        title: AppLocalization.isIndonesian ? 'Setujui Pengajuan' : 'Approve Request',
+                        message: AppLocalization.isIndonesian ? 'Menyetujui pengajuan izin ini.' : 'Approve this permission request.',
                         confirmColor: const Color(0xFF10B981),
-                        confirmLabel: 'Setujui',
+                        confirmLabel: AppLocalization.isIndonesian ? 'Setujui' : 'Approve',
                         onConfirm: () => _approveRequest(requestId, reviewerName, data),
                       ),
                     ),
@@ -668,10 +687,10 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
 
   String _statusLabel(String s) {
     switch (s) {
-      case 'approved': return 'Disetujui';
-      case 'rejected': return 'Ditolak';
-      case 'closed':   return 'Ditutup';
-      default:         return 'Menunggu';
+      case 'approved': return AppLocalization.isIndonesian ? 'Disetujui' : 'Approved';
+      case 'rejected': return AppLocalization.isIndonesian ? 'Ditolak' : 'Rejected';
+      case 'closed':   return AppLocalization.isIndonesian ? 'Ditutup' : 'Closed';
+      default:         return AppLocalization.isIndonesian ? 'Menunggu' : 'Pending';
     }
   }
 
@@ -702,9 +721,9 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
         if (sorted.isEmpty) {
           final String msg;
           final IconData ico;
-          if (status == 'pending') { msg = 'Tidak ada pengajuan menunggu'; ico = Icons.inbox_rounded; }
-          else if (status == 'approved') { msg = 'Belum ada yang disetujui'; ico = Icons.check_circle_outline_rounded; }
-          else { msg = 'Belum ada yang ditolak'; ico = Icons.cancel_outlined; }
+          if (status == 'pending') { msg = AppLocalization.isIndonesian ? 'Tidak ada pengajuan menunggu' : 'No pending requests'; ico = Icons.inbox_rounded; }
+          else if (status == 'approved') { msg = AppLocalization.isIndonesian ? 'Belum ada yang disetujui' : 'No approved requests'; ico = Icons.check_circle_outline_rounded; }
+          else { msg = AppLocalization.isIndonesian ? 'Belum ada yang ditolak' : 'No rejected requests'; ico = Icons.cancel_outlined; }
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(40),
@@ -734,6 +753,9 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
         final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
@@ -767,8 +789,20 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(widget.category.label, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor)),
-                              Text(widget.category.subtitle, style: TextStyle(fontSize: 11, color: iconColor.withValues(alpha: 0.5)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              Text(
+                                widget.category.collection == 'attendanceEditRequests'
+                                    ? (AppLocalization.isIndonesian ? 'Persetujuan Koreksi Absensi' : 'Attendance Correction Approval')
+                                    : (AppLocalization.isIndonesian ? 'Persetujuan Penghapusan Tugas' : 'Task Deletion Approval'),
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                              ),
+                              Text(
+                                widget.category.collection == 'attendanceEditRequests'
+                                    ? (AppLocalization.isIndonesian ? 'Izin guru untuk mengedit data absensi kelas' : 'Teacher permission to edit class attendance data')
+                                    : (AppLocalization.isIndonesian ? 'Pengajuan penghapusan tugas beserta jawaban murid' : 'Request to delete tasks and student answers'),
+                                style: TextStyle(fontSize: 11, color: iconColor.withValues(alpha: 0.5)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ],
                           ),
                         ),
@@ -788,7 +822,7 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
                               ),
-                              child: Text('$count pending', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
+                              child: Text('$count ${AppLocalization.isIndonesian ? "menunggu" : "pending"}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
                             );
                           },
                         ),
@@ -809,7 +843,11 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
                     labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                     unselectedLabelStyle: const TextStyle(fontSize: 12),
                     dividerColor: Colors.transparent,
-                    tabs: const [Tab(text: 'Menunggu'), Tab(text: 'Disetujui'), Tab(text: 'Ditolak')],
+                    tabs: [
+                      Tab(text: AppLocalization.isIndonesian ? 'Menunggu' : 'Pending'),
+                      Tab(text: AppLocalization.isIndonesian ? 'Disetujui' : 'Approved'),
+                      Tab(text: AppLocalization.isIndonesian ? 'Ditolak' : 'Rejected'),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -826,6 +864,8 @@ class _ApprovalDetailPageState extends State<ApprovalDetailPage>
               ],
             ),
           ),
+        );
+          },
         );
       },
     );

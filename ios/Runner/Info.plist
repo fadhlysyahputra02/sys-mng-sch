@@ -46,6 +46,8 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Kamera dibutuhkan untuk scan QR absensi</string>
+	<string>Kamera dibutuhkan untuk scan QR absensi dan mengambil foto bukti pelanggaran murid</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Aplikasi membutuhkan akses galeri untuk memilih foto bukti pelanggaran murid</string>
 </dict>
 </plist>

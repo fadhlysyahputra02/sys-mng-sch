@@ -244,6 +244,12 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
             ? Colors.white.withValues(alpha: 0.6)
             : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
+        final hasUppercase = RegExp(r'[A-Z]').hasMatch(_passwordController.text);
+        final hasLowercase = RegExp(r'[a-z]').hasMatch(_passwordController.text);
+        final hasNumber = RegExp(r'[0-9]').hasMatch(_passwordController.text);
+        final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(_passwordController.text);
+        final isPasswordValid = hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
+
         return Scaffold(
           extendBodyBehindAppBar: true,
           appBar: AppBar(
@@ -361,6 +367,7 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
                                         fieldFill: fieldFill,
                                         fieldBorder: fieldBorder,
                                         obscure: _obscurePassword,
+                                        onChanged: (val) => setState(() {}),
                                         suffix: IconButton(
                                           icon: Icon(
                                             _obscurePassword
@@ -374,6 +381,7 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
                                           ),
                                         ),
                                       ),
+                                      _buildPasswordRequirements(_passwordController.text, isDark),
                                       const SizedBox(height: 16),
                                       _buildField(
                                         controller: _confirmController,
@@ -402,7 +410,7 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
                                         width: double.infinity,
                                         child: ElevatedButton(
                                           onPressed:
-                                              _isLoading ? null : _registerAccount,
+                                              (_isLoading || !isPasswordValid) ? null : _registerAccount,
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor:
                                                 const Color(0xFF8B5CF6),
@@ -526,6 +534,53 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
     );
   }
 
+  Widget _buildPasswordRequirements(String password, bool isDark) {
+    final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+    final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+    final hasNumber = RegExp(r'[0-9]').hasMatch(password);
+    final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(password);
+
+    final activeColor = const Color(0xFF10B981);
+    final inactiveColor = isDark ? Colors.white38 : Colors.black38;
+    final textColor = isDark ? Colors.white70 : Colors.black87;
+
+    Widget buildItem(String label, bool isMet) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          children: [
+            Icon(
+              isMet ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
+              color: isMet ? activeColor : inactiveColor,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isMet ? activeColor : textColor,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, left: 6, right: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buildItem('Memiliki huruf besar (A-Z)', hasUppercase),
+          buildItem('Memiliki huruf kecil (a-z)', hasLowercase),
+          buildItem('Memiliki angka (0-9)', hasNumber),
+          buildItem('Memiliki karakter khusus (!@#\$%^&* dll)', hasSpecialChar),
+        ],
+      ),
+    );
+  }
+
   Widget _buildField({
     required TextEditingController controller,
     required String label,
@@ -537,6 +592,7 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
     TextInputType keyboard = TextInputType.text,
     bool obscure = false,
     Widget? suffix,
+    ValueChanged<String>? onChanged,
   }) {
     return TextField(
       controller: controller,
@@ -544,6 +600,7 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
       keyboardType: keyboard,
       obscureText: obscure,
       textCapitalization: TextCapitalization.words,
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: labelColor),

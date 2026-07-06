@@ -9,11 +9,13 @@ import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import 'features/authentication/widgets/auth_background.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/localization/app_localization.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AuthBackground.initTheme();
+  await AppLocalization.init();
   await initializeDateFormatting('id_ID', null);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
