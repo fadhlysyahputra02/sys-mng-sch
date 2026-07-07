@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 
 import '../../../../core/services/session_service.dart';
 import '../../../authentication/widgets/auth_background.dart';
@@ -201,6 +202,19 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
     return results;
   }
 
+  String _getCategoryLabel(String cat) {
+    if (!AppLocalization.isIndonesian) {
+      switch (cat) {
+        case 'Tugas': return 'Assignment';
+        case 'Kuis': return 'Quiz';
+        case 'Ulangan Harian': return 'Daily Test';
+        case 'UTS': return 'Midterm Exam';
+        case 'UAS': return 'Final Exam';
+      }
+    }
+    return cat;
+  }
+
   void _showStudentDetailBottomSheet({
     required BuildContext context,
     required Map<String, dynamic> student,
@@ -389,7 +403,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                     ),
                                   ),
                                   child: Text(
-                                    '$cat: ${avg != null ? avg.toStringAsFixed(0) : "-"}',
+                                    '${_getCategoryLabel(cat)}: ${avg != null ? avg.toStringAsFixed(0) : "-"}',
                                     style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.8)),
                                   ),
                                 );
@@ -397,7 +411,9 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              'Bobot: Tugas ${weights['Tugas']?.toStringAsFixed(0)}%, Kuis ${weights['Kuis']?.toStringAsFixed(0)}%, UH ${weights['Ulangan Harian']?.toStringAsFixed(0)}%, UTS ${weights['UTS']?.toStringAsFixed(0)}%, UAS ${weights['UAS']?.toStringAsFixed(0)}%',
+                              AppLocalization.isIndonesian
+                                  ? 'Bobot: Tugas ${weights['Tugas']?.toStringAsFixed(0)}%, Kuis ${weights['Kuis']?.toStringAsFixed(0)}%, UH ${weights['Ulangan Harian']?.toStringAsFixed(0)}%, UTS ${weights['UTS']?.toStringAsFixed(0)}%, UAS ${weights['UAS']?.toStringAsFixed(0)}%'
+                                  : 'Weights: Assignment ${weights['Tugas']?.toStringAsFixed(0)}%, Quiz ${weights['Kuis']?.toStringAsFixed(0)}%, Daily Test ${weights['Ulangan Harian']?.toStringAsFixed(0)}%, Midterm ${weights['UTS']?.toStringAsFixed(0)}%, Final ${weights['UAS']?.toStringAsFixed(0)}%',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: subTextColor,
@@ -425,6 +441,9 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -456,7 +475,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                     ),
                   ),
                   title: Text(
-                    'Rekap Nilai Siswa',
+                    AppLocalization.isIndonesian ? 'Rekap Nilai Siswa' : 'Student Grades Recap',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                   ),
                 ),
@@ -496,7 +515,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                 Icon(Icons.filter_alt_rounded, color: const Color(0xFF8B5CF6), size: 18),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Filter Penilaian',
+                                  AppLocalization.isIndonesian ? 'Filter Penilaian' : 'Grades Filter',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
                                 ),
                               ],
@@ -510,7 +529,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                     value: _tahunAjaranFilter.isNotEmpty ? _tahunAjaranFilter : null,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Tahun Ajaran',
+                                      labelText: AppLocalization.isIndonesian ? 'Tahun Ajaran' : 'Academic Year',
                                       labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                       fillColor: inputFillColor,
                                       filled: true,
@@ -575,7 +594,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                               value: _selectedClassId,
                               dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                               decoration: InputDecoration(
-                                labelText: 'Pilih Kelas',
+                                labelText: AppLocalization.isIndonesian ? 'Pilih Kelas' : 'Select Class',
                                 labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                 fillColor: inputFillColor,
                                 filled: true,
@@ -618,12 +637,12 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                             Icon(Icons.search_rounded, size: 64, color: subTextColor.withValues(alpha: 0.3)),
                             const SizedBox(height: 16),
                             Text(
-                              'Pilih kelas terlebih dahulu',
+                              AppLocalization.isIndonesian ? 'Pilih kelas terlebih dahulu' : 'Please select a class first',
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Silakan pilih filter kelas untuk melihat data nilai siswa.',
+                              AppLocalization.isIndonesian ? 'Silakan pilih filter kelas untuk melihat data nilai siswa.' : 'Please select a class filter to view student grades.',
                               style: TextStyle(fontSize: 13, color: subTextColor),
                               textAlign: TextAlign.center,
                             ),
@@ -781,8 +800,8 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                 void handlePdfExport() {
                                   if (studentsList.isEmpty) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Tidak ada data siswa untuk diekspor'),
+                                      SnackBar(
+                                        content: Text(AppLocalization.isIndonesian ? 'Tidak ada data siswa untuk diekspor' : 'No student data to export'),
                                         backgroundColor: Colors.redAccent,
                                       ),
                                     );
@@ -852,7 +871,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                           controller: _searchController,
                                           style: TextStyle(color: titleColor, fontSize: 14),
                                           decoration: InputDecoration(
-                                            hintText: 'Cari murid berdasarkan nama atau NIS...',
+                                            hintText: AppLocalization.isIndonesian ? 'Cari murid berdasarkan nama atau NIS...' : 'Search student by name or NIS...',
                                             hintStyle: TextStyle(color: subTextColor, fontSize: 13),
                                             border: InputBorder.none,
                                             icon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
@@ -882,7 +901,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            'Daftar Murid (${filteredStudents.length})',
+                                            '${AppLocalization.isIndonesian ? 'Daftar Murid' : 'Student List'} (${filteredStudents.length})',
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
@@ -893,16 +912,16 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                             children: [
                                               IconButton(
                                                 icon: Icon(Icons.picture_as_pdf_rounded, color: const Color(0xFFEF4444), size: 20),
-                                                tooltip: 'Ekspor PDF',
+                                                tooltip: AppLocalization.isIndonesian ? 'Ekspor PDF' : 'Export PDF',
                                                 onPressed: handlePdfExport,
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
                                                 _sortBy == 'nilai_tertinggi'
-                                                    ? 'Nilai Tertinggi'
+                                                    ? (AppLocalization.isIndonesian ? 'Nilai Tertinggi' : 'Highest Grade')
                                                     : _sortBy == 'nilai_terendah'
-                                                        ? 'Nilai Terendah'
-                                                        : 'Nama (A-Z)',
+                                                        ? (AppLocalization.isIndonesian ? 'Nilai Terendah' : 'Lowest Grade')
+                                                        : (AppLocalization.isIndonesian ? 'Nama (A-Z)' : 'Name (A-Z)'),
                                                 style: TextStyle(
                                                   fontSize: 11,
                                                   color: subTextColor,
@@ -934,7 +953,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                                       children: [
                                                         Icon(Icons.sort_by_alpha_rounded, color: iconColor, size: 18),
                                                         const SizedBox(width: 8),
-                                                        Text('Nama (A-Z)', style: TextStyle(color: titleColor, fontSize: 13)),
+                                                        Text(AppLocalization.isIndonesian ? 'Nama (A-Z)' : 'Name (A-Z)', style: TextStyle(color: titleColor, fontSize: 13)),
                                                       ],
                                                     ),
                                                   ),
@@ -944,7 +963,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                                       children: [
                                                         Icon(Icons.arrow_upward_rounded, color: iconColor, size: 18),
                                                         const SizedBox(width: 8),
-                                                        Text('Nilai Tertinggi', style: TextStyle(color: titleColor, fontSize: 13)),
+                                                        Text(AppLocalization.isIndonesian ? 'Nilai Tertinggi' : 'Highest Grade', style: TextStyle(color: titleColor, fontSize: 13)),
                                                       ],
                                                     ),
                                                   ),
@@ -954,7 +973,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                                       children: [
                                                         Icon(Icons.arrow_downward_rounded, color: iconColor, size: 18),
                                                         const SizedBox(width: 8),
-                                                        Text('Nilai Terendah', style: TextStyle(color: titleColor, fontSize: 13)),
+                                                        Text(AppLocalization.isIndonesian ? 'Nilai Terendah' : 'Lowest Grade', style: TextStyle(color: titleColor, fontSize: 13)),
                                                       ],
                                                     ),
                                                   ),
@@ -974,7 +993,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                             Icon(Icons.search_off_rounded, size: 48, color: subTextColor),
                                             const SizedBox(height: 16),
                                             Text(
-                                              'Murid tidak ditemukan',
+                                              AppLocalization.isIndonesian ? 'Murid tidak ditemukan' : 'Student not found',
                                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                                             ),
                                           ],
@@ -1075,7 +1094,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
                                                           crossAxisAlignment: CrossAxisAlignment.end,
                                                           children: [
                                                             Text(
-                                                              'Rerata Nilai',
+                                                              AppLocalization.isIndonesian ? 'Rerata Nilai' : 'Average Grade',
                                                               style: TextStyle(fontSize: 10, color: subTextColor),
                                                             ),
                                                             const SizedBox(height: 2),
@@ -1122,5 +1141,7 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
         );
       },
     );
+  },
+);
   }
 }

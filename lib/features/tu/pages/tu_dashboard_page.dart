@@ -11,6 +11,7 @@ import '../../schools/services/school_service.dart';
 import '../../officer/pages/daily_recap_page.dart';
 import '../../schools/pages/settings/school_settings_page.dart';
 import '../../schools/pages/teachers/pages/admin_teacher_attendance_page.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 import '../../schools/pages/violations/admin_violations_history_page.dart';
 
 import '../../schools/pages/classes/pages/class_list_page.dart';
@@ -27,6 +28,7 @@ import 'tu_payment_dashboard.dart';
 import '../../schools/pages/grades/school_admin_grades_page.dart';
 import '../../schools/pages/rapor/school_admin_rapor_page.dart';
 import '../../schools/pages/approvals/approval_dashboard_page.dart';
+import '../../exams/pages/admin_exam_event_list_page.dart';
 
 
 class TuDashboardPage extends StatefulWidget {
@@ -343,7 +345,10 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
-        final isWeb = MediaQuery.of(context).size.width > 800;
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
+            final isWeb = MediaQuery.of(context).size.width > 800;
 
         if (isWeb) {
           return _buildWebLayout(isDark);
@@ -352,6 +357,8 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
         }
       },
     );
+  },
+);
   }
 
   Widget _buildWebLayout(bool isDark) {
@@ -482,6 +489,8 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Persetujuan', Icons.edit_note_rounded, 14, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
+                _buildSidebarItem('Ujian Semester', Icons.assignment_rounded, 15, const Color(0xFF8B5CF6), isDark),
+                const SizedBox(height: 4),
                 _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
             ),
@@ -590,8 +599,8 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
         return const AdminViolationsHistoryPage(hideBackButton: true);
       case 14:
         return const ApprovalDashboardPage(hideBackButton: true);
-
-      
+      case 15:
+        return const AdminExamEventListPage(hideBackButton: true);
       default:
         return _buildDesktopDashboardHome(isDark);
     }
@@ -958,7 +967,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
             ),
             const SizedBox(width: 6),
             Text(
-              'Sistem Aktif',
+              AppLocalization.isIndonesian ? 'Sistem Aktif' : 'System Active',
               style: TextStyle(
                 color: textColor.withValues(alpha: 0.7),
                 fontSize: 13,
@@ -1304,9 +1313,9 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Text(
-                    'Sistem Aktif',
-                    style: TextStyle(
+                  Text(
+                    AppLocalization.isIndonesian ? 'Sistem Aktif' : 'System Active',
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF10B981),

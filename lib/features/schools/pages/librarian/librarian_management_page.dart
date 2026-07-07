@@ -398,6 +398,9 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
     _passwordController.clear();
     _confirmPasswordController.clear();
 
+    bool obscurePassword = true;
+    bool obscureConfirm = true;
+
     Get.dialog(
       StatefulBuilder(
         builder: (context, setStateDialog) {
@@ -407,6 +410,41 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
           final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
           final fieldFill = isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02);
           final fieldBorder = isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12);
+
+          final pass = _passwordController.text;
+          final hasUppercase = RegExp(r'[A-Z]').hasMatch(pass);
+          final hasLowercase = RegExp(r'[a-z]').hasMatch(pass);
+          final hasNumber = RegExp(r'[0-9]').hasMatch(pass);
+          final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(pass);
+          final isPasswordValid = pass.length >= 6 && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
+
+          Widget buildRequirementItem(String label, bool isMet) {
+            final activeColor = const Color(0xFF10B981);
+            final inactiveColor = isDark ? Colors.white38 : Colors.black38;
+            final itemTextColor = isDark ? Colors.white70 : Colors.black87;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Row(
+                children: [
+                  Icon(
+                    isMet ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
+                    color: isMet ? activeColor : inactiveColor,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: isMet ? activeColor : itemTextColor,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return Dialog(
             backgroundColor: dialogBg,
@@ -497,11 +535,19 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                       TextFormField(
                         controller: _passwordController,
                         style: TextStyle(color: textColor),
-                        obscureText: true,
+                        obscureText: obscurePassword,
+                        onChanged: (_) => setStateDialog(() {}),
                         decoration: InputDecoration(
                           labelText: 'Password',
                           labelStyle: TextStyle(color: subTextColor),
                           prefixIcon: Icon(Icons.lock_outline_rounded, color: subTextColor),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              color: subTextColor,
+                            ),
+                            onPressed: () => setStateDialog(() => obscurePassword = !obscurePassword),
+                          ),
                           filled: true,
                           fillColor: fieldFill,
                           enabledBorder: OutlineInputBorder(
@@ -515,21 +561,51 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                         ),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) return 'Password harus diisi';
-                          if (val.trim().length < 6) return 'Password minimal 6 karakter';
+                          final passVal = val.trim();
+                          final hasUpper = RegExp(r'[A-Z]').hasMatch(passVal);
+                          final hasLower = RegExp(r'[a-z]').hasMatch(passVal);
+                          final hasNum = RegExp(r'[0-9]').hasMatch(passVal);
+                          final hasSpec = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(passVal);
+                          final isValid = passVal.length >= 6 && hasUpper && hasLower && hasNum && hasSpec;
+                          if (!isValid) return 'Password tidak memenuhi syarat keamanan';
                           return null;
                         },
                       ),
+                      if (_passwordController.text.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              buildRequirementItem('Minimal 6 karakter', pass.length >= 6),
+                              buildRequirementItem('Memiliki huruf besar (A-Z)', hasUppercase),
+                              buildRequirementItem('Memiliki huruf kecil (a-z)', hasLowercase),
+                              buildRequirementItem('Memiliki angka (0-9)', hasNumber),
+                              buildRequirementItem('Memiliki karakter khusus (!@#\$%^&* dll)', hasSpecialChar),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
 
                       // Confirm Password Field
                       TextFormField(
                         controller: _confirmPasswordController,
                         style: TextStyle(color: textColor),
-                        obscureText: true,
+                        obscureText: obscureConfirm,
+                        onChanged: (_) => setStateDialog(() {}),
                         decoration: InputDecoration(
                           labelText: 'Konfirmasi Password',
                           labelStyle: TextStyle(color: subTextColor),
                           prefixIcon: Icon(Icons.lock_outline_rounded, color: subTextColor),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              color: subTextColor,
+                            ),
+                            onPressed: () => setStateDialog(() => obscureConfirm = !obscureConfirm),
+                          ),
                           filled: true,
                           fillColor: fieldFill,
                           enabledBorder: OutlineInputBorder(
@@ -562,7 +638,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                           ),
                           const SizedBox(width: 12),
                           ElevatedButton(
-                            onPressed: _isLoading
+                            onPressed: (_isLoading || !isPasswordValid)
                                 ? null
                                 : () async {
                                     setStateDialog(() {});

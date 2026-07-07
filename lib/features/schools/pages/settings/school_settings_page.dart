@@ -510,6 +510,23 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
         }
       }
 
+      // Helper: delete chat collections including subcollection 'messages'
+      Future<void> deleteChatSubcollection(String subcollection) async {
+        final roomsSnap = await schoolRef.collection(subcollection).get();
+        for (final roomDoc in roomsSnap.docs) {
+          while (true) {
+            final messagesSnap = await roomDoc.reference.collection('messages').limit(400).get();
+            if (messagesSnap.docs.isEmpty) break;
+            final batch = db.batch();
+            for (final msgDoc in messagesSnap.docs) {
+              batch.delete(msgDoc.reference);
+            }
+            await batch.commit();
+          }
+          await roomDoc.reference.delete();
+        }
+      }
+
       // 1. Delete class_schedules
       await deleteSubcollection('class_schedules');
 
@@ -551,13 +568,17 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
       // 6. Delete behavior_records
       await deleteSubcollection('behavior_records');
 
-      // 7. Tandai semester sebagai ditutup
+      // 7. Delete chat data (chats & parent_chats)
+      await deleteChatSubcollection('chats');
+      await deleteChatSubcollection('parent_chats');
+
+      // 8. Tandai semester sebagai ditutup
       await schoolRef.update({
         'semesterDitutup': true,
         'tanggalSemesterDitutup': FieldValue.serverTimestamp(),
       });
 
-      // 8. Clear resetRequest field (if this was an approval)
+      // 9. Clear resetRequest field (if this was an approval)
       if (isApproving) {
         await schoolRef.update({'resetRequest': FieldValue.delete()});
       }

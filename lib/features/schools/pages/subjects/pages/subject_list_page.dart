@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import '../data/subject_service.dart';
@@ -17,286 +18,299 @@ class SubjectListPage extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
-        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
+            final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
-        final listTileBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
-        final listTileBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
-        final listTileShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+            final listTileBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+            final listTileBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+            final listTileShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
 
-        final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-        final tagIconColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-        final moreIconColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+            final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+            final tagIconColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+            final moreIconColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
-        final emptyBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03);
-        final emptyBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
-        final emptyIconColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
-        final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
-        final emptySubtitleColor = isDark ? Colors.white.withValues(alpha: 0.35) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+            final emptyBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03);
+            final emptyBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+            final emptyIconColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+            final emptyTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+            final emptySubtitleColor = isDark ? Colors.white.withValues(alpha: 0.35) : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
 
-        return Scaffold(
-          body: AuthBackground(
-            child: Column(
-          children: [
-            // AppBar Area
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                child: Row(
+            return Scaffold(
+              body: AuthBackground(
+                child: Column(
                   children: [
-                    if (!hideBackButton)
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonColor, size: 20),
-                      ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'Mata Pelajaran',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                    // AppBar Area
+                    SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                        child: Row(
+                          children: [
+                            if (!hideBackButton)
+                              IconButton(
+                                onPressed: () => Navigator.pop(context),
+                                icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonColor, size: 20),
+                              ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                AppLocalization.isIndonesian ? 'Mata Pelajaran' : 'Subjects',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                              ),
+                            ),
+                            Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF10B981), Color(0xFF34D399)],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const AddSubjectPage()),
+                                    );
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          AppLocalization.isIndonesian ? 'Tambah' : 'Add',
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF10B981), Color(0xFF34D399)],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const AddSubjectPage()),
+
+                    // Body
+                    Expanded(
+                      child: StreamBuilder(
+                        stream: service.getSubjects(schoolId),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    AppLocalization.isIndonesian ? 'Terjadi kesalahan' : 'An error occurred',
+                                    style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 16),
+                                  ),
+                                ],
+                              ),
                             );
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Tambah',
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                          }
+
+                          if (snapshot.connectionState == ConnectionState.waiting || !snapshot.hasData) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                              ),
+                            );
+                          }
+
+                          final docs = snapshot.data!.docs.toList()..sort((a, b) {
+                            final aName = a.data()['namaMapel']?.toString().toLowerCase() ?? '';
+                            final bName = b.data()['namaMapel']?.toString().toLowerCase() ?? '';
+                            return aName.compareTo(bName);
+                          });
+
+                          if (docs.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(24),
+                                    decoration: BoxDecoration(
+                                      color: emptyBg,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: emptyBorder),
+                                    ),
+                                    child: Icon(Icons.menu_book_rounded, size: 48, color: emptyIconColor),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    AppLocalization.isIndonesian ? 'Belum ada mata pelajaran' : 'No subjects yet',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: emptyTextColor,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    AppLocalization.isIndonesian
+                                        ? 'Tap "Tambah" untuk menambahkan mata pelajaran'
+                                        : 'Tap "Add" to add a subject',
+                                    style: TextStyle(fontSize: 13, color: emptySubtitleColor),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                            itemCount: docs.length,
+                            itemBuilder: (_, i) {
+                              final data = docs[i].data();
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: listTileBg,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: listTileBorder),
+                                  boxShadow: isDark
+                                      ? []
+                                      : [
+                                          BoxShadow(
+                                            color: listTileShadow,
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    children: [
+                                      // Icon
+                                      Container(
+                                        width: 50,
+                                        height: 50,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFF10B981), Color(0xFF34D399)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 24),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              data['namaMapel'] ?? '-',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                                color: titleColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.tag_rounded, size: 13, color: tagIconColor),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  data['kodeMapel'] ?? '-',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: subtitleColor,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuButton<String>(
+                                        icon: Icon(Icons.more_vert_rounded, color: moreIconColor),
+                                        color: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                        onSelected: (value) {
+                                          if (value == 'edit') {
+                                            _showEditDialog(context, data, schoolId);
+                                          } else if (value == 'delete') {
+                                            _showDeleteConfirmation(context, data, schoolId);
+                                          }
+                                        },
+                                        itemBuilder: (_) => [
+                                          PopupMenuItem(
+                                            value: 'edit',
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF6366F1)),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  AppLocalization.isIndonesian ? 'Edit' : 'Edit',
+                                                  style: TextStyle(color: titleColor, fontWeight: FontWeight.w500),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  AppLocalization.isIndonesian ? 'Hapus' : 'Delete',
+                                                  style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-
-            // Body
-            Expanded(
-              child: StreamBuilder(
-                stream: service.getSubjects(schoolId),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Terjadi kesalahan',
-                            style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  if (snapshot.connectionState == ConnectionState.waiting || !snapshot.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
-                      ),
-                    );
-                  }
-
-                  final docs = snapshot.data!.docs.toList()..sort((a, b) {
-                    final aName = a.data()['namaMapel']?.toString().toLowerCase() ?? '';
-                    final bName = b.data()['namaMapel']?.toString().toLowerCase() ?? '';
-                    return aName.compareTo(bName);
-                  });
-
-                  if (docs.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: emptyBg,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: emptyBorder),
-                            ),
-                            child: Icon(Icons.menu_book_rounded, size: 48, color: emptyIconColor),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'Belum ada mata pelajaran',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: emptyTextColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Tap "Tambah" untuk menambahkan mata pelajaran',
-                            style: TextStyle(fontSize: 13, color: emptySubtitleColor),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                    itemCount: docs.length,
-                    itemBuilder: (_, i) {
-                      final data = docs[i].data();
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: listTileBg,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: listTileBorder),
-                          boxShadow: isDark
-                              ? []
-                              : [
-                                  BoxShadow(
-                                    color: listTileShadow,
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              // Icon
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF10B981), Color(0xFF34D399)],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 24),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      data['namaMapel'] ?? '-',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                        color: titleColor,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.tag_rounded, size: 13, color: tagIconColor),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          data['kodeMapel'] ?? '-',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: subtitleColor,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuButton<String>(
-                                icon: Icon(Icons.more_vert_rounded, color: moreIconColor),
-                                color: isDark ? const Color(0xFF1E1B4B) : Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                onSelected: (value) {
-                                  if (value == 'edit') {
-                                    _showEditDialog(context, data, schoolId);
-                                  } else if (value == 'delete') {
-                                    _showDeleteConfirmation(context, data, schoolId);
-                                  }
-                                },
-                                itemBuilder: (_) => [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF6366F1)),
-                                        const SizedBox(width: 8),
-                                        Text('Edit', style: TextStyle(color: titleColor, fontWeight: FontWeight.w500)),
-                                      ],
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
-                                        const SizedBox(width: 8),
-                                        const Text('Hapus', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+            );
+          },
+        );
       },
     );
   }
@@ -326,7 +340,7 @@ class SubjectListPage extends StatelessWidget {
                 ),
               ),
               title: Text(
-                'Edit Mata Pelajaran',
+                AppLocalization.isIndonesian ? 'Edit Mata Pelajaran' : 'Edit Subject',
                 style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor),
               ),
               content: Column(
@@ -334,21 +348,21 @@ class SubjectListPage extends StatelessWidget {
                 children: [
                   _dialogField(
                     controller: kodeController,
-                    label: 'Kode Mapel',
+                    label: AppLocalization.isIndonesian ? 'Kode Mapel' : 'Subject Code',
                     icon: Icons.tag_rounded,
                     isDark: isDark,
                   ),
                   const SizedBox(height: 12),
                   _dialogField(
                     controller: namaController,
-                    label: 'Nama Mapel',
+                    label: AppLocalization.isIndonesian ? 'Nama Mapel' : 'Subject Name',
                     icon: Icons.menu_book_rounded,
                     isDark: isDark,
                   ),
                   const SizedBox(height: 12),
                   _dialogField(
                     controller: kkmController,
-                    label: 'Nilai KKM',
+                    label: AppLocalization.isIndonesian ? 'Nilai KKM' : 'Minimum Passing Grade (KKM)',
                     icon: Icons.speed_rounded,
                     isDark: isDark,
                   ),
@@ -366,7 +380,10 @@ class SubjectListPage extends StatelessWidget {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: () => Navigator.pop(ctx),
-                        child: Text('Batal', style: TextStyle(color: textStyleColor)),
+                        child: Text(
+                          AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
+                          style: TextStyle(color: textStyleColor),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -396,7 +413,13 @@ class SubjectListPage extends StatelessWidget {
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Mata pelajaran berhasil diperbarui')),
+                                SnackBar(
+                                  content: Text(
+                                    AppLocalization.isIndonesian
+                                        ? 'Mata pelajaran berhasil diperbarui'
+                                        : 'Subject successfully updated',
+                                  ),
+                                ),
                               );
                             }
                           } catch (e) {
@@ -411,7 +434,10 @@ class SubjectListPage extends StatelessWidget {
                             }
                           }
                         },
-                        child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: Text(
+                          AppLocalization.isIndonesian ? 'Simpan' : 'Save',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ],
@@ -456,12 +482,14 @@ class SubjectListPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Hapus Mata Pelajaran',
+                AppLocalization.isIndonesian ? 'Hapus Mata Pelajaran' : 'Delete Subject',
                 style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor, fontSize: 18),
               ),
               const SizedBox(height: 12),
               Text(
-                'Apakah Anda yakin ingin menghapus "${data['namaMapel']}"? Data tidak dapat dikembalikan.',
+                AppLocalization.isIndonesian
+                    ? 'Apakah Anda yakin ingin menghapus "${data['namaMapel']}"? Data tidak dapat dikembalikan.'
+                    : 'Are you sure you want to delete "${data['namaMapel']}"? This action cannot be undone.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: bodyTextColor, fontSize: 13, height: 1.5),
               ),
@@ -479,7 +507,10 @@ class SubjectListPage extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => Navigator.pop(ctx),
-                    child: Text('Batal', style: TextStyle(color: textStyleColor)),
+                    child: Text(
+                      AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
+                      style: TextStyle(color: textStyleColor),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -500,7 +531,13 @@ class SubjectListPage extends StatelessWidget {
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Mata pelajaran berhasil dihapus')),
+                            SnackBar(
+                              content: Text(
+                                AppLocalization.isIndonesian
+                                    ? 'Mata pelajaran berhasil dihapus'
+                                    : 'Subject successfully deleted',
+                              ),
+                            ),
                           );
                         }
                       } catch (e) {
@@ -515,7 +552,10 @@ class SubjectListPage extends StatelessWidget {
                         }
                       }
                     },
-                    child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(
+                      AppLocalization.isIndonesian ? 'Hapus' : 'Delete',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ],

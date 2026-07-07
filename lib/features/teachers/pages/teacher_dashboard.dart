@@ -26,6 +26,9 @@ import 'teacher_tasks_page.dart';
 import '../../../core/widgets/flip_card.dart';
 import 'teacher_permits_page.dart';
 import '../../exams/pages/teacher_exams_page.dart';
+import '../../exams/models/exam_event_model.dart';
+import '../../exams/pages/teacher_proctor_dashboard_page.dart';
+import '../../exams/services/exam_session_service.dart';
 import 'teacher_student_violations_page.dart';
 import '../../librarian/services/library_service.dart';
 import '../../students/pages/student_qr_scanner_page.dart';
@@ -683,6 +686,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                         isDark,
                                       ),
                                       const SizedBox(height: 28),
+                                      _buildExamSemesterSection(
+                                        isDark: isDark,
+                                        teacherId: teacherId,
+                                        schoolId: user.schoolId,
+                                      ),
                                       _buildSectionTitle(
                                         'Menu Utama',
                                         Icons.dashboard_rounded,
@@ -1246,6 +1254,132 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           Text(title, style: TextStyle(fontSize: 13, color: titleColor)),
         ],
       ),
+    );
+  }
+
+  /// Section Ujian Semester — muncul jika ada active/planning exam event dengan tugas untuk guru ini
+  Widget _buildExamSemesterSection({
+    required bool isDark,
+    required String teacherId,
+    required String schoolId,
+  }) {
+    final examService = ExamSessionService();
+    final cardColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+    final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+
+    return StreamBuilder<List<ExamSession>>(
+      stream: examService.getSessionsByProctor(schoolId, teacherId),
+      builder: (context, proctorSnap) {
+        return StreamBuilder<List<ExamSession>>(
+          stream: examService.getSessionsByAuthor(schoolId, teacherId),
+          builder: (context, authorSnap) {
+            final proctorSessions = proctorSnap.data ?? [];
+            final authorSessions = authorSnap.data ?? [];
+            final totalSessions = proctorSessions.length + authorSessions.length;
+
+            // Hitung sesi mendatang pengawas
+            final upcomingProctor = proctorSessions
+                .where((s) => s.examStatus != 'Finished')
+                .length;
+            final activeSession = proctorSessions
+                .where((s) => s.examStatus == 'Active')
+                .firstOrNull;
+
+            if (totalSessions == 0 &&
+                proctorSnap.connectionState != ConnectionState.waiting &&
+                authorSnap.connectionState != ConnectionState.waiting) {
+              return const SizedBox.shrink(); // Tidak ada tugas/event
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle(
+                  'Ujian Semester',
+                  Icons.assignment_turned_in_rounded,
+                  isDark,
+                ),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () => Get.to(() => TeacherProctorDashboardPage(teacherId: teacherId)),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: activeSession != null
+                            ? const Color(0xFF10B981).withValues(alpha: 0.5)
+                            : cardBorder,
+                        width: activeSession != null ? 1.5 : 1,
+                      ),
+                      boxShadow: activeSession != null ? [
+                        BoxShadow(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        )
+                      ] : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: activeSession != null
+                                  ? [const Color(0xFF10B981), const Color(0xFF06B6D4)]
+                                  : [const Color(0xFF8B5CF6), const Color(0xFFEC4899)],
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.assignment_turned_in_rounded,
+                              color: Colors.white, size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Ujian Semester',
+                                  style: TextStyle(
+                                      color: titleColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15)),
+                              const SizedBox(height: 4),
+                              if (activeSession != null)
+                                Text(
+                                  '🔴 Sesi aktif: ${activeSession.subjectName}',
+                                  style: const TextStyle(
+                                      color: Color(0xFF10B981),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold),
+                                )
+                              else
+                                Text(
+                                  '${upcomingProctor > 0 ? '$upcomingProctor sesi pengawas' : ''}${upcomingProctor > 0 && authorSessions.isNotEmpty ? ' • ' : ''}${authorSessions.isNotEmpty ? '${authorSessions.map((s) => s.subjectId).toSet().length} mapel soal' : ''}',
+                                  style: TextStyle(color: subtitleColor, fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.arrow_forward_ios_rounded,
+                            size: 14, color: subtitleColor),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

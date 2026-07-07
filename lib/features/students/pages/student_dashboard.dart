@@ -23,6 +23,7 @@ import 'student_attendance_history_page.dart';
 import 'student_grades_page.dart';
 import 'student_tasks_page.dart';
 import '../../exams/pages/student_exams_page.dart';
+import '../../exams/pages/student_exam_participation_page.dart';
 
 import '../../../core/widgets/flip_card.dart';
 import '../../../core/widgets/motif_card.dart';
@@ -1387,6 +1388,11 @@ class _StudentDashboardState extends State<StudentDashboard>
         'icon': Icons.quiz_rounded,
         'color': const Color(0xFF8B5CF6),
       },
+      {
+        'title': 'Jadwal UTS/UAS',
+        'icon': Icons.fact_check_rounded,
+        'color': const Color(0xFFEC4899),
+      },
 
 
       {
@@ -1830,6 +1836,32 @@ class _StudentDashboardState extends State<StudentDashboard>
         } else {
           final classId = _studentData!['classId'] as String;
           Get.to(() => StudentExamsPage(classId: classId));
+        }
+        break;
+      case 'Jadwal UTS/UAS':
+        if (_studentDocId == null ||
+            _studentData == null ||
+            _studentData?['classId'] == null) {
+          Get.snackbar(
+            'Informasi',
+            'Anda belum terhubung ke kelas manapun. Hubungi admin sekolah.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.amber,
+            colorText: Colors.black,
+            margin: const EdgeInsets.all(16),
+            borderRadius: 12,
+            icon: const Icon(Icons.info_outline, color: Colors.black),
+          );
+        } else {
+          final classId = _studentData!['classId'] as String;
+          final studentName = _studentData!['nama'] ?? '';
+          final studentNis = _studentData!['nis'] ?? '';
+          Get.to(() => StudentExamParticipationPage(
+                classId: classId,
+                studentDocId: _studentDocId!,
+                studentName: studentName,
+                studentNis: studentNis,
+              ));
         }
         break;
 

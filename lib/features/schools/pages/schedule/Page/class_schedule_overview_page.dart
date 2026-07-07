@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 
 import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
@@ -23,318 +24,348 @@ class ClassScheduleOverviewPage extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
-        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
+            final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
-        return Scaffold(
-          body: AuthBackground(
-            child: Column(
-          children: [
-            // AppBar Area
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
-                child: Row(
+            return Scaffold(
+              body: AuthBackground(
+                child: Column(
                   children: [
-                    if (!hideBackButton)
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonColor, size: 20),
+                    // AppBar Area
+                    SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                        child: Row(
+                          children: [
+                            if (!hideBackButton)
+                              IconButton(
+                                onPressed: () => Navigator.pop(context),
+                                icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonColor, size: 20),
+                              ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                AppLocalization.isIndonesian ? 'Jadwal Kelas' : 'Class Schedules',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    const SizedBox(width: 4),
+                    ),
+
+                    // Body
                     Expanded(
-                      child: Text(
-                        'Jadwal Kelas',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: _classService.getClasses(schoolId),
+                        builder: (context, classSnapshot) {
+                          if (classSnapshot.hasError) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    AppLocalization.isIndonesian
+                                        ? 'Terjadi kesalahan memuat data kelas.'
+                                        : 'An error occurred while loading class data.',
+                                    style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          if (!classSnapshot.hasData) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
+                              ),
+                            );
+                          }
+
+                          final classDocs = classSnapshot.data!.docs;
+
+                          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                            stream: _scheduleService.getSchedulesBySchool(schoolId),
+                            builder: (context, scheduleSnapshot) {
+                              if (scheduleSnapshot.hasError) {
+                                return Center(
+                                  child: Text(
+                                    AppLocalization.isIndonesian
+                                        ? 'Gagal memuat jadwal.'
+                                        : 'Failed to load schedules.',
+                                    style: TextStyle(color: titleColor),
+                                  ),
+                                );
+                              }
+
+                              if (!scheduleSnapshot.hasData) {
+                                return const Center(
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
+                                  ),
+                                );
+                              }
+
+                              final scheduleDocs = scheduleSnapshot.data!.docs;
+                              final scheduleMap = <String, List<Map<String, dynamic>>>{};
+
+                              for (final doc in scheduleDocs) {
+                                final data = doc.data();
+                                final classId = (data['classId'] ?? '').toString();
+                                if (classId.isEmpty) continue;
+                                scheduleMap.putIfAbsent(classId, () => []).add(data);
+                              }
+
+                              final classesWithSchedule = classDocs
+                                  .where((doc) => scheduleMap.containsKey(doc.id))
+                                  .toList();
+                              classesWithSchedule.sort((a, b) {
+                                final nameA = (a.data()['namaKelas'] ?? '').toString().toLowerCase();
+                                final nameB = (b.data()['namaKelas'] ?? '').toString().toLowerCase();
+                                return nameA.compareTo(nameB);
+                              });
+
+                              final classesWithoutSchedule = classDocs
+                                  .where((doc) => !scheduleMap.containsKey(doc.id))
+                                  .toList();
+                              classesWithoutSchedule.sort((a, b) {
+                                final nameA = (a.data()['namaKelas'] ?? '').toString().toLowerCase();
+                                final nameB = (b.data()['namaKelas'] ?? '').toString().toLowerCase();
+                                return nameA.compareTo(nameB);
+                              });
+
+                              return ListView(
+                                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                                children: [
+                                  // Stat Cards Row
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _statCard(
+                                          title: AppLocalization.isIndonesian ? 'Total Kelas' : 'Total Classes',
+                                          value: '${classDocs.length}',
+                                          icon: Icons.class_rounded,
+                                          colors: const [Color(0xFFEC4899), Color(0xFFF472B6)],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _statCard(
+                                          title: AppLocalization.isIndonesian ? 'Ada Jadwal' : 'With Schedule',
+                                          value: '${classesWithSchedule.length}',
+                                          icon: Icons.event_available_rounded,
+                                          colors: const [Color(0xFF059669), Color(0xFF34D399)],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _statCard(
+                                          title: AppLocalization.isIndonesian ? 'Belum Ada' : 'No Schedule',
+                                          value: '${classesWithoutSchedule.length}',
+                                          icon: Icons.event_busy_rounded,
+                                          colors: const [Color(0xFFDC2626), Color(0xFFF87171)],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 20),
+
+                                  // Action Buttons
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF8B5CF6), Color(0xFFC084FC)],
+                                            ),
+                                            borderRadius: BorderRadius.circular(16),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(16),
+                                              onTap: () => _handleGenerateTap(context),
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      AppLocalization.isIndonesian ? 'Generate' : 'Auto Generate',
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 15,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        flex: 1,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                                          ),
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(16),
+                                              onTap: () => _showFormatConfirmationDialog(context, schoolId),
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    const Icon(Icons.delete_sweep_rounded, color: Colors.red, size: 20),
+                                                    const SizedBox(width: 6),
+                                                    Text(
+                                                      AppLocalization.isIndonesian ? 'Format' : 'Clear All',
+                                                      style: const TextStyle(
+                                                        color: Colors.red,
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 15,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 28),
+
+                                  // Section: Classes with schedule
+                                  _sectionHeader(
+                                    AppLocalization.isIndonesian ? 'Sudah Ada Jadwal' : 'With Schedules Set',
+                                    Icons.check_circle_rounded,
+                                    const Color(0xFF10B981),
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  if (classesWithSchedule.isEmpty)
+                                    _emptyStateCard(
+                                      icon: Icons.event_note_rounded,
+                                      message: AppLocalization.isIndonesian
+                                          ? 'Belum ada kelas yang memiliki jadwal.'
+                                          : 'No classes have schedule set yet.',
+                                      isDark: isDark,
+                                    )
+                                  else
+                                    ...classesWithSchedule.map((doc) {
+                                      final data = doc.data();
+                                      final schedules = scheduleMap[doc.id] ?? [];
+                                      final firstSchedule = schedules.first;
+
+                                      return Padding(
+                                        padding: const EdgeInsets.only(bottom: 10),
+                                        child: _classCard(
+                                          classname: data['namaKelas'] ?? '-',
+                                          subtitle: AppLocalization.isIndonesian
+                                              ? '${schedules.length} jadwal  •  ${firstSchedule['hari'] ?? ''}, ${firstSchedule['jamMulai'] ?? ''} – ${firstSchedule['jamSelesai'] ?? ''}'
+                                              : '${schedules.length} periods  •  ${firstSchedule['hari'] ?? ''}, ${firstSchedule['jamMulai'] ?? ''} – ${firstSchedule['jamSelesai'] ?? ''}',
+                                          hasSchedule: true,
+                                          isDark: isDark,
+                                          onTap: () {
+                                            Get.to(() => ClassSchedulePage(
+                                              classId: doc.id,
+                                              className: data['namaKelas'] ?? '',
+                                            ));
+                                          },
+                                        ),
+                                      );
+                                    }),
+
+                                  const SizedBox(height: 24),
+
+                                  // Section: Classes without schedule
+                                  _sectionHeader(
+                                    AppLocalization.isIndonesian ? 'Belum Ada Jadwal' : 'Pending Schedules',
+                                    Icons.pending_actions_rounded,
+                                    const Color(0xFFEF4444),
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  if (classesWithoutSchedule.isEmpty)
+                                    _emptyStateCard(
+                                      icon: Icons.celebration_rounded,
+                                      message: AppLocalization.isIndonesian
+                                          ? 'Semua kelas sudah memiliki jadwal. 🎉'
+                                          : 'All classes have schedule set. 🎉',
+                                      isDark: isDark,
+                                    )
+                                  else
+                                    ...classesWithoutSchedule.map((doc) {
+                                      final data = doc.data();
+
+                                      return Padding(
+                                        padding: const EdgeInsets.only(bottom: 10),
+                                        child: _classCard(
+                                          classname: data['namaKelas'] ?? '-',
+                                          subtitle: AppLocalization.isIndonesian
+                                              ? 'Tap untuk mulai isi jadwal kelas ini'
+                                              : 'Tap to start setting schedule for this class',
+                                          hasSchedule: false,
+                                          isDark: isDark,
+                                          onTap: () {
+                                            Get.to(() => ClassSchedulePage(
+                                              classId: doc.id,
+                                              className: data['namaKelas'] ?? '',
+                                            ));
+                                          },
+                                        ),
+                                      );
+                                    }),
+                                ],
+                              );
+                            },
+                          );
+                        },
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-
-            // Body
-            Expanded(
-              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: _classService.getClasses(schoolId),
-                builder: (context, classSnapshot) {
-                  if (classSnapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
-                          ),
-                          const SizedBox(height: 16),
-                           Text(
-                             'Terjadi kesalahan memuat data kelas.',
-                             style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
-                           ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  if (!classSnapshot.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
-                      ),
-                    );
-                  }
-
-                  final classDocs = classSnapshot.data!.docs;
-
-                  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: _scheduleService.getSchedulesBySchool(schoolId),
-                    builder: (context, scheduleSnapshot) {
-                      if (scheduleSnapshot.hasError) {
-                        return Center(child: Text('Gagal memuat jadwal.', style: TextStyle(color: titleColor)));
-                      }
-
-                      if (!scheduleSnapshot.hasData) {
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
-                          ),
-                        );
-                      }
-
-                      final scheduleDocs = scheduleSnapshot.data!.docs;
-                      final scheduleMap = <String, List<Map<String, dynamic>>>{};
-
-                      for (final doc in scheduleDocs) {
-                        final data = doc.data();
-                        final classId = (data['classId'] ?? '').toString();
-                        if (classId.isEmpty) continue;
-                        scheduleMap.putIfAbsent(classId, () => []).add(data);
-                      }
-
-                      final classesWithSchedule = classDocs
-                          .where((doc) => scheduleMap.containsKey(doc.id))
-                          .toList();
-                      classesWithSchedule.sort((a, b) {
-                        final nameA = (a.data()['namaKelas'] ?? '').toString().toLowerCase();
-                        final nameB = (b.data()['namaKelas'] ?? '').toString().toLowerCase();
-                        return nameA.compareTo(nameB);
-                      });
-
-                      final classesWithoutSchedule = classDocs
-                          .where((doc) => !scheduleMap.containsKey(doc.id))
-                          .toList();
-                      classesWithoutSchedule.sort((a, b) {
-                        final nameA = (a.data()['namaKelas'] ?? '').toString().toLowerCase();
-                        final nameB = (b.data()['namaKelas'] ?? '').toString().toLowerCase();
-                        return nameA.compareTo(nameB);
-                      });
-
-                      return ListView(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                        children: [
-                          // Stat Cards Row
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _statCard(
-                                  title: 'Total Kelas',
-                                  value: '${classDocs.length}',
-                                  icon: Icons.class_rounded,
-                                  colors: const [Color(0xFFEC4899), Color(0xFFF472B6)],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _statCard(
-                                  title: 'Ada Jadwal',
-                                  value: '${classesWithSchedule.length}',
-                                  icon: Icons.event_available_rounded,
-                                  colors: const [Color(0xFF059669), Color(0xFF34D399)],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _statCard(
-                                  title: 'Belum Ada',
-                                  value: '${classesWithoutSchedule.length}',
-                                  icon: Icons.event_busy_rounded,
-                                  colors: const [Color(0xFFDC2626), Color(0xFFF87171)],
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // Action Buttons
-                          Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFF8B5CF6), Color(0xFFC084FC)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(16),
-                                      onTap: () => _handleGenerateTap(context),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
-                                            const SizedBox(width: 8),
-                                            const Text(
-                                              'Generate',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 15,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                flex: 1,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                                  ),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(16),
-                                      onTap: () => _showFormatConfirmationDialog(context, schoolId),
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 16),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.delete_sweep_rounded, color: Colors.red, size: 20),
-                                            SizedBox(width: 6),
-                                            Text(
-                                              'Format',
-                                              style: TextStyle(
-                                                color: Colors.red,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 15,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 28),
-
-                          // Section: Classes with schedule
-                          _sectionHeader('Sudah Ada Jadwal', Icons.check_circle_rounded, const Color(0xFF10B981)),
-                          const SizedBox(height: 12),
-
-                          if (classesWithSchedule.isEmpty)
-                            _emptyStateCard(
-                              icon: Icons.event_note_rounded,
-                              message: 'Belum ada kelas yang memiliki jadwal.',
-                              isDark: isDark,
-                            )
-                          else
-                            ...classesWithSchedule.map((doc) {
-                              final data = doc.data();
-                              final schedules = scheduleMap[doc.id] ?? [];
-                              final firstSchedule = schedules.first;
-
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: _classCard(
-                                  classname: data['namaKelas'] ?? '-',
-                                  subtitle: '${schedules.length} jadwal  •  ${firstSchedule['hari'] ?? ''}, ${firstSchedule['jamMulai'] ?? ''} – ${firstSchedule['jamSelesai'] ?? ''}',
-                                  hasSchedule: true,
-                                  isDark: isDark,
-                                  onTap: () {
-                                    Get.to(() => ClassSchedulePage(
-                                      classId: doc.id,
-                                      className: data['namaKelas'] ?? '',
-                                    ));
-                                  },
-                                ),
-                              );
-                            }),
-
-                          const SizedBox(height: 24),
-
-                          // Section: Classes without schedule
-                          _sectionHeader('Belum Ada Jadwal', Icons.pending_actions_rounded, const Color(0xFFEF4444)),
-                          const SizedBox(height: 12),
-
-                          if (classesWithoutSchedule.isEmpty)
-                            _emptyStateCard(
-                              icon: Icons.celebration_rounded,
-                              message: 'Semua kelas sudah memiliki jadwal. 🎉',
-                              isDark: isDark,
-                            )
-                          else
-                            ...classesWithoutSchedule.map((doc) {
-                              final data = doc.data();
-
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: _classCard(
-                                  classname: data['namaKelas'] ?? '-',
-                                  subtitle: 'Tap untuk mulai isi jadwal kelas ini',
-                                  hasSchedule: false,
-                                  isDark: isDark,
-                                  onTap: () {
-                                    Get.to(() => ClassSchedulePage(
-                                      classId: doc.id,
-                                      className: data['namaKelas'] ?? '',
-                                    ));
-                                  },
-                                ),
-                              );
-                            }),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+            );
+          },
+        );
       },
     );
   }
@@ -554,16 +585,21 @@ class ClassScheduleOverviewPage extends StatelessWidget {
             builder: (context) => AlertDialog(
               backgroundColor: const Color(0xFF151026),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.lock_rounded, color: Colors.amber),
-                  SizedBox(width: 8),
-                  Text('Fitur Terkunci', style: TextStyle(color: Colors.white)),
+                  const Icon(Icons.lock_rounded, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
-              content: const Text(
-                'Fitur Generate Jadwal Otomatis dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.',
-                style: TextStyle(color: Colors.white70),
+              content: Text(
+                AppLocalization.isIndonesian
+                    ? 'Fitur Generate Jadwal Otomatis dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.'
+                    : 'The Automatic Schedule Generation feature is disabled by the Super Admin. Please contact Super Admin to enable access.',
+                style: const TextStyle(color: Colors.white70),
               ),
               actions: [
                 TextButton(
@@ -582,7 +618,11 @@ class ClassScheduleOverviewPage extends StatelessWidget {
       if (context.mounted) {
         Navigator.pop(context); // Dismiss loading dialog on error
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal: $e')),
+          SnackBar(
+            content: Text(
+              AppLocalization.isIndonesian ? 'Gagal: $e' : 'Failed: $e',
+            ),
+          ),
         );
       }
     }
@@ -705,13 +745,15 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                 child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Format Jadwal?',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+              Text(
+                AppLocalization.isIndonesian ? 'Format Jadwal?' : 'Format Schedules?',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
               ),
               const SizedBox(height: 12),
               Text(
-                'Apakah Anda yakin ingin menghapus SELURUH jadwal kelas di sekolah ini? Aksi ini tidak dapat dibatalkan.',
+                AppLocalization.isIndonesian
+                    ? 'Apakah Anda yakin ingin menghapus SELURUH jadwal kelas di sekolah ini? Aksi ini tidak dapat dibatalkan.'
+                    : 'Are you sure you want to delete ALL class schedules in this school? This action cannot be undone.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13, height: 1.5),
               ),
@@ -729,7 +771,10 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Batal', style: TextStyle(color: Colors.white)),
+                    child: Text(
+                      AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
+                      style: const TextStyle(color: Colors.white),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -759,19 +804,34 @@ class ClassScheduleOverviewPage extends StatelessWidget {
                         if (context.mounted) {
                           Navigator.pop(context); // close loading
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Seluruh jadwal berhasil diformat (dihapus).')),
+                            SnackBar(
+                              content: Text(
+                                AppLocalization.isIndonesian
+                                    ? 'Seluruh jadwal berhasil diformat (dihapus).'
+                                    : 'All schedules successfully cleared.',
+                              ),
+                            ),
                           );
                         }
                       } catch (e) {
                         if (context.mounted) {
                           Navigator.pop(context); // close loading
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Gagal format jadwal: $e')),
+                            SnackBar(
+                              content: Text(
+                                AppLocalization.isIndonesian
+                                    ? 'Gagal format jadwal: $e'
+                                    : 'Failed to clear schedules: $e',
+                              ),
+                            ),
                           );
                         }
                       }
                     },
-                    child: const Text('Format', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(
+                      AppLocalization.isIndonesian ? 'Format' : 'Format',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ],

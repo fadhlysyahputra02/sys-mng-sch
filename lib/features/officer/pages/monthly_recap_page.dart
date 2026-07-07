@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
@@ -40,20 +41,35 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
   // Map of studentId -> { dateStr: { 'status': status, 'hasCheckedOut': hasCheckedOut } }
   Map<String, Map<String, Map<String, dynamic>>> _attendanceMap = {};
 
-  final List<String> _monthNames = [
-    'Januari',
-    'Februari',
-    'Maret',
-    'April',
-    'Mei',
-    'Juni',
-    'Juli',
-    'Agustus',
-    'September',
-    'Oktober',
-    'November',
-    'Desember'
-  ];
+  List<String> get _monthNames => AppLocalization.isIndonesian
+      ? [
+          'Januari',
+          'Februari',
+          'Maret',
+          'April',
+          'Mei',
+          'Juni',
+          'Juli',
+          'Agustus',
+          'September',
+          'Oktober',
+          'November',
+          'Desember'
+        ]
+      : [
+          'January',
+          'February',
+          'March',
+          'April',
+          'May',
+          'June',
+          'July',
+          'August',
+          'September',
+          'October',
+          'November',
+          'December'
+        ];
 
   int get _computedYear => _selectedYear;
 
@@ -70,9 +86,9 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
   String get _computedSemester {
     final int m = _selectedMonth;
     if (m >= 7 && m <= 12) {
-      return 'Semester 1';
+      return AppLocalization.isIndonesian ? 'Semester 1' : 'Semester 1';
     } else {
-      return 'Semester 2';
+      return AppLocalization.isIndonesian ? 'Semester 2' : 'Semester 2';
     }
   }
 
@@ -450,133 +466,182 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
-        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subTextColor = isDark
-            ? Colors.white.withValues(alpha: 0.5)
-            : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
-        final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-        final cardBorder = isDark
-            ? Colors.white.withValues(alpha: 0.1)
-            : Colors.black.withValues(alpha: 0.08);
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
+            final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final subTextColor = isDark
+                ? Colors.white.withValues(alpha: 0.5)
+                : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+            final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+            final cardBorder = isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.08);
 
-        return Scaffold(
-          extendBodyBehindAppBar: true,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            iconTheme: IconThemeData(color: textColor),
-            title: Text(
-              'Rekap Bulanan Murid',
-              style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.picture_as_pdf_rounded),
-                onPressed: _students.isEmpty || _isLoadingData ? null : _exportPdf,
-                tooltip: 'Export PDF',
+            return Scaffold(
+              extendBodyBehindAppBar: true,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                iconTheme: IconThemeData(color: textColor),
+                title: Text(
+                  AppLocalization.isIndonesian ? 'Rekap Bulanan Murid' : 'Monthly Student Recap',
+                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.picture_as_pdf_rounded),
+                    onPressed: _students.isEmpty || _isLoadingData ? null : _exportPdf,
+                    tooltip: AppLocalization.isIndonesian ? 'Ekspor PDF' : 'Export PDF',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.table_view_rounded),
+                    onPressed: _students.isEmpty || _isLoadingData ? null : _exportExcel,
+                    tooltip: AppLocalization.isIndonesian ? 'Ekspor Excel' : 'Export Excel',
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.table_view_rounded),
-                onPressed: _students.isEmpty || _isLoadingData ? null : _exportExcel,
-                tooltip: 'Export Excel',
-              ),
-            ],
-          ),
-          body: AuthBackground(
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    children: [
-                      // Pill segmented control
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: cardBorder),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => Get.off(
-                                  () => const DailyRecapPage(),
-                                  transition: Transition.noTransition,
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.transparent,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      'Presensi Harian',
-                                      style: TextStyle(
-                                        color: textColor,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
+              body: AuthBackground(
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        children: [
+                          // Pill segmented control
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: cardBorder),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => Get.off(
+                                      () => const DailyRecapPage(),
+                                      transition: Transition.noTransition,
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.transparent,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          AppLocalization.isIndonesian ? 'Presensi Harian' : 'Daily Attendance',
+                                          style: TextStyle(
+                                            color: textColor,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF8B5CF6),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    'Rekap Bulanan',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF8B5CF6),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        AppLocalization.isIndonesian ? 'Rekap Bulanan' : 'Monthly Recap',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    // Selectors Container
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cardBg,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: cardBorder),
-                      ),
-                      child: Column(
-                        children: [
-                          // Class selector
-                          _isLoadingClasses
-                              ? const SizedBox(
-                                  height: 48,
-                                  child: Center(
-                                      child: CircularProgressIndicator(strokeWidth: 2)),
-                                )
-                              : _classes.isEmpty
-                                  ? Text('Belum ada kelas aktif.',
-                                      style: TextStyle(color: textColor))
-                                  : DropdownButtonFormField<String>(
-                                      initialValue: _selectedClassId,
+                          ),
+                          const SizedBox(height: 16),
+                        // Selectors Container
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: cardBorder),
+                          ),
+                          child: Column(
+                            children: [
+                              // Class selector
+                              _isLoadingClasses
+                                  ? const SizedBox(
+                                      height: 48,
+                                      child: Center(
+                                          child: CircularProgressIndicator(strokeWidth: 2)),
+                                    )
+                                  : _classes.isEmpty
+                                      ? Text(
+                                          AppLocalization.isIndonesian ? 'Belum ada kelas aktif.' : 'No active classes.',
+                                          style: TextStyle(color: textColor),
+                                        )
+                                      : DropdownButtonFormField<String>(
+                                          initialValue: _selectedClassId,
+                                          dropdownColor:
+                                              isDark ? const Color(0xFF1E1B4B) : Colors.white,
+                                          style: TextStyle(color: textColor),
+                                          decoration: InputDecoration(
+                                            labelText: AppLocalization.isIndonesian ? 'Pilih Kelas' : 'Select Class',
+                                            labelStyle: TextStyle(color: subTextColor),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(horizontal: 16),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: BorderSide(color: cardBorder),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: BorderSide(color: cardBorder),
+                                            ),
+                                          ),
+                                          items: _classes.map((cls) {
+                                            return DropdownMenuItem(
+                                              value: cls.id,
+                                              child: Text(cls.namaKelas),
+                                            );
+                                          }).toList(),
+                                          onChanged: (val) {
+                                            if (val != null) {
+                                              final found =
+                                                  _classes.firstWhereOrNull((c) => c.id == val);
+                                              setState(() {
+                                                _selectedClassId = val;
+                                                _selectedClassName = found?.namaKelas;
+                                              });
+                                              _fetchMonthlyData();
+                                            }
+                                          },
+                                        ),
+                              const SizedBox(height: 16),
+
+                              // Month & Year selector
+                              Row(
+                                children: [
+                                  // Month Dropdown
+                                  Expanded(
+                                    child: DropdownButtonFormField<int>(
+                                      value: _selectedMonth,
                                       dropdownColor:
                                           isDark ? const Color(0xFF1E1B4B) : Colors.white,
                                       style: TextStyle(color: textColor),
                                       decoration: InputDecoration(
-                                        labelText: 'Pilih Kelas',
+                                        labelText: AppLocalization.isIndonesian ? 'Bulan' : 'Month',
                                         labelStyle: TextStyle(color: subTextColor),
                                         contentPadding:
-                                            const EdgeInsets.symmetric(horizontal: 16),
+                                            const EdgeInsets.symmetric(horizontal: 12),
                                         border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(12),
                                           borderSide: BorderSide(color: cardBorder),
@@ -586,229 +651,187 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
                                           borderSide: BorderSide(color: cardBorder),
                                         ),
                                       ),
-                                      items: _classes.map((cls) {
+                                      items: List.generate(12, (index) {
                                         return DropdownMenuItem(
-                                          value: cls.id,
-                                          child: Text(cls.namaKelas),
+                                          value: index + 1,
+                                          child: Text(_monthNames[index]),
                                         );
-                                      }).toList(),
+                                      }),
                                       onChanged: (val) {
                                         if (val != null) {
-                                          final found =
-                                              _classes.firstWhereOrNull((c) => c.id == val);
-                                          setState(() {
-                                            _selectedClassId = val;
-                                            _selectedClassName = found?.namaKelas;
-                                          });
+                                          setState(() => _selectedMonth = val);
                                           _fetchMonthlyData();
                                         }
                                       },
                                     ),
-                          const SizedBox(height: 16),
+                                  ),
+                                  const SizedBox(width: 12),
 
-                          // Month & Year selector
-                          Row(
-                            children: [
-                              // Month Dropdown
-                              Expanded(
-                                flex: 1,
-                                child: DropdownButtonFormField<int>(
-                                  value: _selectedMonth,
-                                  dropdownColor:
-                                      isDark ? const Color(0xFF1E1B4B) : Colors.white,
-                                  style: TextStyle(color: textColor),
-                                  decoration: InputDecoration(
-                                    labelText: 'Bulan',
-                                    labelStyle: TextStyle(color: subTextColor),
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(horizontal: 12),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(color: cardBorder),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(color: cardBorder),
+                                  // Year Dropdown
+                                  Expanded(
+                                    child: DropdownButtonFormField<int>(
+                                      value: _selectedYear,
+                                      dropdownColor:
+                                          isDark ? const Color(0xFF1E1B4B) : Colors.white,
+                                      style: TextStyle(color: textColor),
+                                      decoration: InputDecoration(
+                                        labelText: AppLocalization.isIndonesian ? 'Tahun' : 'Year',
+                                        labelStyle: TextStyle(color: subTextColor),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(horizontal: 12),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: cardBorder),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: cardBorder),
+                                        ),
+                                      ),
+                                      items: List.generate(5, (index) {
+                                        final year = DateTime.now().year - 3 + index;
+                                        return DropdownMenuItem(
+                                          value: year,
+                                          child: Text('$year'),
+                                        );
+                                      }),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setState(() => _selectedYear = val);
+                                          _fetchMonthlyData();
+                                        }
+                                      },
                                     ),
                                   ),
-                                  items: List.generate(12, (index) {
-                                    return DropdownMenuItem(
-                                      value: index + 1,
-                                      child: Text(_monthNames[index]),
-                                    );
-                                  }),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setState(() => _selectedMonth = val);
-                                      _fetchMonthlyData();
-                                    }
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-
-                              // Year Dropdown
-                              Expanded(
-                                flex: 1,
-                                child: DropdownButtonFormField<int>(
-                                  value: _selectedYear,
-                                  dropdownColor:
-                                      isDark ? const Color(0xFF1E1B4B) : Colors.white,
-                                  style: TextStyle(color: textColor),
-                                  decoration: InputDecoration(
-                                    labelText: 'Tahun',
-                                    labelStyle: TextStyle(color: subTextColor),
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(horizontal: 12),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(color: cardBorder),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(color: cardBorder),
-                                    ),
-                                  ),
-                                  items: List.generate(5, (index) {
-                                    final year = DateTime.now().year - 3 + index;
-                                    return DropdownMenuItem(
-                                      value: year,
-                                      child: Text('$year'),
-                                    );
-                                  }),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setState(() => _selectedYear = val);
-                                      _fetchMonthlyData();
-                                    }
-                                  },
-                                ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                        ),
+                        const SizedBox(height: 20),
 
-                    // Results table/list
-                    _isLoadingData
-                        ? const SizedBox(
-                            height: 200,
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        : _students.isEmpty
-                            ? SizedBox(
+                        // Results table/list
+                        _isLoadingData
+                            ? const SizedBox(
                                 height: 200,
-                                child: Center(
-                                  child: Text(
-                                    'Tidak ada data siswa atau absensi.',
-                                    style: TextStyle(color: subTextColor),
-                                  ),
-                                ),
+                                child: Center(child: CircularProgressIndicator()),
                               )
-                            : ListView.separated(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _students.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 12),
-                                itemBuilder: (context, index) {
-                                  final student = _students[index];
-                                  final studentId = student['id'] ?? '';
-                                  final counts = _calculateCounts(studentId);
-
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 14),
-                                    decoration: BoxDecoration(
-                                      color: cardBg,
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: cardBorder),
+                            : _students.isEmpty
+                                ? SizedBox(
+                                    height: 200,
+                                    child: Center(
+                                      child: Text(
+                                        AppLocalization.isIndonesian
+                                            ? 'Tidak ada data siswa atau absensi.'
+                                            : 'No student or attendance data.',
+                                        style: TextStyle(color: subTextColor),
+                                      ),
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        // Student Name
-                                        Text(
-                                          student['nama'] ?? '-',
-                                          style: TextStyle(
-                                            color: textColor,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
+                                  )
+                                : ListView.separated(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    itemCount: _students.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 12),
+                                    itemBuilder: (context, index) {
+                                      final student = _students[index];
+                                      final studentId = student['id'] ?? '';
+                                      final counts = _calculateCounts(studentId);
+
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 14),
+                                        decoration: BoxDecoration(
+                                          color: cardBg,
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(color: cardBorder),
                                         ),
-                                        const SizedBox(height: 8),
-
-                                        // Green, Yellow, Red badge info
-                                        SingleChildScrollView(
-                                          scrollDirection: Axis.horizontal,
-                                          child: Row(
-                                            children: [
-                                              // Green (Hadir)
-                                              _buildInfoPill(
-                                                label: 'Hadir',
-                                                count: counts['hadir']!,
-                                                color: const Color(0xFF10B981),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            // Student Name
+                                            Text(
+                                              student['nama'] ?? '-',
+                                              style: TextStyle(
+                                                color: textColor,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
                                               ),
-                                              const SizedBox(width: 8),
+                                            ),
+                                            const SizedBox(height: 8),
 
-                                              // Yellow (Terlambat)
-                                              _buildInfoPill(
-                                                label: 'Terlambat',
-                                                count: counts['terlambat']!,
-                                                color: const Color(0xFFF59E0B),
-                                              ),
-                                              const SizedBox(width: 8),
+                                            // Green, Yellow, Red badge info
+                                            SingleChildScrollView(
+                                              scrollDirection: Axis.horizontal,
+                                              child: Row(
+                                                children: [
+                                                  // Green (Hadir)
+                                                  _buildInfoPill(
+                                                    label: AppLocalization.isIndonesian ? 'Hadir' : 'Present',
+                                                    count: counts['hadir']!,
+                                                    color: const Color(0xFF10B981),
+                                                  ),
+                                                  const SizedBox(width: 8),
 
-                                              // Teal (Pulang)
-                                              _buildInfoPill(
-                                                label: 'Pulang',
-                                                count: counts['pulang'] ?? 0,
-                                                color: const Color(0xFF0D9488),
-                                              ),
-                                              const SizedBox(width: 8),
+                                                  // Yellow (Terlambat)
+                                                  _buildInfoPill(
+                                                    label: AppLocalization.isIndonesian ? 'Terlambat' : 'Late',
+                                                    count: counts['terlambat']!,
+                                                    color: const Color(0xFFF59E0B),
+                                                  ),
+                                                  const SizedBox(width: 8),
 
-                                              // Blue (Izin)
-                                              _buildInfoPill(
-                                                label: 'Izin',
-                                                count: counts['izin']!,
-                                                color: const Color(0xFF3B82F6),
-                                              ),
-                                              const SizedBox(width: 8),
+                                                  // Teal (Pulang)
+                                                  _buildInfoPill(
+                                                    label: AppLocalization.isIndonesian ? 'Pulang' : 'Checked Out',
+                                                    count: counts['pulang'] ?? 0,
+                                                    color: const Color(0xFF0D9488),
+                                                  ),
+                                                  const SizedBox(width: 8),
 
-                                              // Purple (Sakit)
-                                              _buildInfoPill(
-                                                label: 'Sakit',
-                                                count: counts['sakit']!,
-                                                color: const Color(0xFF8B5CF6),
-                                              ),
-                                              const SizedBox(width: 8),
+                                                  // Blue (Izin)
+                                                  _buildInfoPill(
+                                                    label: AppLocalization.isIndonesian ? 'Izin' : 'Permitted',
+                                                    count: counts['izin']!,
+                                                    color: const Color(0xFF3B82F6),
+                                                  ),
+                                                  const SizedBox(width: 8),
 
-                                              // Red (Alpha)
-                                              _buildInfoPill(
-                                                label: 'Alpha',
-                                                count: counts['alpha']!,
-                                                color: const Color(0xFFEF4444),
+                                                  // Purple (Sakit)
+                                                  _buildInfoPill(
+                                                    label: AppLocalization.isIndonesian ? 'Sakit' : 'Sick',
+                                                    count: counts['sakit']!,
+                                                    color: const Color(0xFF8B5CF6),
+                                                  ),
+                                                  const SizedBox(width: 8),
+
+                                                  // Red (Alpha)
+                                                  _buildInfoPill(
+                                                    label: AppLocalization.isIndonesian ? 'Alpha' : 'Absent',
+                                                    count: counts['alpha']!,
+                                                    color: const Color(0xFFEF4444),
+                                                  ),
+                                                ],
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                  ],
+                                      );
+                                    },
+                                  ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       );
     },
   );
-  }
+}
 
   Widget _buildInfoPill({
     required String label,

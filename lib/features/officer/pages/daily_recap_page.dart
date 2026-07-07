@@ -10,6 +10,7 @@ import 'package:printing/printing.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
@@ -80,16 +81,21 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
             builder: (context) => AlertDialog(
               backgroundColor: const Color(0xFF151026),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.lock_rounded, color: Colors.amber),
-                  SizedBox(width: 8),
-                  Text('Fitur Terkunci', style: TextStyle(color: Colors.white)),
+                  const Icon(Icons.lock_rounded, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
-              content: const Text(
-                'Fitur Rekap Absensi Siswa dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.',
-                style: TextStyle(color: Colors.white70),
+              content: Text(
+                AppLocalization.isIndonesian
+                    ? 'Fitur Rekap Absensi Siswa dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.'
+                    : 'The Student Attendance Recap feature is disabled by the Super Admin. Please contact Super Admin to enable access.',
+                style: const TextStyle(color: Colors.white70),
               ),
               actions: [
                 TextButton(
@@ -298,240 +304,286 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
-        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subTextColor = isDark
-            ? Colors.white.withValues(alpha: 0.5)
-            : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
-        final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-        final cardBorder = isDark
-            ? Colors.white.withValues(alpha: 0.1)
-            : Colors.black.withValues(alpha: 0.08);
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
+            final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final subTextColor = isDark
+                ? Colors.white.withValues(alpha: 0.5)
+                : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+            final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+            final cardBorder = isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.08);
 
-        return Scaffold(
-          extendBodyBehindAppBar: true,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            iconTheme: IconThemeData(color: textColor),
-            title: Text(
-              'Rekap Harian Murid',
-              style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.picture_as_pdf_rounded),
-                onPressed: _recapData.isEmpty ? null : _exportPdf,
-                tooltip: 'Export PDF',
+            return Scaffold(
+              extendBodyBehindAppBar: true,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                iconTheme: IconThemeData(color: textColor),
+                title: Text(
+                  AppLocalization.isIndonesian ? 'Rekap Harian Murid' : 'Daily Student Recap',
+                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.picture_as_pdf_rounded),
+                    onPressed: _recapData.isEmpty ? null : _exportPdf,
+                    tooltip: AppLocalization.isIndonesian ? 'Ekspor PDF' : 'Export PDF',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.table_view_rounded),
+                    onPressed: _recapData.isEmpty ? null : _exportExcel,
+                    tooltip: AppLocalization.isIndonesian ? 'Ekspor Excel' : 'Export Excel',
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.table_view_rounded),
-                onPressed: _recapData.isEmpty ? null : _exportExcel,
-                tooltip: 'Export Excel',
-              ),
-            ],
-          ),
-          body: AuthBackground(
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                child: Column(
-                  children: [
-                    // Pill segmented control
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: cardBorder),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF8B5CF6),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  'Presensi Harian',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ),
+              body: AuthBackground(
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                    child: Column(
+                      children: [
+                        // Pill segmented control
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: cardBorder),
                           ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => Get.off(
-                                () => const MonthlyRecapPage(),
-                                transition: Transition.noTransition,
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: const BoxDecoration(
-                                  color: Colors.transparent,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'Rekap Bulanan',
-                                    style: TextStyle(
-                                      color: textColor,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF8B5CF6),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      AppLocalization.isIndonesian ? 'Presensi Harian' : 'Daily Attendance',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Date picker bar
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cardBg,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: cardBorder),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.calendar_month_rounded, color: const Color(0xFF6366F1), size: 24),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Tanggal', style: TextStyle(color: subTextColor, fontSize: 12)),
-                                  Text(
-                                    DateFormat('dd MMM yyyy').format(_selectedDate),
-                                    style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => Get.off(
+                                    () => const MonthlyRecapPage(),
+                                    transition: Transition.noTransition,
                                   ),
-                                ],
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.transparent,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        AppLocalization.isIndonesian ? 'Rekap Bulanan' : 'Monthly Recap',
+                                        style: TextStyle(
+                                          color: textColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          TextButton(
-                            onPressed: _selectDate,
-                            child: const Text('Ubah'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    
-                    // Table header
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.05),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(flex: 2, child: Text('Siswa', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-                          Expanded(flex: 1, child: Text('Kelas', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-                          Expanded(flex: 1, child: Text('Masuk', style: TextStyle(color: textColor, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                          Expanded(flex: 1, child: Text('Pulang', style: TextStyle(color: textColor, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                          Expanded(flex: 1, child: Text('Status', style: TextStyle(color: textColor, fontWeight: FontWeight.bold), textAlign: TextAlign.end)),
-                        ],
-                      ),
-                    ),
-                    
-                    // Data list
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-                          border: Border.all(color: cardBorder),
                         ),
-                        child: _isLoading 
-                          ? const Center(child: CircularProgressIndicator())
-                          : _recapData.isEmpty
-                            ? Center(child: Text('Tidak ada data kehadiran.', style: TextStyle(color: subTextColor)))
-                            : ListView.separated(
-                                itemCount: _recapData.length,
-                                separatorBuilder: (_, __) => Divider(color: cardBorder, height: 1),
-                                itemBuilder: (context, index) {
-                                  final item = _recapData[index];
-                                  final isHadir = item['status'] == 'hadir';
-                                  
-                                  final checkInTimestamp = item['checkInTime'] ?? item['timestamp'];
-                                  final checkInTime = (checkInTimestamp as Timestamp?)?.toDate();
-                                  final checkInStr = checkInTime != null ? DateFormat('HH:mm').format(checkInTime) : '-';
-
-                                  final checkOutTimestamp = item['checkOutTime'];
-                                  final checkOutTime = (checkOutTimestamp as Timestamp?)?.toDate();
-                                  final checkOutStr = checkOutTime != null ? DateFormat('HH:mm').format(checkOutTime) : '-';
-                                  
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            item['studentName'] ?? '-',
-                                            style: TextStyle(color: textColor, fontWeight: FontWeight.w500),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Text(
-                                            item['className'] ?? '-',
-                                            style: TextStyle(color: subTextColor),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Text(
-                                            checkInStr,
-                                            style: TextStyle(color: subTextColor),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Text(
-                                            checkOutStr,
-                                            style: TextStyle(color: subTextColor),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Text(
-                                            (item['status'] ?? '-').toString().toUpperCase(),
-                                            style: TextStyle(
-                                              color: isHadir ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                            ),
-                                            textAlign: TextAlign.end,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                        const SizedBox(height: 16),
+                        // Date picker bar
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: cardBorder),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_month_rounded, color: Color(0xFF6366F1), size: 24),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        AppLocalization.isIndonesian ? 'Tanggal' : 'Date',
+                                        style: TextStyle(color: subTextColor, fontSize: 12),
+                                      ),
+                                      Text(
+                                        DateFormat('dd MMM yyyy').format(_selectedDate),
+                                        style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                      ),
+                              TextButton(
+                                onPressed: _selectDate,
+                                child: Text(AppLocalization.isIndonesian ? 'Ubah' : 'Change'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // Table header
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.05),
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  AppLocalization.isIndonesian ? 'Siswa' : 'Student',
+                                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 1,
+                                child: Text(
+                                  AppLocalization.isIndonesian ? 'Kelas' : 'Class',
+                                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 1,
+                                child: Text(
+                                  AppLocalization.isIndonesian ? 'Masuk' : 'In',
+                                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              Expanded(
+                                flex: 1,
+                                child: Text(
+                                  AppLocalization.isIndonesian ? 'Pulang' : 'Out',
+                                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              Expanded(
+                                flex: 1,
+                                child: Text(
+                                  AppLocalization.isIndonesian ? 'Status' : 'Status',
+                                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.end,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Data list
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                              border: Border.all(color: cardBorder),
+                            ),
+                            child: _isLoading 
+                              ? const Center(child: CircularProgressIndicator())
+                              : _recapData.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      AppLocalization.isIndonesian ? 'Tidak ada data kehadiran.' : 'No attendance data.',
+                                      style: TextStyle(color: subTextColor),
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    itemCount: _recapData.length,
+                                    separatorBuilder: (_, __) => Divider(color: cardBorder, height: 1),
+                                    itemBuilder: (context, index) {
+                                      final item = _recapData[index];
+                                      final isHadir = item['status'] == 'hadir';
+                                      
+                                      final checkInTimestamp = item['checkInTime'] ?? item['timestamp'];
+                                      final checkInTime = (checkInTimestamp as Timestamp?)?.toDate();
+                                      final checkInStr = checkInTime != null ? DateFormat('HH:mm').format(checkInTime) : '-';
+
+                                      final checkOutTimestamp = item['checkOutTime'];
+                                      final checkOutTime = (checkOutTimestamp as Timestamp?)?.toDate();
+                                      final checkOutStr = checkOutTime != null ? DateFormat('HH:mm').format(checkOutTime) : '-';
+                                      
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(
+                                                item['studentName'] ?? '-',
+                                                style: TextStyle(color: textColor, fontWeight: FontWeight.w500),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 1,
+                                              child: Text(
+                                                item['className'] ?? '-',
+                                                style: TextStyle(color: subTextColor),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 1,
+                                              child: Text(
+                                                checkInStr,
+                                                style: TextStyle(color: subTextColor),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 1,
+                                              child: Text(
+                                                checkOutStr,
+                                                style: TextStyle(color: subTextColor),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 1,
+                                              child: Text(
+                                                (item['status'] ?? '-').toString().toUpperCase(),
+                                                style: TextStyle(
+                                                  color: isHadir ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                ),
+                                                textAlign: TextAlign.end,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );

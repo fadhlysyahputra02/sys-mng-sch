@@ -368,4 +368,146 @@ class AppLocalization {
 
   static String get semesterEndFailed =>
       isIndonesian ? 'Gagal mereset semester' : 'Failed to reset semester';
+
+  // ─── Halaman Data Guru (Teacher List Page) ──────────────────────────────────
+  static String get teacherDataTitle =>
+      isIndonesian ? 'Data Guru' : 'Teacher Data';
+
+  static String get teacherSearchHint =>
+      isIndonesian ? 'Cari nama guru atau NIP...' : 'Search teacher name or NIP...';
+
+  static String get teacherAddButton =>
+      isIndonesian ? 'Tambah' : 'Add';
+
+  static String get importExcel =>
+      isIndonesian ? 'Import Excel' : 'Import Excel';
+
+  static String get errorOccurred =>
+      isIndonesian ? 'Terjadi kesalahan' : 'An error occurred';
+
+  static String get noTeacherData =>
+      isIndonesian ? 'Belum ada data guru' : 'No teacher data yet';
+
+  static String get addTeacherGuide =>
+      isIndonesian ? 'Tap "Tambah" untuk mendaftarkan guru baru' : 'Tap "Add" to register a new teacher';
+
+  static String get nipLabel =>
+      isIndonesian ? 'NIP: ' : 'NIP: ';
+
+  static String get registeredStatus =>
+      isIndonesian ? 'Terdaftar' : 'Registered';
+
+  static String get notRegisteredStatus =>
+      isIndonesian ? 'Belum Registrasi' : 'Not Registered';
+
+  // ─── Halaman Data Murid (Student List Page) ──────────────────────────────────
+  static String get studentDataTitle =>
+      isIndonesian ? 'Data Murid' : 'Student Data';
+
+  static String get studentSearchHint =>
+      isIndonesian ? 'Cari nama murid atau NIS...' : 'Search student name or NIS...';
+
+  static String get noStudentData =>
+      isIndonesian ? 'Belum ada data murid' : 'No student data yet';
+
+  static String get addStudentGuide =>
+      isIndonesian ? 'Tap "Tambah" untuk mendaftarkan murid baru' : 'Tap "Add" to register a new student';
+
+  static String get nisLabel =>
+      isIndonesian ? 'NIS: ' : 'NIS: ';
+
+  static String get alumniStatus =>
+      isIndonesian ? 'Alumni / Lulus' : 'Alumni / Graduated';
+
+  // ─── Dialog Import Excel & Premium ──────────────────────────────────────────
+  static String get featureLockedTitle =>
+      isIndonesian ? 'Fitur Terkunci' : 'Feature Locked';
+
+  static String get importDisabledBySuperAdmin => isIndonesian
+      ? 'Fitur Import Excel dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.'
+      : 'The Excel Import feature has been disabled by the Super Admin. Please contact the Super Admin to enable access.';
+
+  static String get excelGuideTitle =>
+      isIndonesian ? 'Panduan Import Excel' : 'Excel Import Guide';
+
+  static String get excelGuideSubtitle =>
+      isIndonesian ? 'Pastikan file Excel Anda memenuhi syarat berikut:' : 'Ensure your Excel file meets the following requirements:';
+
+  static String get excelGuideFormat =>
+      isIndonesian ? 'Format file harus berupa .xlsx atau .xls' : 'File format must be .xlsx or .xls';
+
+  static String get excelGuideHeader =>
+      isIndonesian ? 'Baris pertama (index 0) adalah header kolom (akan diabaikan)' : 'The first row (index 0) is the column header (will be ignored)';
+
+  static String get excelGuideColName =>
+      isIndonesian ? 'Kolom A: Nama Lengkap' : 'Column A: Full Name';
+
+  static String get excelGuideTeacherNip =>
+      isIndonesian ? 'Kolom B: NIP (Nomor Induk Pegawai)' : 'Column B: NIP (Employee ID Number)';
+
+  static String get excelGuideStudentNis =>
+      isIndonesian ? 'Kolom B: NIS (Nomor Induk Siswa)' : 'Column B: NIS (Student ID Number)';
+
+  static String get excelGuideTeacherNipUnique =>
+      isIndonesian ? 'Pastikan NIP belum terdaftar di sistem' : 'Ensure NIP is not already registered in the system';
+
+  static String get excelGuideStudentNisUnique =>
+      isIndonesian ? 'Pastikan NIS belum terdaftar di sistem' : 'Ensure NIS is not already registered in the system';
+
+  static String get downloadExcelTemplate =>
+      isIndonesian ? 'Unduh Template Excel' : 'Download Excel Template';
+
+  static String get cancel =>
+      isIndonesian ? 'Batal' : 'Cancel';
+
+  static String get chooseFile =>
+      isIndonesian ? 'Pilih File' : 'Select File';
+
+  static String get excelTemplateSaved =>
+      isIndonesian ? 'Template Excel berhasil disimpan!' : 'Excel template successfully saved!';
+
+  static String get excelTemplateSaveFailed =>
+      isIndonesian ? 'Gagal menyimpan template Excel.' : 'Failed to save Excel template.';
+
+  static String get premiumFeatureTitle =>
+      isIndonesian ? 'Fitur Premium 🌟' : 'Premium Feature 🌟';
+
+  static String get importTeacherPremiumMsg => isIndonesian
+      ? 'Fitur import data guru dari Excel hanya tersedia untuk sekolah dengan Paket BASIC atau PRO.'
+      : 'The feature to import teacher data from Excel is only available for schools with BASIC or PRO packages.';
+
+  static String get importStudentPremiumMsg => isIndonesian
+      ? 'Fitur import data murid dari Excel hanya tersedia untuk sekolah dengan Paket BASIC atau PRO.'
+      : 'The feature to import student data from Excel is only available for schools with BASIC or PRO packages.';
+
+  static String get upgradePackageMsg => isIndonesian
+      ? 'Silakan hubungi administrator/sales untuk melakukan upgrade paket sekolah Anda.'
+      : 'Please contact the administrator/sales to upgrade your school package.';
+
+  static String get close =>
+      isIndonesian ? 'Tutup' : 'Close';
+
+  static String get importResultTitle =>
+      isIndonesian ? 'Hasil Import Excel' : 'Excel Import Result';
+
+  static String importSuccessCount(int count) => isIndonesian
+      ? 'Berhasil diimport: $count data'
+      : 'Successfully imported: $count data';
+
+  static String importFailedCount(int count) => isIndonesian
+      ? 'Gagal diimport: $count data'
+      : 'Failed to import: $count data';
+
+  static String get errorDetailTitle =>
+      isIndonesian ? 'Detail Error/Peringatan:' : 'Error/Warning Details:';
+
+  static String get readingExcelData =>
+      isIndonesian ? 'Membaca data dari Excel...' : 'Reading data from Excel...';
+
+  static String importProgressMsg(int current, int total) => isIndonesian
+      ? 'Mengimport $current dari $total data...'
+      : 'Importing $current of $total data...';
+
+  static String get failedProcessFile =>
+      isIndonesian ? 'Gagal memproses file' : 'Failed to process file';
 }

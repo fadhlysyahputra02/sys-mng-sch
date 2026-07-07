@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
+
 import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import '../../../../officer/data/officer_repository.dart';
@@ -35,10 +37,9 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _accessSubscription;
   bool _lockDialogShown = false;
 
-  final List<String> _monthNames = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-  ];
+  List<String> get _monthNames => AppLocalization.isIndonesian
+      ? ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+      : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   @override
   void initState() {
@@ -86,16 +87,21 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
             builder: (context) => AlertDialog(
               backgroundColor: const Color(0xFF151026),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.lock_rounded, color: Colors.amber),
-                  SizedBox(width: 8),
-                  Text('Fitur Terkunci', style: TextStyle(color: Colors.white)),
+                  const Icon(Icons.lock_rounded, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
-              content: const Text(
-                'Fitur Rekap Absensi Guru dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.',
-                style: TextStyle(color: Colors.white70),
+              content: Text(
+                AppLocalization.isIndonesian
+                    ? 'Fitur Rekap Absensi Guru dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.'
+                    : 'The Teacher Attendance Recap feature is disabled by the Super Admin. Please contact Super Admin to enable access.',
+                style: const TextStyle(color: Colors.white70),
               ),
               actions: [
                 TextButton(
@@ -132,6 +138,14 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
   }
 
   String _getFormattedIndonesianDate(DateTime date) {
+    if (!AppLocalization.isIndonesian) {
+      final days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      final months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return '${days[date.weekday % 7]}, ${months[date.month - 1]} ${date.day}, ${date.year}';
+    }
     final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     final months = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -190,23 +204,23 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
     switch (status.toLowerCase()) {
       case 'hadir':
         color = const Color(0xFF10B981);
-        label = 'Hadir';
+        label = AppLocalization.isIndonesian ? 'Hadir' : 'Present';
         break;
       case 'terlambat':
         color = const Color(0xFFF59E0B);
-        label = 'Terlambat';
+        label = AppLocalization.isIndonesian ? 'Terlambat' : 'Late';
         break;
       case 'sakit':
         color = const Color(0xFF3B82F6);
-        label = 'Sakit';
+        label = AppLocalization.isIndonesian ? 'Sakit' : 'Sick';
         break;
       case 'izin':
         color = const Color(0xFF8B5CF6);
-        label = 'Izin';
+        label = AppLocalization.isIndonesian ? 'Izin' : 'Permitted';
         break;
       case 'alfa':
         color = const Color(0xFFEF4444);
-        label = 'Alfa';
+        label = AppLocalization.isIndonesian ? 'Alfa' : 'Absent';
         break;
       default:
         color = Colors.grey;
@@ -1097,309 +1111,317 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, child) {
-        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-        final cardColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-        final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06);
-        final shadowColor = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.04);
-        final searchBg = isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9);
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, child) {
+            final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final subTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+            final cardColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+            final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06);
+            final shadowColor = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.04);
+            final searchBg = isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9);
 
-        return Scaffold(
-          backgroundColor: isDark ? const Color(0xFF0B0914) : const Color(0xFFF8FAFC),
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor),
-              onPressed: () => Get.back(),
-            ),
-            title: Text(
-              _isMonthlyRecap ? 'Rekap Bulanan Guru' : 'Absensi Harian Guru',
-              style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            centerTitle: true,
-            actions: [
-              if (!_isMonthlyRecap) ...[
-                IconButton(
-                  icon: Icon(Icons.calendar_month_rounded, color: textColor),
-                  onPressed: _showDatePicker,
-                  tooltip: 'Pilih Tanggal',
+            return Scaffold(
+              backgroundColor: isDark ? const Color(0xFF0B0914) : const Color(0xFFF8FAFC),
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor),
+                  onPressed: () => Get.back(),
                 ),
-                IconButton(
-                  icon: Icon(Icons.picture_as_pdf_rounded, color: textColor),
-                  onPressed: _exportDailyPdf,
-                  tooltip: 'Export PDF',
+                title: Text(
+                  _isMonthlyRecap
+                      ? (AppLocalization.isIndonesian ? 'Rekap Bulanan Guru' : 'Monthly Teacher Recap')
+                      : (AppLocalization.isIndonesian ? 'Absensi Harian Guru' : 'Daily Teacher Attendance'),
+                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
                 ),
-                IconButton(
-                  icon: Icon(Icons.table_view_rounded, color: textColor),
-                  onPressed: _exportDailyExcel,
-                  tooltip: 'Export Excel',
-                ),
-              ] else ...[
-                IconButton(
-                  icon: Icon(Icons.picture_as_pdf_rounded, color: textColor),
-                  onPressed: _exportMonthlyPdf,
-                  tooltip: 'Export PDF',
-                ),
-                IconButton(
-                  icon: Icon(Icons.table_view_rounded, color: textColor),
-                  onPressed: _exportMonthlyExcel,
-                  tooltip: 'Export Excel',
-                ),
-              ],
-            ],
-          ),
-          body: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 12),
+                centerTitle: true,
+                actions: [
+                  if (!_isMonthlyRecap) ...[
+                    IconButton(
+                      icon: Icon(Icons.calendar_month_rounded, color: textColor),
+                      onPressed: _showDatePicker,
+                      tooltip: AppLocalization.isIndonesian ? 'Pilih Tanggal' : 'Select Date',
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.picture_as_pdf_rounded, color: textColor),
+                      onPressed: _exportDailyPdf,
+                      tooltip: AppLocalization.isIndonesian ? 'Ekspor PDF' : 'Export PDF',
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.table_view_rounded, color: textColor),
+                      onPressed: _exportDailyExcel,
+                      tooltip: AppLocalization.isIndonesian ? 'Ekspor Excel' : 'Export Excel',
+                    ),
+                  ] else ...[
+                    IconButton(
+                      icon: Icon(Icons.picture_as_pdf_rounded, color: textColor),
+                      onPressed: _exportMonthlyPdf,
+                      tooltip: AppLocalization.isIndonesian ? 'Ekspor PDF' : 'Export PDF',
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.table_view_rounded, color: textColor),
+                      onPressed: _exportMonthlyExcel,
+                      tooltip: AppLocalization.isIndonesian ? 'Ekspor Excel' : 'Export Excel',
+                    ),
+                  ],
+                ],
+              ),
+              body: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 12),
 
-                // Pill segmented control
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: cardBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isMonthlyRecap = false),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: !_isMonthlyRecap ? const Color(0xFF8B5CF6) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'Presensi Harian',
-                                style: TextStyle(
-                                  color: !_isMonthlyRecap ? Colors.white : textColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isMonthlyRecap = true),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: _isMonthlyRecap ? const Color(0xFF8B5CF6) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'Rekap Bulanan',
-                                style: TextStyle(
-                                  color: _isMonthlyRecap ? Colors.white : textColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                if (!_isMonthlyRecap) ...[
-                  // Selected Date Card Header
-                  GestureDetector(
-                    onTap: _showDatePicker,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
+                    // Pill segmented control
+                    Container(
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: cardBorder),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.calendar_today_rounded, color: Color(0xFF8B5CF6), size: 18),
-                          const SizedBox(width: 10),
-                          Text(
-                            _getFormattedIndonesianDate(_selectedDate),
-                            style: const TextStyle(
-                              color: Color(0xFF8B5CF6),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _isMonthlyRecap = false),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: !_isMonthlyRecap ? const Color(0xFF8B5CF6) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    AppLocalization.isIndonesian ? 'Presensi Harian' : 'Daily Attendance',
+                                    style: TextStyle(
+                                      color: !_isMonthlyRecap ? Colors.white : textColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _isMonthlyRecap = true),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _isMonthlyRecap ? const Color(0xFF8B5CF6) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    AppLocalization.isIndonesian ? 'Rekap Bulanan' : 'Monthly Recap',
+                                    style: TextStyle(
+                                      color: _isMonthlyRecap ? Colors.white : textColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                ] else ...[
-                  // Month and Year Selectors Row
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Container(
-                          height: 48,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          decoration: BoxDecoration(
-                            color: cardColor,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: cardBorder),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<int>(
-                              isExpanded: true,
-                              value: _selectedMonth,
-                              dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-                              style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
-                              items: List.generate(12, (index) {
-                                return DropdownMenuItem(
-                                  value: index + 1,
-                                  child: Text(_monthNames[index]),
-                                );
-                              }),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() => _selectedMonth = val);
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          height: 48,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          decoration: BoxDecoration(
-                            color: cardColor,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: cardBorder),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<int>(
-                              isExpanded: true,
-                              value: _selectedYear,
-                              dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-                              style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
-                              items: List.generate(5, (index) {
-                                final year = DateTime.now().year - 3 + index;
-                                return DropdownMenuItem(
-                                  value: year,
-                                  child: Text('$year'),
-                                );
-                              }),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() => _selectedYear = val);
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
 
-                // Search field (shared)
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: searchBg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: cardBorder),
-                        ),
-                        child: TextField(
-                          style: TextStyle(color: textColor, fontSize: 14),
-                          decoration: InputDecoration(
-                            hintText: 'Cari nama guru...',
-                            hintStyle: TextStyle(color: subTextColor, fontSize: 13),
-                            prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 18),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onChanged: (val) {
-                            setState(() {
-                              _searchQuery = val;
-                            });
-                          },
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 16),
+
                     if (!_isMonthlyRecap) ...[
-                      const SizedBox(width: 12),
-                      // Status Filter Selector (Harian only)
-                      Container(
-                        height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: cardBorder),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedStatusFilter,
-                            dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-                            style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
-                            icon: Icon(Icons.filter_list_rounded, color: textColor, size: 16),
-                            items: const [
-                              DropdownMenuItem(value: 'Semua', child: Text('Semua')),
-                              DropdownMenuItem(value: 'Hadir', child: Text('Hadir')),
-                              DropdownMenuItem(value: 'Terlambat', child: Text('Terlambat')),
-                              DropdownMenuItem(value: 'Sakit', child: Text('Sakit')),
-                              DropdownMenuItem(value: 'Izin', child: Text('Izin')),
-                              DropdownMenuItem(value: 'Alfa', child: Text('Alfa')),
+                      // Selected Date Card Header
+                      GestureDetector(
+                        onTap: _showDatePicker,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.calendar_today_rounded, color: Color(0xFF8B5CF6), size: 18),
+                              const SizedBox(width: 10),
+                              Text(
+                                _getFormattedIndonesianDate(_selectedDate),
+                                style: const TextStyle(
+                                  color: Color(0xFF8B5CF6),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  _selectedStatusFilter = val;
-                                });
-                              }
-                            },
                           ),
                         ),
                       ),
+                      const SizedBox(height: 16),
+                    ] else ...[
+                      // Month and Year Selectors Row
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              height: 48,
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: cardBorder),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<int>(
+                                  isExpanded: true,
+                                  value: _selectedMonth,
+                                  dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                  style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
+                                  items: List.generate(12, (index) {
+                                    return DropdownMenuItem(
+                                      value: index + 1,
+                                      child: Text(_monthNames[index]),
+                                    );
+                                  }),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() => _selectedMonth = val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 1,
+                            child: Container(
+                              height: 48,
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: cardBorder),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<int>(
+                                  isExpanded: true,
+                                  value: _selectedYear,
+                                  dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                  style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
+                                  items: List.generate(5, (index) {
+                                    final year = DateTime.now().year - 3 + index;
+                                    return DropdownMenuItem(
+                                      value: year,
+                                      child: Text('$year'),
+                                    );
+                                  }),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() => _selectedYear = val);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                     ],
-                  ],
-                ),
 
-                const SizedBox(height: 16),
+                    // Search field (shared)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: searchBg,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: cardBorder),
+                            ),
+                            child: TextField(
+                              style: TextStyle(color: textColor, fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: AppLocalization.isIndonesian ? 'Cari nama guru...' : 'Search teacher name...',
+                                hintStyle: TextStyle(color: subTextColor, fontSize: 13),
+                                prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 18),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  _searchQuery = val;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                        if (!_isMonthlyRecap) ...[
+                          const SizedBox(width: 12),
+                          // Status Filter Selector (Harian only)
+                          Container(
+                            height: 48,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: cardBorder),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedStatusFilter,
+                                dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.bold),
+                                icon: Icon(Icons.filter_list_rounded, color: textColor, size: 16),
+                                items: [
+                                  DropdownMenuItem(value: 'Semua', child: Text(AppLocalization.isIndonesian ? 'Semua' : 'All')),
+                                  DropdownMenuItem(value: 'Hadir', child: Text(AppLocalization.isIndonesian ? 'Hadir' : 'Present')),
+                                  DropdownMenuItem(value: 'Terlambat', child: Text(AppLocalization.isIndonesian ? 'Terlambat' : 'Late')),
+                                  DropdownMenuItem(value: 'Sakit', child: Text(AppLocalization.isIndonesian ? 'Sakit' : 'Sick')),
+                                  DropdownMenuItem(value: 'Izin', child: Text(AppLocalization.isIndonesian ? 'Izin' : 'Permitted')),
+                                  DropdownMenuItem(value: 'Alfa', child: Text(AppLocalization.isIndonesian ? 'Alfa' : 'Absent')),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() {
+                                      _selectedStatusFilter = val;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
 
-                // Streams for Teachers List
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: _teacherService.getTeachers(schoolId),
-                    builder: (context, teacherSnapshot) {
-                      if (teacherSnapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6)));
-                      }
-                      if (!teacherSnapshot.hasData || teacherSnapshot.data!.docs.isEmpty) {
-                        return Center(
-                          child: Text('Belum ada data guru terdaftar.', style: TextStyle(color: subTextColor)),
-                        );
-                      }
+                    const SizedBox(height: 16),
+
+                    // Streams for Teachers List
+                    Expanded(
+                      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: _teacherService.getTeachers(schoolId),
+                        builder: (context, teacherSnapshot) {
+                          if (teacherSnapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6)));
+                          }
+                          if (!teacherSnapshot.hasData || teacherSnapshot.data!.docs.isEmpty) {
+                            return Center(
+                              child: Text(
+                                AppLocalization.isIndonesian ? 'Belum ada data guru terdaftar.' : 'No teachers registered.',
+                                style: TextStyle(color: subTextColor),
+                              ),
+                            );
+                          }
 
                       if (!_isMonthlyRecap) {
                         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -1765,17 +1787,17 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                                         scrollDirection: Axis.horizontal,
                                         child: Row(
                                           children: [
-                                            _buildCountBadge('Hadir', counts['hadir']!, const Color(0xFF10B981)),
+                                            _buildCountBadge(AppLocalization.isIndonesian ? 'Hadir' : 'Present', counts['hadir']!, const Color(0xFF10B981)),
                                             const SizedBox(width: 8),
-                                            _buildCountBadge('Telat', counts['terlambat']!, const Color(0xFFF59E0B)),
+                                            _buildCountBadge(AppLocalization.isIndonesian ? 'Telat' : 'Late', counts['terlambat']!, const Color(0xFFF59E0B)),
                                             const SizedBox(width: 8),
-                                            _buildCountBadge('Pulang', counts['pulang'] ?? 0, const Color(0xFF0D9488)),
+                                            _buildCountBadge(AppLocalization.isIndonesian ? 'Pulang' : 'Checked Out', counts['pulang'] ?? 0, const Color(0xFF0D9488)),
                                             const SizedBox(width: 8),
-                                            _buildCountBadge('Sakit', counts['sakit']!, const Color(0xFF3B82F6)),
+                                            _buildCountBadge(AppLocalization.isIndonesian ? 'Sakit' : 'Sick', counts['sakit']!, const Color(0xFF3B82F6)),
                                             const SizedBox(width: 8),
-                                            _buildCountBadge('Izin', counts['izin']!, const Color(0xFF8B5CF6)),
+                                            _buildCountBadge(AppLocalization.isIndonesian ? 'Izin' : 'Permitted', counts['izin']!, const Color(0xFF8B5CF6)),
                                             const SizedBox(width: 8),
-                                            _buildCountBadge('Alfa', counts['alfa']!, const Color(0xFFEF4444)),
+                                            _buildCountBadge(AppLocalization.isIndonesian ? 'Alfa' : 'Absent', counts['alfa']!, const Color(0xFFEF4444)),
                                           ],
                                         ),
                                       ),
@@ -1794,6 +1816,8 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
               ],
             ),
           ),
+            );
+          },
         );
       },
     );

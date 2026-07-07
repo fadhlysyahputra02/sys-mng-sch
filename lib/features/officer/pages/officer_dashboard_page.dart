@@ -10,6 +10,7 @@ import '../../schools/services/school_service.dart';
 import '../../teachers/pages/teacher_settings_page.dart';
 import '../../schools/pages/teachers/pages/admin_teacher_attendance_page.dart';
 
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 import '../../../core/widgets/motif_card.dart';
 
 class OfficerDashboardPage extends StatefulWidget {
@@ -93,35 +94,38 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
         return ValueListenableBuilder<bool>(
           valueListenable: AuthBackground.isDarkMode,
           builder: (context, isDark, _) {
-            final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-            final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-            final cardBorder = isDark
-                ? Colors.white.withValues(alpha: 0.1)
-                : Colors.black.withValues(alpha: 0.08);
+            return ValueListenableBuilder<String>(
+              valueListenable: AppLocalization.currentLocale,
+              builder: (context, locale, _) {
+                final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+                final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+                final cardBorder = isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.08);
 
-            return Scaffold(
-              extendBodyBehindAppBar: true,
-              appBar: AppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                title: Text(
-                  'Dashboard Officer',
-                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-                ),
-                actions: [
-                  IconButton(
-                    icon: Icon(Icons.settings_rounded, color: textColor),
-                    onPressed: () => Get.to(() => const TeacherSettingsPage()),
-                    tooltip: 'Pengaturan',
+                return Scaffold(
+                  extendBodyBehindAppBar: true,
+                  appBar: AppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    title: Text(
+                      AppLocalization.isIndonesian ? 'Dashboard Officer' : 'Officer Dashboard',
+                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                    ),
+                    actions: [
+                      IconButton(
+                        icon: Icon(Icons.settings_rounded, color: textColor),
+                        onPressed: () => Get.to(() => const TeacherSettingsPage()),
+                        tooltip: AppLocalization.isIndonesian ? 'Pengaturan' : 'Settings',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.logout_rounded, color: Colors.red),
+                        onPressed: _logout,
+                        tooltip: AppLocalization.isIndonesian ? 'Keluar' : 'Logout',
+                      )
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.logout_rounded, color: Colors.red),
-                    onPressed: _logout,
-                    tooltip: 'Logout',
-                  )
-                ],
-              ),
-              body: AuthBackground(
+                  body: AuthBackground(
                 child: SafeArea(
                   child: SingleChildScrollView(
                     child: Padding(
@@ -299,6 +303,8 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
         );
       },
     );
+  },
+);
   }
 
   Widget _buildSectionLabel(String label, IconData icon, Color color, Color textColor) {
@@ -551,9 +557,9 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Text(
-                    'Sistem Aktif',
-                    style: TextStyle(
+                  Text(
+                    AppLocalization.isIndonesian ? 'Sistem Aktif' : 'System Active',
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF10B981),
@@ -567,6 +573,4 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
       ),
     );
   }
-
-
 }

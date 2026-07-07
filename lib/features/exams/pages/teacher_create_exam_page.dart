@@ -637,6 +637,8 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                   items: const [
                                     DropdownMenuItem(value: 'Kuis', child: Text('Kuis')),
                                     DropdownMenuItem(value: 'Ulangan Harian', child: Text('Ulangan Harian')),
+                                    DropdownMenuItem(value: 'UTS', child: Text('UTS (Ujian Tengah Semester)')),
+                                    DropdownMenuItem(value: 'UAS', child: Text('UAS (Ujian Akhir Semester)')),
                                   ],
                                   onChanged: (val) {
                                     if (val != null) {

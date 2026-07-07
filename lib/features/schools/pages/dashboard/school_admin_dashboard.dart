@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../../core/services/app_auth_service.dart';
 import '../../../../core/services/session_service.dart';
@@ -27,6 +28,7 @@ import '../violations/admin_violations_history_page.dart';
 import '../../../../core/widgets/motif_card.dart';
 import '../approvals/approval_dashboard_page.dart';
 import '../../../../core/localization/app_localization.dart';
+import '../../../exams/pages/admin_exam_event_list_page.dart';
 
 
 class SchoolAdminDashboard extends StatefulWidget {
@@ -96,6 +98,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     _MenuData('E-Rapor', Icons.description_rounded, Color(0xFF8B5CF6)),
     _MenuData('Pelanggaran Murid', Icons.report_problem_rounded, Color(0xFFEF4444)),
     _MenuData('Persetujuan', Icons.edit_note_rounded, Color(0xFF10B981)),
+    _MenuData('Ujian Semester', Icons.assignment_rounded, Color(0xFF06B6D4)),
   ];
 
   String _getMenuTranslation(String originalTitle) {
@@ -126,7 +129,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         return AppLocalization.isIndonesian ? 'Pelanggaran Murid' : 'Student Infractions';
       case 'Persetujuan':
         return AppLocalization.isIndonesian ? 'Persetujuan' : 'Approvals';
-
+      case 'Ujian Semester':
+        return AppLocalization.isIndonesian ? 'Ujian Semester' : 'Semester Exams';
 
       case 'Laporan Mengajar':
         return AppLocalization.isIndonesian ? 'Laporan Mengajar' : 'Teaching Reports';
@@ -183,6 +187,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         break;
       case 'Persetujuan':
         Get.to(() => const ApprovalDashboardPage());
+        break;
+      case 'Ujian Semester':
+        Get.to(() => const AdminExamEventListPage());
         break;
 
     }
@@ -478,9 +485,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Text(
-                    'Sistem Aktif',
-                    style: TextStyle(
+                  Text(
+                    AppLocalization.isIndonesian ? 'Sistem Aktif' : 'System Active',
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF10B981),
@@ -522,7 +529,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     final bool isActive = [
       'Manajemen Guru', 'Manajemen Siswa', 'Mata Pelajaran', 'Kelas', 'Jadwal', 'Notifikasi',
       'Pengaturan', 'Petugas', 'Rekap Absensi', 'Rekap Nilai', 'Laporan Mengajar',
-      'E-Rapor', 'Pelanggaran Murid', 'Persetujuan',
+      'E-Rapor', 'Pelanggaran Murid', 'Persetujuan', 'Ujian Semester',
     ].contains(menu.title);
 
     final cardBg = isActive
@@ -814,6 +821,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Laporan Mengajar', Icons.edit_document, 14, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
+                _buildSidebarItem('Ujian Semester', Icons.assignment_rounded, 15, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
@@ -950,7 +958,8 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
         return const ApprovalDashboardPage(hideBackButton: true);
       case 14:
         return const AdminTeachingReportsPage();
-
+      case 15:
+        return const AdminExamEventListPage(hideBackButton: true);
       default:
         return _buildDesktopDashboardHome(isDark);
     }
@@ -982,7 +991,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Rekap Absensi',
+                AppLocalization.isIndonesian ? 'Rekap Absensi' : 'Attendance Recap',
                 style: TextStyle(
                   color: textColor,
                   fontSize: 20,
@@ -991,7 +1000,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Pilih skala rekapan absensi yang ingin Anda lihat:',
+                AppLocalization.isIndonesian
+                    ? 'Pilih skala rekapan absensi yang ingin Anda lihat:'
+                    : 'Select the attendance recap scale you want to view:',
                 style: TextStyle(
                   color: textColor.withValues(alpha: 0.6),
                   fontSize: 14,
@@ -1002,8 +1013,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildSelectionCard(
-                    title: 'Rekap Absensi Siswa',
-                    description: 'Laporan & statistik kehadiran harian dan bulanan siswa',
+                    title: AppLocalization.isIndonesian ? 'Rekap Absensi Siswa' : 'Student Attendance Recap',
+                    description: AppLocalization.isIndonesian
+                        ? 'Laporan & statistik kehadiran harian dan bulanan siswa'
+                        : 'Daily and monthly student attendance reports & statistics',
                     icon: Icons.calendar_month_rounded,
                     color: const Color(0xFF8B5CF6),
                     onTap: () {
@@ -1016,8 +1029,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   ),
                   const SizedBox(height: 12),
                   _buildSelectionCard(
-                    title: 'Rekap Absensi Guru',
-                    description: 'Laporan & statistik kehadiran harian dan bulanan guru',
+                    title: AppLocalization.isIndonesian ? 'Rekap Absensi Guru' : 'Teacher Attendance Recap',
+                    description: AppLocalization.isIndonesian
+                        ? 'Laporan & statistik kehadiran harian dan bulanan guru'
+                        : 'Daily and monthly teacher attendance reports & statistics',
                     icon: Icons.co_present_rounded,
                     color: const Color(0xFF6366F1),
                     onTap: () {
@@ -1547,9 +1562,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Text(
-                    'Sistem Aktif',
-                    style: TextStyle(
+                  Text(
+                    AppLocalization.isIndonesian ? 'Sistem Aktif' : 'System Active',
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF10B981),

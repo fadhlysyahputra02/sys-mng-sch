@@ -8,6 +8,9 @@ import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
 import '../models/exam_submission_model.dart';
 import '../services/exam_service.dart';
+import '../services/exam_session_service.dart';
+import '../models/exam_event_model.dart';
+import 'student_exam_participation_page.dart';
 import 'student_take_exam_page.dart';
 import '../../students/data/student_service.dart';
 
@@ -197,15 +200,111 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                     );
                   }
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: exams.length,
-                    itemBuilder: (context, index) {
-                      final exam = exams[index];
-                      final isSusulan = exam.susulanStudentIds.contains(studentDocId);
-                      final isExpired = DateTime.now().isAfter(exam.dueDate) && !isSusulan;
-                      final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(exam.dueDate);
+                  return StreamBuilder<ExamEvent?>(
+                    stream: ExamSessionService().getActiveExamEvent(user.schoolId),
+                    builder: (context, activeEventSnap) {
+                      final activeEvent = activeEventSnap.data;
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: exams.length + (activeEvent != null ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          // Card Ujian Semester (hanya saat ada event aktif, di posisi pertama)
+                          if (activeEvent != null && index == 0) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: GestureDetector(
+                                onTap: () => Get.to(() => StudentExamParticipationPage(
+                                  classId: widget.classId,
+                                  studentDocId: studentDocId,
+                                  studentName: user.nama,
+                                  studentNis: '',
+                                )),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        const Color(0xFF8B5CF6).withValues(alpha: isDark ? 0.25 : 0.12),
+                                        const Color(0xFFEC4899).withValues(alpha: isDark ? 0.15 : 0.06),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 46,
+                                        height: 46,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                                          ),
+                                          borderRadius: BorderRadius.circular(13),
+                                        ),
+                                        child: const Icon(Icons.assignment_rounded,
+                                            color: Colors.white, size: 24),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              activeEvent.title,
+                                              style: TextStyle(
+                                                color: titleColor,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: const Text('Sedang Berlangsung',
+                                                      style: TextStyle(
+                                                          color: Color(0xFF10B981),
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.bold)),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(activeEvent.examType,
+                                                    style: const TextStyle(
+                                                        color: Color(0xFF8B5CF6),
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.bold)),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Icon(Icons.arrow_forward_ios_rounded,
+                                          size: 14, color: subTextColor),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+
+                          final examIndex = activeEvent != null ? index - 1 : index;
+                          final exam = exams[examIndex];
+                          final isSusulan = exam.susulanStudentIds.contains(studentDocId);
+                          final isExpired = DateTime.now().isAfter(exam.dueDate) && !isSusulan;
+                          final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(exam.dueDate);
 
                       return StreamBuilder<ExamSubmission?>(
                         stream: _getSubmissionStream(user.schoolId, exam.id, studentDocId),
@@ -493,10 +592,12 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                 },
               );
             },
-          ),
-        ),
+          );
+        },
       ),
-    );
+    ),
+  ),
+);
       },
     );
   }

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:sys_mng_school/core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 import '../../../services/excel_import_service.dart';
 import 'add_teacher_admin_page.dart';
 import 'teacher_detail_admin_page.dart';
@@ -35,13 +36,16 @@ class _TeacherListPageState extends State<TeacherListPage> {
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
-        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
-        final mutedColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
-        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
-        final borderCol = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
+            final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
+            final mutedColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+            final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+            final borderCol = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
 
-        return Scaffold(
+            return Scaffold(
           body: AuthBackground(
             child: Column(
               children: [
@@ -60,7 +64,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            'Data Guru',
+                            AppLocalization.teacherDataTitle,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -88,16 +92,16 @@ class _TeacherListPageState extends State<TeacherListPage> {
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
                               onTap: () => _handleImport(context),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.file_upload_rounded, color: Colors.white, size: 18),
-                                    SizedBox(width: 6),
+                                    const Icon(Icons.file_upload_rounded, color: Colors.white, size: 18),
+                                    const SizedBox(width: 6),
                                     Text(
-                                      'Import Excel',
-                                      style: TextStyle(
+                                      AppLocalization.importExcel,
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
@@ -136,16 +140,16 @@ class _TeacherListPageState extends State<TeacherListPage> {
                                   ),
                                 );
                               },
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                                    SizedBox(width: 6),
+                                    const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                                    const SizedBox(width: 6),
                                     Text(
-                                      'Tambah',
-                                      style: TextStyle(
+                                      AppLocalization.teacherAddButton,
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
@@ -174,7 +178,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                     },
                     style: TextStyle(color: textColor, fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'Cari nama guru atau NIP...',
+                      hintText: AppLocalization.teacherSearchHint,
                       hintStyle: TextStyle(color: mutedColor, fontSize: 14),
                       prefixIcon: Icon(Icons.search_rounded, color: mutedColor, size: 20),
                       suffixIcon: _searchQuery.isNotEmpty
@@ -223,7 +227,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Terjadi kesalahan',
+                                AppLocalization.errorOccurred,
                                 style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
                               ),
                             ],
@@ -295,7 +299,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                'Belum ada data guru',
+                                AppLocalization.noTeacherData,
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: textColor.withValues(alpha: 0.6),
@@ -304,7 +308,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Tap "Tambah" untuk mendaftarkan guru baru',
+                                AppLocalization.addTeacherGuide,
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: mutedColor,
@@ -385,7 +389,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                                                 Icon(Icons.badge_outlined, size: 13, color: mutedColor),
                                                 const SizedBox(width: 4),
                                                 Text(
-                                                  'NIP: ${guru['nip'] ?? '-'}',
+                                                  '${AppLocalization.nipLabel}${guru['nip'] ?? '-'}',
                                                   style: TextStyle(
                                                     fontSize: 12,
                                                     color: subtitleColor,
@@ -428,7 +432,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                                                 ),
                                               ),
                                               child: Text(
-                                                isRegistered ? 'Terdaftar' : 'Belum Registrasi',
+                                                isRegistered ? AppLocalization.registeredStatus : AppLocalization.notRegisteredStatus,
                                                 style: TextStyle(
                                                   color: isRegistered ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
                                                   fontSize: 10,
@@ -458,6 +462,8 @@ class _TeacherListPageState extends State<TeacherListPage> {
               ],
             ),
           ),
+        );
+          },
         );
       },
     );
@@ -495,16 +501,16 @@ class _TeacherListPageState extends State<TeacherListPage> {
             builder: (context) => AlertDialog(
               backgroundColor: const Color(0xFF151026),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.lock_rounded, color: Colors.amber),
-                  SizedBox(width: 8),
-                  Text('Fitur Terkunci', style: TextStyle(color: Colors.white)),
+                  const Icon(Icons.lock_rounded, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Text(AppLocalization.featureLockedTitle, style: const TextStyle(color: Colors.white)),
                 ],
               ),
-              content: const Text(
-                'Fitur Import Excel dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.',
-                style: TextStyle(color: Colors.white70),
+              content: Text(
+                AppLocalization.importDisabledBySuperAdmin,
+                style: const TextStyle(color: Colors.white70),
               ),
               actions: [
                 TextButton(
@@ -565,21 +571,21 @@ class _TeacherListPageState extends State<TeacherListPage> {
               const SizedBox(height: 20),
               Center(
                 child: Text(
-                  'Panduan Import Excel',
+                  AppLocalization.excelGuideTitle,
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                 ),
               ),
               const SizedBox(height: 16),
               Text(
-                'Pastikan file Excel Anda memenuhi syarat berikut:',
+                AppLocalization.excelGuideSubtitle,
                 style: TextStyle(color: subtitleColor, fontSize: 13, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              _buildGuideItem('Format file harus berupa .xlsx atau .xls', subtitleColor),
-              _buildGuideItem('Baris pertama (index 0) adalah header kolom (akan diabaikan)', subtitleColor),
-              _buildGuideItem('Kolom A: Nama Lengkap', subtitleColor),
-              _buildGuideItem('Kolom B: NIP (Nomor Induk Pegawai)', subtitleColor),
-              _buildGuideItem('Pastikan NIP belum terdaftar di sistem', subtitleColor),
+              _buildGuideItem(AppLocalization.excelGuideFormat, subtitleColor),
+              _buildGuideItem(AppLocalization.excelGuideHeader, subtitleColor),
+              _buildGuideItem(AppLocalization.excelGuideColName, subtitleColor),
+              _buildGuideItem(AppLocalization.excelGuideTeacherNip, subtitleColor),
+              _buildGuideItem(AppLocalization.excelGuideTeacherNipUnique, subtitleColor),
             ],
           ),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -617,14 +623,14 @@ class _TeacherListPageState extends State<TeacherListPage> {
                     if (success == true) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Template Excel berhasil disimpan!')),
+                          SnackBar(content: Text(AppLocalization.excelTemplateSaved)),
                         );
                         _showImportGuide(context); // Buka kembali guide agar user bisa pilih file
                       }
                     } else if (success == false) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Gagal menyimpan template Excel.')),
+                          SnackBar(content: Text(AppLocalization.excelTemplateSaveFailed)),
                         );
                         _showImportGuide(context);
                       }
@@ -636,7 +642,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                     }
                   },
                   icon: const Icon(Icons.download_rounded, color: Color(0xFF10B981), size: 18),
-                  label: const Text('Unduh Template Excel', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                  label: Text(AppLocalization.downloadExcelTemplate, style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -649,7 +655,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                         onPressed: () => Navigator.pop(dialogContext),
-                        child: Text('Batal', style: TextStyle(color: textColor)),
+                        child: Text(AppLocalization.cancel, style: TextStyle(color: textColor)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -666,7 +672,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                           Navigator.pop(dialogContext);
                           _startImporting(context);
                         },
-                        child: const Text('Pilih File', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: Text(AppLocalization.chooseFile, style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -733,7 +739,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
               ),
               const SizedBox(height: 20),
               Text(
-                'Fitur Premium 🌟',
+                AppLocalization.premiumFeatureTitle,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 20,
@@ -743,7 +749,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Fitur import data guru dari Excel hanya tersedia untuk sekolah dengan Paket BASIC atau PRO.',
+                AppLocalization.importTeacherPremiumMsg,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -753,7 +759,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Silakan hubungi administrator/sales untuk melakukan upgrade paket sekolah Anda.',
+                AppLocalization.upgradePackageMsg,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
@@ -779,7 +785,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                       ),
                     ),
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(AppLocalization.close, style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -799,7 +805,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
 
     String status = 'pilih_file';
     double progress = 0.0;
-    String statusText = 'Memproses file...';
+    String statusText = AppLocalization.readingExcelData;
     ExcelImportResult? importResult;
 
     showDialog(
@@ -815,12 +821,12 @@ class _TeacherListPageState extends State<TeacherListPage> {
                 widget.schoolId,
                 onFileSelected: () {
                   setModalState(() {
-                    statusText = 'Membaca data dari Excel...';
+                    statusText = AppLocalization.readingExcelData;
                   });
                 },
                 onProgress: (current, total) {
                   setModalState(() {
-                    statusText = 'Mengimport $current dari $total data...';
+                    statusText = AppLocalization.importProgressMsg(current, total);
                     progress = total > 0 ? current / total : 0.0;
                   });
                 },
@@ -836,7 +842,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                     successCount: 0,
                     duplicateCount: 0,
                     failedCount: 1,
-                    errors: ['Gagal memproses file: $err'],
+                    errors: ['${AppLocalization.failedProcessFile}: $err'],
                   );
                 });
               });
@@ -890,7 +896,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                 side: BorderSide(color: dialogBorder, width: 1.5),
               ),
               title: Text(
-                'Hasil Import Excel',
+                AppLocalization.importResultTitle,
                 style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
               ),
               // SizedBox dengan lebar tertentu mencegah AlertDialog
@@ -901,13 +907,13 @@ class _TeacherListPageState extends State<TeacherListPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildResultRow(Icons.check_circle_outline_rounded, Colors.green, 'Berhasil diimport: ${importResult!.successCount} data', textColor),
+                    _buildResultRow(Icons.check_circle_outline_rounded, Colors.green, AppLocalization.importSuccessCount(importResult!.successCount), textColor),
                     const SizedBox(height: 10),
-                    _buildResultRow(Icons.error_outline_rounded, Colors.red, 'Gagal diimport: ${importResult!.failedCount} data', textColor),
+                    _buildResultRow(Icons.error_outline_rounded, Colors.red, AppLocalization.importFailedCount(importResult!.failedCount), textColor),
                     if (importResult!.errors.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       Text(
-                        'Detail Error/Peringatan:',
+                        AppLocalization.errorDetailTitle,
                         style: TextStyle(color: subtitleColor, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                       const SizedBox(height: 6),
