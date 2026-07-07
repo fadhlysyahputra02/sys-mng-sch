@@ -942,222 +942,227 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
       minChildSize: 0.5,
       maxChildSize: 0.95,
       builder: (context, scrollController) {
-        return Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(2),
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Deskripsi Rapor Siswa',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${widget.subjectName} • ${widget.className}',
-                          style: TextStyle(fontSize: 13, color: const Color(0xFF10B981), fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            const SizedBox(height: 12),
-            const Divider(),
-            Expanded(
-              child: _isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: isDark ? Colors.white : const Color(0xFF8B5CF6),
-                      ),
-                    )
-                  : _students.isEmpty
-                      ? Center(
-                          child: Text(
-                            'Tidak ada siswa di kelas ini.',
-                            style: TextStyle(color: subTextColor),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Deskripsi Rapor Siswa',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                           ),
-                        )
-                      : ListView.builder(
-                          controller: scrollController,
-                          padding: const EdgeInsets.all(24),
-                          itemCount: _students.length,
-                          itemBuilder: (context, index) {
-                            final studentDoc = _students[index];
-                            final studentId = studentDoc.data()?['studentId'] ?? studentDoc.id;
-                            final studentData = studentDoc.data();
-                            final studentNameStr = studentData?['nama']?.toString() ?? 'Siswa';
-                            final nis = studentData?['nis'] ?? '-';
-                            final controller = _descControllers[studentId];
-                            final isSaving = _savingStates[studentId] ?? false;
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: cardBgColor,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: cardBorderColor),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 38,
-                                        height: 38,
-                                        decoration: const BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          gradient: LinearGradient(
-                                            colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                        ),
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          studentNameStr[0].toUpperCase(),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              studentNameStr,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
-                                                color: titleColor,
-                                              ),
-                                            ),
-                                            Text(
-                                              'NIS: $nis',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: subTextColor,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextFormField(
-                                    controller: controller,
-                                    maxLines: 3,
-                                    maxLength: 200,
-                                    style: TextStyle(color: titleColor, fontSize: 13),
-                                    decoration: InputDecoration(
-                                      hintText: 'Tulis deskripsi pencapaian siswa untuk mapel ini...',
-                                      hintStyle: TextStyle(color: subTextColor.withValues(alpha: 0.6), fontSize: 12),
-                                      fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-                                      filled: true,
-                                      contentPadding: const EdgeInsets.all(12),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(color: cardBorderColor),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
-                                      ),
-                                      counterText: '',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: () {
-                                      final isModified = _isModified[studentId] ?? false;
-                                      final isTextEmpty = controller?.text.trim().isEmpty ?? true;
-                                      final shouldShowActive = isModified || isTextEmpty;
-
-                                      final btnBgColor = isSaving
-                                          ? const Color(0xFF10B981)
-                                          : shouldShowActive
-                                              ? const Color(0xFF10B981)
-                                              : isDark
-                                                  ? Colors.white.withValues(alpha: 0.12)
-                                                  : Colors.black.withValues(alpha: 0.06);
-                                      final btnFgColor = isSaving
-                                          ? Colors.white
-                                          : shouldShowActive
-                                              ? Colors.white
-                                              : isDark
-                                                  ? Colors.white60
-                                                  : Colors.black54;
-
-                                      return ElevatedButton.icon(
-                                        onPressed: isSaving || !shouldShowActive ? null : () => _saveDescription(studentId),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: btnBgColor,
-                                          foregroundColor: btnFgColor,
-                                          disabledBackgroundColor: btnBgColor,
-                                          disabledForegroundColor: btnFgColor,
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        ),
-                                        icon: isSaving
-                                            ? const SizedBox(
-                                                width: 14,
-                                                height: 14,
-                                                child: CircularProgressIndicator(
-                                                  color: Colors.white,
-                                                  strokeWidth: 2,
-                                                ),
-                                              )
-                                            : Icon(shouldShowActive ? Icons.save_rounded : Icons.check_circle_outline_rounded, size: 16),
-                                        label: Text(
-                                          isSaving
-                                              ? 'Menyimpan...'
-                                              : shouldShowActive
-                                                  ? 'Simpan'
-                                                  : 'Tersimpan',
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                        ),
-                                      );
-                                    }(),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                          const SizedBox(height: 2),
+                          Text(
+                            '${widget.subjectName} • ${widget.className}',
+                            style: TextStyle(fontSize: 13, color: const Color(0xFF10B981), fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const SizedBox(height: 12),
+              const Divider(),
+              Expanded(
+                child: _isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: isDark ? Colors.white : const Color(0xFF8B5CF6),
                         ),
-            ),
-          ],
+                      )
+                    : _students.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Tidak ada siswa di kelas ini.',
+                              style: TextStyle(color: subTextColor),
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: scrollController,
+                            padding: const EdgeInsets.all(24),
+                            itemCount: _students.length,
+                            itemBuilder: (context, index) {
+                              final studentDoc = _students[index];
+                              final studentId = studentDoc.data()?['studentId'] ?? studentDoc.id;
+                              final studentData = studentDoc.data();
+                              final studentNameStr = studentData?['nama']?.toString() ?? 'Siswa';
+                              final nis = studentData?['nis'] ?? '-';
+                              final controller = _descControllers[studentId];
+                              final isSaving = _savingStates[studentId] ?? false;
+  
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: cardBgColor,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: cardBorderColor),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 38,
+                                          height: 38,
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            gradient: LinearGradient(
+                                              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            studentNameStr[0].toUpperCase(),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                studentNameStr,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: titleColor,
+                                                ),
+                                              ),
+                                              Text(
+                                                'NIS: $nis',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: subTextColor,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: controller,
+                                      maxLines: 3,
+                                      maxLength: 200,
+                                      style: TextStyle(color: titleColor, fontSize: 13),
+                                      decoration: InputDecoration(
+                                        hintText: 'Tulis deskripsi pencapaian siswa untuk mapel ini...',
+                                        hintStyle: TextStyle(color: subTextColor.withValues(alpha: 0.6), fontSize: 12),
+                                        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                                        filled: true,
+                                        contentPadding: const EdgeInsets.all(12),
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: cardBorderColor),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                                        ),
+                                        counterText: '',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: () {
+                                        final isModified = _isModified[studentId] ?? false;
+                                        final isTextEmpty = controller?.text.trim().isEmpty ?? true;
+                                        final shouldShowActive = isModified || isTextEmpty;
+  
+                                        final btnBgColor = isSaving
+                                            ? const Color(0xFF10B981)
+                                            : shouldShowActive
+                                                ? const Color(0xFF10B981)
+                                                : isDark
+                                                    ? Colors.white.withValues(alpha: 0.12)
+                                                    : Colors.black.withValues(alpha: 0.06);
+                                        final btnFgColor = isSaving
+                                            ? Colors.white
+                                            : shouldShowActive
+                                                ? Colors.white
+                                                : isDark
+                                                    ? Colors.white60
+                                                    : Colors.black54;
+  
+                                        return ElevatedButton.icon(
+                                          onPressed: isSaving || !shouldShowActive ? null : () => _saveDescription(studentId),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: btnBgColor,
+                                            foregroundColor: btnFgColor,
+                                            disabledBackgroundColor: btnBgColor,
+                                            disabledForegroundColor: btnFgColor,
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          ),
+                                          icon: isSaving
+                                              ? const SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child: CircularProgressIndicator(
+                                                    color: Colors.white,
+                                                    strokeWidth: 2,
+                                                  ),
+                                                )
+                                              : Icon(shouldShowActive ? Icons.save_rounded : Icons.check_circle_outline_rounded, size: 16),
+                                          label: Text(
+                                            isSaving
+                                                ? 'Menyimpan...'
+                                                : shouldShowActive
+                                                    ? 'Simpan'
+                                                    : 'Tersimpan',
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                          ),
+                                        );
+                                      }(),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+              ),
+            ],
+          ),
         );
       },
     );

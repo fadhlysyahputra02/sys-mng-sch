@@ -370,14 +370,13 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       };
 
       double weightedSum = 0.0;
-      double activeWeightSum = 0.0;
+      final double totalWeightSum = weights.values.fold(0.0, (total, w) => total + w);
       categoryAverages.forEach((category, avg) {
         final w = weights[category] ?? 20.0;
         weightedSum += avg * w;
-        activeWeightSum += w;
       });
 
-      final double finalScore = activeWeightSum > 0 ? weightedSum / activeWeightSum : 0.0;
+      final double finalScore = totalWeightSum > 0 ? weightedSum / totalWeightSum : 0.0;
 
       // Masukkan ke data cetak dengan KKM dinamis
       subjectScores.add({

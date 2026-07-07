@@ -142,7 +142,7 @@ class ParentStudentGradesSectionState extends State<ParentStudentGradesSection> 
 
         if (weights != null) {
           double weightedSum = 0;
-          double weightSum = 0;
+          final double totalWeightSum = weights.values.fold(0.0, (total, w) => total + w);
           categories.forEach((cat, items) {
             final catWeight = weights![cat] ?? 0.0;
             if (catWeight > 0 && items.isNotEmpty) {
@@ -153,11 +153,10 @@ class ParentStudentGradesSectionState extends State<ParentStudentGradesSection> 
                   }) /
                   items.length;
               weightedSum += catAvg * catWeight;
-              weightSum += catWeight;
             }
           });
           weightedAvg[subjectName] =
-              weightSum > 0 ? weightedSum / weightSum : 0.0;
+              totalWeightSum > 0 ? weightedSum / totalWeightSum : 0.0;
         } else {
           double totalScore = 0;
           int count = 0;

@@ -157,18 +157,17 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
         'UAS': 20.0,
       };
 
-      // 3. Hitung bobot aktif dan total nilai
+      // 3. Hitung bobot total dan total nilai
       double weightedSum = 0.0;
-      double activeWeightSum = 0.0;
+      final double totalWeightSum = weights.values.fold(0.0, (total, w) => total + w);
 
       categoryAverages.forEach((category, avg) {
         final w = weights[category] ?? 20.0;
         weightedSum += avg * w;
-        activeWeightSum += w;
       });
 
-      if (activeWeightSum > 0) {
-        results[subjectId] = weightedSum / activeWeightSum;
+      if (totalWeightSum > 0) {
+        results[subjectId] = weightedSum / totalWeightSum;
       }
     });
 
@@ -184,6 +183,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
     required Map<String, Map<String, List<Map<String, dynamic>>>> subjectCategoryGrades,
     required Map<String, Map<String, double>> subjectWeightsMap,
     required Map<String, double> calculatedGrades,
+    required Map<String, String> subjectIdToTeacher,
   }) {
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
@@ -272,6 +272,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                     itemBuilder: (context, index) {
                       final subjectId = subjectIdToName.keys.elementAt(index);
                       final subjectName = subjectIdToName[subjectId] ?? '-';
+                      final teacherName = subjectIdToTeacher[subjectId] ?? '';
                       final double? finalGrade = calculatedGrades[subjectId];
 
                       // Ambil detail nilai per kategori
@@ -324,12 +325,27 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
-                                  child: Text(
-                                    subjectName,
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: titleColor,
+                                  child: Text.rich(
+                                    TextSpan(
+                                      text: subjectName,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: titleColor,
+                                      ),
+                                      children: [
+                                        if (teacherName.isNotEmpty) ...[
+                                          const WidgetSpan(child: SizedBox(width: 8)),
+                                          TextSpan(
+                                            text: '(Guru: $teacherName)',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: subTextColor,
+                                              fontWeight: FontWeight.normal,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -469,6 +485,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                     final gradeDocs = gradesSnapshot.data?.docs ?? [];
                     final Map<String, Map<String, List<Map<String, dynamic>>>> subjectCategoryGrades = {};
                     final Map<String, String> subjectIdToName = {};
+                    final Map<String, String> subjectIdToTeacher = {};
 
                     for (final doc in gradeDocs) {
                       final data = doc.data();
@@ -476,9 +493,13 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                       final subjectName = data['subjectName'] as String?;
                       final category = data['category'] as String?;
                       final scores = data['scores'] as Map<String, dynamic>? ?? {};
+                      final teacherName = data['teacherName'] as String? ?? '';
 
                       if (subjectId != null && category != null && subjectName != null) {
                         subjectIdToName[subjectId] = subjectName;
+                        if (teacherName.isNotEmpty) {
+                          subjectIdToTeacher[subjectId] = teacherName;
+                        }
 
                         subjectCategoryGrades.putIfAbsent(subjectId, () => {});
                         subjectCategoryGrades[subjectId]!.putIfAbsent(category, () => []);
@@ -883,6 +904,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                                 subjectCategoryGrades: subjectCategoryGrades,
                                                 subjectWeightsMap: subjectWeightsMap,
                                                 calculatedGrades: studentGradesCalculated[studentId] ?? {},
+                                                subjectIdToTeacher: subjectIdToTeacher,
                                               );
                                             },
                                             borderRadius: BorderRadius.circular(20),

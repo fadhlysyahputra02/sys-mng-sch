@@ -666,9 +666,9 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                         ),
                                       );
                                     } else if (dateCompare == 0) {
-                                      // Today -> Check if past 18:21
-                                      final bool isAfter1821 = nowTime.hour > 19 || (nowTime.hour == 19 && nowTime.minute >= 11);
-                                      if (isAfter1821) {
+                                      // Today -> Check if past 18:00
+                                      final bool isAfter1800 = nowTime.hour > 18 || (nowTime.hour == 18 && nowTime.minute >= 00);
+                                      if (isAfter1800) {
                                         return Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                           decoration: BoxDecoration(
@@ -718,7 +718,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                     ),
                                                     const SizedBox(height: 6),
                                                     Text(
-                                                      'Hari ini - Belum mencatat absensi (Batas 18:30)',
+                                                      'Hari ini - Belum mencatat absensi (Batas 18:11)',
                                                       style: TextStyle(color: subTextColor, fontSize: 12),
                                                     ),
                                                   ],

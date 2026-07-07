@@ -169,7 +169,17 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
           if (quota <= 0) continue;
 
           while (quota > 0) {
-            if (quota == 3) {
+            if (quota == 4) {
+              final isTwoTwo = math.Random().nextInt(100) < 98;
+              if (isTwoTwo) {
+                blocks.add({'subjectId': subject.id, 'size': 2, 'doc': subject});
+                blocks.add({'subjectId': subject.id, 'size': 2, 'doc': subject});
+              } else {
+                blocks.add({'subjectId': subject.id, 'size': 3, 'doc': subject});
+                blocks.add({'subjectId': subject.id, 'size': 1, 'doc': subject});
+              }
+              quota -= 4;
+            } else if (quota == 3) {
               final isGrouped = math.Random().nextInt(100) < 80;
               if (isGrouped) {
                 blocks.add({'subjectId': subject.id, 'size': 3, 'doc': subject});
@@ -179,7 +189,7 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
                 blocks.add({'subjectId': subject.id, 'size': 1, 'doc': subject});
                 quota -= 3;
               }
-            } else if (quota >= 4) {
+            } else if (quota >= 5) {
               blocks.add({'subjectId': subject.id, 'size': 2, 'doc': subject});
               quota -= 2;
             } else if (quota == 2) {
@@ -201,7 +211,8 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
           classGrid[day] = {};
         }
 
-        Map<String, String> assignedTeacherForSubject = {};
+        final Map<String, String> assignedTeacherForSubject = {};
+        final Set<String> teachersTeachingInThisClass = {};
 
         for (final block in blocks) {
           final subjectId = block['subjectId'] as String;
@@ -211,6 +222,11 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
           List<String> eligibleTeacherIds = eligibleTeachersBySubject[subjectId] ?? [];
           if (assignedTeacherForSubject.containsKey(subjectId)) {
             eligibleTeacherIds = [assignedTeacherForSubject[subjectId]!];
+          } else {
+            // Only select teachers who are not already teaching any other subject in this class
+            eligibleTeacherIds = eligibleTeacherIds
+                .where((tId) => !teachersTeachingInThisClass.contains(tId))
+                .toList();
           }
 
           // Options search
@@ -279,6 +295,7 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
 
               busyTeachers.putIfAbsent(slotKey, () => <String>{}).add(tId);
               assignedTeacherForSubject[subjectId] = tId;
+              teachersTeachingInThisClass.add(tId);
 
               classGrid[day]![slotIdx] = {
                 'classId': classId,
@@ -345,6 +362,7 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
 
                 busyTeachers.putIfAbsent(slotKey, () => <String>{}).add(tId);
                 assignedTeacherForSubject[subjectId] = tId;
+                teachersTeachingInThisClass.add(tId);
 
                 classGrid[day]![slotIdx] = {
                   'classId': classId,
@@ -364,13 +382,23 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
               for (int k = 0; k < blockSize; k++) {
                 final List<Map<String, dynamic>> singleSlotOptions = [];
 
+                // Re-evaluate current eligible teachers based on assignedTeacherForSubject and teachersTeachingInThisClass
+                List<String> currentEligibleTeacherIds = eligibleTeachersBySubject[subjectId] ?? [];
+                if (assignedTeacherForSubject.containsKey(subjectId)) {
+                  currentEligibleTeacherIds = [assignedTeacherForSubject[subjectId]!];
+                } else {
+                  currentEligibleTeacherIds = currentEligibleTeacherIds
+                      .where((tId) => !teachersTeachingInThisClass.contains(tId))
+                      .toList();
+                }
+
                 for (final day in _days) {
                   for (final slot in lessonSlots) {
                     final sIdx = slot['slotIndex'] as int;
                     if (classGrid[day]!.containsKey(sIdx)) continue;
 
                     final slotKey = '${day}_$sIdx';
-                    for (final tId in eligibleTeacherIds) {
+                    for (final tId in currentEligibleTeacherIds) {
                       if (busyTeachers[slotKey]?.contains(tId) != true) {
                         singleSlotOptions.add({'day': day, 'slot': slot, 'teacherId': tId});
                       }
@@ -390,7 +418,7 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
                         chosenOption = {
                           'day': day,
                           'slot': slot,
-                          'teacherId': eligibleTeacherIds.isNotEmpty ? eligibleTeacherIds.first : '',
+                          'teacherId': currentEligibleTeacherIds.isNotEmpty ? currentEligibleTeacherIds.first : '',
                           'forceConflict': true,
                         };
                         break;
@@ -411,6 +439,7 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
                   if (tId.isNotEmpty) {
                     busyTeachers.putIfAbsent(slotKey, () => <String>{}).add(tId);
                     assignedTeacherForSubject[subjectId] = tId;
+                    teachersTeachingInThisClass.add(tId);
                   }
 
                   classGrid[day]![sIdx] = {

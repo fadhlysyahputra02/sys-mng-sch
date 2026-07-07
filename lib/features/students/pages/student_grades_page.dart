@@ -210,7 +210,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
 
         if (weights != null) {
           double weightedSum = 0;
-          double weightSum = 0;
+          final double totalWeightSum = weights.values.fold(0.0, (total, w) => total + w);
           categories.forEach((cat, items) {
             final catWeight = weights![cat] ?? 0.0;
             if (catWeight > 0 && items.isNotEmpty) {
@@ -222,11 +222,10 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                   }) /
                   items.length;
               weightedSum += catAvg * catWeight;
-              weightSum += catWeight;
             }
           });
-          weightedAvg[subjectName] = weightSum > 0
-              ? weightedSum / weightSum
+          weightedAvg[subjectName] = totalWeightSum > 0
+              ? weightedSum / totalWeightSum
               : 0.0;
         } else {
           // Rata-rata biasa
