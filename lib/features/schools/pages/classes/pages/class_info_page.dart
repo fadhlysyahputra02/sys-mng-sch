@@ -277,7 +277,12 @@ class ClassInfoPage extends StatelessWidget {
                             );
                           }
 
-                          final docs = snapshot.data!.docs;
+                          final docs = List.from(snapshot.data!.docs)
+                            ..sort((a, b) {
+                              final nameA = (a.data() as Map<String, dynamic>?)?['nama']?.toString().toLowerCase() ?? '';
+                              final nameB = (b.data() as Map<String, dynamic>?)?['nama']?.toString().toLowerCase() ?? '';
+                              return nameA.compareTo(nameB);
+                            });
 
                           if (docs.isEmpty) {
                             return Center(
