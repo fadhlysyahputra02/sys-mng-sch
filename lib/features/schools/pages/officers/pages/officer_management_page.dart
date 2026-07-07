@@ -109,11 +109,14 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: dialogBorder),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
-            SizedBox(width: 10),
-            Text('Hapus Petugas', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            const SizedBox(width: 10),
+            Text(
+              'Hapus Petugas',
+              style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+            ),
           ],
         ),
         content: Text(

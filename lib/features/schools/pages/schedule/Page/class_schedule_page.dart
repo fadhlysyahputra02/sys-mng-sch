@@ -71,6 +71,8 @@ class ClassSchedulePage extends StatelessWidget {
                       child: Text(
                         'Jadwal $className',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Container(
@@ -85,14 +87,16 @@ class ClassSchedulePage extends StatelessWidget {
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () => _showDeleteByClassConfirmationDialog(context),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.delete_sweep_rounded, color: Colors.red, size: 18),
-                                SizedBox(width: 6),
-                                Text('Hapus', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
+                                const Icon(Icons.delete_sweep_rounded, color: Colors.red, size: 18),
+                                if (MediaQuery.of(context).size.width > 600) ...[
+                                  const SizedBox(width: 6),
+                                  const Text('Hapus', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
+                                ],
                               ],
                             ),
                           ),
@@ -119,14 +123,16 @@ class ClassSchedulePage extends StatelessWidget {
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () => _showAddScheduleDialog(context),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                                SizedBox(width: 6),
-                                Text('Tambah', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                                if (MediaQuery.of(context).size.width > 600) ...[
+                                  const SizedBox(width: 6),
+                                  const Text('Tambah', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                ],
                               ],
                             ),
                           ),
@@ -325,15 +331,19 @@ class ClassSchedulePage extends StatelessWidget {
                           ],
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: Table(
-                          columnWidths: const {
-                            0: FlexColumnWidth(1.2), // Jam
-                            1: FlexColumnWidth(2.5), // Mata Pelajaran
-                            2: FlexColumnWidth(2.5), // Guru
-                            3: FlexColumnWidth(1.2), // Aksi
-                          },
-                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                          children: [
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: 740,
+                            child: Table(
+                              columnWidths: const {
+                                0: FixedColumnWidth(160), // Jam (widened)
+                                1: FlexColumnWidth(2.5),  // Mata Pelajaran
+                                2: FlexColumnWidth(2.5),  // Guru
+                                3: FixedColumnWidth(130),   // Aksi (widened)
+                              },
+                              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                              children: [
                             // Header Row
                             TableRow(
                               decoration: BoxDecoration(
@@ -415,7 +425,7 @@ class ClassSchedulePage extends StatelessWidget {
                                   ),
                                   // Aksi Cell
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       mainAxisSize: MainAxisSize.min,
@@ -443,7 +453,9 @@ class ClassSchedulePage extends StatelessWidget {
                             }),
                           ],
                         ),
-                      )
+                      ),
+                    ),
+                  )
                   ],
                 ),
               );

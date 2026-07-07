@@ -371,22 +371,22 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                   );
                                 } else {
                                   return TextButton.icon(
-                                    onPressed: () => _requestEditDialog(
-                                      context,
-                                      user.schoolId,
-                                      scheduleId,
-                                      widget.scheduleData['subjectName'] ?? '',
-                                      widget.scheduleData['className'] ?? '',
-                                      dateStr,
-                                    ),
-                                    icon: const Icon(Icons.edit_note_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Fitur pengajuan izin edit absensi dinonaktifkan sementara untuk debugging.'),
+                                          backgroundColor: Colors.amber,
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.edit_note_rounded, size: 14, color: Colors.grey),
                                     label: const Text(
-                                      'Edit Absensi',
-                                      style: TextStyle(color: Color(0xFF8B5CF6), fontSize: 10, fontWeight: FontWeight.bold),
+                                      'Edit Absensi (Disabled)',
+                                      style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold),
                                     ),
                                     style: TextButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      backgroundColor: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                      backgroundColor: Colors.grey.withValues(alpha: 0.1),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                       minimumSize: Size.zero,
                                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -998,6 +998,14 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
     String className,
     String dateStr,
   ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Fitur pengajuan izin edit absensi dinonaktifkan sementara untuk debugging.'),
+        backgroundColor: Colors.amber,
+      ),
+    );
+    return;
+
     final reasonController = TextEditingController();
     bool isSubmitting = false;
     final teacher = SessionService.currentUser!;

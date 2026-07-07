@@ -152,50 +152,43 @@ class _AutoScheduleGeneratorPageState extends State<AutoScheduleGeneratorPage> {
           quotas = Map<String, int>.from(classData['subjectQuotas']);
         }
 
+        // Skip classes that have no lesson hours (quotas) configured or all are 0
+        quotas.removeWhere((key, value) => value <= 0);
+        if (quotas.isEmpty) {
+          continue;
+        }
+
         final totalSubjectSlots = _days.length * _slotsPerDay;
         if (totalSubjectSlots == 0) continue;
 
         // Partition subjects into blocks of sizes 1, 2, or 3
         final List<Map<String, dynamic>> blocks = [];
 
-        if (quotas.isNotEmpty) {
-          for (final subject in subjects) {
-            int quota = quotas[subject.id] ?? 0;
-            if (quota <= 0) continue;
+        for (final subject in subjects) {
+          int quota = quotas[subject.id] ?? 0;
+          if (quota <= 0) continue;
 
-            while (quota > 0) {
-              if (quota == 3) {
-                final isGrouped = math.Random().nextInt(100) < 80;
-                if (isGrouped) {
-                  blocks.add({'subjectId': subject.id, 'size': 3, 'doc': subject});
-                  quota -= 3;
-                } else {
-                  blocks.add({'subjectId': subject.id, 'size': 2, 'doc': subject});
-                  blocks.add({'subjectId': subject.id, 'size': 1, 'doc': subject});
-                  quota -= 3;
-                }
-              } else if (quota >= 4) {
-                blocks.add({'subjectId': subject.id, 'size': 2, 'doc': subject});
-                quota -= 2;
-              } else if (quota == 2) {
-                blocks.add({'subjectId': subject.id, 'size': 2, 'doc': subject});
-                quota -= 2;
+          while (quota > 0) {
+            if (quota == 3) {
+              final isGrouped = math.Random().nextInt(100) < 80;
+              if (isGrouped) {
+                blocks.add({'subjectId': subject.id, 'size': 3, 'doc': subject});
+                quota -= 3;
               } else {
+                blocks.add({'subjectId': subject.id, 'size': 2, 'doc': subject});
                 blocks.add({'subjectId': subject.id, 'size': 1, 'doc': subject});
-                quota -= 1;
+                quota -= 3;
               }
+            } else if (quota >= 4) {
+              blocks.add({'subjectId': subject.id, 'size': 2, 'doc': subject});
+              quota -= 2;
+            } else if (quota == 2) {
+              blocks.add({'subjectId': subject.id, 'size': 2, 'doc': subject});
+              quota -= 2;
+            } else {
+              blocks.add({'subjectId': subject.id, 'size': 1, 'doc': subject});
+              quota -= 1;
             }
-          }
-        } else {
-          // Fallback: Pro-rata random blocks if no quotas configured
-          int quotaCount = totalSubjectSlots;
-          int sIdx = 0;
-          while (quotaCount > 0) {
-            final subject = subjects[sIdx % subjects.length];
-            final size = quotaCount >= 2 ? 2 : 1;
-            blocks.add({'subjectId': subject.id, 'size': size, 'doc': subject});
-            quotaCount -= size;
-            sIdx++;
           }
         }
 
