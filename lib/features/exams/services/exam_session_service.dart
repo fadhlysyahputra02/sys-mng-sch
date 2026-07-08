@@ -72,21 +72,154 @@ class ExamSessionService {
   }
 
   /// Update status event (Planning → Active → Finished)
+  /// Jika status menjadi Active, buat dokumen Exam di collection /exams untuk setiap sesi yang memiliki soal
   Future<void> updateExamEventStatus(
       String schoolId, String eventId, String status) async {
     await _eventsRef(schoolId).doc(eventId).update({'examStatus': status});
+
+    if (status == 'Active') {
+      // 1. Ambil detail event untuk tahu examType, dll.
+      final eventDoc = await _eventsRef(schoolId).doc(eventId).get();
+      if (!eventDoc.exists) return;
+      final eventData = eventDoc.data()!;
+      final examType = eventData['examType']?.toString() ?? 'UTS';
+      final title = eventData['title']?.toString() ?? '';
+
+      // Map subjectConfigs agar gampang diakses
+      final List subjectConfigsList = eventData['subjectConfigs'] as List? ?? [];
+      final Map<String, Map<String, dynamic>> subjectConfigsMap = {};
+      for (final item in subjectConfigsList) {
+        final map = Map<String, dynamic>.from(item);
+        final subId = map['subjectId']?.toString() ?? '';
+        if (subId.isNotEmpty) {
+          subjectConfigsMap[subId] = map;
+        }
+      }
+
+      // Ambil tahunAjaran dan semester dari school metadata
+      final schoolDoc = await _db.collection('schools').doc(schoolId).get();
+      final schoolData = schoolDoc.data() ?? {};
+      final tahunAjaran = schoolData['tahunAjaran']?.toString() ?? '';
+      final semester = schoolData['semester']?.toString() ?? '';
+
+      // 2. Ambil semua sesi untuk event ini
+      final sessionsSnap = await _sessionsRef(schoolId)
+          .where('eventId', isEqualTo: eventId)
+          .get();
+
+      for (final sDoc in sessionsSnap.docs) {
+        final sData = sDoc.data();
+        final subjectId = sData['subjectId']?.toString() ?? '';
+        final subjectName = sData['subjectName']?.toString() ?? '';
+        final classId = sData['classId']?.toString() ?? '';
+        final className = sData['className']?.toString() ?? '';
+
+        // Dapatkan corrector/author ids & names dari config
+        final config = subjectConfigsMap[subjectId];
+        List<String> authorIds = [];
+        List<String> authorNames = [];
+        if (config != null) {
+          if (config['authorTeacherIds'] != null) {
+            authorIds = List<String>.from(config['authorTeacherIds']);
+          } else if (config['authorTeacherId'] != null && config['authorTeacherId'].toString().isNotEmpty) {
+            authorIds = [config['authorTeacherId'].toString()];
+          }
+
+          if (config['authorTeacherNames'] != null) {
+            authorNames = List<String>.from(config['authorTeacherNames']);
+          } else if (config['authorTeacherName'] != null && config['authorTeacherName'].toString().isNotEmpty) {
+            authorNames = [config['authorTeacherName'].toString()];
+          }
+        }
+
+        // Tentukan durasi
+        int duration = 90;
+        try {
+          final start = sData['startTime']?.toString() ?? '07:30';
+          final end = sData['endTime']?.toString() ?? '09:00';
+          final startParts = start.split(':');
+          final endParts = end.split(':');
+          final startMin = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+          final endMin = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+          if (endMin > startMin) {
+            duration = endMin - startMin;
+          }
+        } catch (_) {}
+
+        // Ambil questions dari exam_questions/${eventId}_${subjectId}
+        final qDoc = await _db
+            .collection('schools')
+            .doc(schoolId)
+            .collection('exam_questions')
+            .doc('${eventId}_$subjectId')
+            .get();
+
+        if (qDoc.exists && qDoc.data() != null) {
+          final qData = qDoc.data()!;
+          final questionsList = qData['questions'] as List? ?? [];
+
+          // Buat ID exam: eventId_subjectId_classId
+          final examId = '${eventId}_${subjectId}_$classId';
+
+          // Tulis ke collection /exams
+          await _db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('exams')
+              .doc(examId)
+              .set({
+            'title': '$examType $subjectName - $className',
+            'description': 'Ujian Semester $examType - $title',
+            'classId': classId,
+            'className': className,
+            'subjectId': subjectId,
+            'subjectName': subjectName,
+            'teacherId': authorIds.isNotEmpty ? authorIds.first : '',
+            'teacherName': authorNames.isNotEmpty ? authorNames.join(', ') : 'Guru Penguji',
+            'teacherIds': authorIds,
+            'teacherNames': authorNames,
+            'durationMinutes': duration,
+            'syncToGrades': true,
+            'gradeCategory': examType, // UTS atau UAS
+            'tahunAjaran': tahunAjaran,
+            'semester': semester,
+            'createdAt': FieldValue.serverTimestamp(),
+            'dueDate': Timestamp.fromDate((sData['date'] as Timestamp).toDate().add(const Duration(days: 1))),
+            'status': 'active',
+            'questions': questionsList,
+            'susulanStudentIds': [],
+          });
+        }
+      }
+    }
   }
 
   /// Hapus event beserta seluruh sesinya (batch delete)
   Future<void> deleteExamEvent(String schoolId, String eventId) async {
-    // Hapus semua sesi terkait dulu
+    final batch = _db.batch();
+
+    // Hapus semua sesi terkait
     final sessions = await _sessionsRef(schoolId)
         .where('eventId', isEqualTo: eventId)
         .get();
-    final batch = _db.batch();
     for (final doc in sessions.docs) {
       batch.delete(doc.reference);
     }
+
+    // Hapus exams yang digenerate oleh event ini
+    final examsSnap = await _db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('exams')
+        .get();
+    for (final doc in examsSnap.docs) {
+      if (doc.id.startsWith('${eventId}_')) {
+        batch.delete(doc.reference);
+        // Hapus juga grades terkait
+        batch.delete(_db.collection('schools').doc(schoolId).collection('grades').doc(doc.id));
+      }
+    }
+
     batch.delete(_eventsRef(schoolId).doc(eventId));
     await batch.commit();
   }

@@ -68,14 +68,15 @@ class ExamService {
             snapshot.docs.map((doc) => Exam.fromFirestore(doc)).toList());
   }
 
-  /// Stream list ujian untuk guru tertentu
+  /// Stream list ujian untuk guru tertentu (dengan client-side filtering untuk multi-corrector)
   Stream<List<Exam>> getExamsForTeacher(String schoolId, String teacherId) {
     return _examsRef(schoolId)
-        .where('teacherId', isEqualTo: teacherId)
         .where('status', isEqualTo: 'active')
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => Exam.fromFirestore(doc)).toList());
+        .map((snapshot) {
+          final list = snapshot.docs.map((doc) => Exam.fromFirestore(doc)).toList();
+          return list.where((exam) => exam.teacherIds.contains(teacherId) || exam.teacherId == teacherId).toList();
+        });
   }
 
   /// Stream seluruh hasil pengerjaan murid untuk ujian tertentu

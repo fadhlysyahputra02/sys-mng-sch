@@ -19,7 +19,6 @@ class ExamSlot {
         startTime: map['startTime'] ?? '',
         endTime: map['endTime'] ?? '',
       );
-
   Map<String, dynamic> toMap() => {
         'name': name,
         'startTime': startTime,
@@ -33,32 +32,46 @@ class ExamSlot {
 class ExamSubjectConfig {
   final String subjectId;
   final String subjectName;
-  final String authorTeacherId;   // Pembuat soal → tidak boleh jadi pengawas
-  final String authorTeacherName;
-  final List<String> classIds;    // Kelas yang mengikuti ujian mapel ini
+  final List<String> authorTeacherIds;
+  final List<String> authorTeacherNames;
+  final List<String> classIds;
 
   const ExamSubjectConfig({
     required this.subjectId,
     required this.subjectName,
-    required this.authorTeacherId,
-    required this.authorTeacherName,
+    required this.authorTeacherIds,
+    required this.authorTeacherNames,
     required this.classIds,
   });
 
-  factory ExamSubjectConfig.fromMap(Map<String, dynamic> map) => ExamSubjectConfig(
-        subjectId: map['subjectId'] ?? '',
-        subjectName: map['subjectName'] ?? '',
-        authorTeacherId: map['authorTeacherId'] ?? '',
-        authorTeacherName: map['authorTeacherName'] ?? '',
-        classIds: List<String>.from(map['classIds'] ?? []),
-      );
+  factory ExamSubjectConfig.fromMap(Map<String, dynamic> map) {
+    final List<String> ids = map['authorTeacherIds'] != null
+        ? List<String>.from(map['authorTeacherIds'])
+        : (map['authorTeacherId'] != null && map['authorTeacherId'].toString().isNotEmpty
+            ? map['authorTeacherId'].toString().split(',')
+            : []);
+    final List<String> names = map['authorTeacherNames'] != null
+        ? List<String>.from(map['authorTeacherNames'])
+        : (map['authorTeacherName'] != null && map['authorTeacherName'].toString().isNotEmpty
+            ? map['authorTeacherName'].toString().split(', ')
+            : []);
+    return ExamSubjectConfig(
+      subjectId: map['subjectId'] ?? '',
+      subjectName: map['subjectName'] ?? '',
+      authorTeacherIds: ids,
+      authorTeacherNames: names,
+      classIds: List<String>.from(map['classIds'] ?? []),
+    );
+  }
 
   Map<String, dynamic> toMap() => {
         'subjectId': subjectId,
         'subjectName': subjectName,
-        'authorTeacherId': authorTeacherId,
-        'authorTeacherName': authorTeacherName,
+        'authorTeacherIds': authorTeacherIds,
+        'authorTeacherNames': authorTeacherNames,
         'classIds': classIds,
+        'authorTeacherId': authorTeacherIds.isNotEmpty ? authorTeacherIds.join(',') : '',
+        'authorTeacherName': authorTeacherNames.isNotEmpty ? authorTeacherNames.join(', ') : '',
       };
 }
 

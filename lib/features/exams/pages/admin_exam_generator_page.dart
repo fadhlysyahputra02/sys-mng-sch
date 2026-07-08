@@ -474,7 +474,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
           return false;
         }
         for (final config in _subjectConfigs) {
-          if (config.authorTeacherId.isEmpty) {
+          if (config.authorTeacherIds.isEmpty) {
             _showError(
                 'Pilih pembuat soal untuk "${config.subjectName}"');
             return false;
@@ -1189,9 +1189,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     Color titleColor,
     Color subtitleColor,
   ) {
-    final authorName = _allTeachers
-        .firstWhere((t) => t['id'] == config.authorTeacherId,
-            orElse: () => {'nama': 'Belum dipilih'})['nama'] as String;
+    final authorNames = config.authorTeacherNames.isNotEmpty
+        ? config.authorTeacherNames.join(', ')
+        : 'Belum dipilih';
     final classNames = config.classIds
         .map((id) => _allClasses
             .firstWhere((c) => c['id'] == id,
@@ -1231,7 +1231,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             ],
           ),
           const SizedBox(height: 8),
-          _buildInfoRow(Icons.person_rounded, 'Pembuat Soal: $authorName',
+          _buildInfoRow(Icons.person_rounded, 'Pembuat Soal: $authorNames',
               subtitleColor),
           const SizedBox(height: 4),
           _buildInfoRow(
@@ -1269,9 +1269,46 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
   ) {
     String? selectedSubjectId;
     String? selectedSubjectName;
-    String? selectedAuthorId;
-    String? selectedAuthorName;
+    final List<String> selectedAuthorIds = [];
+    final List<String> selectedAuthorNames = [];
     final List<String> selectedClassIds = [];
+    List<Map<String, dynamic>> filteredTeachers = [];
+    bool isLoadingTeachers = false;
+
+    Future<void> fetchTeachersForSubject(String subjectId, void Function(void Function()) setModalState) async {
+      setModalState(() {
+        isLoadingTeachers = true;
+        filteredTeachers = [];
+        selectedAuthorIds.clear();
+        selectedAuthorNames.clear();
+      });
+      final schoolId = SessionService.currentUser!.schoolId;
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('teacher_subjects')
+            .where('subjectId', isEqualTo: subjectId)
+            .get();
+
+        final List<Map<String, dynamic>> list = snap.docs.map((d) {
+          final data = d.data();
+          return {
+            'id': data['teacherId']?.toString() ?? '',
+            'nama': data['teacherName']?.toString() ?? '',
+          };
+        }).where((t) => t['id'].isNotEmpty && t['nama'].isNotEmpty).toList();
+
+        setModalState(() {
+          filteredTeachers = list;
+          isLoadingTeachers = false;
+        });
+      } catch (_) {
+        setModalState(() {
+          isLoadingTeachers = false;
+        });
+      }
+    }
 
     showModalBottomSheet(
       context: context,
@@ -1335,48 +1372,71 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                         selectedSubjectName = _allSubjects
                             .firstWhere((s) => s['id'] == val)['name'] as String;
                       });
+                      if (val != null) {
+                        fetchTeachersForSubject(val, setModalState);
+                      }
                     },
                   ),
                   const SizedBox(height: 16),
 
                   // Pilih Author
-                  Text('Pembuat Soal (Author)',
+                  Text('Guru Penguji / Pembuat Soal (Bisa Pilih > 1)',
                       style: TextStyle(
                           color: subtitleColor,
                           fontSize: 12,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    value: selectedAuthorId,
-                    dropdownColor:
-                        isDark ? const Color(0xFF1A1730) : Colors.white,
-                    style: TextStyle(color: titleColor),
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: cardBorder)),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: cardBorder)),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                    ),
-                    hint: Text('Pilih Guru Pembuat Soal',
-                        style: TextStyle(color: subtitleColor)),
-                    items: _allTeachers.map((t) {
-                      return DropdownMenuItem(
-                          value: t['id'] as String,
-                          child: Text(t['nama'] as String,
-                              style: TextStyle(color: titleColor)));
-                    }).toList(),
-                    onChanged: (val) {
-                      setModalState(() {
-                        selectedAuthorId = val;
-                        selectedAuthorName = _allTeachers
-                            .firstWhere((t) => t['id'] == val)['nama'] as String;
-                      });
-                    },
-                  ),
+                  if (selectedSubjectId == null)
+                    Text('Pilih mata pelajaran terlebih dahulu',
+                        style: TextStyle(color: subtitleColor.withValues(alpha: 0.5), fontSize: 13))
+                  else if (isLoadingTeachers)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B5CF6)),
+                        ),
+                      ),
+                    )
+                  else () {
+                    final displayTeachers = filteredTeachers.isNotEmpty ? filteredTeachers : _allTeachers;
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: displayTeachers.map((t) {
+                        final isSelected = selectedAuthorIds.contains(t['id']);
+                        return FilterChip(
+                          label: Text(t['nama']),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                          checkmarkColor: const Color(0xFF8B5CF6),
+                          labelStyle: TextStyle(
+                            color: isSelected ? const Color(0xFF8B5CF6) : titleColor,
+                            fontSize: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(
+                              color: isSelected ? const Color(0xFF8B5CF6) : cardBorder,
+                            ),
+                          ),
+                          onSelected: (selected) {
+                            setModalState(() {
+                              if (selected) {
+                                selectedAuthorIds.add(t['id'] as String);
+                                selectedAuthorNames.add(t['nama'] as String);
+                              } else {
+                                selectedAuthorIds.remove(t['id']);
+                                selectedAuthorNames.remove(t['nama']);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    );
+                  }(),
                   const SizedBox(height: 16),
 
                   // Pilih Kelas
@@ -1446,8 +1506,8 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                         _showError('Pilih mata pelajaran');
                         return;
                       }
-                      if (selectedAuthorId == null) {
-                        _showError('Pilih pembuat soal');
+                      if (selectedAuthorIds.isEmpty) {
+                        _showError('Pilih minimal satu guru pengoreksi');
                         return;
                       }
                       if (selectedClassIds.isEmpty) {
@@ -1458,8 +1518,8 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                         _subjectConfigs.add(ExamSubjectConfig(
                           subjectId: selectedSubjectId!,
                           subjectName: selectedSubjectName!,
-                          authorTeacherId: selectedAuthorId!,
-                          authorTeacherName: selectedAuthorName!,
+                          authorTeacherIds: List.from(selectedAuthorIds),
+                          authorTeacherNames: List.from(selectedAuthorNames),
                           classIds: List.from(selectedClassIds),
                         ));
                       });
@@ -1484,6 +1544,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       ),
     );
   }
+
 
   // ── Step 4: Konfigurasi Ruang Ujian ──────────────────────────
   Widget _buildStep4(bool isDark, Color cardColor, Color cardBorder, Color titleColor) {

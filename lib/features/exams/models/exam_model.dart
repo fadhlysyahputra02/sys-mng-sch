@@ -39,7 +39,6 @@ class ExamQuestion {
     };
   }
 }
-
 class Exam {
   final String id;
   final String title;
@@ -50,6 +49,8 @@ class Exam {
   final String subjectName;
   final String teacherId;
   final String teacherName;
+  final List<String> teacherIds;
+  final List<String> teacherNames;
   final int durationMinutes;
   final bool syncToGrades;
   final String gradeCategory;
@@ -71,6 +72,8 @@ class Exam {
     required this.subjectName,
     required this.teacherId,
     required this.teacherName,
+    required this.teacherIds,
+    required this.teacherNames,
     required this.durationMinutes,
     this.syncToGrades = false,
     required this.gradeCategory,
@@ -89,6 +92,18 @@ class Exam {
         .map((q) => ExamQuestion.fromMap(Map<String, dynamic>.from(q)))
         .toList();
 
+    final List<String> tIds = data['teacherIds'] != null
+        ? List<String>.from(data['teacherIds'])
+        : (data['teacherId'] != null && data['teacherId'].toString().isNotEmpty
+            ? [data['teacherId'].toString()]
+            : []);
+
+    final List<String> tNames = data['teacherNames'] != null
+        ? List<String>.from(data['teacherNames'])
+        : (data['teacherName'] != null && data['teacherName'].toString().isNotEmpty
+            ? [data['teacherName'].toString()]
+            : []);
+
     return Exam(
       id: doc.id,
       title: data['title'] ?? '',
@@ -97,8 +112,10 @@ class Exam {
       className: data['className'] ?? '',
       subjectId: data['subjectId'] ?? '',
       subjectName: data['subjectName'] ?? '',
-      teacherId: data['teacherId'] ?? '',
-      teacherName: data['teacherName'] ?? '',
+      teacherId: tIds.isNotEmpty ? tIds.first : (data['teacherId'] ?? ''),
+      teacherName: tNames.isNotEmpty ? tNames.join(', ') : (data['teacherName'] ?? ''),
+      teacherIds: tIds,
+      teacherNames: tNames,
       durationMinutes: data['durationMinutes'] ?? 0,
       syncToGrades: data['syncToGrades'] as bool? ?? false,
       gradeCategory: data['gradeCategory'] ?? 'Kuis',
@@ -120,8 +137,10 @@ class Exam {
       'className': className,
       'subjectId': subjectId,
       'subjectName': subjectName,
-      'teacherId': teacherId,
-      'teacherName': teacherName,
+      'teacherId': teacherIds.isNotEmpty ? teacherIds.first : teacherId,
+      'teacherName': teacherNames.isNotEmpty ? teacherNames.join(', ') : teacherName,
+      'teacherIds': teacherIds,
+      'teacherNames': teacherNames,
       'durationMinutes': durationMinutes,
       'syncToGrades': syncToGrades,
       'gradeCategory': gradeCategory,

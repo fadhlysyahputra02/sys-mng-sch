@@ -222,9 +222,8 @@ class ExamSchedulerService {
       final List<Map<String, dynamic>> candidates = [];
       for (final teacher in teachers) {
         final tid = teacher['id'] as String;
-
         // Constraint a: author soal tidak boleh mengawas
-        if (tid == session.authorTeacherId) continue;
+        if (session.authorTeacherId.split(',').contains(tid)) continue;
 
         // Constraint b: maks 2 sesi per hari
         final loadKey = '${tid}_$dateKey';
