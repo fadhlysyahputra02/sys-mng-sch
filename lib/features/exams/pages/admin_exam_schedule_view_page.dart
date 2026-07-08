@@ -738,8 +738,9 @@ class _AdminExamScheduleViewPageState
                   itemBuilder: (_, i) {
                     final doc = teachers.docs[i];
                     final data = doc.data();
+
                     final teacherName = data['nama'] ?? '';
-                    final isAuthor = doc.id == session.authorTeacherId;
+                    final isAuthor = session.authorTeacherId.split(',').contains(doc.id);
                     final isSelected = doc.id == selectedId;
 
                     return ListTile(

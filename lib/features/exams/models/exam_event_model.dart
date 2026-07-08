@@ -35,7 +35,6 @@ class ExamSubjectConfig {
   final List<String> authorTeacherIds;
   final List<String> authorTeacherNames;
   final List<String> classIds;
-
   const ExamSubjectConfig({
     required this.subjectId,
     required this.subjectName,
@@ -43,6 +42,9 @@ class ExamSubjectConfig {
     required this.authorTeacherNames,
     required this.classIds,
   });
+
+  String get authorTeacherId => authorTeacherIds.isNotEmpty ? authorTeacherIds.join(',') : '';
+  String get authorTeacherName => authorTeacherNames.isNotEmpty ? authorTeacherNames.join(', ') : '';
 
   factory ExamSubjectConfig.fromMap(Map<String, dynamic> map) {
     final List<String> ids = map['authorTeacherIds'] != null

@@ -469,8 +469,8 @@ class _StudentExamParticipationPageState
                         stream: FirebaseFirestore.instance
                             .collection('schools')
                             .doc(schoolId)
-                            .collection('exam_questions')
-                            .doc('${session.eventId}_${session.subjectId}')
+                            .collection('exams')
+                            .doc('${session.eventId}_${session.subjectId}_${session.classId}')
                             .snapshots(),
                         builder: (context, examSnap) {
                           if (examSnap.connectionState == ConnectionState.waiting) {
@@ -505,12 +505,9 @@ class _StudentExamParticipationPageState
                             );
                           }
 
-                          final data = doc.data()!;
-                          final questionsList = (data['questions'] as List? ?? [])
-                              .map((q) => ExamQuestion.fromMap(Map<String, dynamic>.from(q)))
-                              .toList();
+                          final exam = Exam.fromFirestore(doc);
 
-                          if (questionsList.isEmpty) {
+                          if (exam.questions.isEmpty) {
                             return Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 6),
@@ -533,39 +530,6 @@ class _StudentExamParticipationPageState
                               ),
                             );
                           }
-
-                          // Hitung durasi pengerjaan secara dinamis berdasarkan jam mulai & selesai
-                          int calculatedDuration = 90;
-                          try {
-                            final startParts = session.startTime.split(':');
-                            final endParts = session.endTime.split(':');
-                            final startMin = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
-                            final endMin = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
-                            if (endMin > startMin) {
-                              calculatedDuration = endMin - startMin;
-                            }
-                          } catch (_) {}
-
-                          // Buat objek Exam in-memory agar bisa di-pass ke StudentTakeExamPage
-                          final exam = Exam(
-                            id: doc.id,
-                            title: 'Ujian Semester: ${session.subjectName}',
-                            description: 'Selamat Mengerjakan!',
-                            classId: session.classId,
-                            className: session.className,
-                            subjectId: session.subjectId,
-                            subjectName: session.subjectName,
-                            teacherId: session.authorTeacherId,
-                            teacherName: session.proctorName,
-                            durationMinutes: calculatedDuration,
-                            gradeCategory: 'UTS', // Default UTS/UAS
-                            tahunAjaran: '',
-                            semester: '',
-                            createdAt: DateTime.now(),
-                            dueDate: session.date.add(const Duration(days: 1)),
-                            status: 'Active',
-                            questions: questionsList,
-                          );
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.end,

@@ -43,6 +43,8 @@ class ExamService {
       subjectName: subjectName,
       teacherId: teacherId,
       teacherName: teacherName,
+      teacherIds: [teacherId],
+      teacherNames: [teacherName],
       durationMinutes: durationMinutes,
       syncToGrades: syncToGrades,
       gradeCategory: gradeCategory,

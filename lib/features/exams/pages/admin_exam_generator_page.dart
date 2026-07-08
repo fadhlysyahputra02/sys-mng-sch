@@ -1297,12 +1297,13 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             'id': data['teacherId']?.toString() ?? '',
             'nama': data['teacherName']?.toString() ?? '',
           };
-        }).where((t) => t['id'].isNotEmpty && t['nama'].isNotEmpty).toList();
+        }).where((t) => (t['id'] as String).isNotEmpty && (t['nama'] as String).isNotEmpty).toList();
 
         setModalState(() {
           filteredTeachers = list;
           isLoadingTeachers = false;
         });
+
       } catch (_) {
         setModalState(() {
           isLoadingTeachers = false;
