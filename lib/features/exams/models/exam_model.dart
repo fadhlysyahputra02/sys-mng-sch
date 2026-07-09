@@ -7,6 +7,10 @@ class ExamQuestion {
   final int correctOptionIndex;
   final String type; // 'multiple_choice' or 'essay'
   final int points;
+  final String? createdByTeacherId;
+  final String? createdByTeacherName;
+  final String? updatedByTeacherId;
+  final String? updatedByTeacherName;
 
   ExamQuestion({
     required this.id,
@@ -15,6 +19,10 @@ class ExamQuestion {
     required this.correctOptionIndex,
     this.type = 'multiple_choice',
     this.points = 10,
+    this.createdByTeacherId,
+    this.createdByTeacherName,
+    this.updatedByTeacherId,
+    this.updatedByTeacherName,
   });
 
   factory ExamQuestion.fromMap(Map<String, dynamic> map) {
@@ -25,6 +33,10 @@ class ExamQuestion {
       correctOptionIndex: map['correctOptionIndex'] ?? 0,
       type: map['type'] ?? 'multiple_choice',
       points: map['points'] ?? 10,
+      createdByTeacherId: map['createdByTeacherId'],
+      createdByTeacherName: map['createdByTeacherName'],
+      updatedByTeacherId: map['updatedByTeacherId'],
+      updatedByTeacherName: map['updatedByTeacherName'],
     );
   }
 
@@ -36,6 +48,10 @@ class ExamQuestion {
       'correctOptionIndex': correctOptionIndex,
       'type': type,
       'points': points,
+      'createdByTeacherId': createdByTeacherId,
+      'createdByTeacherName': createdByTeacherName,
+      'updatedByTeacherId': updatedByTeacherId,
+      'updatedByTeacherName': updatedByTeacherName,
     };
   }
 }

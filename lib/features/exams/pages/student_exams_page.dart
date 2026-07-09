@@ -201,7 +201,7 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                   }
 
                   return StreamBuilder<ExamEvent?>(
-                    stream: ExamSessionService().getActiveExamEvent(user.schoolId),
+                    stream: ExamSessionService().getLatestExamEvent(user.schoolId),
                     builder: (context, activeEventSnap) {
                       final activeEvent = activeEventSnap.data;
 
@@ -274,9 +274,16 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                                     color: const Color(0xFF10B981).withValues(alpha: 0.15),
                                                     borderRadius: BorderRadius.circular(6),
                                                   ),
-                                                  child: const Text('Sedang Berlangsung',
+                                                  child: Text(
+                                                      activeEvent.examStatus == 'Active'
+                                                          ? 'Sedang Berlangsung'
+                                                          : activeEvent.examStatus == 'Planning'
+                                                              ? 'Persiapan'
+                                                              : 'Terjadwal',
                                                       style: TextStyle(
-                                                          color: Color(0xFF10B981),
+                                                          color: activeEvent.examStatus == 'Active'
+                                                              ? const Color(0xFF10B981)
+                                                              : const Color(0xFF8B5CF6),
                                                           fontSize: 10,
                                                           fontWeight: FontWeight.bold)),
                                                 ),

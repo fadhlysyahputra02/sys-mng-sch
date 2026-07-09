@@ -1291,13 +1291,32 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             .where('subjectId', isEqualTo: subjectId)
             .get();
 
+        final teachersSnap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('teachers')
+            .where('aktif', isEqualTo: true)
+            .get();
+
+        final activeTeacherIds = teachersSnap.docs.map((d) => d.id).toSet();
+
         final List<Map<String, dynamic>> list = snap.docs.map((d) {
           final data = d.data();
+          final tId = data['teacherId']?.toString() ?? '';
+          final matchDoc = teachersSnap.docs.where((doc) => doc.id == tId);
+          final currentName = matchDoc.isNotEmpty
+              ? matchDoc.first.data()['nama']?.toString() ?? ''
+              : (data['teacherName']?.toString() ?? '');
+
           return {
-            'id': data['teacherId']?.toString() ?? '',
-            'nama': data['teacherName']?.toString() ?? '',
+            'id': tId,
+            'nama': currentName,
           };
-        }).where((t) => (t['id'] as String).isNotEmpty && (t['nama'] as String).isNotEmpty).toList();
+        }).where((t) {
+          final tId = t['id'] as String;
+          final tName = t['nama'] as String;
+          return tId.isNotEmpty && tName.isNotEmpty && activeTeacherIds.contains(tId);
+        }).toList();
 
         setModalState(() {
           filteredTeachers = list;
@@ -1411,6 +1430,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                         return FilterChip(
                           label: Text(t['nama']),
                           selected: isSelected,
+                          backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
                           selectedColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
                           checkmarkColor: const Color(0xFF8B5CF6),
                           labelStyle: TextStyle(
@@ -1810,6 +1830,8 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
               builder: (context) {
                 final assignments = _calculateRoomAssignments();
                 final remainingCounts = _getClassUnassignedCounts(assignments);
+                final activeClassIds = _subjectConfigs.expand((c) => c.classIds).toSet();
+                final filteredClasses = _allClasses.where((c) => activeClassIds.contains(c['id'] ?? '')).toList();
 
                 return ListView.separated(
                   shrinkWrap: true,
@@ -2044,9 +2066,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  if (_allClasses.isEmpty)
+                                  if (filteredClasses.isEmpty)
                                     Text(
-                                      'Tidak ada data kelas.',
+                                      'Tidak ada kelas terpilih dari mata pelajaran.',
                                       style: TextStyle(
                                           color: subtitleColor,
                                           fontSize: 11,
@@ -2056,7 +2078,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                     Wrap(
                                       spacing: 8,
                                       runSpacing: 8,
-                                      children: _allClasses.map((cls) {
+                                      children: filteredClasses.map((cls) {
                                         final className = cls['name'] ?? '';
                                         final classId = cls['id'] ?? '';
                                         final totalInClass = _studentsByClass[classId]?.length ?? 0;
@@ -2486,7 +2508,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             final List<ExamParticipation> participations = sessionStudents.map((s) {
               return ExamParticipation(
                 studentId: s['id'] ?? '',
-                studentName: s['name'] ?? '',
+                studentName: s['nama'] ?? s['name'] ?? '',
                 nis: s['nis'] ?? '',
                 hasStarted: false,
                 seatNumber: s['seatNumber'] as int? ?? 0,
@@ -3822,7 +3844,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         }
 
         if (picked != null) {
-          interleaved.add(picked);
+          final copy = Map<String, dynamic>.from(picked);
+          copy['seatNumber'] = i + 1;
+          interleaved.add(copy);
           assignedStudentIds.add(picked['id'] as String);
         }
       }

@@ -2171,6 +2171,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 const SizedBox(height: 4),
                 _buildSidebarItem('Ujian Online', Icons.quiz_rounded, 6, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
+                _buildSidebarItem('Ujian Semester', Icons.assignment_rounded, 15, const Color(0xFF8B5CF6), isDark),
+                const SizedBox(height: 4),
                 _buildSidebarItem('Realtime Control', Icons.settings_remote_rounded, 7, const Color(0xFF84CC16), isDark),
                 const SizedBox(height: 4),
                 _buildSidebarItem('Chat', Icons.chat_rounded, 8, const Color(0xFF8B5CF6), isDark, isChat: true),
@@ -2450,7 +2452,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         } else {
           return const Center(child: Text("Akses ditolak. Anda bukan petugas perpustakaan."));
         }
-
+      case 15:
+        return TeacherProctorDashboardPage(
+          teacherId: _teacherDocId!,
+          hideBackButton: true,
+        );
       default:
         return _buildDesktopDashboardHome(isDark);
     }

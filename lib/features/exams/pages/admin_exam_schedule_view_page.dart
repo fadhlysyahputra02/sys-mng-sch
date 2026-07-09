@@ -119,12 +119,44 @@ class _AdminExamScheduleViewPageState
                                   ],
                                 ),
                               ),
+                            if (event != null && event.subjectConfigs.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => _showAuthorsBottomSheet(context, event, isDark, cardColor, cardBorder, titleColor, subtitleColor),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: const Color(0xFF10B981)
+                                            .withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.people_rounded,
+                                          size: 12,
+                                          color: Color(0xFF10B981)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        AppLocalization.isIndonesian ? 'Pembuat Soal' : 'Authors',
+                                        style: const TextStyle(
+                                            color: Color(0xFF10B981),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
                     ),
-
-                    // Sessions List
                     Expanded(
                       child: StreamBuilder<List<ExamSession>>(
                         stream: _service.getSessionsByEvent(
@@ -618,15 +650,37 @@ class _AdminExamScheduleViewPageState
                                     // Subject column
                                     Expanded(
                                       flex: 4,
-                                      child: Text(
-                                        s.subjectName,
-                                        style: TextStyle(
-                                          color: titleColor,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            s.subjectName,
+                                            style: TextStyle(
+                                              color: titleColor,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          (() {
+                                            final matches = event?.subjectConfigs.where((c) => c.subjectId == s.subjectId);
+                                            final config = matches != null && matches.isNotEmpty ? matches.first : null;
+                                            final authorNames = config?.authorTeacherNames.isNotEmpty == true
+                                                ? config!.authorTeacherNames.join(', ')
+                                                : (AppLocalization.isIndonesian ? 'Belum ditentukan' : 'Not assigned');
+                                            return Text(
+                                              '${AppLocalization.isIndonesian ? 'Pembuat' : 'Author'}: $authorNames',
+                                              style: TextStyle(
+                                                color: subtitleColor.withValues(alpha: 0.8),
+                                                fontSize: 9,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            );
+                                          })(),
+                                        ],
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -1113,31 +1167,34 @@ class AdminRoomSeatingPage extends StatelessWidget {
             : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
         return Scaffold(
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Denah Kursi',
-                  style: TextStyle(
-                      color: tColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold),
+          body: AuthBackground(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Denah Kursi',
+                      style: TextStyle(
+                          color: tColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      session.subjectName,
+                      style: TextStyle(color: sColor, fontSize: 11),
+                    ),
+                  ],
                 ),
-                Text(
-                  session.subjectName,
-                  style: TextStyle(color: sColor, fontSize: 11),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  icon: Icon(Icons.arrow_back_rounded, color: tColor),
+                  onPressed: () => Get.back(),
                 ),
-              ],
-            ),
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back_rounded, color: tColor),
-              onPressed: () => Get.back(),
-            ),
-          ),
-          body: StreamBuilder<List<ExamParticipation>>(
+              ),
+              body: StreamBuilder<List<ExamParticipation>>(
             stream: service.getParticipations(
                 schoolId: schoolId, sessionId: session.id),
             builder: (context, snap) {
@@ -1532,7 +1589,9 @@ class AdminRoomSeatingPage extends StatelessWidget {
               );
             },
           ),
-        );
+        ),
+      ),
+    );
       },
     );
   }
@@ -1935,8 +1994,6 @@ class AdminRoomSeatingPage extends StatelessWidget {
       ),
     );
   }
-
-
   InputDecoration _dialogInputDecoration(bool isDark, Color border) {
     return InputDecoration(
       filled: true,
@@ -1945,5 +2002,103 @@ class AdminRoomSeatingPage extends StatelessWidget {
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: border)),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: border)),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: const Color(0xFF8B5CF6))),
+    );
+  }
+
+  void _showAuthorsBottomSheet(
+    BuildContext context,
+    ExamEvent event,
+    bool isDark,
+    Color cardColor,
+    Color cardBorder,
+    Color titleColor,
+    Color subtitleColor,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1A1730) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.assignment_ind_rounded, color: titleColor, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  AppLocalization.isIndonesian ? 'Daftar Pembuat Soal' : 'Subject Authors',
+                  style: TextStyle(
+                      color: titleColor,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: event.subjectConfigs.length,
+                separatorBuilder: (_, __) => Divider(color: cardBorder, height: 1),
+                itemBuilder: (_, idx) {
+                  final config = event.subjectConfigs[idx];
+                  final teacherNames = config.authorTeacherNames.isNotEmpty
+                      ? config.authorTeacherNames.join(', ')
+                      : 'Belum dipilih';
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.menu_book_rounded,
+                              color: Color(0xFF8B5CF6), size: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                config.subjectName,
+                                style: TextStyle(
+                                    color: titleColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                AppLocalization.isIndonesian
+                                    ? 'Pembuat Soal: $teacherNames'
+                                    : 'Authors: $teacherNames',
+                                style: TextStyle(
+                                    color: subtitleColor,
+                                    fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }

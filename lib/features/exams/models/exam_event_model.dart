@@ -341,6 +341,7 @@ class ExamParticipation {
   final int seatNumber;
   final String roomName;
   final String angkatan;
+  final DateTime? submittedAt; // Waktu murid mengumpulkan ujian
 
   const ExamParticipation({
     required this.studentId,
@@ -351,6 +352,7 @@ class ExamParticipation {
     required this.seatNumber,
     required this.roomName,
     required this.angkatan,
+    this.submittedAt,
   });
 
   factory ExamParticipation.fromFirestore(
@@ -365,6 +367,7 @@ class ExamParticipation {
       seatNumber: data['seatNumber'] as int? ?? 0,
       roomName: data['roomName'] ?? '',
       angkatan: data['angkatan'] ?? '',
+      submittedAt: (data['submittedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -377,5 +380,6 @@ class ExamParticipation {
         'seatNumber': seatNumber,
         'roomName': roomName,
         'angkatan': angkatan,
+        if (submittedAt != null) 'submittedAt': Timestamp.fromDate(submittedAt!),
       };
 }

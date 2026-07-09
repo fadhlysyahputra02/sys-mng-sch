@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/services/session_service.dart';
@@ -9,8 +10,16 @@ import '../services/exam_service.dart';
 class StudentTakeExamPage extends StatefulWidget {
   final Exam exam;
   final String? studentDocId;
+  final String? sessionId;
+  final String? schoolId;
 
-  const StudentTakeExamPage({super.key, required this.exam, this.studentDocId});
+  const StudentTakeExamPage({
+    super.key,
+    required this.exam,
+    this.studentDocId,
+    this.sessionId,
+    this.schoolId,
+  });
 
   @override
   State<StudentTakeExamPage> createState() => _StudentTakeExamPageState();
@@ -23,6 +32,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
   int _currentQuestionIndex = 0;
   final Map<String, int> _selectedAnswers = {}; // Map questionId -> optionIndex
   final Map<String, String> _essayAnswers = {}; // Map questionId -> essayAnswerText
+  final ScrollController _questionNavScrollCtrl = ScrollController();
 
   int _secondsRemaining = 0;
   Timer? _timer;
@@ -74,15 +84,29 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
     _timer?.cancel();
 
     final user = SessionService.currentUser!;
+    final schoolId = widget.schoolId ?? user.schoolId;
+    final studentId = widget.studentDocId ?? user.uid;
     try {
       await _examService.submitExam(
-        schoolId: user.schoolId,
+        schoolId: schoolId,
         exam: widget.exam,
-        studentId: widget.studentDocId ?? user.uid,
+        studentId: studentId,
         studentName: user.nama,
         answers: _selectedAnswers,
         essayAnswers: _essayAnswers,
       );
+
+      // Update submittedAt di participations (denah tempat duduk)
+      if (widget.sessionId != null) {
+        await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('exam_sessions')
+            .doc(widget.sessionId)
+            .collection('participations')
+            .doc(studentId)
+            .set({'submittedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+      }
 
       Get.back();
       Get.snackbar(
@@ -217,7 +241,18 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _questionNavScrollCtrl.dispose();
     super.dispose();
+  }
+
+  void _scrollNavToIndex(int index) {
+    // Each chip is about 40px wide; auto-scroll so the active chip is visible
+    final offset = (index * 42.0) - 80;
+    _questionNavScrollCtrl.animateTo(
+      offset.clamp(0.0, _questionNavScrollCtrl.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -317,7 +352,67 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
                           minHeight: 6,
                         ),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 12),
+
+                       // Question Number Navigation Grid
+                       SizedBox(
+                         height: 38,
+                         child: ListView.builder(
+                           controller: _questionNavScrollCtrl,
+                           scrollDirection: Axis.horizontal,
+                           itemCount: totalQuestions,
+                           itemBuilder: (ctx, idx) {
+                             final q = widget.exam.questions[idx];
+                             final isAnswered = q.type == 'essay'
+                                 ? (_essayAnswers[q.id]?.trim().isNotEmpty == true)
+                                 : _selectedAnswers.containsKey(q.id);
+                             final isCurrent = idx == _currentQuestionIndex;
+                             return GestureDetector(
+                               onTap: () {
+                                 setState(() => _currentQuestionIndex = idx);
+                                 _scrollNavToIndex(idx);
+                               },
+                               child: AnimatedContainer(
+                                 duration: const Duration(milliseconds: 200),
+                                 margin: const EdgeInsets.only(right: 6),
+                                 width: 36,
+                                 height: 36,
+                                 decoration: BoxDecoration(
+                                   color: isCurrent
+                                       ? const Color(0xFF8B5CF6)
+                                       : isAnswered
+                                           ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                           : cardBgColor,
+                                   shape: BoxShape.circle,
+                                   border: Border.all(
+                                     color: isCurrent
+                                         ? const Color(0xFF8B5CF6)
+                                         : isAnswered
+                                             ? const Color(0xFF10B981)
+                                             : cardBorderColor,
+                                     width: isCurrent ? 2 : 1,
+                                   ),
+                                 ),
+                                 child: Center(
+                                   child: Text(
+                                     '${idx + 1}',
+                                     style: TextStyle(
+                                       fontSize: 11,
+                                       fontWeight: FontWeight.bold,
+                                       color: isCurrent
+                                           ? Colors.white
+                                           : isAnswered
+                                               ? const Color(0xFF10B981)
+                                               : titleColor,
+                                     ),
+                                   ),
+                                 ),
+                               ),
+                             );
+                           },
+                         ),
+                       ),
+                       const SizedBox(height: 20),
  
                       // Question Body
                       Expanded(
@@ -447,9 +542,9 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: () {
-                                  setState(() {
-                                    _currentQuestionIndex--;
-                                  });
+                                  final newIdx = _currentQuestionIndex - 1;
+                                  setState(() => _currentQuestionIndex = newIdx);
+                                  _scrollNavToIndex(newIdx);
                                 },
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(color: cardBorderColor),
@@ -466,9 +561,9 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
                             child: ElevatedButton(
                               onPressed: () {
                                 if (_currentQuestionIndex < totalQuestions - 1) {
-                                  setState(() {
-                                    _currentQuestionIndex++;
-                                  });
+                                  final newIdx = _currentQuestionIndex + 1;
+                                  setState(() => _currentQuestionIndex = newIdx);
+                                  _scrollNavToIndex(newIdx);
                                 } else {
                                   _submitExamManual();
                                 }

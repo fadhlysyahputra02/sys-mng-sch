@@ -24,6 +24,7 @@ import 'student_grades_page.dart';
 import 'student_tasks_page.dart';
 import '../../exams/pages/student_exams_page.dart';
 import '../../exams/pages/student_exam_participation_page.dart';
+import '../../exams/services/exam_session_service.dart';
 
 import '../../../core/widgets/flip_card.dart';
 import '../../../core/widgets/motif_card.dart';
@@ -1344,7 +1345,11 @@ class _StudentDashboardState extends State<StudentDashboard>
   Widget _buildMenuGrid(bool isDark) {
     final parentLinked = _studentData?['parentLinked'] == true;
     final isLulus = _studentData?['lulus'] == true;
-    final menus = isLulus
+    final classId = _studentData?['classId'] as String?;
+    final studentId = _studentDocId;
+    final schoolId = SessionService.currentUser?.schoolId;
+
+    final baseMenus = isLulus
         ? [
             {
               'title': 'Absensi',
@@ -1363,309 +1368,330 @@ class _StudentDashboardState extends State<StudentDashboard>
               'icon': Icons.qr_code_scanner_rounded,
               'color': const Color(0xFF8B5CF6),
             },
-      {
-        'title': 'Jadwal Saya',
-        'icon': Icons.calendar_month_rounded,
-        'color': const Color(0xFFF59E0B),
-      },
-      {
-        'title': 'Nilai',
-        'icon': Icons.grade_rounded,
-        'color': const Color(0xFF10B981),
-      },
-      {
-        'title': 'Chat Guru',
-        'icon': Icons.chat_rounded,
-        'color': const Color(0xFFF97316),
-      },
-      {
-        'title': 'Tugas Saya',
-        'icon': Icons.assignment_rounded,
-        'color': const Color(0xFF6366F1),
-      },
-      {
-        'title': 'Ujian Online',
-        'icon': Icons.quiz_rounded,
-        'color': const Color(0xFF8B5CF6),
-      },
-      {
-        'title': 'Jadwal UTS/UAS',
-        'icon': Icons.fact_check_rounded,
-        'color': const Color(0xFFEC4899),
-      },
+            {
+              'title': 'Jadwal Saya',
+              'icon': Icons.calendar_month_rounded,
+              'color': const Color(0xFFF59E0B),
+            },
+            {
+              'title': 'Nilai',
+              'icon': Icons.grade_rounded,
+              'color': const Color(0xFF10B981),
+            },
+            {
+              'title': 'Chat Guru',
+              'icon': Icons.chat_rounded,
+              'color': const Color(0xFFF97316),
+            },
+            {
+              'title': 'Tugas Saya',
+              'icon': Icons.assignment_rounded,
+              'color': const Color(0xFF6366F1),
+            },
+            {
+              'title': 'Ujian Online',
+              'icon': Icons.quiz_rounded,
+              'color': const Color(0xFF8B5CF6),
+            },
+            {
+              'title': 'Pelanggaran',
+              'icon': Icons.warning_amber_rounded,
+              'color': const Color(0xFFEF4444),
+            },
+            {
+              'title': parentLinked ? 'Sudah Terhubung' : 'Sambungkan ke Orang Tua',
+              'icon': parentLinked
+                  ? Icons.verified_rounded
+                  : Icons.family_restroom_rounded,
+              'color': parentLinked
+                  ? const Color(0xFF10B981)
+                  : const Color(0xFF6366F1),
+            },
+            {
+              'title': 'Keuangan & SPP',
+              'icon': Icons.payments_rounded,
+              'color': const Color(0xFF10B981),
+            },
+          ];
 
+    Widget buildGrid(List<Map<String, dynamic>> menuList) {
+      final cardBg = isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white;
+      final cardBorder = isDark
+          ? Colors.white.withValues(alpha: 0.08)
+          : Colors.black.withValues(alpha: 0.06);
+      final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
-      {
-        'title': 'Pelanggaran',
-        'icon': Icons.warning_amber_rounded,
-        'color': const Color(0xFFEF4444),
-      },
-      {
-        'title': parentLinked ? 'Sudah Terhubung' : 'Sambungkan ke Orang Tua',
-        'icon': parentLinked
-            ? Icons.verified_rounded
-            : Icons.family_restroom_rounded,
-        'color': parentLinked
-            ? const Color(0xFF10B981)
-            : const Color(0xFF6366F1),
-      },
-
-
-      {
-        'title': 'Keuangan & SPP',
-        'icon': Icons.payments_rounded,
-        'color': const Color(0xFF10B981),
-      },
-    ];
-    final cardBg = isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white;
-    final cardBorder = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.black.withValues(alpha: 0.06);
-    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 1.1,
-      ),
-      itemCount: menus.length,
-      itemBuilder: (context, index) {
-        final menu = menus[index];
-        final color = menu['color'] as Color;
-        final badge = menu['badge'] as String?;
-        return Container(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cardBorder),
-            boxShadow: isDark
-                ? []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _handleMenuTap(menu['title'] as String),
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.1,
+        ),
+        itemCount: menuList.length,
+        itemBuilder: (context, index) {
+          final menu = menuList[index];
+          final color = menu['color'] as Color;
+          final badge = menu['badge'] as String?;
+          return Container(
+            decoration: BoxDecoration(
+              color: cardBg,
               borderRadius: BorderRadius.circular(20),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Builder(
-                          builder: (context) {
-                            final container = Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                menu['icon'] as IconData,
-                                color: color,
-                                size: 32,
-                              ),
-                            );
-
-                            if (menu['title'] == 'Chat Guru' && _studentDocId != null) {
-                              return ChatUnreadBadge(
-                                schoolId: SessionService.currentUser!.schoolId,
-                                userId: _studentDocId!,
-                                role: 'student',
-                                top: -2,
-                                right: -2,
-                                child: container,
+              border: Border.all(color: cardBorder),
+              boxShadow: isDark
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _handleMenuTap(menu['title'] as String),
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Builder(
+                            builder: (context) {
+                              final container = Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  menu['icon'] as IconData,
+                                  color: color,
+                                  size: 32,
+                                ),
                               );
-                            }
 
-                            if (menu['title'] == 'Keuangan & SPP' && _studentDocId != null) {
-                              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('schools')
-                                    .doc(SessionService.currentUser!.schoolId)
-                                    .collection('student_bills')
-                                    .where('studentId', isEqualTo: _studentDocId)
-                                    .where('status', isEqualTo: 'unpaid')
-                                    .snapshots(),
-                                builder: (context, billsSnapshot) {
-                                  final unpaidCount = billsSnapshot.data?.docs.length ?? 0;
-                                  if (unpaidCount == 0) return container;
+                              if (menu['title'] == 'Chat Guru' && _studentDocId != null) {
+                                return ChatUnreadBadge(
+                                  schoolId: SessionService.currentUser!.schoolId,
+                                  userId: _studentDocId!,
+                                  role: 'student',
+                                  top: -2,
+                                  right: -2,
+                                  child: container,
+                                );
+                              }
 
-                                  return Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      container,
-                                      Positioned(
-                                        top: -4,
-                                        right: -4,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.redAccent,
-                                            borderRadius: BorderRadius.circular(10),
-                                            border: Border.all(
-                                              color: isDark ? const Color(0xFF0F0C20) : Colors.white,
-                                              width: 1.5,
+                              if (menu['title'] == 'Keuangan & SPP' && _studentDocId != null) {
+                                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('schools')
+                                      .doc(SessionService.currentUser!.schoolId)
+                                      .collection('student_bills')
+                                      .where('studentId', isEqualTo: _studentDocId)
+                                      .where('status', isEqualTo: 'unpaid')
+                                      .snapshots(),
+                                  builder: (context, billsSnapshot) {
+                                    final unpaidCount = billsSnapshot.data?.docs.length ?? 0;
+                                    if (unpaidCount == 0) return container;
+
+                                    return Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        container,
+                                        Positioned(
+                                          top: -4,
+                                          right: -4,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.redAccent,
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                                width: 1.5,
+                                              ),
                                             ),
-                                          ),
-                                          constraints: const BoxConstraints(
-                                            minWidth: 18,
-                                            minHeight: 18,
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              '$unpaidCount',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
+                                            constraints: const BoxConstraints(
+                                              minWidth: 18,
+                                              minHeight: 18,
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                '$unpaidCount',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            }
+                                      ],
+                                    );
+                                  },
+                                );
+                              }
 
-                            if (menu['title'] == 'Tugas Saya' &&
-                                _studentDocId != null &&
-                                _studentData?['classId'] != null) {
-                              final studentClassId = _studentData!['classId'] as String;
-                              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('schools')
-                                    .doc(SessionService.currentUser!.schoolId)
-                                    .collection('tasks')
-                                    .where('classId', isEqualTo: studentClassId)
-                                    .snapshots(),
-                                builder: (context, tasksSnapshot) {
-                                  final tasks = tasksSnapshot.data?.docs ?? [];
-                                  if (tasks.isEmpty) return container;
+                              if (menu['title'] == 'Tugas Saya' &&
+                                  _studentDocId != null &&
+                                  _studentData?['classId'] != null) {
+                                final studentClassId = _studentData!['classId'] as String;
+                                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('schools')
+                                      .doc(SessionService.currentUser!.schoolId)
+                                      .collection('tasks')
+                                      .where('classId', isEqualTo: studentClassId)
+                                      .snapshots(),
+                                  builder: (context, tasksSnapshot) {
+                                    final tasks = tasksSnapshot.data?.docs ?? [];
+                                    if (tasks.isEmpty) return container;
 
-                                  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('schools')
-                                        .doc(SessionService.currentUser!.schoolId)
-                                        .collection('task_submissions')
-                                        .where('studentId', isEqualTo: _studentDocId)
-                                        .snapshots(),
-                                    builder: (context, submissionsSnapshot) {
-                                      final submissions = submissionsSnapshot.data?.docs ?? [];
-                                      final submittedTaskIds = submissions
-                                          .map((doc) => doc.data()['taskId']?.toString())
-                                          .toSet();
+                                    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                      stream: FirebaseFirestore.instance
+                                          .collection('schools')
+                                          .doc(SessionService.currentUser!.schoolId)
+                                          .collection('task_submissions')
+                                          .where('studentId', isEqualTo: _studentDocId)
+                                          .snapshots(),
+                                      builder: (context, submissionsSnapshot) {
+                                        final submissions = submissionsSnapshot.data?.docs ?? [];
+                                        final submittedTaskIds = submissions
+                                            .map((doc) => doc.data()['taskId']?.toString())
+                                            .toSet();
 
-                                      final pendingCount = tasks.where((taskDoc) {
-                                        final taskId = taskDoc.id;
-                                        final taskData = taskDoc.data();
-                                        final status = taskData['status']?.toString() ?? 'active';
-                                        final taskTahunAjaran = taskData['tahunAjaran']?.toString();
-                                        final taskSemester = taskData['semester']?.toString();
+                                        final pendingCount = tasks.where((taskDoc) {
+                                          final taskId = taskDoc.id;
+                                          final taskData = taskDoc.data();
+                                          final status = taskData['status']?.toString() ?? 'active';
+                                          final taskTahunAjaran = taskData['tahunAjaran']?.toString();
+                                          final taskSemester = taskData['semester']?.toString();
 
-                                        if (status != 'active') return false;
-                                        if (taskTahunAjaran != _tahunAjaran ||
-                                            taskSemester != _activeSemester) {
-                                          return false;
-                                        }
-
-                                        // Jika tugas belum dikerjakan, tapi sudah melewati tenggat waktu (dueDate), jangan dihitung
-                                        final dueDateObj = taskData['dueDate'];
-                                        if (dueDateObj != null && dueDateObj is Timestamp) {
-                                          final dueDate = dueDateObj.toDate();
-                                          if (dueDate.isBefore(DateTime.now())) {
+                                          if (status != 'active') return false;
+                                          if (taskTahunAjaran != _tahunAjaran ||
+                                              taskSemester != _activeSemester) {
                                             return false;
                                           }
-                                        }
 
-                                        return !submittedTaskIds.contains(taskId);
-                                      }).length;
+                                          // Jika tugas belum dikerjakan, tapi sudah melewati tenggat waktu (dueDate), jangan dihitung
+                                          final dueDateObj = taskData['dueDate'];
+                                          if (dueDateObj != null && dueDateObj is Timestamp) {
+                                            final dueDate = dueDateObj.toDate();
+                                            if (dueDate.isBefore(DateTime.now())) {
+                                              return false;
+                                            }
+                                          }
 
-                                      if (pendingCount > 0) {
-                                        return Stack(
-                                          clipBehavior: Clip.none,
-                                          children: [
-                                            container,
-                                            Positioned(
-                                              top: -4,
-                                              right: -4,
-                                              child: Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.redAccent,
-                                                  borderRadius: BorderRadius.circular(10),
-                                                  border: Border.all(
-                                                    color: isDark ? const Color(0xFF0F0C20) : Colors.white,
-                                                    width: 1.5,
+                                          return !submittedTaskIds.contains(taskId);
+                                        }).length;
+
+                                        if (pendingCount > 0) {
+                                          return Stack(
+                                            clipBehavior: Clip.none,
+                                            children: [
+                                              container,
+                                              Positioned(
+                                                top: -4,
+                                                right: -4,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.redAccent,
+                                                    borderRadius: BorderRadius.circular(10),
+                                                    border: Border.all(
+                                                      color: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                                                      width: 1.5,
+                                                    ),
                                                   ),
-                                                ),
-                                                constraints: const BoxConstraints(
-                                                  minWidth: 18,
-                                                  minHeight: 18,
-                                                ),
-                                                child: Center(
-                                                  child: Text(
-                                                    '$pendingCount',
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 9,
-                                                      fontWeight: FontWeight.bold,
+                                                  constraints: const BoxConstraints(
+                                                    minWidth: 18,
+                                                    minHeight: 18,
+                                                  ),
+                                                  child: Center(
+                                                    child: Text(
+                                                      '$pendingCount',
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 9,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
-                                        );
-                                      }
-                                      return container;
-                                    },
-                                  );
-                                },
-                              );
-                            }
+                                            ],
+                                          );
+                                        }
+                                        return container;
+                                      },
+                                    );
+                                  },
+                                );
+                              }
 
-                            return container;
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          menu['title'] as String,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                              return container;
+                            },
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 12),
+                          Text(
+                            menu['title'] as String,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  if (badge != null)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: _buildPackageBadge(badge),
-                    ),
-                ],
+                    if (badge != null)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: _buildPackageBadge(badge),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
+          );
+        },
+      );
+    }
+
+    if (isLulus || classId == null || studentId == null || schoolId == null) {
+      return buildGrid(baseMenus);
+    }
+
+    return FutureBuilder<bool>(
+      future: ExamSessionService().hasAnyActiveExamSchedule(
+        schoolId: schoolId,
+        classId: classId,
+        studentId: studentId,
+      ),
+      builder: (context, snapshot) {
+        final hasSchedule = snapshot.data == true;
+        final activeMenus = List<Map<String, dynamic>>.from(baseMenus);
+        if (hasSchedule) {
+          final insertIndex = activeMenus.indexWhere((m) => m['title'] == 'Pelanggaran');
+          if (insertIndex != -1) {
+            activeMenus.insert(insertIndex, {
+              'title': 'Jadwal UTS/UAS',
+              'icon': Icons.fact_check_rounded,
+              'color': const Color(0xFFEC4899),
+            });
+          }
+        }
+        return buildGrid(activeMenus);
       },
     );
   }

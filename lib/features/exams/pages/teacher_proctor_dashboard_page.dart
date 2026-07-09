@@ -1,9 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../students/pages/student_qr_scanner_page.dart';
 import '../models/exam_event_model.dart';
 import '../services/exam_session_service.dart';
 import 'teacher_exam_questions_page.dart';
@@ -13,9 +14,15 @@ import 'teacher_exam_questions_page.dart';
 //  Tab 1 — Pengawas: Jadwal mengawas + aktivasi QR
 //  Tab 2 — Pembuat Soal: Mapel yang ditugaskan untuk upload soal
 // ─────────────────────────────────────────────────────────────
+
 class TeacherProctorDashboardPage extends StatefulWidget {
   final String teacherId;
-  const TeacherProctorDashboardPage({super.key, required this.teacherId});
+  final bool hideBackButton;
+  const TeacherProctorDashboardPage({
+    super.key,
+    required this.teacherId,
+    this.hideBackButton = false,
+  });
 
   @override
   State<TeacherProctorDashboardPage> createState() =>
@@ -71,12 +78,14 @@ class _TeacherProctorDashboardPageState
                     padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
                     child: Row(
                       children: [
-                        IconButton(
-                          icon: Icon(Icons.arrow_back_rounded,
-                              color: titleColor),
-                          onPressed: () => Get.back(),
-                        ),
-                        const SizedBox(width: 4),
+                        if (!widget.hideBackButton)
+                          IconButton(
+                            icon: Icon(Icons.arrow_back_rounded,
+                                color: titleColor),
+                            onPressed: () => Get.back(),
+                          ),
+                        if (widget.hideBackButton)
+                          const SizedBox(width: 16),
                         Text(
                           'Ujian Semester',
                           style: TextStyle(
@@ -225,9 +234,10 @@ class _TeacherProctorDashboardPageState
     String schoolId, {
     bool isFinished = false,
   }) {
-    final isActive = session.examStatus == 'Active';
     final isToday = DateFormat('yyyy-MM-dd').format(session.date) ==
         DateFormat('yyyy-MM-dd').format(DateTime.now());
+    // Active only if status is Active AND it's actually today
+    final isActive = session.examStatus == 'Active' && isToday;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -272,7 +282,7 @@ class _TeacherProctorDashboardPageState
                 Row(
                   children: [
                     // Status badge
-                    _buildStatusBadge(session.examStatus),
+                    _buildStatusBadge(session.examStatus, isToday: isToday),
                     const SizedBox(width: 8),
                     if (isToday && !isFinished)
                       Container(
@@ -342,7 +352,8 @@ class _TeacherProctorDashboardPageState
                   // Action Buttons
                   Row(
                     children: [
-                      if (!isActive)
+                      // Only allow activation on the actual session date
+                      if (!isActive && isToday)
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () => _activateQr(schoolId, session),
@@ -359,13 +370,39 @@ class _TeacherProctorDashboardPageState
                             ),
                           ),
                         ),
+                      // Future session — show info chip only
+                      if (!isActive && !isToday)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF64748B).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: const Color(0xFF64748B).withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.event_rounded,
+                                  size: 14, color: Color(0xFF64748B)),
+                              SizedBox(width: 6),
+                              Text('QR hanya bisa diaktifkan pada hari H',
+                                  style: TextStyle(
+                                    color: Color(0xFF64748B),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  )),
+                            ],
+                          ),
+                        ),
                       if (isActive) ...[
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => _showQrDialog(
-                                context, session, isDark),
-                            icon: const Icon(Icons.qr_code_rounded, size: 16),
-                            label: const Text('Tampilkan QR'),
+                            onPressed: () => _scanStudentQrForSession(context, session),
+                            icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
+                            label: const Text('Scan QR Murid'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF8B5CF6),
                               foregroundColor: Colors.white,
@@ -405,7 +442,7 @@ class _TeacherProctorDashboardPageState
     );
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildStatusBadge(String status, {bool isToday = false}) {
     Color color;
     String label;
     IconData icon;
@@ -421,9 +458,15 @@ class _TeacherProctorDashboardPageState
         icon = Icons.check_circle_rounded;
         break;
       default:
-        color = const Color(0xFFF59E0B);
-        label = 'Terjadwal';
-        icon = Icons.schedule_rounded;
+        if (isToday) {
+          color = const Color(0xFF8B5CF6);
+          label = 'Hari Ini';
+          icon = Icons.today_rounded;
+        } else {
+          color = const Color(0xFFF59E0B);
+          label = 'Terjadwal';
+          icon = Icons.schedule_rounded;
+        }
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -612,7 +655,12 @@ class _TeacherProctorDashboardPageState
       await _service.activateSessionQr(
           schoolId: schoolId, sessionId: session.id);
       if (mounted) {
-        _showQrDialog(context, session.copyWith(isQrActive: true), true);
+        Get.snackbar('Berhasil', 'QR Presensi Ujian berhasil diaktifkan.',
+            backgroundColor: const Color(0xFF10B981),
+            colorText: Colors.white,
+            snackPosition: SnackPosition.TOP,
+            margin: const EdgeInsets.all(16));
+        _scanStudentQrForSession(context, session.copyWith(isQrActive: true));
       }
     } catch (e) {
       Get.snackbar('Gagal', 'Tidak dapat mengaktifkan QR: $e',
@@ -624,27 +672,49 @@ class _TeacherProctorDashboardPageState
   }
 
   Future<void> _finishSession(String schoolId, ExamSession session) async {
+    final isDark = AuthBackground.isDarkMode.value;
+    final dialogBg = isDark ? const Color(0xFF1E1B4B) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final contentColor = isDark
+        ? Colors.white.withValues(alpha: 0.8)
+        : const Color(0xFF1E1B4B).withValues(alpha: 0.75);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AuthBackground.isDarkMode.value
-            ? const Color(0xFF1A1730)
-            : Colors.white,
+        backgroundColor: dialogBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Selesaikan Sesi?',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text(
-            'QR akan dinonaktifkan dan sesi ditandai selesai. Siswa tidak dapat scan lagi.'),
+        title: Row(
+          children: [
+            const Icon(Icons.stop_circle_rounded,
+                color: Color(0xFFEF4444), size: 22),
+            const SizedBox(width: 8),
+            Text('Selesaikan Sesi?',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: titleColor)),
+          ],
+        ),
+        content: Text(
+          'QR akan dinonaktifkan dan sesi ditandai selesai. Siswa tidak dapat scan lagi.',
+          style: TextStyle(color: contentColor, height: 1.5),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Batal')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Batal',
+                style: TextStyle(
+                    color: titleColor.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w500)),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
-                foregroundColor: Colors.white),
-            child: const Text('Selesaikan'),
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Selesaikan',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -655,146 +725,101 @@ class _TeacherProctorDashboardPageState
           schoolId: schoolId, sessionId: session.id);
     }
   }
+  Future<void> _scanStudentQrForSession(BuildContext context, ExamSession session) async {
+    final result = await Get.to<String>(() => const StudentQrScannerPage(
+          title: 'Scan QR Murid',
+          subtitle: 'Arahkan kamera ke QR di kartu ujian murid',
+        ));
 
-  void _showQrDialog(
-      BuildContext context, ExamSession session, bool isDark) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(24),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1A1730) : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-                blurRadius: 30,
-                spreadRadius: 5,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.qr_code_rounded,
-                        color: Color(0xFF10B981), size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('QR Presensi Ujian',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14)),
-                        Text(session.subjectName,
-                            style: const TextStyle(
-                                color: Color(0xFF10B981), fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.5)
-                        : Colors.black45,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
+    if (result == null || result.isEmpty) return;
 
-              // QR Code
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                      blurRadius: 20,
-                    ),
-                  ],
-                ),
-                child: QrImageView(
-                  data:
-                      '{"type":"exam_session","sessionId":"${session.id}","qrToken":"${session.qrToken}","subjectName":"${session.subjectName}"}',
-                  version: QrVersions.auto,
-                  size: 220,
-                  backgroundColor: Colors.white,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: Color(0xFF1E1B4B),
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: Color(0xFF1E1B4B),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+    try {
+      final decoded = jsonDecode(result);
+      if (decoded['type'] != 'exam_attendance') {
+        _showErrorDialogGlobal('Format QR tidak valid untuk presensi ujian!');
+        return;
+      }
 
-              // Info
-              Text(
-                '${session.slotName} • ${session.startTime}–${session.endTime}',
+      final studentId = decoded['studentId']?.toString() ?? '';
+      final studentName = decoded['studentName']?.toString() ?? 'Murid';
+
+      if (studentId.isEmpty) {
+        _showErrorDialogGlobal('ID Murid tidak ditemukan dalam QR!');
+        return;
+      }
+
+      // Show loading
+      Get.dialog(
+        const Center(child: CircularProgressIndicator()),
+        barrierDismissible: false,
+      );
+
+      final schoolId = SessionService.currentUser!.schoolId;
+      await ExamSessionService().recordProctorScanAttendance(
+        schoolId: schoolId,
+        sessionId: session.id,
+        studentId: studentId,
+      );
+
+      // Dismiss loading
+      Get.back();
+
+      // Show success
+      Get.snackbar(
+        'Berhasil',
+        'Presensi berhasil dicatat untuk $studentName.',
+        backgroundColor: const Color(0xFF10B981),
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+        margin: const EdgeInsets.all(16),
+      );
+    } catch (e) {
+      // Dismiss loading if active
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      String errMsg = e.toString();
+      if (errMsg.contains('Exception:')) {
+        errMsg = errMsg.substring(errMsg.indexOf('Exception:') + 10);
+      }
+      _showErrorDialogGlobal(errMsg);
+    }
+  }
+
+  void _showErrorDialogGlobal(String message) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final dialogBg = isDark ? const Color(0xFF1E1B4B) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final contentColor = isDark
+        ? Colors.white.withValues(alpha: 0.8)
+        : const Color(0xFF1E1B4B).withValues(alpha: 0.75);
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: dialogBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444)),
+            const SizedBox(width: 8),
+            Text('Presensi Gagal',
                 style: TextStyle(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.6)
-                        : Colors.black54,
-                    fontSize: 13),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Kelas: ${session.className.isEmpty ? session.classId : session.className}',
-                style: TextStyle(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.6)
-                        : Colors.black54,
-                    fontSize: 13),
-              ),
-              const SizedBox(height: 16),
-
-              // Live pulse indicator
-              StreamBuilder<ExamParticipation?>(
-                stream: const Stream.empty(),
-                builder: (_, __) => Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('QR Aktif — Menunggu Scan Siswa',
-                        style: TextStyle(
-                            color: Color(0xFF10B981),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-            ],
-          ),
+                    fontWeight: FontWeight.bold, color: titleColor)),
+          ],
         ),
+        content: Text(message,
+            style: TextStyle(color: contentColor, height: 1.5)),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Get.back(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8B5CF6),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
@@ -875,322 +900,438 @@ class ProctorRoomSeatingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final subtitleColor = isDark
-        ? Colors.white.withValues(alpha: 0.6)
-        : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-    final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-    final cardBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+    return ValueListenableBuilder<bool>(
+      valueListenable: AuthBackground.isDarkMode,
+      builder: (context, isDark, _) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subtitleColor = isDark
+            ? Colors.white.withValues(alpha: 0.6)
+            : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+        final scaffoldBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
 
-    final service = ExamSessionService();
+        final service = ExamSessionService();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Denah Kursi: ${session.roomName.isNotEmpty ? session.roomName : "Ruang Ujian"}',
-          style: TextStyle(
-              color: titleColor, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: titleColor),
-          onPressed: () => Get.back(),
-        ),
-      ),
-      body: StreamBuilder<List<ExamParticipation>>(
-        stream: service.getParticipations(
-            schoolId: schoolId, sessionId: session.id),
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        return Scaffold(
+          backgroundColor: scaffoldBg,
+          appBar: AppBar(
+            title: Text(
+              'Denah Kursi: ${session.roomName.isNotEmpty ? session.roomName : "Ruang Ujian"}',
+              style: TextStyle(
+                  color: titleColor, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: scaffoldBg,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_rounded, color: titleColor),
+              onPressed: () => Get.back(),
+            ),
+          ),
+          body: AuthBackground(
+            child: StreamBuilder<List<ExamParticipation>>(
+              stream: service.getParticipations(
+                  schoolId: schoolId, sessionId: session.id),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          final participations = snap.data ?? [];
-          if (participations.isEmpty) {
-            return Center(
-              child: Text(
-                'Belum ada alokasi kursi untuk sesi ini.',
-                style: TextStyle(color: subtitleColor),
-              ),
-            );
-          }
-
-          // Sort by seatNumber
-          participations.sort((a, b) => a.seatNumber.compareTo(b.seatNumber));
-
-          // Get unique angkatan for color assignments
-          final angkatans =
-              participations.map((p) => p.angkatan).toSet().toList();
-          angkatans.sort(); // Sort A-Z
-
-          // Assign colors
-          Color getCohortColor(String angkatan) {
-            if (angkatans.isEmpty) return const Color(0xFF8B5CF6);
-            final index = angkatans.indexOf(angkatan);
-            if (index == 0) return const Color(0xFF8B5CF6); // Purple
-            if (index == 1) return const Color(0xFF10B981); // Emerald/Green
-            if (index == 2) return const Color(0xFFF59E0B); // Orange
-            return const Color(0xFF3B82F6); // Blue
-          }
-
-          // Determine grid layout
-          final maxSeat = participations.map((p) => p.seatNumber).fold(0, (max, e) => e > max ? e : max);
-          const columns = 4;
-          final rows = (maxSeat / columns).ceil();
-
-          // Map for quick seat lookup
-          final seatMap = {for (var p in participations) p.seatNumber: p};
-
-          return Column(
-            children: [
-              // Proctor Desk / Board Banner
-              Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : Colors.black.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.1)
-                        : Colors.black.withValues(alpha: 0.1),
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    'PAPAN TULIS / MEJA PENGAWAS',
-                    style: TextStyle(
-                      color: subtitleColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
+                final participations = snap.data ?? [];
+                if (participations.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'Belum ada alokasi kursi untuk sesi ini.',
+                      style: TextStyle(color: subtitleColor),
                     ),
-                  ),
-                ),
-              ),
+                  );
+                }
 
-              // Legend
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 6,
+                // Sort by seatNumber
+                participations.sort((a, b) => a.seatNumber.compareTo(b.seatNumber));
+
+                // Get unique angkatan for color assignments
+                final angkatans =
+                    participations.map((p) => p.angkatan).toSet().toList();
+                angkatans.sort(); // Sort A-Z
+
+                // Assign colors
+                Color getCohortColor(String angkatan) {
+                  if (angkatans.isEmpty) return const Color(0xFF8B5CF6);
+                  final index = angkatans.indexOf(angkatan);
+                  if (index == 0) return const Color(0xFF8B5CF6); // Purple
+                  if (index == 1) return const Color(0xFF10B981); // Emerald/Green
+                  if (index == 2) return const Color(0xFFF59E0B); // Orange
+                  return const Color(0xFF3B82F6); // Blue
+                }
+
+                // Determine grid layout
+                final maxSeat = participations.map((p) => p.seatNumber).fold(0, (max, e) => e > max ? e : max);
+                const columns = 4;
+                final rows = (maxSeat / columns).ceil();
+
+                // Map for quick seat lookup
+                final seatMap = {for (var p in participations) p.seatNumber: p};
+
+                return Column(
                   children: [
-                    ...angkatans.map((a) {
-                      final color = getCohortColor(a);
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Angkatan $a',
-                            style: TextStyle(color: subtitleColor, fontSize: 11),
-                          ),
-                        ],
-                      );
-                    }),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: subtitleColor.withValues(alpha: 0.5)),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Belum Hadir (Redup)',
-                          style: TextStyle(color: subtitleColor, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade500,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Hadir (Solid)',
-                          style: TextStyle(color: subtitleColor, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Grid of Seats
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.85,
-                  ),
-                  itemCount: rows * columns,
-                  itemBuilder: (context, i) {
-                    final seatNum = i + 1;
-                    final student = seatMap[seatNum];
-
-                    if (student == null) {
-                      // Seat exists in layout but no student assigned
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.08)
-                                : Colors.black.withValues(alpha: 0.06),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Kursi $seatNum\n(Kosong)',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: subtitleColor.withValues(alpha: 0.3),
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-
-                    final isPresent = student.scannedAt != null;
-                    final cohortColor = getCohortColor(student.angkatan);
-                    final seatColor = isPresent
-                        ? cohortColor
-                        : cohortColor.withValues(alpha: 0.12);
-                    final seatBorderColor = isPresent
-                        ? cohortColor
-                        : cohortColor.withValues(alpha: 0.4);
-                    final textColor = isPresent
-                        ? Colors.white
-                        : isDark
-                            ? Colors.white.withValues(alpha: 0.7)
-                            : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
-                    final subTextColor = isPresent
-                        ? Colors.white.withValues(alpha: 0.8)
-                        : subtitleColor;
-
-                    return Container(
+                    // Proctor Desk / Board Banner
+                    Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      width: double.infinity,
                       decoration: BoxDecoration(
-                        color: seatColor,
-                        borderRadius: BorderRadius.circular(12),
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: seatBorderColor,
-                          width: isPresent ? 1.5 : 1,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.1)
+                              : Colors.black.withValues(alpha: 0.1),
                         ),
-                        boxShadow: isPresent
-                            ? [
-                                BoxShadow(
-                                  color: cohortColor.withValues(alpha: 0.15),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                )
-                              ]
-                            : null,
                       ),
-                      padding: const EdgeInsets.all(6),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Center(
+                        child: Text(
+                          'PAPAN TULIS / MEJA PENGAWAS',
+                          style: TextStyle(
+                            color: subtitleColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Legend
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Wrap(
+                        spacing: 12,
+                        runSpacing: 6,
                         children: [
-                          // Seat Icon / Badge
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 5, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: isPresent
-                                      ? Colors.white.withValues(alpha: 0.2)
-                                      : cohortColor.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '#$seatNum',
-                                  style: TextStyle(
-                                    color: isPresent ? Colors.white : cohortColor,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
+                          ...angkatans.map((a) {
+                            final color = getCohortColor(a);
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
                                   ),
                                 ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Angkatan $a',
+                                  style: TextStyle(color: subtitleColor, fontSize: 11),
+                                ),
+                              ],
+                            );
+                          }),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: subtitleColor.withValues(alpha: 0.5)),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
                               ),
-                              Icon(
-                                isPresent
-                                    ? Icons.check_circle_rounded
-                                    : Icons.radio_button_unchecked_rounded,
-                                size: 12,
-                                color: isPresent ? Colors.white : cohortColor,
+                              const SizedBox(width: 4),
+                              Text(
+                                'Belum Hadir (Redup)',
+                                style: TextStyle(color: subtitleColor, fontSize: 11),
                               ),
                             ],
                           ),
-                          const Spacer(),
-                          Text(
-                            student.studentName,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            student.nis,
-                            style: TextStyle(
-                              color: subTextColor,
-                              fontSize: 9,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            isPresent ? 'Hadir' : 'Belum Hadir',
-                            style: TextStyle(
-                              color: isPresent ? Colors.white : cohortColor,
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade500,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Hadir (Solid)',
+                                style: TextStyle(color: subtitleColor, fontSize: 11),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Grid of Seats
+                    Expanded(
+                      child: GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.85,
+                        ),
+                        itemCount: rows * columns,
+                        itemBuilder: (context, i) {
+                          final seatNum = i + 1;
+                          final student = seatMap[seatNum];
+
+                          if (student == null) {
+                            // Seat exists in layout but no student assigned
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.black.withValues(alpha: 0.06),
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Kursi $seatNum\n(Kosong)',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: subtitleColor.withValues(alpha: 0.3),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+
+                          final isPresent = student.scannedAt != null;
+                          final cohortColor = getCohortColor(student.angkatan);
+                          final seatColor = isPresent
+                              ? cohortColor
+                              : cohortColor.withValues(alpha: 0.12);
+                          final seatBorderColor = isPresent
+                              ? cohortColor
+                              : cohortColor.withValues(alpha: 0.4);
+                          final textColor = isPresent
+                              ? Colors.white
+                              : isDark
+                                  ? Colors.white.withValues(alpha: 0.7)
+                                  : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
+                          final subTextColor = isPresent
+                              ? Colors.white.withValues(alpha: 0.8)
+                              : subtitleColor;
+
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: seatColor,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: seatBorderColor,
+                                width: isPresent ? 1.5 : 1,
+                              ),
+                              boxShadow: isPresent
+                                  ? [
+                                      BoxShadow(
+                                        color: cohortColor.withValues(alpha: 0.15),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      )
+                                    ]
+                                  : null,
+                            ),
+                            padding: const EdgeInsets.all(6),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Seat Icon / Badge
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 5, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isPresent
+                                            ? Colors.white.withValues(alpha: 0.2)
+                                            : cohortColor.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '#$seatNum',
+                                        style: TextStyle(
+                                          color: isPresent ? Colors.white : cohortColor,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      isPresent
+                                          ? Icons.check_circle_rounded
+                                          : Icons.radio_button_unchecked_rounded,
+                                      size: 12,
+                                      color: isPresent ? Colors.white : cohortColor,
+                                    ),
+                                  ],
+                                ),
+                                const Spacer(),
+                                Text(
+                                  student.studentName,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  student.nis,
+                                  style: TextStyle(
+                                    color: subTextColor,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  isPresent ? 'Hadir' : 'Belum Hadir',
+                                  style: TextStyle(
+                                    color: isPresent ? Colors.white : cohortColor,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _scanStudentQr(context),
+            backgroundColor: const Color(0xFF8B5CF6),
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.qr_code_scanner_rounded),
+            label: const Text('Scan QR Murid', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        );
+      },
+    );
+  }
+
+
+
+  Future<void> _scanStudentQr(BuildContext context) async {
+    final result = await Get.to<String>(() => const StudentQrScannerPage(
+          title: 'Scan QR Murid',
+          subtitle: 'Arahkan kamera ke QR di kartu ujian murid',
+        ));
+
+    if (result == null || result.isEmpty) return;
+
+    try {
+      final decoded = jsonDecode(result);
+      if (decoded['type'] != 'exam_attendance') {
+        _showErrorDialog('Format QR tidak valid untuk presensi ujian!');
+        return;
+      }
+
+      final studentId = decoded['studentId']?.toString() ?? '';
+      final studentName = decoded['studentName']?.toString() ?? 'Murid';
+
+      if (studentId.isEmpty) {
+        _showErrorDialog('ID Murid tidak ditemukan dalam QR!');
+        return;
+      }
+
+      // Show loading
+      Get.dialog(
+        const Center(child: CircularProgressIndicator()),
+        barrierDismissible: false,
+      );
+
+      await ExamSessionService().recordProctorScanAttendance(
+        schoolId: schoolId,
+        sessionId: session.id,
+        studentId: studentId,
+      );
+
+      // Dismiss loading
+      Get.back();
+
+      // Show success
+      Get.snackbar(
+        'Berhasil',
+        'Presensi berhasil dicatat untuk $studentName.',
+        backgroundColor: const Color(0xFF10B981),
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+        margin: const EdgeInsets.all(16),
+      );
+    } catch (e) {
+      // Dismiss loading if active
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      String errMsg = e.toString();
+      if (errMsg.contains('Exception:')) {
+        errMsg = errMsg.substring(errMsg.indexOf('Exception:') + 10);
+      }
+      _showErrorDialog(errMsg);
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final dialogBg = isDark ? const Color(0xFF1E1B4B) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final contentColor = isDark
+        ? Colors.white.withValues(alpha: 0.8)
+        : const Color(0xFF1E1B4B).withValues(alpha: 0.75);
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: dialogBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444)),
+            const SizedBox(width: 8),
+            Text('Presensi Gagal',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: titleColor)),
+          ],
+        ),
+        content: Text(message,
+            style: TextStyle(color: contentColor, height: 1.5)),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Get.back(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8B5CF6),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }

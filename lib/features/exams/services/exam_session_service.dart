@@ -63,6 +63,22 @@ class ExamSessionService {
             snap.docs.isEmpty ? null : ExamEvent.fromFirestore(snap.docs.first));
   }
 
+  /// Stream event ujian terbaru yang belum selesai (Planning/Active), untuk tampilan kartu siswa
+  Stream<ExamEvent?> getLatestExamEvent(String schoolId) {
+    return _eventsRef(schoolId)
+        .snapshots()
+        .map((snap) {
+          final events = snap.docs
+              .map((d) => ExamEvent.fromFirestore(d))
+              .where((e) => e.examStatus != 'Finished')
+              .toList();
+          if (events.isEmpty) return null;
+          // Urutkan descending berdasarkan tanggal mulai, ambil yang terbaru
+          events.sort((a, b) => b.startDate.compareTo(a.startDate));
+          return events.first;
+        });
+  }
+
   /// Stream satu event berdasarkan ID
   Stream<ExamEvent?> getExamEventById(String schoolId, String eventId) {
     return _eventsRef(schoolId)
@@ -278,10 +294,12 @@ class ExamSessionService {
   Stream<List<ExamSession>> getSessionsByAuthor(
       String schoolId, String authorTeacherId) {
     return _sessionsRef(schoolId)
-        .where('authorTeacherId', isEqualTo: authorTeacherId)
         .snapshots()
         .map((snap) {
-          final list = snap.docs.map((d) => ExamSession.fromFirestore(d)).toList();
+          final list = snap.docs
+              .map((d) => ExamSession.fromFirestore(d))
+              .where((s) => s.authorTeacherId.split(',').contains(authorTeacherId))
+              .toList();
           list.sort((a, b) => a.date.compareTo(b.date));
           return list;
         });
@@ -291,13 +309,49 @@ class ExamSessionService {
   Stream<List<ExamSession>> getSessionsByClass(
       String schoolId, String classId) {
     return _sessionsRef(schoolId)
-        .where('classId', isEqualTo: classId)
         .snapshots()
         .map((snap) {
-          final list = snap.docs.map((d) => ExamSession.fromFirestore(d)).toList();
+          final list = snap.docs
+              .map((d) => ExamSession.fromFirestore(d))
+              .where((s) => s.classId.split(',').map((e) => e.trim()).contains(classId))
+              .toList();
           list.sort((a, b) => a.date.compareTo(b.date));
           return list;
         });
+  }
+
+  /// Cari sessionId yang benar untuk murid berdasarkan record partisipasi.
+  /// Dari beberapa sesi yang memiliki subjectId+date+slotName yang sama,
+  /// kembalikan sessionId sesi di mana murid memiliki dokumen participation.
+  Future<String?> getCorrectSessionIdForStudent({
+    required String schoolId,
+    required String classId,
+    required String studentId,
+    required String subjectId,
+    required DateTime date,
+    required String slotName,
+  }) async {
+    final dateStr = date.toIso8601String().substring(0, 10);
+    final snap = await _sessionsRef(schoolId)
+        .where('subjectId', isEqualTo: subjectId)
+        .get();
+
+    final candidates = snap.docs
+        .map((d) => ExamSession.fromFirestore(d))
+        .where((s) =>
+            s.classId.split(',').map((e) => e.trim()).contains(classId) &&
+            s.date.toIso8601String().substring(0, 10) == dateStr &&
+            s.slotName == slotName)
+        .toList();
+
+    // Cari sesi di mana murid punya participation doc
+    for (final s in candidates) {
+      final pDoc = await _participationsRef(schoolId, s.id).doc(studentId).get();
+      if (pDoc.exists) return s.id;
+    }
+
+    // Fallback: kembalikan sessionId pertama
+    return candidates.isNotEmpty ? candidates.first.id : null;
   }
 
   /// Admin manual override pengawas
@@ -356,6 +410,22 @@ class ExamSessionService {
 
   // ── Participation CRUD ───────────────────────────────────────
 
+  /// Mencatat kehadiran siswa dari sisi pengawas (dengan validasi)
+  Future<void> recordProctorScanAttendance({
+    required String schoolId,
+    required String sessionId,
+    required String studentId,
+  }) async {
+    final docRef = _participationsRef(schoolId, sessionId).doc(studentId);
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      throw Exception('Murid tidak terdaftar di ruangan / sesi ujian ini!');
+    }
+    await docRef.set({
+      'scannedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   /// Mencatat kehadiran siswa setelah scan QR (idempotent)
   Future<void> recordParticipation({
     required String schoolId,
@@ -409,6 +479,31 @@ class ExamSessionService {
             snap.docs.map((d) => ExamParticipation.fromFirestore(d)).toList());
   }
 
+  /// Cek apakah murid memiliki minimal satu jadwal ujian (terdaftar di participations)
+  Future<bool> hasAnyActiveExamSchedule({
+    required String schoolId,
+    required String classId,
+    required String studentId,
+  }) async {
+    try {
+      final sessionsSnap = await _sessionsRef(schoolId).get();
+      final List<ExamSession> sessions = sessionsSnap.docs
+          .map((d) => ExamSession.fromFirestore(d))
+          .where((s) => s.classId.split(',').map((e) => e.trim()).contains(classId))
+          .toList();
+
+      if (sessions.isEmpty) return false;
+
+      final futures = sessions.map((s) => _participationsRef(schoolId, s.id).doc(studentId).get());
+      final results = await Future.wait(futures);
+
+      return results.any((doc) => doc.exists);
+    } catch (e) {
+      return false;
+    }
+  }
+
+
   /// Update status hasStarted siswa setelah mulai ujian
   Future<void> markStudentStarted({
     required String schoolId,
@@ -448,23 +543,28 @@ class ExamSessionService {
     required String classId,
     required List<ExamRoom> rooms,
   }) async {
-    // 1. Fetch students in this class
-    final studentsSnap = await _db
-        .collection('schools')
-        .doc(schoolId)
-        .collection('students')
-        .where('classId', isEqualTo: classId)
-        .get();
+    // 1. Fetch students in this class (handles comma-separated classIds)
+    final List<String> targetClassIds = classId.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final List<Map<String, dynamic>> allStudents = [];
 
-    final allStudents = studentsSnap.docs.map((d) {
-      final data = d.data();
-      return {
-        'id': d.id,
-        'nama': data['nama'] ?? '',
-        'nis': data['nis'] ?? '',
-        'angkatan': (data['angkatan'] ?? '').toString().trim(),
-      };
-    }).toList();
+    for (final cid in targetClassIds) {
+      final studentsSnap = await _db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('students')
+          .where('classId', isEqualTo: cid)
+          .get();
+
+      allStudents.addAll(studentsSnap.docs.map((d) {
+        final data = d.data();
+        return {
+          'id': d.id,
+          'nama': data['nama'] ?? '',
+          'nis': data['nis'] ?? '',
+          'angkatan': (data['angkatan'] ?? '').toString().trim(),
+        };
+      }));
+    }
 
     // 2. Group by angkatan
     final Map<String, List<Map<String, dynamic>>> byAngkatan = {};
@@ -540,5 +640,114 @@ class ExamSessionService {
     batch.update(_sessionsRef(schoolId).doc(sessionId), {'roomName': roomNameStr});
 
     await batch.commit();
+  }
+
+  /// Sinkronkan/deploy pertanyaan ujian ke koleksi /exams untuk seluruh sesi yang sesuai dengan eventId & subjectId
+  Future<void> syncQuestionsToExams({
+    required String schoolId,
+    required String eventId,
+    required String subjectId,
+    required List<Map<String, dynamic>> questionsList,
+  }) async {
+    // 1. Ambil detail event
+    final eventDoc = await _eventsRef(schoolId).doc(eventId).get();
+    if (!eventDoc.exists) return;
+    final eventData = eventDoc.data()!;
+    final examType = eventData['examType']?.toString() ?? 'UTS';
+    final title = eventData['title']?.toString() ?? '';
+
+    // Map subjectConfigs agar gampang diakses
+    final List subjectConfigsList = eventData['subjectConfigs'] as List? ?? [];
+    final Map<String, Map<String, dynamic>> subjectConfigsMap = {};
+    for (final item in subjectConfigsList) {
+      final map = Map<String, dynamic>.from(item);
+      final subId = map['subjectId']?.toString() ?? '';
+      if (subId.isNotEmpty) {
+        subjectConfigsMap[subId] = map;
+      }
+    }
+
+    // Ambil tahunAjaran dan semester dari school metadata
+    final schoolDoc = await _db.collection('schools').doc(schoolId).get();
+    final schoolData = schoolDoc.data() ?? {};
+    final tahunAjaran = schoolData['tahunAjaran']?.toString() ?? '';
+    final semester = schoolData['semester']?.toString() ?? '';
+
+    // 2. Ambil seluruh sesi untuk event dan subject ini
+    final sessionsSnap = await _sessionsRef(schoolId)
+        .where('eventId', isEqualTo: eventId)
+        .where('subjectId', isEqualTo: subjectId)
+        .get();
+
+    for (final sDoc in sessionsSnap.docs) {
+      final sData = sDoc.data();
+      final subjectName = sData['subjectName']?.toString() ?? '';
+      final classId = sData['classId']?.toString() ?? '';
+      final className = sData['className']?.toString() ?? '';
+
+      // Dapatkan corrector/author ids & names dari config
+      final config = subjectConfigsMap[subjectId];
+      List<String> authorIds = [];
+      List<String> authorNames = [];
+      if (config != null) {
+        if (config['authorTeacherIds'] != null) {
+          authorIds = List<String>.from(config['authorTeacherIds']);
+        } else if (config['authorTeacherId'] != null && config['authorTeacherId'].toString().isNotEmpty) {
+          authorIds = [config['authorTeacherId'].toString()];
+        }
+
+        if (config['authorTeacherNames'] != null) {
+          authorNames = List<String>.from(config['authorTeacherNames']);
+        } else if (config['authorTeacherName'] != null && config['authorTeacherName'].toString().isNotEmpty) {
+          authorNames = [config['authorTeacherName'].toString()];
+        }
+      }
+
+      // Tentukan durasi
+      int duration = 90;
+      try {
+        final start = sData['startTime']?.toString() ?? '07:30';
+        final end = sData['endTime']?.toString() ?? '09:00';
+        final startParts = start.split(':');
+        final endParts = end.split(':');
+        final startMin = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+        final endMin = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+        if (endMin > startMin) {
+          duration = endMin - startMin;
+        }
+      } catch (_) {}
+
+      // Buat ID exam: eventId_subjectId_classId
+      final examId = '${eventId}_${subjectId}_$classId';
+
+      // Tulis atau update ke collection /exams
+      await _db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exams')
+          .doc(examId)
+          .set({
+        'title': '$examType $subjectName - $className',
+        'description': 'Ujian Semester $examType - $title',
+        'classId': classId,
+        'className': className,
+        'subjectId': subjectId,
+        'subjectName': subjectName,
+        'teacherId': authorIds.isNotEmpty ? authorIds.first : '',
+        'teacherName': authorNames.isNotEmpty ? authorNames.join(', ') : 'Guru Penguji',
+        'teacherIds': authorIds,
+        'teacherNames': authorNames,
+        'durationMinutes': duration,
+        'syncToGrades': true,
+        'gradeCategory': examType, // UTS atau UAS
+        'tahunAjaran': tahunAjaran,
+        'semester': semester,
+        'createdAt': FieldValue.serverTimestamp(),
+        'dueDate': Timestamp.fromDate((sData['date'] as Timestamp).toDate().add(const Duration(days: 1))),
+        'status': 'active',
+        'questions': questionsList,
+        'susulanStudentIds': [],
+      });
+    }
   }
 }

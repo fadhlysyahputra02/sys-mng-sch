@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
+import 'package:sys_mng_school/features/exams/services/exam_session_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
@@ -28,6 +30,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
   bool _isLoading = true;
   int _durationMinutes = 90;
   List<ExamQuestion> _questions = [];
+  bool _hasUnsavedChanges = false;
 
   @override
   void initState() {
@@ -77,6 +80,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
     );
 
     try {
+      final qListMap = _questions.map((q) => q.toMap()).toList();
       await _db
           .collection('schools')
           .doc(schoolId)
@@ -88,13 +92,23 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
         'subjectName': widget.subjectName,
         'authorTeacherId': widget.teacherId,
         'durationMinutes': _durationMinutes,
-        'questions': _questions.map((q) => q.toMap()).toList(),
+        'questions': qListMap,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Sinkronkan ke koleksi /exams untuk murid
+      final sessionService = ExamSessionService();
+      await sessionService.syncQuestionsToExams(
+        schoolId: schoolId,
+        eventId: widget.eventId,
+        subjectId: widget.subjectId,
+        questionsList: qListMap,
+      );
 
       Get.back(); // Close loading dialog
       Get.snackbar('Sukses', 'Bank soal berhasil disimpan!',
           backgroundColor: const Color(0xFF10B981), colorText: Colors.white);
+      setState(() => _hasUnsavedChanges = false);
     } catch (e) {
       Get.back(); // Close loading dialog
       Get.snackbar('Error', 'Gagal menyimpan soal: $e',
@@ -127,6 +141,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
         builder: (context, isDark, _) {
           final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
           final sheetBg = isDark ? const Color(0xFF1A1730) : Colors.white;
+          final border = isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06);
 
           return DraggableScrollableSheet(
             initialChildSize: 0.85,
@@ -150,28 +165,31 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                   // Tipe Pertanyaan
                   Text('Tipe Pertanyaan',
                       style: TextStyle(
-                          color: titleColor.withOpacity(0.6),
+                          color: titleColor.withValues(alpha: 0.6),
                           fontSize: 12,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
-                  Obx(() => Row(
-                        children: [
-                          ChoiceChip(
-                            label: const Text('Pilihan Ganda'),
-                            selected: typeObs.value == 'multiple_choice',
-                            onSelected: (val) {
-                              if (val) typeObs.value = 'multiple_choice';
-                            },
-                          ),
-                          const SizedBox(width: 12),
-                          ChoiceChip(
-                            label: const Text('Essay / Isian'),
-                            selected: typeObs.value == 'essay',
-                            onSelected: (val) {
-                              if (val) typeObs.value = 'essay';
-                            },
-                          ),
+                  Obx(() => DropdownButtonFormField<String>(
+                        value: typeObs.value,
+                        dropdownColor: isDark ? const Color(0xFF1A1730) : Colors.white,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: border)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: border)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: const Color(0xFF8B5CF6))),
+                        ),
+                        style: TextStyle(color: titleColor, fontSize: 13),
+                        items: const [
+                          DropdownMenuItem(value: 'multiple_choice', child: Text('Pilihan Ganda')),
+                          DropdownMenuItem(value: 'essay', child: Text('Essay')),
                         ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            typeObs.value = val;
+                          }
+                        },
                       )),
                   const SizedBox(height: 16),
 
@@ -269,22 +287,32 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                     );
                   }),
 
-                  // Bobot Poin
-                  Text('Bobot Nilai (Poin)',
-                      style: TextStyle(
-                          color: titleColor.withOpacity(0.6),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: pointsCtrl,
-                    keyboardType: TextInputType.number,
-                    style: TextStyle(color: titleColor),
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+                  // Bobot Poin (Hanya untuk Pilihan Ganda)
+                  Obx(() {
+                    if (typeObs.value != 'multiple_choice') {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Bobot Nilai (Poin)',
+                            style: TextStyle(
+                                color: titleColor.withValues(alpha: 0.6),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: pointsCtrl,
+                          keyboardType: TextInputType.number,
+                          style: TextStyle(color: titleColor),
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    );
+                  }),
 
                   // Button Simpan Pertanyaan
                   ElevatedButton(
@@ -294,8 +322,8 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                         return;
                       }
 
-                      final points = int.tryParse(pointsCtrl.text) ?? 10;
                       final type = typeObs.value;
+                      final points = type == 'essay' ? 0 : (int.tryParse(pointsCtrl.text) ?? 10);
                       final List<String> options = [];
 
                       if (type == 'multiple_choice') {
@@ -308,6 +336,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                         }
                       }
 
+                      final currentTeacherName = SessionService.currentUser?.nama ?? 'Guru';
                       final newQ = ExamQuestion(
                         id: existing?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
                         questionText: textCtrl.text.trim(),
@@ -315,6 +344,10 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                         correctOptionIndex: type == 'multiple_choice' ? correctOptObs.value : 0,
                         type: type,
                         points: points,
+                        createdByTeacherId: existing?.createdByTeacherId ?? widget.teacherId,
+                        createdByTeacherName: existing?.createdByTeacherName ?? currentTeacherName,
+                        updatedByTeacherId: isEdit ? widget.teacherId : null,
+                        updatedByTeacherName: isEdit ? currentTeacherName : null,
                       );
 
                       setState(() {
@@ -323,6 +356,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                         } else {
                           _questions.add(newQ);
                         }
+                        _hasUnsavedChanges = true;
                       });
 
                       Navigator.pop(context);
@@ -344,6 +378,59 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
     );
   }
 
+  Future<void> _handleBack() async {
+    if (!_hasUnsavedChanges) {
+      Navigator.pop(context);
+      return;
+    }
+    final isDark = AuthBackground.isDarkMode.value;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded,
+                color: Color(0xFFF59E0B), size: 22),
+            const SizedBox(width: 8),
+            Text('Soal Belum Tersimpan',
+                style: TextStyle(
+                    color: titleColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
+          ],
+        ),
+        content: Text(
+          'Anda memiliki perubahan soal yang belum disimpan. Apakah Anda yakin ingin kembali?\n\nPerubahan akan hilang jika Anda keluar sekarang.',
+          style: TextStyle(
+              color: titleColor.withValues(alpha: 0.8), height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Tetap di Sini',
+                style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Keluar Tanpa Simpan',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -354,29 +441,54 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
         final cardColor = isDark ? Colors.white.withOpacity(0.04) : Colors.white;
         final border = isDark ? Colors.white10 : Colors.black.withOpacity(0.06);
 
-        return Scaffold(
-          body: AuthBackground(
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              appBar: AppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                leading: IconButton(
-                  icon: Icon(Icons.arrow_back_ios_new_rounded, color: titleColor),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                title: Text(
-                  'Bank Soal: ${widget.subjectName}',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: titleColor),
-                ),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.save_rounded, color: Color(0xFF10B981)),
-                    onPressed: _saveData,
-                  ),
-                ],
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) _handleBack();
+          },
+          child: Scaffold(
+            backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+            appBar: AppBar(
+              backgroundColor: isDark
+                  ? const Color(0xFF0F0C20)
+                  : Colors.white,
+              surfaceTintColor: Colors.transparent,
+              scrolledUnderElevation: 0,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back_ios_new_rounded, color: titleColor),
+                onPressed: _handleBack,
               ),
-              body: _isLoading
+              title: Text(
+                'Bank Soal: ${widget.subjectName}',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: titleColor),
+              ),
+              actions: [
+                if (_hasUnsavedChanges)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF59E0B),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.save_rounded,
+                      color: Color(0xFF10B981)),
+                  tooltip: 'Simpan Soal',
+                  onPressed: _saveData,
+                ),
+              ],
+            ),
+            body: AuthBackground(
+              child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -394,10 +506,18 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                       color: titleColor,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16)),
-                              TextButton.icon(
+                              ElevatedButton.icon(
                                 onPressed: () => _addOrEditQuestion(),
                                 icon: const Icon(Icons.add, size: 16),
-                                label: const Text('Tambah'),
+                                label: const Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF8B5CF6),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                ),
                               ),
                             ],
                           ),
@@ -447,17 +567,34 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                                           fontWeight: FontWeight.w600,
                                                           fontSize: 14)),
                                                 ),
-                                                IconButton(
-                                                  icon: const Icon(Icons.edit_rounded, size: 18),
-                                                  onPressed: () => _addOrEditQuestion(existing: q, index: idx),
+                                                Container(
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: IconButton(
+                                                    icon: const Icon(Icons.edit_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                                                    onPressed: () => _addOrEditQuestion(existing: q, index: idx),
+                                                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                    padding: EdgeInsets.zero,
+                                                  ),
                                                 ),
-                                                IconButton(
-                                                  icon: const Icon(Icons.delete_rounded, size: 18, color: Colors.redAccent),
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      _questions.removeAt(idx);
-                                                    });
-                                                  },
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.redAccent.withValues(alpha: 0.1),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: IconButton(
+                                                    icon: const Icon(Icons.delete_rounded, size: 16, color: Colors.redAccent),
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        _questions.removeAt(idx);
+                                                      });
+                                                    },
+                                                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                    padding: EdgeInsets.zero,
+                                                  ),
                                                 ),
                                               ],
                                             ),
@@ -490,9 +627,44 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                             const SizedBox(height: 8),
                                             Padding(
                                               padding: const EdgeInsets.only(left: 34),
-                                              child: Text('Tipe: ${isMc ? 'Pilihan Ganda' : 'Essay'} • Poin: ${q.points}',
+                                              child: Text(
+                                                  isMc
+                                                      ? 'Tipe: Pilihan Ganda • Poin: ${q.points}'
+                                                      : 'Tipe: Essay',
                                                   style: TextStyle(color: subTextColor, fontSize: 11)),
                                             ),
+                                            if (q.createdByTeacherName != null || q.updatedByTeacherName != null) ...[
+                                              const SizedBox(height: 4),
+                                              Padding(
+                                                padding: const EdgeInsets.only(left: 34),
+                                                child: Row(
+                                                  children: [
+                                                    if (q.createdByTeacherName != null) ...[
+                                                      Icon(Icons.person_outline_rounded, size: 10, color: subTextColor),
+                                                      const SizedBox(width: 3),
+                                                      Text(
+                                                        AppLocalization.isIndonesian
+                                                            ? 'Dibuat: ${q.createdByTeacherName}'
+                                                            : 'Created: ${q.createdByTeacherName}',
+                                                        style: TextStyle(color: subTextColor, fontSize: 10),
+                                                      ),
+                                                    ],
+                                                    if (q.createdByTeacherName != null && q.updatedByTeacherName != null)
+                                                      Text(' • ', style: TextStyle(color: subTextColor, fontSize: 10)),
+                                                    if (q.updatedByTeacherName != null) ...[
+                                                      Icon(Icons.edit_note_rounded, size: 10, color: subTextColor),
+                                                      const SizedBox(width: 3),
+                                                      Text(
+                                                        AppLocalization.isIndonesian
+                                                            ? 'Diedit: ${q.updatedByTeacherName}'
+                                                            : 'Edited: ${q.updatedByTeacherName}',
+                                                        style: TextStyle(color: subTextColor, fontSize: 10),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       );
