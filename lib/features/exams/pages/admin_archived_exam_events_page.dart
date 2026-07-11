@@ -208,7 +208,108 @@ class AdminArchivedExamEventsPage extends StatelessWidget {
                                 AppLocalization.isIndonesian ? 'Event berhasil dipulihkan.' : 'Event successfully restored.',
                                 backgroundColor: const Color(0xFF10B981), colorText: Colors.white);
                           } else if (val == 'delete' && isAdmin) {
-                             // Delete logic can be added here if needed, but for simplicity let's skip
+                            final isDark = AuthBackground.isDarkMode.value;
+                            final ctrl = TextEditingController();
+                            final confirm = await Get.dialog<bool>(
+                              AlertDialog(
+                                backgroundColor: isDark ? const Color(0xFF1A1730) : Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                title: Row(
+                                  children: [
+                                    const Icon(Icons.warning_rounded, color: Colors.redAccent),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      AppLocalization.isIndonesian ? 'Hapus Event' : 'Delete Event',
+                                      style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 18),
+                                    ),
+                                  ],
+                                ),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      AppLocalization.isIndonesian 
+                                          ? 'Apakah Anda yakin ingin menghapus arsip "${event.title}"?\n\nPERINGATAN: Semua soal, jadwal, dan NILAI SISWA yang terkait dengan event ini akan TERHAPUS PERMANEN.' 
+                                          : 'Are you sure you want to delete the archive for "${event.title}"?\n\nWARNING: All questions, schedules, and STUDENT GRADES related to this event will be PERMANENTLY DELETED.',
+                                      style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      AppLocalization.isIndonesian ? 'Ketik "HAPUS" untuk konfirmasi:' : 'Type "DELETE" to confirm:',
+                                      style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: ctrl,
+                                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                      decoration: InputDecoration(
+                                        hintText: AppLocalization.isIndonesian ? 'HAPUS' : 'DELETE',
+                                        hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black38),
+                                        filled: true,
+                                        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: const BorderSide(color: Colors.redAccent),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Get.back(result: false),
+                                    child: Text(
+                                      AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
+                                      style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      final expectedStr = AppLocalization.isIndonesian ? 'HAPUS' : 'DELETE';
+                                      if (ctrl.text.trim() == expectedStr) {
+                                        Get.back(result: true);
+                                      } else {
+                                        Get.snackbar(
+                                          'Error',
+                                          AppLocalization.isIndonesian ? 'Teks konfirmasi tidak sesuai.' : 'Confirmation text does not match.',
+                                          backgroundColor: Colors.redAccent,
+                                          colorText: Colors.white,
+                                        );
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                                    child: Text(AppLocalization.isIndonesian ? 'Hapus' : 'Delete'),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirm == true) {
+                              Get.dialog(
+                                const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),
+                                barrierDismissible: false,
+                              );
+                              try {
+                                await service.deleteExamEvent(schoolId, event.id);
+                                Get.back(); // close loading
+                                Get.snackbar(
+                                    AppLocalization.isIndonesian ? 'Dihapus' : 'Deleted',
+                                    AppLocalization.isIndonesian ? 'Arsip Event "${event.title}" telah dihapus.' : 'Archived Event "${event.title}" has been deleted.',
+                                    backgroundColor: const Color(0xFFEF4444),
+                                    colorText: Colors.white,
+                                    snackPosition: SnackPosition.TOP,
+                                    margin: const EdgeInsets.all(16));
+                              } catch (e) {
+                                Get.back();
+                                Get.snackbar('Error', e.toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+                              }
+                            }
                           }
                         },
                         icon: Icon(Icons.more_vert_rounded, color: subtitleColor, size: 20),
@@ -218,6 +319,11 @@ class AdminArchivedExamEventsPage extends StatelessWidget {
                             value: 'restore',
                             child: Text(AppLocalization.isIndonesian ? 'Pulihkan Event' : 'Restore Event', style: TextStyle(color: titleColor)),
                           ),
+                          if (isAdmin)
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text(AppLocalization.isIndonesian ? 'Hapus Event' : 'Delete Event', style: const TextStyle(color: Color(0xFFEF4444))),
+                            ),
                         ],
                       ),
                     ],

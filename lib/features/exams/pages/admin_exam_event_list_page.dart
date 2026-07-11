@@ -9,6 +9,7 @@ import '../models/exam_event_model.dart';
 import '../services/exam_session_service.dart';
 import 'admin_exam_generator_page.dart';
 import 'admin_exam_schedule_view_page.dart';
+import 'admin_archived_exam_events_page.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  AdminExamEventListPage — Daftar event UTS/UAS
@@ -306,6 +307,21 @@ class AdminExamEventListPage extends StatelessWidget {
                               ),
                             );
                           },
+                        ),
+                      ),
+                      // TOmbol Arsip Event
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                        child: OutlinedButton.icon(
+                          onPressed: () => Get.to(() => const AdminArchivedExamEventsPage()),
+                          icon: const Icon(Icons.archive_outlined, size: 18),
+                          label: Text(AppLocalization.isIndonesian ? 'Lihat Arsip Event' : 'View Archived Events'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5),
+                            side: BorderSide(color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5)),
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ),
                     ],
@@ -617,7 +633,7 @@ class AdminExamEventListPage extends StatelessWidget {
             margin: const EdgeInsets.all(16));
         break;
       case 'delete':
-        final isDark = Theme.of(Get.context!).brightness == Brightness.dark;
+        final isDark = AuthBackground.isDarkMode.value;
         final ctrl = TextEditingController();
         final confirm = await Get.dialog<bool>(
           AlertDialog(
@@ -651,9 +667,21 @@ class AdminExamEventListPage extends StatelessWidget {
                 const SizedBox(height: 8),
                 TextField(
                   controller: ctrl,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                   decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
                     hintText: AppLocalization.isIndonesian ? 'HAPUS' : 'DELETE',
+                    hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black38),
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: Colors.redAccent),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
                 ),
               ],
@@ -661,7 +689,10 @@ class AdminExamEventListPage extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () => Get.back(result: false),
-                child: Text(AppLocalization.isIndonesian ? 'Batal' : 'Cancel'),
+                child: Text(
+                  AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
+                  style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+                ),
               ),
               ElevatedButton(
                 onPressed: () {
