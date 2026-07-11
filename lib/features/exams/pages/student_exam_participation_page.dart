@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -6,7 +7,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
-import '../../students/pages/student_qr_scanner_page.dart';
 import '../models/exam_event_model.dart';
 import '../services/exam_session_service.dart';
 import '../models/exam_model.dart';
@@ -16,6 +16,12 @@ import 'student_take_exam_page.dart';
 //  StudentExamParticipationPage
 //  Halaman siswa untuk melihat jadwal ujian semester & scan QR
 // ─────────────────────────────────────────────────────────────
+// Global memory caches to persist schedule and event data during app session per student
+final Map<String, List<ExamSession>> _globalSessionsCache = {};
+final Map<String, ExamEvent> _globalEventCache = {};
+// Participation cache keyed by "schoolId_sessionId_studentId"
+final Map<String, ExamParticipation?> _globalParticipationCache = {};
+
 class StudentExamParticipationPage extends StatefulWidget {
   final String classId;
   final String studentDocId;
@@ -39,9 +45,42 @@ class _StudentExamParticipationPageState
     extends State<StudentExamParticipationPage> {
   final _service = ExamSessionService();
 
-  // Cache status scan per sessionId
-  final Map<String, bool> _scanStatusCache = {};
-  bool _isScanning = false;
+  late Stream<List<ExamSession>> _sessionsStream;
+  Stream<ExamEvent?>? _eventStream;
+  String? _lastEventId;
+  bool _prefetchDone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final schoolId = SessionService.currentUser!.schoolId;
+    _sessionsStream = _service.getSessionsByClass(schoolId, widget.classId);
+
+    final cachedEvent = _globalEventCache[widget.studentDocId];
+    if (cachedEvent != null) {
+      _lastEventId = cachedEvent.id;
+      _eventStream = _service.getExamEventById(schoolId, cachedEvent.id);
+    }
+
+    // Prefetch participation for cached sessions once on init
+    final cachedSessions = _globalSessionsCache[widget.studentDocId];
+    if (cachedSessions != null && cachedSessions.isNotEmpty) {
+      _prefetchDone = true;
+      _prefetchParticipation(schoolId, cachedSessions);
+    }
+  }
+
+  void _initEventStream(String schoolId, String eventId) {
+    if (_lastEventId == eventId && _eventStream != null) return;
+    _lastEventId = eventId;
+    _eventStream = _service.getExamEventById(schoolId, eventId);
+  }
+
+  void _maybeInitPrefetch(String schoolId, List<ExamSession> sessions) {
+    if (_prefetchDone) return;
+    _prefetchDone = true;
+    _prefetchParticipation(schoolId, sessions);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,9 +145,10 @@ class _StudentExamParticipationPageState
                 // Content
                 Expanded(
                   child: StreamBuilder<List<ExamSession>>(
-                    stream: _service.getSessionsByClass(schoolId, widget.classId),
+                    stream: _sessionsStream,
+                    initialData: _globalSessionsCache[widget.studentDocId],
                     builder: (context, snap) {
-                      if (snap.connectionState == ConnectionState.waiting) {
+                      if (!snap.hasData && snap.connectionState == ConnectionState.waiting) {
                         return Center(
                           child: CircularProgressIndicator(
                             color: isDark
@@ -119,6 +159,12 @@ class _StudentExamParticipationPageState
                       }
 
                       final sessions = snap.data ?? [];
+
+                      if (sessions.isNotEmpty) {
+                        _globalSessionsCache[widget.studentDocId] = sessions;
+                        // Prefetch participation only once per page visit
+                        _maybeInitPrefetch(schoolId, sessions);
+                      }
 
                       if (sessions.isEmpty) {
                         return _buildEmptyState(
@@ -133,11 +179,54 @@ class _StudentExamParticipationPageState
                       }
                       final sortedDates = grouped.keys.toList()..sort();
 
-                      // Preload scan status
-                      _prefetchScanStatus(schoolId, sessions);
-
                       return CustomScrollView(
                         slivers: [
+                          // Event Info
+                          if (sessions.isNotEmpty)
+                            SliverToBoxAdapter(
+                              child: Builder(
+                                builder: (context) {
+                                  _initEventStream(schoolId, sessions.first.eventId);
+                                  return StreamBuilder<ExamEvent?>(
+                                    stream: _eventStream,
+                                    initialData: _globalEventCache[widget.studentDocId],
+                                    builder: (context, eventSnap) {
+                                      final event = eventSnap.data;
+                                      if (event != null) {
+                                        _globalEventCache[widget.studentDocId] = event;
+                                      }
+                                      if (event == null) return const SizedBox.shrink();
+                                      return Padding(
+                                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              event.title,
+                                              style: TextStyle(
+                                                color: titleColor,
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${event.examType} • ${DateFormat('dd MMM').format(event.startDate)} - ${DateFormat('dd MMM yyyy').format(event.endDate)}',
+                                              style: TextStyle(
+                                                color: subtitleColor,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+
                           // Info Banner
                           SliverToBoxAdapter(
                             child: Padding(
@@ -196,19 +285,19 @@ class _StudentExamParticipationPageState
     );
   }
 
-  Future<void> _prefetchScanStatus(
+  Future<void> _prefetchParticipation(
       String schoolId, List<ExamSession> sessions) async {
     for (final s in sessions) {
-      if (!_scanStatusCache.containsKey(s.id)) {
-        final hasScanned = await _service.hasStudentScanned(
+      final cacheKey = '${schoolId}_${s.id}_${widget.studentDocId}';
+      if (_globalParticipationCache.containsKey(cacheKey)) continue;
+      try {
+        final p = await _service.getParticipationOnce(
           schoolId: schoolId,
           sessionId: s.id,
           studentId: widget.studentDocId,
         );
-        if (mounted) {
-          setState(() => _scanStatusCache[s.id] = hasScanned);
-        }
-      }
+        _globalParticipationCache[cacheKey] = p;
+      } catch (_) {}
     }
   }
 
@@ -497,22 +586,55 @@ class _StudentExamParticipationPageState
           ],
         ),
         const SizedBox(height: 10),
-        ..._groupAndDeduplicate(sessions).map((candidates) {
-          return ResolvedSessionCard(
-            candidates: candidates,
-            studentDocId: widget.studentDocId,
-            studentName: widget.studentName,
-            studentNis: widget.studentNis,
-            schoolId: schoolId,
-            isDark: isDark,
-            cardColor: cardColor,
-            cardBorder: cardBorder,
-            titleColor: titleColor,
-            subtitleColor: subtitleColor,
-            scanStatusCache: _scanStatusCache,
-            onScanPressed: (session) => _scanQr(context, session, schoolId),
-          );
-        }),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: cardBorder)),
+                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 150, child: Text('Mata Pelajaran', style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold))),
+                      SizedBox(width: 90, child: Text('Waktu', style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold))),
+                      SizedBox(width: 110, child: Text('Ruangan', style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold))),
+                      SizedBox(width: 120, child: Text('Status', style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold))),
+                      SizedBox(width: 130, child: Text('Aksi', style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold))),
+                    ],
+                  ),
+                ),
+                // Rows
+                ..._groupAndDeduplicate(sessions).asMap().entries.map((entry) {
+                  final candidates = entry.value;
+                  final isLast = entry.key == _groupAndDeduplicate(sessions).length - 1;
+                  return ResolvedSessionTableRow(
+                    candidates: candidates,
+                    studentDocId: widget.studentDocId,
+                    studentName: widget.studentName,
+                    studentNis: widget.studentNis,
+                    schoolId: schoolId,
+                    isDark: isDark,
+                    cardBorder: cardBorder,
+                    titleColor: titleColor,
+                    subtitleColor: subtitleColor,
+                    isLastRow: isLast,
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -526,654 +648,9 @@ class _StudentExamParticipationPageState
     return groups.values.toList();
   }
 
-  Widget _buildSessionCard(
-    ExamSession session,
-    bool isDark,
-    Color cardColor,
-    Color cardBorder,
-    Color titleColor,
-    Color subtitleColor,
-    String schoolId,
-  ) {
-    final hasScan = _scanStatusCache[session.id] ?? false;
-    final isActive = session.isQrActive;
-    final isToday = DateFormat('yyyy-MM-dd').format(session.date) ==
-        DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    Color accentColor;
-    if (hasScan) {
-      accentColor = const Color(0xFF10B981);
-    } else if (isActive) {
-      accentColor = const Color(0xFF8B5CF6);
-    } else {
-      accentColor = const Color(0xFF64748B);
-    }
 
-    return StreamBuilder<ExamParticipation?>(
-      stream: _service.getParticipationStream(
-        schoolId: schoolId,
-        sessionId: session.id,
-        studentId: widget.studentDocId,
-      ),
-      builder: (context, partSnap) {
-        final participation = partSnap.data;
-        final roomName = participation?.roomName ?? '';
-        final seatNumber = participation?.seatNumber ?? 0;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: hasScan
-                  ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                  : isActive
-                      ? const Color(0xFF8B5CF6).withValues(alpha: 0.4)
-                      : cardBorder,
-              width: (hasScan || isActive) ? 1.5 : 1,
-            ),
-          ),
-          child: Column(
-            children: [
-          // Top accent strip
-          Container(
-            height: 3,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.6),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(18)),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Subject + Slot
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(session.subjectName,
-                          style: TextStyle(
-                              color: titleColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15)),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: accentColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(session.slotName,
-                          style: TextStyle(
-                              color: accentColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${session.startTime} – ${session.endTime}',
-                  style: TextStyle(color: subtitleColor, fontSize: 12),
-                ),
-                if (roomName.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.meeting_room_rounded,
-                          size: 13, color: subtitleColor),
-                      const SizedBox(width: 4),
-                      Text('Ruang: $roomName',
-                          style:
-                              TextStyle(color: subtitleColor, fontSize: 12)),
-                      if (seatNumber > 0) ...[
-                        const SizedBox(width: 12),
-                        Icon(Icons.event_seat_rounded,
-                            size: 13, color: subtitleColor),
-                        const SizedBox(width: 4),
-                        Text('Kursi: $seatNumber',
-                            style:
-                                TextStyle(color: subtitleColor, fontSize: 12)),
-                      ],
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 12),
-
-                // Scan status + action row
-                Row(
-                  children: [
-                    // Scan status chip
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: hasScan
-                            ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                            : const Color(0xFF64748B).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: hasScan
-                              ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                              : const Color(0xFF64748B).withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            hasScan
-                                ? Icons.check_circle_rounded
-                                : Icons.radio_button_unchecked,
-                            size: 13,
-                            color: hasScan
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFF64748B),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            hasScan ? 'Sudah Scan' : 'Belum Scan',
-                            style: TextStyle(
-                              color: hasScan
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFF64748B),
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Spacer(),
-
-                    // Action buttons
-                    if (hasScan)
-                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                        stream: FirebaseFirestore.instance
-                            .collection('schools')
-                            .doc(schoolId)
-                            .collection('exams')
-                            .doc('${session.eventId}_${session.subjectId}_${session.classId}')
-                            .snapshots(),
-                        builder: (context, examSnap) {
-                          if (examSnap.connectionState == ConnectionState.waiting) {
-                            return const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            );
-                          }
-                          final doc = examSnap.data;
-                          if (doc == null || !doc.exists || doc.data() == null) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.warning_amber_rounded,
-                                      size: 13, color: Color(0xFFEF4444)),
-                                  SizedBox(width: 4),
-                                  Text('Soal Belum Siap',
-                                      style: TextStyle(
-                                          color: Color(0xFFEF4444),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            );
-                          }
-
-                          final exam = Exam.fromFirestore(doc);
-
-                          if (exam.questions.isEmpty) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.warning_amber_rounded,
-                                      size: 13, color: Color(0xFFEF4444)),
-                                  SizedBox(width: 4),
-                                  Text('Soal Masih Kosong',
-                                      style: TextStyle(
-                                          color: Color(0xFFEF4444),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            );
-                          }
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              if (roomName.isNotEmpty && seatNumber > 0) ...[
-                                Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.event_seat_rounded,
-                                        color: Color(0xFF8B5CF6),
-                                        size: 14,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Ruang: $roomName | Kursi: $seatNumber',
-                                        style: const TextStyle(
-                                          color: Color(0xFF8B5CF6),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('schools')
-                                    .doc(schoolId)
-                                    .collection('exam_submissions')
-                                    .doc('${exam.id}_${widget.studentDocId}')
-                                    .snapshots(),
-                                builder: (context, subSnap) {
-                                  final hasSubmitted =
-                                      subSnap.data?.exists == true;
-                                  if (hasSubmitted) {
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF10B981)
-                                            .withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: const Color(0xFF10B981)
-                                              .withValues(alpha: 0.4),
-                                        ),
-                                      ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.check_circle_rounded,
-                                              size: 14,
-                                              color: Color(0xFF10B981)),
-                                          SizedBox(width: 6),
-                                          Text('Sudah Dikerjakan',
-                                              style: TextStyle(
-                                                  color: Color(0xFF10B981),
-                                                  fontSize: 11,
-                                                  fontWeight:
-                                                      FontWeight.bold)),
-                                        ],
-                                      ),
-                                    );
-                                  }
-                                  return ElevatedButton.icon(
-                                    onPressed: () =>
-                                        Get.to(() => StudentTakeExamPage(
-                                              exam: exam,
-                                              studentDocId: widget.studentDocId,
-                                            )),
-                                    icon: const Icon(
-                                        Icons.play_arrow_rounded,
-                                        size: 16),
-                                    label: const Text('Mulai Ujian'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          const Color(0xFF10B981),
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 8),
-                                      textStyle: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          );
-                        },
-                      )
-                    else if (isToday && isActive)
-                      ElevatedButton.icon(
-                        onPressed: _isScanning
-                            ? null
-                            : () => _scanQr(context, session, schoolId),
-                        icon: const Icon(Icons.qr_code_scanner_rounded,
-                            size: 16),
-                        label: const Text('Scan QR'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF8B5CF6),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                          textStyle: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                      )
-                    else if (isToday && !isActive)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B)
-                              .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.hourglass_empty_rounded,
-                                size: 13, color: Color(0xFFF59E0B)),
-                            SizedBox(width: 4),
-                            Text('QR Belum Aktif',
-                                style: TextStyle(
-                                    color: Color(0xFFF59E0B),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF64748B)
-                              .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.calendar_month_rounded,
-                                size: 13, color: Color(0xFF64748B)),
-                            SizedBox(width: 4),
-                            Text('Bukan Hari Ini',
-                                style: TextStyle(
-                                    color: Color(0xFF64748B),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-      },
-    );
-  }
-
-  Future<void> _scanQr(
-      BuildContext context, ExamSession session, String schoolId) async {
-    setState(() => _isScanning = true);
-
-    try {
-      final result = await Get.to<String>(() => const StudentQrScannerPage(
-            title: 'Scan QR Presensi Ujian',
-            subtitle: 'Arahkan kamera ke QR yang ditampilkan pengawas',
-          ));
-
-      if (result == null || result.isEmpty) {
-        setState(() => _isScanning = false);
-        return;
-      }
-
-      final trimmedResult = result.trim();
-      final isJson = trimmedResult.startsWith('{') && trimmedResult.endsWith('}');
-
-      if (!isJson) {
-        // Treat as desk code: roomName-seatNumber-angkatan
-        // Fetch student's designated participation
-        final db = FirebaseFirestore.instance;
-        final partDoc = await db
-            .collection('schools')
-            .doc(schoolId)
-            .collection('exam_sessions')
-            .doc(session.id)
-            .collection('participations')
-            .doc(widget.studentDocId)
-            .get();
-
-        if (!partDoc.exists) {
-          _showError('Anda tidak terdaftar dalam sesi ujian ini.');
-          setState(() => _isScanning = false);
-          return;
-        }
-
-        final data = partDoc.data()!;
-        final assignedRoom = data['roomName'] as String? ?? '';
-        final assignedSeat = data['seatNumber'] as int? ?? 0;
-        final assignedAngkatan = data['angkatan'] as String? ?? '';
-
-        final expectedCode = '$assignedRoom-$assignedSeat-$assignedAngkatan';
-
-        if (trimmedResult != expectedCode) {
-          _showError('Meja tidak sesuai! Meja Anda adalah di $assignedRoom - Nomor $assignedSeat.');
-          setState(() => _isScanning = false);
-          return;
-        }
-
-        // Cek sesi masih aktif
-        if (!session.isQrActive) {
-          _showError('Sesi ujian belum diaktifkan pengawas');
-          setState(() => _isScanning = false);
-          return;
-        }
-
-        // Catat participation
-        await _service.recordParticipation(
-          schoolId: schoolId,
-          sessionId: session.id,
-          studentId: widget.studentDocId,
-          studentName: widget.studentName,
-          nis: widget.studentNis,
-        );
-
-        setState(() {
-          _scanStatusCache[session.id] = true;
-          _isScanning = false;
-        });
-
-        Get.snackbar(
-          '✅ Presensi Berhasil',
-          'Scan Meja $expectedCode Berhasil! Silakan mulai ujian.',
-          backgroundColor: const Color(0xFF10B981),
-          colorText: Colors.white,
-          snackPosition: SnackPosition.TOP,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-        );
-        return;
-      }
-
-      // Parse QR payload
-      Map<String, dynamic> payload;
-      try {
-        payload = jsonDecode(trimmedResult) as Map<String, dynamic>;
-      } catch (_) {
-        _showError('Format QR tidak valid');
-        setState(() => _isScanning = false);
-        return;
-      }
-
-      final type = payload['type'] as String?;
-
-      if (type == 'exam_desk') {
-        final scannedRoom = payload['roomName'] as String?;
-        final scannedSeat = payload['seatNumber'];
-        
-        if (scannedRoom == null || scannedSeat == null) {
-          _showError('Detail meja QR tidak lengkap');
-          setState(() => _isScanning = false);
-          return;
-        }
-
-        final seatInt = int.tryParse(scannedSeat.toString());
-        if (seatInt == null) {
-          _showError('Nomor meja tidak valid');
-          setState(() => _isScanning = false);
-          return;
-        }
-
-        // Fetch student's designated participation
-        final db = FirebaseFirestore.instance;
-        final partDoc = await db
-            .collection('schools')
-            .doc(schoolId)
-            .collection('exam_sessions')
-            .doc(session.id)
-            .collection('participations')
-            .doc(widget.studentDocId)
-            .get();
-
-        if (!partDoc.exists) {
-          _showError('Anda tidak terdaftar dalam sesi ujian ini.');
-          setState(() => _isScanning = false);
-          return;
-        }
-
-        final data = partDoc.data()!;
-        final assignedRoom = data['roomName'] as String? ?? '';
-        final assignedSeat = data['seatNumber'] as int? ?? 0;
-
-        // Check if assigned room and seat match
-        if (assignedRoom != scannedRoom || assignedSeat != seatInt) {
-          _showError('Meja tidak sesuai! Anda terdaftar di $assignedRoom - Meja $assignedSeat.');
-          setState(() => _isScanning = false);
-          return;
-        }
-
-        // Cek sesi masih aktif
-        if (!session.isQrActive) {
-          _showError('Sesi ujian belum diaktifkan pengawas');
-          setState(() => _isScanning = false);
-          return;
-        }
-
-        // Catat participation
-        await _service.recordParticipation(
-          schoolId: schoolId,
-          sessionId: session.id,
-          studentId: widget.studentDocId,
-          studentName: widget.studentName,
-          nis: widget.studentNis,
-        );
-
-        setState(() {
-          _scanStatusCache[session.id] = true;
-          _isScanning = false;
-        });
-
-        Get.snackbar(
-          '✅ Presensi Berhasil',
-          'Scan Meja $scannedRoom - No. $seatInt Berhasil! Silakan mulai ujian.',
-          backgroundColor: const Color(0xFF10B981),
-          colorText: Colors.white,
-          snackPosition: SnackPosition.TOP,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-        );
-        return;
-      }
-
-      final sessionId = payload['sessionId'] as String?;
-      final qrToken = payload['qrToken'] as String?;
-
-      // Validasi tipe dan session
-      if (type != 'exam_session' || sessionId != session.id) {
-        _showError('QR bukan untuk sesi ujian ini');
-        setState(() => _isScanning = false);
-        return;
-      }
-
-      // Validasi token
-      if (qrToken != session.qrToken) {
-        _showError('Token QR tidak valid atau sudah kadaluarsa');
-        setState(() => _isScanning = false);
-        return;
-      }
-
-      // Cek sesi masih aktif
-      if (!session.isQrActive) {
-        _showError('Sesi ujian belum diaktifkan pengawas');
-        setState(() => _isScanning = false);
-        return;
-      }
-
-      // Catat participation
-      await _service.recordParticipation(
-        schoolId: schoolId,
-        sessionId: session.id,
-        studentId: widget.studentDocId,
-        studentName: widget.studentName,
-        nis: widget.studentNis,
-      );
-
-      setState(() {
-        _scanStatusCache[session.id] = true;
-        _isScanning = false;
-      });
-
-      Get.snackbar(
-        '✅ Presensi Berhasil',
-        'Scan QR ${session.subjectName} berhasil! Anda dapat memulai ujian.',
-        backgroundColor: const Color(0xFF10B981),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 3),
-      );
-    } catch (e) {
-      setState(() => _isScanning = false);
-      _showError('Gagal memproses scan: $e');
-    }
-  }
-
-  void _showError(String msg) {
-    Get.snackbar('Gagal', msg,
-        backgroundColor: const Color(0xFFEF4444),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.TOP,
-        margin: const EdgeInsets.all(16));
-  }
 
   Widget _buildEmptyState(
       bool isDark, Color titleColor, Color subtitleColor) {
@@ -1223,21 +700,19 @@ class _StudentExamParticipationPageState
   }
 }
 
-class ResolvedSessionCard extends StatefulWidget {
+class ResolvedSessionTableRow extends StatefulWidget {
   final List<ExamSession> candidates;
   final String studentDocId;
   final String studentName;
   final String studentNis;
   final String schoolId;
   final bool isDark;
-  final Color cardColor;
   final Color cardBorder;
   final Color titleColor;
   final Color subtitleColor;
-  final Function(ExamSession) onScanPressed;
-  final Map<String, bool> scanStatusCache;
+  final bool isLastRow;
 
-  const ResolvedSessionCard({
+  const ResolvedSessionTableRow({
     super.key,
     required this.candidates,
     required this.studentDocId,
@@ -1245,34 +720,87 @@ class ResolvedSessionCard extends StatefulWidget {
     required this.studentNis,
     required this.schoolId,
     required this.isDark,
-    required this.cardColor,
     required this.cardBorder,
     required this.titleColor,
     required this.subtitleColor,
-    required this.onScanPressed,
-    required this.scanStatusCache,
+    this.isLastRow = false,
   });
 
   @override
-  State<ResolvedSessionCard> createState() => _ResolvedSessionCardState();
+  State<ResolvedSessionTableRow> createState() => _ResolvedSessionTableRowState();
 }
 
-class _ResolvedSessionCardState extends State<ResolvedSessionCard> {
+class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
   ExamSession? _resolvedSession;
+  late Stream<ExamParticipation?> _participationStream;
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _examStream;
+  Stream<DocumentSnapshot>? _submissionStream;
+  String? _lastExamDocId;
+  String? _lastSubmissionDocId;
 
   @override
   void initState() {
     super.initState();
     _resolvedSession = widget.candidates.first;
     _resolve();
+    _initParticipationStream();
+    // ⏰ Refresh setiap 30 detik agar tombol muncul tepat waktu
+    _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
+  Timer? _clockTimer;
+
   @override
-  void didUpdateWidget(ResolvedSessionCard oldWidget) {
+  void didUpdateWidget(ResolvedSessionTableRow oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.candidates != oldWidget.candidates) {
       _resolve();
     }
+  }
+
+  @override
+  void dispose() {
+    _clockTimer?.cancel();
+    super.dispose();
+  }
+
+  void _initParticipationStream() {
+    final session = _resolvedSession ?? widget.candidates.first;
+    _participationStream = ExamSessionService().getParticipationStream(
+      schoolId: widget.schoolId,
+      sessionId: session.id,
+      studentId: widget.studentDocId,
+    );
+    // Also warm up the global cache key for this row
+    _cacheKey = '${widget.schoolId}_${session.id}_${widget.studentDocId}';
+  }
+
+  String _cacheKey = '';
+
+  void _initExamStream(ExamSession session) {
+    final examDocId = '${session.eventId}_${session.subjectId}_${session.classId}';
+    if (_lastExamDocId == examDocId && _examStream != null) return;
+    _lastExamDocId = examDocId;
+    _examStream = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('exams')
+        .doc(examDocId)
+        .snapshots();
+  }
+
+  void _initSubmissionStream(String examId) {
+    final submissionDocId = '${examId}_${widget.studentDocId}';
+    if (_lastSubmissionDocId == submissionDocId && _submissionStream != null) return;
+    _lastSubmissionDocId = submissionDocId;
+    _submissionStream = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('exam_submissions')
+        .doc(submissionDocId)
+        .snapshots();
   }
 
   Future<void> _resolve() async {
@@ -1302,6 +830,7 @@ class _ResolvedSessionCardState extends State<ResolvedSessionCard> {
     if (mounted && found != null) {
       setState(() {
         _resolvedSession = found;
+        _initParticipationStream();
       });
     }
   }
@@ -1310,414 +839,288 @@ class _ResolvedSessionCardState extends State<ResolvedSessionCard> {
   Widget build(BuildContext context) {
     final session = _resolvedSession ?? widget.candidates.first;
     final isActive = session.isQrActive;
-    final isToday = DateFormat('yyyy-MM-dd').format(session.date) ==
-        DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final isToday = DateFormat('yyyy-MM-dd').format(session.date) == DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     return StreamBuilder<ExamParticipation?>(
-      stream: ExamSessionService().getParticipationStream(
-        schoolId: widget.schoolId,
-        sessionId: session.id,
-        studentId: widget.studentDocId,
-      ),
+      stream: _participationStream,
+      // Use cached data as initialData to avoid flicker
+      initialData: _globalParticipationCache[_cacheKey],
       builder: (context, partSnap) {
-        if (partSnap.connectionState == ConnectionState.waiting) {
+        // During initial load: use cached data if available, otherwise show nothing
+        if (partSnap.connectionState == ConnectionState.waiting &&
+            partSnap.data == null) {
           return const SizedBox.shrink();
         }
         final participation = partSnap.data;
+        // Update global cache with fresh data
+        if (participation != null && _cacheKey.isNotEmpty) {
+          _globalParticipationCache[_cacheKey] = participation;
+        }
         if (participation == null || (participation.roomName ?? '').isEmpty) {
           return const SizedBox.shrink();
         }
         final roomName = participation.roomName ?? '';
         final seatNumber = participation.seatNumber;
-
-        // Baca hasScan dari stream real-time (bukan cache statis)
         final hasScan = participation.scannedAt != null;
 
-        Color accentColor;
-        if (hasScan) {
-          accentColor = const Color(0xFF10B981);
-        } else if (isActive) {
-          accentColor = const Color(0xFF8B5CF6);
-        } else {
-          accentColor = const Color(0xFF64748B);
-        }
+        Color accentColor = hasScan
+            ? const Color(0xFF10B981)
+            : (isActive ? const Color(0xFF8B5CF6) : const Color(0xFF64748B));
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: widget.cardColor,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: hasScan
-                  ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                  : isActive
-                      ? const Color(0xFF8B5CF6).withValues(alpha: 0.4)
-                      : widget.cardBorder,
-              width: (hasScan || isActive) ? 1.5 : 1,
-            ),
+            border: widget.isLastRow
+                ? null
+                : Border(bottom: BorderSide(color: widget.cardBorder)),
           ),
-          child: Column(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Top accent strip
-              Container(
-                height: 3,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.6),
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(18)),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
+              // Mata Pelajaran
+              SizedBox(
+                width: 150,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Subject + Slot
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(session.subjectName,
-                              style: TextStyle(
-                                  color: widget.titleColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15)),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: accentColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(session.slotName,
-                              style: TextStyle(
-                                  color: accentColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
                     Text(
-                      '${session.startTime} – ${session.endTime}',
-                      style: TextStyle(color: widget.subtitleColor, fontSize: 12),
-                    ),
-                    if (roomName.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.meeting_room_rounded,
-                              size: 13, color: widget.subtitleColor),
-                          const SizedBox(width: 4),
-                          Text('Ruang: $roomName',
-                              style:
-                                  TextStyle(color: widget.subtitleColor, fontSize: 12)),
-                          if (seatNumber > 0) ...[
-                            const SizedBox(width: 12),
-                            Icon(Icons.event_seat_rounded,
-                                size: 13, color: widget.subtitleColor),
-                            const SizedBox(width: 4),
-                            Text('Kursi: $seatNumber',
-                                style:
-                                    TextStyle(color: widget.subtitleColor, fontSize: 12)),
-                          ],
-                        ],
+                      session.subjectName,
+                      style: TextStyle(
+                        color: widget.titleColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
-                    ],
-                    const SizedBox(height: 12),
-
-
-                    // Scan status + action row
-                    Row(
-                      children: [
-                        // Scan status chip
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: hasScan
-                                ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                                : const Color(0xFF64748B).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: hasScan
-                                  ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                                  : const Color(0xFF64748B).withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                hasScan
-                                    ? Icons.check_circle_rounded
-                                    : Icons.radio_button_unchecked,
-                                size: 13,
-                                color: hasScan
-                                    ? const Color(0xFF10B981)
-                                    : const Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                hasScan ? 'Sudah Scan' : 'Belum Scan',
-                                style: TextStyle(
-                                  color: hasScan
-                                      ? const Color(0xFF10B981)
-                                      : const Color(0xFF64748B),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        session.slotName,
+                        style: TextStyle(
+                          color: accentColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const Spacer(),
-
-                        // Action buttons
-                        if (hasScan)
-                          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                            stream: FirebaseFirestore.instance
-                                .collection('schools')
-                                .doc(widget.schoolId)
-                                .collection('exams')
-                                .doc('${session.eventId}_${session.subjectId}_${session.classId}')
-                                .snapshots(),
-                            builder: (context, examSnap) {
-                              if (examSnap.connectionState == ConnectionState.waiting) {
-                                return const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                );
-                              }
-                              final doc = examSnap.data;
-                              if (doc == null || !doc.exists || doc.data() == null) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.warning_amber_rounded,
-                                          size: 13, color: Color(0xFFEF4444)),
-                                      SizedBox(width: 4),
-                                      Text('Soal Belum Siap',
-                                          style: TextStyle(
-                                              color: Color(0xFFEF4444),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                );
-                              }
-
-                              final exam = Exam.fromFirestore(doc);
-
-                              if (exam.questions.isEmpty) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.warning_amber_rounded,
-                                          size: 13, color: Color(0xFFEF4444)),
-                                      SizedBox(width: 4),
-                                      Text('Soal Masih Kosong',
-                                          style: TextStyle(
-                                              color: Color(0xFFEF4444),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                );
-                              }
-
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  if (roomName.isNotEmpty && seatNumber > 0) ...[
-                                    Container(
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.event_seat_rounded,
-                                            color: Color(0xFF8B5CF6),
-                                            size: 14,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            'Ruang: $roomName | Kursi: $seatNumber',
-                                            style: const TextStyle(
-                                              color: Color(0xFF8B5CF6),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                  StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('schools')
-                                        .doc(widget.schoolId)
-                                        .collection('exam_submissions')
-                                        .doc('${exam.id}_${widget.studentDocId}')
-                                        .snapshots(),
-                                    builder: (context, subSnap) {
-                                      final hasSubmitted =
-                                          subSnap.data?.exists == true;
-                                      if (hasSubmitted) {
-                                        return Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 8),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF10B981)
-                                                .withValues(alpha: 0.12),
-                                            borderRadius: BorderRadius.circular(10),
-                                            border: Border.all(
-                                              color: const Color(0xFF10B981)
-                                                  .withValues(alpha: 0.4),
-                                            ),
-                                          ),
-                                          child: const Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.check_circle_rounded,
-                                                  size: 14,
-                                                  color: Color(0xFF10B981)),
-                                              SizedBox(width: 6),
-                                              Text('Sudah Dikerjakan',
-                                                  style: TextStyle(
-                                                      color: Color(0xFF10B981),
-                                                      fontSize: 11,
-                                                      fontWeight:
-                                                          FontWeight.bold)),
-                                            ],
-                                          ),
-                                        );
-                                      }
-                                      return ElevatedButton.icon(
-                                        onPressed: () =>
-                                            Get.to(() => StudentTakeExamPage(
-                                                  exam: exam,
-                                                  studentDocId: widget.studentDocId,
-                                                )),
-                                        icon: const Icon(
-                                            Icons.play_arrow_rounded,
-                                            size: 16),
-                                        label: const Text('Mulai Ujian'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              const Color(0xFF10B981),
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10)),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 14, vertical: 8),
-                                          textStyle: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              );
-                            },
-                          )
-                        else if (isToday && isActive)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.qr_code_rounded,
-                                    size: 13, color: Color(0xFF8B5CF6)),
-                                SizedBox(width: 4),
-                                Text('Tunjukkan QR ke Pengawas',
-                                    style: TextStyle(
-                                        color: Color(0xFF8B5CF6),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          )
-                        else if (isToday && !isActive)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF59E0B)
-                                  .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.hourglass_empty_rounded,
-                                    size: 13, color: Color(0xFFF59E0B)),
-                                SizedBox(width: 4),
-                                Text('QR Belum Aktif',
-                                    style: TextStyle(
-                                        color: Color(0xFFF59E0B),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          )
-                        else
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF64748B)
-                                  .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.calendar_month_rounded,
-                                    size: 13, color: Color(0xFF64748B)),
-                                SizedBox(width: 4),
-                                Text('Bukan Hari Ini',
-                                    style: TextStyle(
-                                        color: Color(0xFF64748B),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
                   ],
+                ),
+              ),
+              // Waktu
+              SizedBox(
+                width: 90,
+                child: Text(
+                  '${session.startTime}\n${session.endTime}',
+                  style: TextStyle(color: widget.subtitleColor, fontSize: 12),
+                ),
+              ),
+              // Ruangan & Kursi
+              SizedBox(
+                width: 110,
+                child: roomName.isEmpty
+                    ? Text('-', style: TextStyle(color: widget.subtitleColor))
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('R: $roomName', style: TextStyle(color: widget.subtitleColor, fontSize: 12)),
+                          if (seatNumber > 0)
+                            Text('K: $seatNumber', style: TextStyle(color: widget.subtitleColor, fontSize: 12)),
+                        ],
+                      ),
+              ),
+              // Status
+              SizedBox(
+                width: 120,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: hasScan
+                        ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                        : const Color(0xFF64748B).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: hasScan
+                          ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                          : const Color(0xFF64748B).withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        hasScan ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                        size: 11,
+                        color: hasScan ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        hasScan ? 'Sudah Scan' : 'Belum Scan',
+                        style: TextStyle(
+                          color: hasScan ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Aksi
+              SizedBox(
+                width: 130,
+                child: Builder(
+                  builder: (context) {
+                    if (!hasScan) {
+                      if (isToday && isActive) {
+                        return const Text('Menunggu Scan', style: TextStyle(color: Color(0xFF8B5CF6), fontSize: 11, fontStyle: FontStyle.italic));
+                      } else if (isToday && !isActive) {
+                        return Text('Belum Mulai', style: TextStyle(color: widget.subtitleColor, fontSize: 11, fontStyle: FontStyle.italic));
+                      }
+                      return Text('Bukan Hari Ini', style: TextStyle(color: widget.subtitleColor, fontSize: 11, fontStyle: FontStyle.italic));
+                    }
+
+                    // ── Validasi waktu ujian ─────────────────────────────────────
+                    // Waktu SELALU dicek — tidak ada bypass via examStatus.
+                    // Tombol baru aktif ketika jam sekarang >= jam mulai sesi.
+                    bool isExamTimeReached = false;
+                    if (isToday) {
+                      try {
+                        final parts = session.startTime.split(':');
+                        final now = DateTime.now();
+                        final sessionStart = DateTime(
+                          now.year, now.month, now.day,
+                          int.parse(parts[0]), int.parse(parts[1]),
+                        );
+                        isExamTimeReached = !now.isBefore(sessionStart);
+                      } catch (_) {
+                        // Jika parse gagal, tolak akses (fail-safe)
+                        isExamTimeReached = false;
+                      }
+                    }
+
+
+                    if (!isExamTimeReached) {
+                      // Sudah scan, tapi waktu ujian belum tiba
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.access_time_rounded, size: 11, color: Color(0xFFF59E0B)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Mulai ${session.startTime}',
+                                  style: const TextStyle(
+                                    color: Color(0xFFF59E0B),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          const Text(
+                            'Scan OK • Tunggu waktu',
+                            style: TextStyle(
+                              color: Color(0xFF10B981),
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    // ── Waktu sudah tiba, lanjut ke pengecekan soal ──────────
+
+                    _initExamStream(session);
+                    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      stream: _examStream,
+                      builder: (context, examSnap) {
+                        if (examSnap.connectionState == ConnectionState.waiting) {
+                          return const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2));
+                        }
+                        final doc = examSnap.data;
+                        if (doc == null || !doc.exists || doc.data() == null) {
+                          return const Text('Soal Belum Siap', style: TextStyle(color: Color(0xFFEF4444), fontSize: 11, fontWeight: FontWeight.bold));
+                        }
+
+                        final exam = Exam.fromFirestore(doc);
+                        if (exam.questions.isEmpty) {
+                          return const Text('Soal Kosong', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold));
+                        }
+
+                        _initSubmissionStream(exam.id);
+                        return StreamBuilder<DocumentSnapshot>(
+                          stream: _submissionStream,
+                          builder: (context, subSnap) {
+                            if (subSnap.connectionState == ConnectionState.waiting) {
+                              return const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2));
+                            }
+                            final isSubmitted = subSnap.data?.exists ?? false;
+
+                            if (isSubmitted) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
+                                    SizedBox(width: 4),
+                                    Text('Selesai', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            return ElevatedButton.icon(
+                              onPressed: () => Get.to(() => StudentTakeExamPage(
+                                    exam: exam,
+                                    studentDocId: widget.studentDocId,
+                                    sessionId: session.id,
+                                    schoolId: widget.schoolId,
+                                    sessionStartTime: session.startTime,
+                                    sessionExamStatus: session.examStatus,
+                                    seatNumber: partSnap.data?.seatNumber,
+                                    roomName: partSnap.data?.roomName ?? session.roomName,
+                                  )),
+                              icon: const Icon(Icons.play_arrow_rounded, size: 14),
+                              label: const Text('Mulai Ujian', style: TextStyle(fontSize: 10)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF10B981),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                minimumSize: const Size(0, 32),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
             ],

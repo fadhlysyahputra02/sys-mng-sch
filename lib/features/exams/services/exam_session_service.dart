@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/exam_event_model.dart';
+import 'exam_behavior_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  ExamSessionService — CRUD untuk exam_events & exam_sessions
@@ -44,13 +46,34 @@ class ExamSessionService {
     return docRef.id;
   }
 
-  /// Stream seluruh event UTS/UAS sekolah (diurutkan terbaru)
+  /// Stream seluruh event UTS/UAS sekolah yang tidak diarsipkan (diurutkan terbaru)
   Stream<List<ExamEvent>> getExamEvents(String schoolId) {
     return _eventsRef(schoolId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) =>
-            snap.docs.map((d) => ExamEvent.fromFirestore(d)).toList());
+        .map((snap) {
+          final events = snap.docs
+              .map((d) => ExamEvent.fromFirestore(d))
+              .where((e) => e.examStatus != 'Archived')
+              .toList();
+          events.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return events;
+        });
+  }
+
+  /// Stream seluruh event UTS/UAS sekolah yang DIARSIPKAN (diurutkan terbaru)
+  Stream<List<ExamEvent>> getArchivedExamEvents(String schoolId) {
+    return _eventsRef(schoolId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) {
+          final events = snap.docs
+              .map((d) => ExamEvent.fromFirestore(d))
+              .where((e) => e.examStatus == 'Archived')
+              .toList();
+          events.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return events;
+        });
   }
 
   /// Stream event yang sedang "Active" (untuk cek kondisi dashboard siswa)
@@ -63,14 +86,14 @@ class ExamSessionService {
             snap.docs.isEmpty ? null : ExamEvent.fromFirestore(snap.docs.first));
   }
 
-  /// Stream event ujian terbaru yang belum selesai (Planning/Active), untuk tampilan kartu siswa
+  /// Stream event ujian terbaru yang active, untuk tampilan kartu siswa
   Stream<ExamEvent?> getLatestExamEvent(String schoolId) {
     return _eventsRef(schoolId)
         .snapshots()
         .map((snap) {
           final events = snap.docs
               .map((d) => ExamEvent.fromFirestore(d))
-              .where((e) => e.examStatus != 'Finished')
+              .where((e) => e.examStatus == 'Active')
               .toList();
           if (events.isEmpty) return null;
           // Urutkan descending berdasarkan tanggal mulai, ambil yang terbaru
@@ -91,10 +114,52 @@ class ExamSessionService {
   /// Jika status menjadi Active, buat dokumen Exam di collection /exams untuk setiap sesi yang memiliki soal
   Future<void> updateExamEventStatus(
       String schoolId, String eventId, String status) async {
+    if (status == 'Active') {
+      // 1. Ambil detail event untuk tahu subjectConfigs
+      final eventDoc = await _eventsRef(schoolId).doc(eventId).get();
+      if (!eventDoc.exists) {
+        throw Exception('Event tidak ditemukan.');
+      }
+      final eventData = eventDoc.data()!;
+      final List subjectConfigsList = eventData['subjectConfigs'] as List? ?? [];
+
+      // Validasi: Cek apakah ada mapel yang belum punya soal
+      final List<String> subjectsWithoutQuestions = [];
+      for (final item in subjectConfigsList) {
+        final map = Map<String, dynamic>.from(item);
+        final subId = map['subjectId']?.toString() ?? '';
+        final subName = map['subjectName']?.toString() ?? 'Mata Pelajaran';
+        if (subId.isNotEmpty) {
+          final qDoc = await _db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('exam_questions')
+              .doc('${eventId}_$subId')
+              .get();
+          if (!qDoc.exists || qDoc.data() == null) {
+            subjectsWithoutQuestions.add(subName);
+          } else {
+            final List questions = qDoc.data()!['questions'] as List? ?? [];
+            if (questions.isEmpty) {
+              subjectsWithoutQuestions.add(subName);
+            }
+          }
+        }
+      }
+
+      if (subjectsWithoutQuestions.isNotEmpty) {
+        throw Exception(
+          'Mata pelajaran berikut belum memiliki soal:\n'
+          '${subjectsWithoutQuestions.map((s) => "- $s").join("\n")}',
+        );
+      }
+    }
+
+    // Update status di Firestore setelah validasi berhasil
     await _eventsRef(schoolId).doc(eventId).update({'examStatus': status});
 
     if (status == 'Active') {
-      // 1. Ambil detail event untuk tahu examType, dll.
+      // Ambil detail event lagi untuk generate exams
       final eventDoc = await _eventsRef(schoolId).doc(eventId).get();
       if (!eventDoc.exists) return;
       final eventData = eventDoc.data()!;
@@ -277,7 +342,7 @@ class ExamSessionService {
         });
   }
 
-  /// Stream sesi yang ditugaskan ke pengawas tertentu
+  /// Stream sesi yang ditugaskan ke pengawas tertentu (Guru tetap dapat melihat meskipun event masih Planning)
   Stream<List<ExamSession>> getSessionsByProctor(
       String schoolId, String proctorId) {
     return _sessionsRef(schoolId)
@@ -290,7 +355,7 @@ class ExamSessionService {
         });
   }
 
-  /// Stream sesi yang guru bersangkutan menjadi author soal
+  /// Stream sesi yang guru bersangkutan menjadi author soal (Guru tetap dapat melihat meskipun event masih Planning)
   Stream<List<ExamSession>> getSessionsByAuthor(
       String schoolId, String authorTeacherId) {
     return _sessionsRef(schoolId)
@@ -305,19 +370,46 @@ class ExamSessionService {
         });
   }
 
-  /// Stream sesi untuk kelas tertentu (untuk kalender siswa)
+  /// Stream sesi untuk kelas tertentu (hanya jika event-nya Active/Finished, bukan Planning)
   Stream<List<ExamSession>> getSessionsByClass(
       String schoolId, String classId) {
-    return _sessionsRef(schoolId)
-        .snapshots()
-        .map((snap) {
-          final list = snap.docs
-              .map((d) => ExamSession.fromFirestore(d))
-              .where((s) => s.classId.split(',').map((e) => e.trim()).contains(classId))
-              .toList();
-          list.sort((a, b) => a.date.compareTo(b.date));
-          return list;
-        });
+    final controller = StreamController<List<ExamSession>>();
+    StreamSubscription? subEvents;
+    StreamSubscription? subSessions;
+
+    List<ExamEvent> events = [];
+    List<ExamSession> sessions = [];
+
+    void update() {
+      if (controller.isClosed) return;
+      final nonPlanningEventIds = events
+          .where((e) => e.examStatus != 'Planning')
+          .map((e) => e.id)
+          .toSet();
+      final filtered = sessions
+          .where((s) => s.classId.split(',').map((e) => e.trim()).contains(classId) &&
+                        nonPlanningEventIds.contains(s.eventId))
+          .toList();
+      controller.add(filtered);
+    }
+
+    subEvents = _eventsRef(schoolId).snapshots().listen((eventSnap) {
+      events = eventSnap.docs.map((d) => ExamEvent.fromFirestore(d)).toList();
+      update();
+    }, onError: controller.addError);
+
+    subSessions = _sessionsRef(schoolId).snapshots().listen((sessionSnap) {
+      sessions = sessionSnap.docs.map((d) => ExamSession.fromFirestore(d)).toList();
+      sessions.sort((a, b) => a.date.compareTo(b.date));
+      update();
+    }, onError: controller.addError);
+
+    controller.onCancel = () {
+      subEvents?.cancel();
+      subSessions?.cancel();
+    };
+
+    return controller.stream;
   }
 
   /// Cari sessionId yang benar untuk murid berdasarkan record partisipasi.
@@ -398,6 +490,12 @@ class ExamSessionService {
       'isQrActive': false,
       'examStatus': 'Finished',
     });
+
+    // Hapus seluruh behavior records murid untuk sesi ujian ini
+    await ExamBehaviorService().deleteExamBehaviorForSession(
+      schoolId: schoolId,
+      sessionId: sessionId,
+    );
   }
 
   /// Stream satu sesi secara real-time (untuk polling status QR)
@@ -423,6 +521,22 @@ class ExamSessionService {
     }
     await docRef.set({
       'scannedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Menghapus / membatalkan kehadiran siswa dari sisi pengawas
+  Future<void> cancelProctorScanAttendance({
+    required String schoolId,
+    required String sessionId,
+    required String studentId,
+  }) async {
+    final docRef = _participationsRef(schoolId, sessionId).doc(studentId);
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      throw Exception('Murid tidak terdaftar di ruangan / sesi ujian ini!');
+    }
+    await docRef.set({
+      'scannedAt': null,
     }, SetOptions(merge: true));
   }
 
@@ -466,6 +580,17 @@ class ExamSessionService {
         .doc(studentId)
         .snapshots()
         .map((d) => d.exists ? ExamParticipation.fromFirestore(d) : null);
+  }
+
+  /// Fetch participation sekali (non-stream), digunakan untuk prefetch cache
+  Future<ExamParticipation?> getParticipationOnce({
+    required String schoolId,
+    required String sessionId,
+    required String studentId,
+  }) async {
+    final doc = await _participationsRef(schoolId, sessionId).doc(studentId).get();
+    if (!doc.exists) return null;
+    return ExamParticipation.fromFirestore(doc);
   }
 
   /// Stream seluruh peserta sesi (untuk proctor dashboard)

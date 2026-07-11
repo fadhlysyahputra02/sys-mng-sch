@@ -6,12 +6,20 @@ import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
 import '../services/exam_service.dart';
+import 'package:is_lock_screen2/is_lock_screen2.dart';
+import '../services/exam_behavior_service.dart';
 
 class StudentTakeExamPage extends StatefulWidget {
   final Exam exam;
   final String? studentDocId;
   final String? sessionId;
   final String? schoolId;
+  /// Format "HH:mm" — jam mulai sesi ujian
+  final String? sessionStartTime;
+  /// examStatus dari ExamSession (e.g. 'Active', 'Scheduled')
+  final String? sessionExamStatus;
+  final int? seatNumber;
+  final String? roomName;
 
   const StudentTakeExamPage({
     super.key,
@@ -19,14 +27,19 @@ class StudentTakeExamPage extends StatefulWidget {
     this.studentDocId,
     this.sessionId,
     this.schoolId,
+    this.sessionStartTime,
+    this.sessionExamStatus,
+    this.seatNumber,
+    this.roomName,
   });
 
   @override
   State<StudentTakeExamPage> createState() => _StudentTakeExamPageState();
 }
 
-class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
+class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsBindingObserver {
   final _examService = ExamService();
+  final _behaviorService = ExamBehaviorService();
 
   bool _hasStarted = false;
   int _currentQuestionIndex = 0;
@@ -42,12 +55,81 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
   void initState() {
     super.initState();
     _secondsRemaining = widget.exam.durationMinutes * 60;
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  Future<void> _reportStatus(String type, String description) async {
+    if (widget.sessionId == null || widget.schoolId == null) return;
+    final user = SessionService.currentUser!;
+    final studentId = widget.studentDocId ?? user.uid;
+    final studentName = user.nama;
+    final className = widget.exam.className;
+    final subjectName = widget.exam.subjectName;
+    final roomName = widget.roomName ?? 'Ruang Ujian';
+    final seatNumber = widget.seatNumber ?? 0;
+
+    // Fetch school metadata for tahunAjaran and semester
+    final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).get();
+    final schoolData = schoolDoc.data() ?? {};
+    final tahunAjaran = schoolData['tahunAjaran']?.toString() ?? '';
+    final semester = schoolData['semester']?.toString() ?? '';
+
+    await _behaviorService.reportExamBehavior(
+      schoolId: widget.schoolId!,
+      studentId: studentId,
+      studentName: studentName,
+      className: className,
+      sessionId: widget.sessionId!,
+      subjectName: subjectName,
+      roomName: roomName,
+      seatNumber: seatNumber,
+      type: type,
+      description: description,
+      tahunAjaran: tahunAjaran,
+      semester: semester,
+    );
+  }
+
+  Future<void> _deleteBehaviorRecord() async {
+    if (widget.sessionId == null || widget.schoolId == null) return;
+    final user = SessionService.currentUser!;
+    final studentId = widget.studentDocId ?? user.uid;
+    await _behaviorService.deleteStudentExamBehavior(
+      schoolId: widget.schoolId!,
+      studentId: studentId,
+      sessionId: widget.sessionId!,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (!_hasStarted || _isSubmitting) return;
+
+    if (state == AppLifecycleState.inactive) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      bool isLocked = false;
+      try {
+        final locked = await isLockScreen();
+        if (locked == true) {
+          isLocked = true;
+        }
+      } catch (_) {}
+
+      if (isLocked) {
+        _reportStatus('Screen Off', 'Layar murid terkunci atau mati');
+      }
+    } else if (state == AppLifecycleState.paused) {
+      _reportStatus('Keluar', 'Murid keluar dari aplikasi ujian (Home/Recent)');
+    } else if (state == AppLifecycleState.resumed) {
+      _reportStatus('Standby', 'Murid kembali mengerjakan ujian');
+    }
   }
 
   void _startExam() {
     setState(() {
       _hasStarted = true;
     });
+    _reportStatus('Standby', 'Murid mulai mengerjakan ujian');
     _startTimer();
   }
 
@@ -95,6 +177,9 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
         answers: _selectedAnswers,
         essayAnswers: _essayAnswers,
       );
+
+      // Hapus behavior record saat ujian dikumpulkan
+      await _deleteBehaviorRecord();
 
       // Update submittedAt di participations (denah tempat duduk)
       if (widget.sessionId != null) {
@@ -174,15 +259,32 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
       _timer?.cancel();
 
       final user = SessionService.currentUser!;
+      final schoolId = user.schoolId;
+      final studentId = widget.studentDocId ?? user.uid;
       try {
         await _examService.submitExam(
-          schoolId: user.schoolId,
+          schoolId: schoolId,
           exam: widget.exam,
-          studentId: widget.studentDocId ?? user.uid,
+          studentId: studentId,
           studentName: user.nama,
           answers: _selectedAnswers,
           essayAnswers: _essayAnswers,
         );
+
+        // Hapus behavior record saat ujian dikumpulkan
+        await _deleteBehaviorRecord();
+
+        // Update submittedAt di participations (denah tempat duduk)
+        if (widget.sessionId != null) {
+          await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(schoolId)
+              .collection('exam_sessions')
+              .doc(widget.sessionId)
+              .collection('participations')
+              .doc(studentId)
+              .set({'submittedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+        }
 
         Get.back();
         Get.snackbar(
@@ -240,6 +342,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _questionNavScrollCtrl.dispose();
     super.dispose();
@@ -609,6 +712,23 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
       questionComposition = 'Terdiri dari $pgCount soal Pilihan Ganda.';
     }
 
+    // ── Validasi waktu (layer kedua — mencegah akses langsung) ──────────────
+    // Waktu SELALU dicek. examStatus tidak bisa bypass gate waktu.
+    bool isExamTimeReachedHere = true; // default allow jika tidak ada info waktu
+    if (widget.sessionStartTime != null) {
+      try {
+        final parts = widget.sessionStartTime!.split(':');
+        final now = DateTime.now();
+        final sessionStart = DateTime(
+            now.year, now.month, now.day,
+            int.parse(parts[0]), int.parse(parts[1]));
+        isExamTimeReachedHere = !now.isBefore(sessionStart);
+      } catch (_) {
+        isExamTimeReachedHere = true; // jika parse gagal, izinkan (data tidak reliable)
+      }
+    }
+
+
     return Scaffold(
       body: AuthBackground(
         child: Center(
@@ -655,6 +775,33 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
                     _buildRuleItem(Icons.warning_amber_rounded, 'Meninggalkan aplikasi saat ujian berjalan akan memicu penyerahan jawaban otomatis.', titleColor),
                     _buildRuleItem(Icons.verified_user_rounded, 'Pastikan koneksi internet stabil sebelum menekan tombol Mulai.', titleColor),
                     const SizedBox(height: 24),
+                    // ── Tombol mulai dengan validasi waktu ──
+                    if (!isExamTimeReachedHere) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.access_time_rounded, color: Color(0xFFF59E0B), size: 18),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Ujian dimulai pukul ${widget.sessionStartTime}',
+                              style: const TextStyle(
+                                color: Color(0xFFF59E0B),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ] else ...[
                     ElevatedButton(
                       onPressed: _startExam,
                       style: ElevatedButton.styleFrom(
@@ -667,6 +814,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> {
                       child: const Text('Mulai Ujian Sekarang', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     ),
                     const SizedBox(height: 12),
+                    ],
                     OutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(

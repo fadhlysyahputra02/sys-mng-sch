@@ -32,10 +32,70 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
   List<ExamQuestion> _questions = [];
   bool _hasUnsavedChanges = false;
 
+  // Lock state: true saat jam ujian sudah tiba atau sedang berlangsung
+  bool _isExamLocked = false;
+  String? _lockedSessionInfo; // Pesan info sesi yang sedang berlangsung
+
   @override
   void initState() {
     super.initState();
     _loadQuestionsData();
+    _checkExamLock();
+  }
+
+  /// Mengecek apakah sudah ada sesi ujian mapel ini yang waktunya sudah tiba.
+  /// Jika ya, lock semua aksi edit.
+  Future<void> _checkExamLock() async {
+    final schoolId = SessionService.currentUser!.schoolId;
+    try {
+      final snapshot = await _db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_sessions')
+          .where('eventId', isEqualTo: widget.eventId)
+          .where('subjectId', isEqualTo: widget.subjectId)
+          .get();
+
+      if (snapshot.docs.isEmpty) return;
+
+      final now = DateTime.now();
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final dateStr = data['date']?.toString() ?? '';
+        final startTimeStr = data['startTime']?.toString() ?? '';
+        if (dateStr.isEmpty || startTimeStr.isEmpty) continue;
+
+        try {
+          final parts = startTimeStr.split(':');
+          final date = DateTime.tryParse(dateStr);
+          if (date == null || parts.length < 2) continue;
+
+          final sessionStart = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            int.parse(parts[0]),
+            int.parse(parts[1]),
+          );
+
+          if (!now.isBefore(sessionStart)) {
+            // Waktu ujian sudah tiba atau sudah lewat — kunci editing
+            final roomName = data['roomName']?.toString() ?? 'Ruangan Tidak Diketahui';
+            final classInfo = data['className']?.toString() ?? 'Kelas Tidak Diketahui';
+            setState(() {
+              _isExamLocked = true;
+              _lockedSessionInfo =
+                  'Ujian $classInfo di $roomName dimulai pukul $startTimeStr. Soal tidak dapat diubah.';
+            });
+            return; // Cukup satu sesi yang sudah mulai
+          }
+        } catch (_) {
+          continue;
+        }
+      }
+    } catch (e) {
+      // Jika gagal cek, biarkan halaman tetap bisa diedit (fail-open)
+    }
   }
 
   Future<void> _loadQuestionsData() async {
@@ -467,7 +527,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                     color: titleColor),
               ),
               actions: [
-                if (_hasUnsavedChanges)
+                if (!_isExamLocked && _hasUnsavedChanges)
                   Padding(
                     padding: const EdgeInsets.only(right: 4),
                     child: Container(
@@ -480,10 +540,14 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                     ),
                   ),
                 IconButton(
-                  icon: const Icon(Icons.save_rounded,
-                      color: Color(0xFF10B981)),
-                  tooltip: 'Simpan Soal',
-                  onPressed: _saveData,
+                  icon: Icon(
+                    _isExamLocked ? Icons.lock_rounded : Icons.save_rounded,
+                    color: _isExamLocked
+                        ? Colors.redAccent.withValues(alpha: 0.7)
+                        : const Color(0xFF10B981),
+                  ),
+                  tooltip: _isExamLocked ? 'Soal Terkunci (Ujian Sedang Berlangsung)' : 'Simpan Soal',
+                  onPressed: _isExamLocked ? null : _saveData,
                 ),
               ],
             ),
@@ -496,7 +560,52 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 8),
-                          const SizedBox(height: 20),
+
+                          // Banner kunci: tampil saat ujian sudah dimulai
+                          if (_isExamLocked) ...[
+                            Container(
+                              margin: const EdgeInsets.only(top: 8, bottom: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.lock_rounded, color: Colors.redAccent, size: 20),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Soal Terkunci — Ujian Sedang Berlangsung',
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        if (_lockedSessionInfo != null) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _lockedSessionInfo!,
+                                            style: TextStyle(
+                                              color: Colors.redAccent.withValues(alpha: 0.8),
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 16),
 
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -506,19 +615,20 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                       color: titleColor,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16)),
-                              ElevatedButton.icon(
-                                onPressed: () => _addOrEditQuestion(),
-                                icon: const Icon(Icons.add, size: 16),
-                                label: const Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF8B5CF6),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                              if (!_isExamLocked)
+                                ElevatedButton.icon(
+                                  onPressed: () => _addOrEditQuestion(),
+                                  icon: const Icon(Icons.add, size: 16),
+                                  label: const Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF8B5CF6),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                   ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 ),
-                              ),
                             ],
                           ),
                           const SizedBox(height: 10),
@@ -567,35 +677,48 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                                           fontWeight: FontWeight.w600,
                                                           fontSize: 14)),
                                                 ),
-                                                Container(
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                                                    shape: BoxShape.circle,
+                                                if (!_isExamLocked) ...[
+                                                  Container(
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: IconButton(
+                                                      icon: const Icon(Icons.edit_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                                                      onPressed: () => _addOrEditQuestion(existing: q, index: idx),
+                                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                      padding: EdgeInsets.zero,
+                                                    ),
                                                   ),
-                                                  child: IconButton(
-                                                    icon: const Icon(Icons.edit_rounded, size: 16, color: Color(0xFF8B5CF6)),
-                                                    onPressed: () => _addOrEditQuestion(existing: q, index: idx),
-                                                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                                    padding: EdgeInsets.zero,
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.redAccent.withValues(alpha: 0.1),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: IconButton(
+                                                      icon: const Icon(Icons.delete_rounded, size: 16, color: Colors.redAccent),
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          _questions.removeAt(idx);
+                                                          _hasUnsavedChanges = true;
+                                                        });
+                                                      },
+                                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                      padding: EdgeInsets.zero,
+                                                    ),
                                                   ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.redAccent.withValues(alpha: 0.1),
-                                                    shape: BoxShape.circle,
+                                                ] else
+                                                  Container(
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.grey.withValues(alpha: 0.08),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: const Padding(
+                                                      padding: EdgeInsets.all(8),
+                                                      child: Icon(Icons.lock_outline_rounded, size: 14, color: Colors.grey),
+                                                    ),
                                                   ),
-                                                  child: IconButton(
-                                                    icon: const Icon(Icons.delete_rounded, size: 16, color: Colors.redAccent),
-                                                    onPressed: () {
-                                                      setState(() {
-                                                        _questions.removeAt(idx);
-                                                      });
-                                                    },
-                                                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                                    padding: EdgeInsets.zero,
-                                                  ),
-                                                ),
                                               ],
                                             ),
                                             if (isMc) ...[

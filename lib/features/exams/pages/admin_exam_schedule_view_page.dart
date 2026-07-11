@@ -183,6 +183,32 @@ class _AdminExamScheduleViewPageState
                             );
                           }
 
+                          // ─── Bungkus dengan StreamBuilder exam_questions ───
+                          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                            stream: FirebaseFirestore.instance
+                                .collection('schools')
+                                .doc(schoolId)
+                                .collection('exam_questions')
+                                .where('eventId', isEqualTo: widget.eventId)
+                                .snapshots(),
+                            builder: (context, qSnap) {
+                              // subjectId yang sudah punya soal (questions tidak kosong)
+                              final Set<String> subjectsWithQuestions = {};
+                              for (final doc in qSnap.data?.docs ?? []) {
+                                final data = doc.data();
+                                final qList = (data['questions'] as List?);
+                                if (qList != null && qList.isNotEmpty) {
+                                  final sid = data['subjectId'] as String? ?? '';
+                                  if (sid.isNotEmpty) subjectsWithQuestions.add(sid);
+                                }
+                              }
+
+                              // Kumpulkan unique subjectIds dalam event ini
+                              final allSubjectIds = sessions.map((s) => s.subjectId).toSet();
+                              final missingQuestionsSubjectIds = allSubjectIds
+                                  .where((id) => !subjectsWithQuestions.contains(id))
+                                  .toSet();
+
                           // Group by date
                           final Map<String, List<ExamSession>> grouped = {};
                           for (final s in sessions) {
@@ -220,7 +246,8 @@ class _AdminExamScheduleViewPageState
                                       24, 8, 24, 4),
                                   child: _buildStatsRow(
                                       sessions, isDark, titleColor,
-                                      subtitleColor),
+                                      subtitleColor,
+                                      missingQuestionsSubjectIds: missingQuestionsSubjectIds),
                                 ),
                               ),
 
@@ -242,6 +269,7 @@ class _AdminExamScheduleViewPageState
                                       subtitleColor,
                                       schoolId,
                                       event,
+                                      missingQuestionsSubjectIds: missingQuestionsSubjectIds,
                                     );
                                   },
                                   childCount: displayDates.length,
@@ -251,6 +279,8 @@ class _AdminExamScheduleViewPageState
                                   child: SizedBox(height: 40)),
                             ],
                           );
+                            }, // end exam_questions builder
+                          ); // end exam_questions StreamBuilder
                         },
                       ),
                     ),
@@ -369,8 +399,9 @@ class _AdminExamScheduleViewPageState
     List<ExamSession> sessions,
     bool isDark,
     Color titleColor,
-    Color subtitleColor,
-  ) {
+    Color subtitleColor, {
+    Set<String> missingQuestionsSubjectIds = const {},
+  }) {
     final unassigned = sessions.where((s) => s.proctorId.isEmpty).length;
     final noRoom = sessions.where((s) => s.roomName.isEmpty || s.roomName == '-').length;
     return Wrap(
@@ -393,6 +424,14 @@ class _AdminExamScheduleViewPageState
           _buildStatPill(
               AppLocalization.isIndonesian ? '$noRoom Tanpa Ruang' : '$noRoom No Room',
               Icons.meeting_room_outlined,
+              const Color(0xFFEF4444),
+              isDark),
+        if (missingQuestionsSubjectIds.isNotEmpty)
+          _buildStatPill(
+              AppLocalization.isIndonesian
+                  ? '${missingQuestionsSubjectIds.length} Soal Belum Ada'
+                  : '${missingQuestionsSubjectIds.length} No Questions',
+              Icons.quiz_outlined,
               const Color(0xFFEF4444),
               isDark),
       ],
@@ -430,8 +469,9 @@ class _AdminExamScheduleViewPageState
     Color titleColor,
     Color subtitleColor,
     String schoolId,
-    ExamEvent? event,
-  ) {
+    ExamEvent? event, {
+    Set<String> missingQuestionsSubjectIds = const {},
+  }) {
     // Group sessions of this day by slotName
     final Map<String, List<ExamSession>> sessionsBySlot = {};
     for (final s in sessions) {
@@ -680,6 +720,42 @@ class _AdminExamScheduleViewPageState
                                               overflow: TextOverflow.ellipsis,
                                             );
                                           })(),
+                                          // ── Badge soal belum ada ──────────────────
+                                          if (missingQuestionsSubjectIds.contains(s.subjectId))
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 4),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFEF4444).withValues(alpha: 0.10),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                    color: const Color(0xFFEF4444).withValues(alpha: 0.35),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.warning_rounded,
+                                                      size: 9,
+                                                      color: Color(0xFFEF4444),
+                                                    ),
+                                                    const SizedBox(width: 3),
+                                                    Text(
+                                                      AppLocalization.isIndonesian
+                                                          ? 'Soal Belum Dibuat'
+                                                          : 'No Questions Yet',
+                                                      style: const TextStyle(
+                                                        color: Color(0xFFEF4444),
+                                                        fontSize: 8,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ),
@@ -1447,15 +1523,20 @@ class AdminRoomSeatingPage extends StatelessWidget {
                                 }
 
                                 final isPresent = student.scannedAt != null;
+                                final isSubmitted = student.submittedAt != null;
                                 final cohortColor =
                                     getCohortColor(student.angkatan);
-                                final seatColor = isPresent
-                                    ? cohortColor
-                                    : cohortColor.withValues(alpha: 0.12);
-                                final seatBorderColor = isPresent
-                                    ? cohortColor
-                                    : cohortColor.withValues(alpha: 0.4);
-                                final textColor = isPresent
+                                final seatColor = isSubmitted
+                                    ? const Color(0xFF10B981)
+                                    : (isPresent
+                                        ? cohortColor
+                                        : cohortColor.withValues(alpha: 0.12));
+                                final seatBorderColor = isSubmitted
+                                    ? const Color(0xFF059669)
+                                    : (isPresent
+                                        ? cohortColor
+                                        : cohortColor.withValues(alpha: 0.4));
+                                final textColor = (isSubmitted || isPresent)
                                     ? Colors.white
                                     : isDarkMode
                                         ? Colors.white.withValues(alpha: 0.7)
@@ -1469,12 +1550,12 @@ class AdminRoomSeatingPage extends StatelessWidget {
                                         BorderRadius.circular(10),
                                     border: Border.all(
                                       color: seatBorderColor,
-                                      width: isPresent ? 1.5 : 1,
+                                      width: (isSubmitted || isPresent) ? 1.5 : 1,
                                     ),
-                                    boxShadow: isPresent
+                                    boxShadow: (isSubmitted || isPresent)
                                         ? [
                                             BoxShadow(
-                                              color: cohortColor
+                                              color: (isSubmitted ? const Color(0xFF10B981) : cohortColor)
                                                   .withValues(alpha: 0.15),
                                               blurRadius: 6,
                                               offset: const Offset(0, 2),
@@ -1497,7 +1578,7 @@ class AdminRoomSeatingPage extends StatelessWidget {
                                                     horizontal: 4,
                                                     vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: isPresent
+                                              color: (isSubmitted || isPresent)
                                                   ? Colors.white
                                                       .withValues(alpha: 0.2)
                                                   : cohortColor
@@ -1508,7 +1589,7 @@ class AdminRoomSeatingPage extends StatelessWidget {
                                             child: Text(
                                               '#$seatNum',
                                               style: TextStyle(
-                                                color: isPresent
+                                                color: (isSubmitted || isPresent)
                                                     ? Colors.white
                                                     : cohortColor,
                                                 fontSize: 8,
@@ -1517,12 +1598,13 @@ class AdminRoomSeatingPage extends StatelessWidget {
                                             ),
                                           ),
                                           Icon(
-                                            isPresent
-                                                ? Icons.check_circle_rounded
-                                                : Icons
-                                                    .radio_button_unchecked_rounded,
+                                            isSubmitted
+                                                ? Icons.task_alt_rounded
+                                                : (isPresent
+                                                    ? Icons.check_circle_rounded
+                                                    : Icons.radio_button_unchecked_rounded),
                                             size: 11,
-                                            color: isPresent
+                                            color: (isSubmitted || isPresent)
                                                 ? Colors.white
                                                 : cohortColor,
                                           ),
@@ -1544,7 +1626,7 @@ class AdminRoomSeatingPage extends StatelessWidget {
                                       Text(
                                         'Angkatan ${student.angkatan}',
                                         style: TextStyle(
-                                          color: isPresent
+                                          color: (isSubmitted || isPresent)
                                               ? Colors.white
                                                   .withValues(alpha: 0.8)
                                               : sColor,
@@ -1556,7 +1638,7 @@ class AdminRoomSeatingPage extends StatelessWidget {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 4, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: isPresent
+                                          color: (isSubmitted || isPresent)
                                               ? Colors.white
                                                   .withValues(alpha: 0.15)
                                               : Colors.transparent,
@@ -1564,9 +1646,9 @@ class AdminRoomSeatingPage extends StatelessWidget {
                                               BorderRadius.circular(4),
                                         ),
                                         child: Text(
-                                          isPresent ? '✓ Hadir' : 'Absen',
+                                          isSubmitted ? '✓ Selesai' : (isPresent ? '✓ Hadir' : 'Absen'),
                                           style: TextStyle(
-                                            color: isPresent
+                                            color: (isSubmitted || isPresent)
                                                 ? Colors.white
                                                 : cohortColor,
                                             fontSize: 8,

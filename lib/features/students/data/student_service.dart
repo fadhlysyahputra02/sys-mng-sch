@@ -253,12 +253,15 @@ class StudentService {
     required String semester,
     String status = 'Hadir',
   }) async {
-    await _firestore
+    final batch = _firestore.batch();
+
+    // 1. Tulis doc absensi mapel seperti biasa
+    final attendanceRef = _firestore
         .collection('schools')
         .doc(schoolId)
         .collection('attendance')
-        .doc('${studentId}_${scheduleId}_$dateStr')
-        .set({
+        .doc('${studentId}_${scheduleId}_$dateStr');
+    batch.set(attendanceRef, {
       'studentId': studentId,
       'studentName': studentName,
       'classId': classId,
@@ -272,6 +275,36 @@ class StudentService {
       'tahunAjaran': tahunAjaran,
       'semester': semester,
     });
+
+    // 2. Setelah scan berhasil, buat doc awal di behavior_records dengan status Standby
+    //    agar langsung muncul di Realtime Control guru tanpa perlu ada pelanggaran dulu.
+    final behaviorDocId = '${studentId}_${scheduleId}';
+    final behaviorRef = _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('behavior_records')
+        .doc(behaviorDocId);
+    final initLog = {
+      'type': 'Standby',
+      'description': 'Murid hadir dan aktif di aplikasi',
+      'timestamp': Timestamp.now(),
+    };
+    batch.set(behaviorRef, {
+      'recordId': behaviorDocId,
+      'studentId': studentId,
+      'studentName': studentName,
+      'className': className ?? '-',
+      'scheduleId': scheduleId,
+      'subjectName': subjectName,
+      'type': 'Standby',
+      'description': 'Murid hadir dan aktif di aplikasi',
+      'timestamp': FieldValue.serverTimestamp(),
+      'tahunAjaran': tahunAjaran,
+      'semester': semester,
+      'activityLog': [initLog],
+    }, SetOptions(merge: false)); // Selalu buat baru/override status awal
+
+    await batch.commit();
   }
 
   /// Report student app focus or behavior violation

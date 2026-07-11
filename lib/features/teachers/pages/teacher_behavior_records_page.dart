@@ -23,16 +23,12 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
   String _searchQuery = '';
   Timer? _cleanupTimer;
   Map<String, Map<String, dynamic>>? _cachedSchedules;
+  Set<String> _lastActiveScheduleIds = {}; // Melacak jadwal yang sedang aktif sebelumnya
   final Set<String> _expandedRows = {}; // studentId set for expanded activity log rows
 
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _schedulesStream;
-  late final Stream<QuerySnapshot<Map<String, dynamic>>> _attendanceStream;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _behaviorStream;
 
-  String _getTodayDateStr() {
-    final now = DateTime.now();
-    return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-  }
 
   String _getTodayHariIndonesian() {
     final now = DateTime.now();
@@ -61,10 +57,6 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
     super.initState();
     final user = SessionService.currentUser!;
     _schedulesStream = ClassScheduleService().getSchedulesByTeacher(user.schoolId, widget.teacherId);
-    _attendanceStream = _studentService.getTodayAttendanceListStream(
-      schoolId: user.schoolId,
-      dateStr: _getTodayDateStr(),
-    );
     _behaviorStream = _studentService.getBehaviorRecords(user.schoolId);
 
     _startAutoCleanup();
@@ -81,39 +73,75 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
     final user = SessionService.currentUser;
     if (user == null) return;
 
-    // Run first check immediately after page loads
+    // Jalankan cleanup pertama kali saat halaman dimuat.
     WidgetsBinding.instance.addPostFrameCallback((_) => _runCleanup(user.schoolId));
 
-    // Then run every 10 seconds
-    _cleanupTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (mounted) setState(() {}); // Trigger rebuild to update active schedules in real-time
-      _runCleanup(user.schoolId);
+    // Timer berkala: refresh UI dan jalankan cleanup otomatis saat jadwal aktif berubah (pelajaran selesai).
+    _cleanupTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (!mounted) return;
+      setState(() {}); // Trigger rebuild to update active schedules in real-time
+
+      final now = DateTime.now();
+      final todayHari = _getTodayHariIndonesian();
+      final nowMinutes = now.hour * 60 + now.minute;
+      final cachedSched = _cachedSchedules;
+      if (cachedSched != null) {
+        // Hitung ID jadwal yang sedang aktif saat ini (hanya jadwal guru ini)
+        final teacherScheduleIds = (widget.teacherId.isNotEmpty)
+            ? cachedSched.entries
+                .where((e) => (e.value['teacherId'] ?? '') == widget.teacherId)
+                .map((e) => e.key)
+                .toSet()
+            : cachedSched.keys.toSet();
+
+        final currentActiveIds = teacherScheduleIds.where((id) {
+          final s = cachedSched[id]!;
+          if ((s['hari'] ?? '') != todayHari) return false;
+          final start = _timeToMinutes(s['jamMulai'] ?? '00:00');
+          final end = _timeToMinutes(s['jamSelesai'] ?? '00:00');
+          return nowMinutes >= start && nowMinutes <= end;
+        }).toSet();
+
+        // Deteksi: apakah ada jadwal GURU INI yang sebelumnya aktif, sekarang sudah tidak aktif?
+        // Ini berarti sebuah pelajaran baru saja berakhir.
+        final hasScheduleEnded = _lastActiveScheduleIds.isNotEmpty &&
+            _lastActiveScheduleIds.any((id) => !currentActiveIds.contains(id));
+
+        if (hasScheduleEnded) {
+          debugPrint(
+            'Auto-cleanup triggered: schedule ended. '
+            'Previous active: $_lastActiveScheduleIds, Current: $currentActiveIds',
+          );
+          _cachedSchedules = null; // Reset cache agar jadwal diambil ulang
+          _runCleanup(user.schoolId);
+        }
+
+        _lastActiveScheduleIds = currentActiveIds;
+      }
     });
   }
 
   Future<void> _runCleanup(String schoolId) async {
     try {
-      // 1. Fetch and cache all class schedules of the school once
-      if (_cachedSchedules == null) {
-        final schedulesSnapshot = await FirebaseFirestore.instance
-            .collection('schools')
-            .doc(schoolId)
-            .collection('class_schedules')
-            .get();
-        _cachedSchedules = {};
-        for (final doc in schedulesSnapshot.docs) {
-          final data = doc.data();
-          // Index by the 'scheduleId' field (same value stored in behavior records),
-          // falling back to doc.id if the field is missing.
-          final sid = (data['scheduleId'] as String?) ?? doc.id;
-          _cachedSchedules![sid] = data;
-          // Also index by doc.id as a secondary key in case they differ.
-          if (sid != doc.id) {
-            _cachedSchedules![doc.id] = data;
-          }
+      // 1. SELALU fetch jadwal terbaru dari Firestore (tidak pakai cache lama)
+      final schedulesSnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('class_schedules')
+          .get();
+      _cachedSchedules = {};
+      for (final doc in schedulesSnapshot.docs) {
+        final data = doc.data();
+        // Index by the 'scheduleId' field (same value stored in behavior records),
+        // falling back to doc.id if the field is missing.
+        final sid = (data['scheduleId'] as String?) ?? doc.id;
+        _cachedSchedules![sid] = data;
+        // Also index by doc.id as a secondary key in case they differ.
+        if (sid != doc.id) {
+          _cachedSchedules![doc.id] = data;
         }
-        debugPrint('Auto-cleanup: Cached ${_cachedSchedules!.length} class schedule entries.');
       }
+      debugPrint('Auto-cleanup: Fetched ${_cachedSchedules!.length} class schedule entries (fresh).');
 
       // 2. Fetch all behavior records
       final snapshot = await FirebaseFirestore.instance
@@ -173,12 +201,12 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
               shouldDelete = true;
               reason = 'Today\'s class ended at $jamSelesai (now: ${now.hour}:${now.minute})';
             } else {
-              reason = 'Today\'s class is ongoing or hasn\'t started yet (ends at $jamSelesai)';
+              reason = 'Today\'s class is still ongoing (ends at $jamSelesai)';
             }
           } else {
-            // Schedule not found in cache → could be a cross-school or stale cache.
-            // Do NOT delete — let TTL handle it.
-            reason = 'Schedule ID $scheduleId not found in cache — keeping (will expire via TTL)';
+            // Schedule not found in cache → hapus saja karena data tidak konsisten
+            shouldDelete = true;
+            reason = 'Schedule ID $scheduleId not found in fresh schedule cache — deleting stale record';
           }
         } else {
           reason = 'Schedule ID is general or null, keeping until 24h fallback';
@@ -518,22 +546,22 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                       ),
                     ),
 
-                    // Combined Attendance and Behavior Status Table
+                    // Tabel Realtime — HANYA dari behavior_records (attendance stream tidak dipakai)
                     StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _attendanceStream,
-                      builder: (context, attendanceSnapshot) {
-                        if (attendanceSnapshot.hasError) {
+                      stream: _behaviorStream,
+                      builder: (context, behaviorSnapshot) {
+                        if (behaviorSnapshot.hasError) {
                           return const SliverFillRemaining(
                             child: Center(
                               child: Text(
-                                'Gagal memuat data absensi',
+                                'Gagal memuat catatan perilaku',
                                 style: TextStyle(color: Colors.redAccent),
                               ),
                             ),
                           );
                         }
 
-                        if (attendanceSnapshot.connectionState == ConnectionState.waiting) {
+                        if (behaviorSnapshot.connectionState == ConnectionState.waiting) {
                           return SliverFillRemaining(
                             child: Center(
                               child: CircularProgressIndicator(color: isDark ? Colors.white : const Color(0xFF8B5CF6)),
@@ -541,100 +569,54 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                           );
                         }
 
-                        final attendanceDocs = attendanceSnapshot.data?.docs ?? [];
+                        final behaviorDocs = behaviorSnapshot.data?.docs ?? [];
 
-                        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                          stream: _behaviorStream,
-                          builder: (context, behaviorSnapshot) {
-                            if (behaviorSnapshot.hasError) {
-                              return const SliverFillRemaining(
-                                child: Center(
-                                  child: Text(
-                                    'Gagal memuat catatan perilaku',
-                                    style: TextStyle(color: Colors.redAccent),
-                                  ),
-                                ),
-                              );
+                        // Ambil record terbaru per murid, hanya untuk hari ini
+                        final today = DateTime.now();
+                        final Map<String, Map<String, dynamic>> behaviorByStudent = {};
+                        for (final bDoc in behaviorDocs) {
+                          final bData = bDoc.data();
+                          final bStudentId = (bData['studentId'] as String?) ?? '';
+                          if (bStudentId.isEmpty) continue;
+                          final ts = bData['timestamp'];
+                          final recordTime = ts is Timestamp ? ts.toDate() : null;
+                          if (recordTime != null) {
+                            final isToday = recordTime.year == today.year &&
+                                recordTime.month == today.month &&
+                                recordTime.day == today.day;
+                            if (!isToday) continue;
+                          }
+                          final bScheduleId = (bData['scheduleId'] as String?) ?? '';
+                          // Hanya tampilkan murid yang jadwalnya termasuk jadwal guru hari ini
+                          if (!todayScheduleIds.contains(bScheduleId)) continue;
+
+                          final existing = behaviorByStudent[bStudentId];
+                          if (existing == null) {
+                            behaviorByStudent[bStudentId] = bData;
+                          } else {
+                            final existingTs = existing['timestamp'];
+                            final existingTime = existingTs is Timestamp ? existingTs.toDate() : null;
+                            if (recordTime != null &&
+                                (existingTime == null || recordTime.isAfter(existingTime))) {
+                              behaviorByStudent[bStudentId] = bData;
                             }
+                          }
+                        }
 
-                            if (behaviorSnapshot.connectionState == ConnectionState.waiting) {
-                              return SliverFillRemaining(
-                                child: Center(
-                                  child: CircularProgressIndicator(color: isDark ? Colors.white : const Color(0xFF8B5CF6)),
-                                ),
-                              );
-                            }
-
-                            final behaviorDocs = behaviorSnapshot.data?.docs ?? [];
-
-                            // Pre-build map: studentId -> latest behavior record
-                            final Map<String, Map<String, dynamic>> behaviorByStudent = {};
-                            final today = DateTime.now();
-                            for (final bDoc in behaviorDocs) {
-                              final bData = bDoc.data();
-                              final bStudentId = (bData['studentId'] as String?) ?? '';
-                              if (bStudentId.isEmpty) continue;
-                              final ts = bData['timestamp'];
-                              final recordTime = ts is Timestamp ? ts.toDate() : null;
-                              // Only include today's records
-                              if (recordTime != null) {
-                                final isToday = recordTime.year == today.year &&
-                                    recordTime.month == today.month &&
-                                    recordTime.day == today.day;
-                                if (!isToday) continue;
-                              }
-                              final existing = behaviorByStudent[bStudentId];
-                              if (existing == null) {
-                                behaviorByStudent[bStudentId] = bData;
-                              } else {
-                                final existingTs = existing['timestamp'];
-                                final existingTime = existingTs is Timestamp ? existingTs.toDate() : null;
-                                if (recordTime != null &&
-                                    (existingTime == null || recordTime.isAfter(existingTime))) {
-                                  behaviorByStudent[bStudentId] = bData;
-                                }
-                              }
-                            }
-
-                            // Filter attendance by Search query and active schedules only
-                            final targetScheduleIds = activeScheduleIds;
-                            final filteredAttendance = attendanceDocs.where((doc) {
-                              final data = doc.data();
+                        // Build daftar murid: hanya dari behavior_records yang sudah scan hari ini
+                        final List<Map<String, dynamic>> combinedStudents = behaviorByStudent.values
+                            .where((data) {
                               final studentName = (data['studentName'] ?? '').toString().toLowerCase();
-                              final scheduleId = (data['scheduleId'] ?? '').toString();
-                              final matchesSearch = studentName.contains(_searchQuery);
-                              final matchesSchedule = targetScheduleIds.contains(scheduleId);
-                              return matchesSearch && matchesSchedule;
-                            }).toList();
-
-                            // Build combined student list: attendance students + behavior-only students
-                            // This ensures students who left the app appear even if not in filtered attendance
-                            final attendanceStudentIds = filteredAttendance
-                                .map((doc) => (doc.data()['studentId'] as String?) ?? '')
-                                .toSet();
-
-                            final List<Map<String, dynamic>> combinedStudents =
-                                filteredAttendance.map((doc) => doc.data()).toList();
-
-                            // Add students from behavior records not already in attendance
-                            for (final entry in behaviorByStudent.entries) {
-                              final bStudentId = entry.key;
-                              final bData = entry.value;
-                              if (attendanceStudentIds.contains(bStudentId)) continue;
-
-                              // Only include if behavior record scheduleId matches teacher's active/today schedules
-                              final bScheduleId = (bData['scheduleId'] as String?) ?? '';
-                              final matchesTeacherSchedule = activeScheduleIds.contains(bScheduleId) ||
-                                  todayScheduleIds.contains(bScheduleId) ||
-                                  bScheduleId == 'general';
-                              if (!matchesTeacherSchedule) continue;
-
-                              // Filter by search query
-                              final bStudentName = (bData['studentName'] ?? '').toString().toLowerCase();
-                              if (_searchQuery.isNotEmpty && !bStudentName.contains(_searchQuery)) continue;
-
-                              combinedStudents.add(bData);
-                            }
+                              return studentName.contains(_searchQuery);
+                            })
+                            .toList()
+                          ..sort((a, b) {
+                              final aTs = a['timestamp'];
+                              final bTs = b['timestamp'];
+                              final aTime = aTs is Timestamp ? aTs.toDate() : DateTime(2000);
+                              final bTime = bTs is Timestamp ? bTs.toDate() : DateTime(2000);
+                              return bTime.compareTo(aTime);
+                          });
 
                             if (combinedStudents.isEmpty) {
                               return SliverFillRemaining(
@@ -1000,9 +982,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                               ),
                             );
                           },
-                        );
-                      },
-                    ),
+                        ),
                     const SliverToBoxAdapter(
                       child: SizedBox(height: 40),
                     ),

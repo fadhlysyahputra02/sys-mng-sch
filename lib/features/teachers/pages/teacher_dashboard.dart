@@ -116,6 +116,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   String? _schoolName;
   String _plan = 'FREE';
   bool _isLoadingSchool = true;
+  bool _hasUnsubmittedExamQuestions = false; // ← red dot for Ujian Semester sidebar
   String? _tahunAjaran;
   String? _activeSemester;
   String? _schoolLogoBase64;
@@ -1293,6 +1294,50 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               return const SizedBox.shrink(); // Tidak ada tugas/event
             }
 
+            // Kumpulkan unique eventId+subjectId combos dari authorSessions
+            final uniqueAuthorKeys = authorSessions
+                .map((s) => '${s.eventId}_${s.subjectId}')
+                .toSet();
+
+            // Stream exam_questions untuk semua event yang terlibat
+            final authorEventIds = authorSessions.map((s) => s.eventId).toSet();
+
+            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: authorEventIds.isEmpty
+                  ? const Stream.empty()
+                  : FirebaseFirestore.instance
+                      .collection('schools')
+                      .doc(schoolId)
+                      .collection('exam_questions')
+                      .where('authorTeacherId', isEqualTo: teacherId)
+                      .snapshots(),
+              builder: (context, qSnap) {
+                // subjectId yang sudah punya soal
+                final Set<String> keysWithQuestions = {};
+                for (final doc in qSnap.data?.docs ?? []) {
+                  final data = doc.data();
+                  final qList = data['questions'] as List?;
+                  if (qList != null && qList.isNotEmpty) {
+                    final eid = data['eventId'] as String? ?? '';
+                    final sid = data['subjectId'] as String? ?? '';
+                    if (eid.isNotEmpty && sid.isNotEmpty) {
+                      keysWithQuestions.add('${eid}_$sid');
+                    }
+                  }
+                }
+
+                final missingCount = uniqueAuthorKeys
+                    .where((k) => !keysWithQuestions.contains(k))
+                    .length;
+                final hasMissingQuestions = missingCount > 0 && authorEventIds.isNotEmpty;
+
+                // Perbarui state untuk sidebar badge
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && _hasUnsubmittedExamQuestions != hasMissingQuestions) {
+                    setState(() => _hasUnsubmittedExamQuestions = hasMissingQuestions);
+                  }
+                });
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1310,12 +1355,20 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       color: cardColor,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: activeSession != null
-                            ? const Color(0xFF10B981).withValues(alpha: 0.5)
-                            : cardBorder,
-                        width: activeSession != null ? 1.5 : 1,
+                        color: hasMissingQuestions
+                            ? const Color(0xFFEF4444).withValues(alpha: 0.5)
+                            : activeSession != null
+                                ? const Color(0xFF10B981).withValues(alpha: 0.5)
+                                : cardBorder,
+                        width: (hasMissingQuestions || activeSession != null) ? 1.5 : 1,
                       ),
-                      boxShadow: activeSession != null ? [
+                      boxShadow: hasMissingQuestions ? [
+                        BoxShadow(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.10),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        )
+                      ] : activeSession != null ? [
                         BoxShadow(
                           color: const Color(0xFF10B981).withValues(alpha: 0.12),
                           blurRadius: 12,
@@ -1325,19 +1378,50 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     ),
                     child: Row(
                       children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: activeSession != null
-                                  ? [const Color(0xFF10B981), const Color(0xFF06B6D4)]
-                                  : [const Color(0xFF8B5CF6), const Color(0xFFEC4899)],
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: activeSession != null
+                                      ? [const Color(0xFF10B981), const Color(0xFF06B6D4)]
+                                      : hasMissingQuestions
+                                          ? [const Color(0xFFEF4444), const Color(0xFFF59E0B)]
+                                          : [const Color(0xFF8B5CF6), const Color(0xFFEC4899)],
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.assignment_turned_in_rounded,
+                                  color: Colors.white, size: 24),
                             ),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(Icons.assignment_turned_in_rounded,
-                              color: Colors.white, size: 24),
+                            // Red dot badge jika ada soal belum dibuat
+                            if (hasMissingQuestions)
+                              Positioned(
+                                top: -4,
+                                right: -4,
+                                child: Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFEF4444),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '$missingCount',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -1355,6 +1439,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                   '🔴 Sesi aktif: ${activeSession.subjectName}',
                                   style: const TextStyle(
                                       color: Color(0xFF10B981),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold),
+                                )
+                              else if (hasMissingQuestions)
+                                Text(
+                                  '⚠️ $missingCount soal belum dibuat',
+                                  style: const TextStyle(
+                                      color: Color(0xFFEF4444),
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold),
                                 )
@@ -1377,6 +1469,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 const SizedBox(height: 28),
               ],
             );
+              }, // end qSnap builder
+            ); // end exam_questions StreamBuilder
           },
         );
       },

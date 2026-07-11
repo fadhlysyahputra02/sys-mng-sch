@@ -65,8 +65,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
           _schoolLogoBase64 = schoolData['logoBase64'];
           _isLoadingSchool = false;
         });
-        // Backfill data histori kelas secara asinkronus agar data nilai sebelumnya termigrasi ke class_enrollments
-        StudentService().backfillClassEnrollments(schoolId);
+        // NOTE: Backfill dinonaktifkan dari load otomatis halaman dashboard untuk mencegah melonjaknya writes Firestore.
+        // Jika perlu melakukan backfill data histori, jalankan sekali saja secara manual atau terjadwal.
+        // StudentService().backfillClassEnrollments(schoolId);
       } else {
         if (mounted) {
           setState(() {

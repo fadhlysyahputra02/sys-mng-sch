@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -9,6 +10,7 @@ import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_event_model.dart';
 import '../services/exam_session_service.dart';
+import '../services/exam_scheduler_service.dart';
 import 'admin_exam_schedule_view_page.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -64,6 +66,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
   Set<String>? _expandedRooms;
   final Map<String, String> _scheduledSubjects = {};
   bool _isLoadingDraftFromFirestore = false;
+
+  // ── Hari aktif KBM (dari class_schedules) ───────────────────
+  Set<String> _activeStudyDays = {}; // e.g. {'senin','selasa','rabu','kamis','jumat'}
 
   void _onTitleChanged() {
     _saveDraft();
@@ -384,6 +389,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       db.collection('schools').doc(schoolId).collection('students').get(),
     ]);
 
+    // Load hari aktif KBM
+    final activeDays = await ExamSchedulerService().getActiveStudyDays(schoolId);
+
     if (mounted) {
       setState(() {
         _allSubjects = (results[0] as QuerySnapshot<Map<String, dynamic>>)
@@ -420,6 +428,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         }
 
         _isLoadingData = false;
+        if (activeDays.isNotEmpty) {
+          _activeStudyDays = activeDays;
+        }
       });
     }
   }
@@ -1427,33 +1438,53 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                       runSpacing: 8,
                       children: displayTeachers.map((t) {
                         final isSelected = selectedAuthorIds.contains(t['id']);
-                        return FilterChip(
-                          label: Text(t['nama']),
-                          selected: isSelected,
-                          backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-                          selectedColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                          checkmarkColor: const Color(0xFF8B5CF6),
-                          labelStyle: TextStyle(
-                            color: isSelected ? const Color(0xFF8B5CF6) : titleColor,
-                            fontSize: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(
-                              color: isSelected ? const Color(0xFF8B5CF6) : cardBorder,
-                            ),
-                          ),
-                          onSelected: (selected) {
+                        // Chip custom agar warna tidak di-override oleh Material 3 theme
+                        return GestureDetector(
+                          onTap: () {
                             setModalState(() {
-                              if (selected) {
-                                selectedAuthorIds.add(t['id'] as String);
-                                selectedAuthorNames.add(t['nama'] as String);
-                              } else {
+                              if (isSelected) {
                                 selectedAuthorIds.remove(t['id']);
                                 selectedAuthorNames.remove(t['nama']);
+                              } else {
+                                selectedAuthorIds.add(t['id'] as String);
+                                selectedAuthorNames.add(t['nama'] as String);
                               }
                             });
                           },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFF8B5CF6).withValues(alpha: 0.18)
+                                  : (isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade100),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected
+                                    ? const Color(0xFF8B5CF6)
+                                    : (isDark ? Colors.white.withValues(alpha: 0.2) : Colors.grey.shade300),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isSelected) ...const [
+                                  Icon(Icons.check_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                                  SizedBox(width: 4),
+                                ],
+                                Text(
+                                  t['nama'] as String,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? const Color(0xFF8B5CF6)
+                                        : (isDark ? Colors.white : const Color(0xFF1E1B4B)),
+                                    fontSize: 12,
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         );
                       }).toList(),
                     );
@@ -3338,8 +3369,28 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     final List<DateTime> days = [];
     DateTime current = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
     final last = DateTime(_endDate!.year, _endDate!.month, _endDate!.day);
+
+    // Map weekday number → Indonesian day name (lowercase)
+    const dayNames = {
+      1: 'senin',
+      2: 'selasa',
+      3: 'rabu',
+      4: 'kamis',
+      5: 'jumat',
+      6: 'sabtu',
+      7: 'minggu',
+    };
+
     while (current.isBefore(last) || current.isAtSameMomentAs(last)) {
-      days.add(current);
+      final dayName = dayNames[current.weekday] ?? '';
+      // If school has KBM day data: only include days with KBM
+      // If no data loaded yet: include all (fallback = Senin–Jumat weekdays only)
+      final bool isActiveDay = _activeStudyDays.isNotEmpty
+          ? _activeStudyDays.contains(dayName)
+          : current.weekday <= 5; // Mon-Fri fallback
+      if (isActiveDay) {
+        days.add(current);
+      }
       current = current.add(const Duration(days: 1));
     }
     return days;
@@ -3594,6 +3645,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     }
 
     setState(() {
+      // ★ Gunakan Random.secure() untuk pengacakan sejati
+      final rng = Random.secure();
+
       // Group draft sessions by date
       final Map<String, List<Map<String, dynamic>>> sessionsByDay = {};
       for (final session in _draftSessions) {
@@ -3604,10 +3658,14 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       // Assign for each day
       sessionsByDay.forEach((dayStr, daySessions) {
         // Track daily proctor usage count
-        final Map<String, int> dailyProctorCounts = {}; // teacherId -> count
+        final Map<String, int> dailyProctorCounts = {};
         for (final t in _allTeachers) {
           dailyProctorCounts[t['id'] as String] = 0;
         }
+
+        // ★ Buat pool guru yang sudah di-shuffle untuk hari ini
+        //   (dikocok ulang setiap hari agar distribusi antar hari berbeda)
+        final dailyTeacherPool = List<Map<String, dynamic>>.from(_allTeachers)..shuffle(rng);
 
         // Group daySessions by slot
         final Map<String, List<Map<String, dynamic>>> sessionsBySlot = {};
@@ -3620,13 +3678,17 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         sessionsBySlot.forEach((slotName, slotSessions) {
           final Set<String> assignedInThisSlot = {};
 
-          for (final session in slotSessions) {
-            // Find candidate teacher
+          // ★ Shuffle urutan ruangan/sesi dalam satu slot agar tidak selalu ruang pertama
+          //   mendapat guru "terbaik" (beban 0 paling awal)
+          final shuffledSlotSessions = List<Map<String, dynamic>>.from(slotSessions)..shuffle(rng);
+
+          for (final session in shuffledSlotSessions) {
             String? chosenId;
             String chosenName = 'Belum ditugaskan';
 
-            // Sort teachers by current daily count
-            final candidates = List<Map<String, dynamic>>.from(_allTeachers);
+            // ★ Buat candidates dari pool yang sudah di-shuffle, lalu sort by count
+            //   Karena pool sudah acak, tie-breaking (count sama) akan ikut urutan acak
+            final candidates = List<Map<String, dynamic>>.from(dailyTeacherPool);
             candidates.sort((a, b) {
               final countA = dailyProctorCounts[a['id']] ?? 0;
               final countB = dailyProctorCounts[b['id']] ?? 0;

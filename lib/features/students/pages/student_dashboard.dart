@@ -123,9 +123,14 @@ class _StudentDashboardState extends State<StudentDashboard>
         debugPrint('Error checking lock screen status: $e');
       }
 
-      // Apabila isLocked true -> berarti Layar Mati / Terkunci
-      // Apabila isLocked false -> berarti Keluar Aplikasi (Home Button / Recent Apps)
-      _checkAndReportBehaviorViolation(isLocked: isLocked);
+      // HANYA laporkan jika layar benar-benar terkunci (isLocked = true).
+      // Jika isLocked false, abaikan karena bisa jadi hanya perpindahan fokus ke kamera/dialog izin.
+      if (isLocked) {
+        _checkAndReportBehaviorViolation(isLocked: true);
+      }
+    } else if (state == AppLifecycleState.paused) {
+      // Aplikasi di-minimize atau pindah ke background (Home Button / Recent Apps)
+      _checkAndReportBehaviorViolation(isLocked: false);
     } else if (state == AppLifecycleState.resumed) {
       debugPrint('App resumed - refreshing behavior cache and checking return');
       final user = SessionService.currentUser;
@@ -200,6 +205,20 @@ class _StudentDashboardState extends State<StudentDashboard>
       final firstAtt = _todayAttendanceDocs.first.data();
       scheduleId = firstAtt?['scheduleId'] ?? 'general';
       subjectName = firstAtt?['subjectName'] ?? 'Absensi Hari Ini';
+    }
+
+    // PENTING: Murid harus sudah melakukan absen/scan untuk pelajaran/hari ini agar data behavior dicatat.
+    if (activeSchedule != null) {
+      final hasCheckedInForActive = _todayAttendanceDocs.any((doc) => doc.data()?['scheduleId'] == scheduleId);
+      if (!hasCheckedInForActive) {
+        debugPrint('Behavior check: Murid belum absen untuk pelajaran aktif ($scheduleId). Melewati pencatatan behavior.');
+        return;
+      }
+    } else {
+      if (!_hasCheckedInToday) {
+        debugPrint('Behavior check: Murid belum absen hari ini. Melewati pencatatan behavior.');
+        return;
+      }
     }
 
     // Avoid double reporting within 5 minutes unless state or lock status has changed
@@ -298,11 +317,24 @@ class _StudentDashboardState extends State<StudentDashboard>
       subjectName = firstAtt?['subjectName'] ?? 'Absensi Hari Ini';
     }
 
-    // Avoid double reporting return unless state has changed
-    if (_lastReportedState == 'resumed' &&
-        _lastReportedScheduleId == scheduleId) {
+    // PENTING: Murid harus sudah melakukan absen/scan untuk pelajaran/hari ini agar data behavior dicatat.
+    if (activeSchedule != null) {
+      final hasCheckedInForActive = _todayAttendanceDocs.any((doc) => doc.data()?['scheduleId'] == scheduleId);
+      if (!hasCheckedInForActive) {
+        debugPrint('Behavior check: Murid belum absen untuk pelajaran aktif ($scheduleId). Melewati standby.');
+        return;
+      }
+    } else {
+      if (!_hasCheckedInToday) {
+        debugPrint('Behavior check: Murid belum absen hari ini. Melewati standby.');
+        return;
+      }
+    }
+
+    // Hanya laporkan standby/return jika status sebelumnya adalah 'paused' (pernah ada pelanggaran)
+    if (_lastReportedState != 'paused') {
       debugPrint(
-        'Behavior return check: Already reported standby for $scheduleId. Skipping.',
+        'Behavior return check: Status sebelumnya bukan paused ($_lastReportedState). Melewati penulisan standby.',
       );
       return;
     }
@@ -435,8 +467,8 @@ class _StudentDashboardState extends State<StudentDashboard>
           'Behavior Cache: Loaded ${_todaySchedules.length} schedules today for class $_className',
         );
 
-        // Bersihkan data sampah jadwal yang sudah selesai HANYA setelah jadwal selesai dimuat
-        _cleanupMyExpiredBehaviorRecords();
+        // Cleanup behavior records dilakukan oleh timer guru (teacher_behavior_records_page),
+        // bukan di sisi murid, untuk menghindari race condition.
       }
     } catch (e) {
       debugPrint('Behavior Cache error loading schedules: $e');
@@ -501,84 +533,6 @@ class _StudentDashboardState extends State<StudentDashboard>
     }
   }
 
-  Future<void> _cleanupMyExpiredBehaviorRecords() async {
-    if (_studentDocId == null) return;
-    final user = SessionService.currentUser;
-    if (user == null) return;
-
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(user.schoolId)
-          .collection('behavior_records')
-          .where('studentId', isEqualTo: _studentDocId)
-          .get();
-
-      if (snapshot.docs.isEmpty) return;
-
-      final now = DateTime.now();
-      final nowMinutes = now.hour * 60 + now.minute;
-      final batch = FirebaseFirestore.instance.batch();
-      bool hasDeletions = false;
-
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final scheduleId = data['scheduleId'] as String?;
-        final timestamp = data['timestamp'] as Timestamp?;
-
-        bool shouldDelete = false;
-
-        if (timestamp != null) {
-          final recordDate = timestamp.toDate();
-          final isToday =
-              recordDate.year == now.year &&
-              recordDate.month == now.month &&
-              recordDate.day == now.day;
-
-          if (!isToday) {
-            shouldDelete = true;
-          } else if (scheduleId != null && scheduleId != 'general') {
-            final schedule = _todaySchedules.firstWhere(
-              (s) => s['scheduleId'] == scheduleId,
-              orElse: () => <String, dynamic>{},
-            );
-            if (schedule.isNotEmpty) {
-              final jamSelesai = schedule['jamSelesai'] ?? '00:00';
-              final endMinutes = _timeToMinutes(jamSelesai);
-              if (nowMinutes > endMinutes) {
-                shouldDelete = true;
-              }
-            }
-            // Jika schedule tidak ditemukan di cache hari ini, biarkan record tetap ada
-            // (bisa jadi cache belum ter-load). TTL 24h akan menghapusnya nanti.
-          }
-        } else {
-          shouldDelete = true;
-        }
-
-        // Fallback TTL 24h
-        if (!shouldDelete && timestamp != null) {
-          if (now.difference(timestamp.toDate()).inHours > 24) {
-            shouldDelete = true;
-          }
-        }
-
-        if (shouldDelete) {
-          batch.delete(doc.reference);
-          hasDeletions = true;
-        }
-      }
-
-      if (hasDeletions) {
-        await batch.commit();
-        debugPrint(
-          'Student Auto-cleanup: Removed expired behavior records for $_studentDocId',
-        );
-      }
-    } catch (e) {
-      debugPrint('Student Auto-cleanup error: $e');
-    }
-  }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;

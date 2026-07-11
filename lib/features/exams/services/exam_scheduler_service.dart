@@ -209,13 +209,20 @@ class ExamSchedulerService {
       };
     }).toList();
 
+    // ★ SHUFFLE guru di awal agar urutan dasar benar-benar acak
+    //   (Firestore mengembalikan dokumen dalam urutan document ID yang bisa alphabetical)
+    final rng = Random.secure();
+    teachers.shuffle(rng);
+
     // Tracker beban pengawas: key = "teacherId_dateStr" → jumlah sesi
     final Map<String, int> proctorLoad = {};
 
-    final rng = Random.secure();
+    // ★ Shuffle urutan sessions agar distribusi per-panggil berbeda
+    final shuffledSessions = List<ExamSession>.from(sessions)..shuffle(rng);
+
     final List<ExamSession> result = [];
 
-    for (final session in sessions) {
+    for (final session in shuffledSessions) {
       final dateKey = _dateKey(session.date);
 
       // Kumpulkan kandidat yang eligible
@@ -237,22 +244,24 @@ class ExamSchedulerService {
       String assignedProctorName = '';
 
       if (candidates.isNotEmpty) {
-        // Pilih kandidat dengan beban paling sedikit di hari itu (fairness)
+        // ★ Shuffle kandidat dulu sebelum sort by load
+        //   Ini memastikan tie-breaking benar-benar random (stable sort Dart mempertahankan urutan input)
+        candidates.shuffle(rng);
+
+        // Sort by beban hari ini (ascending) — kandidat dengan beban sama tetap acak karena sudah di-shuffle
         candidates.sort((a, b) {
-          final loadA =
-              proctorLoad['${a['id']}_$dateKey'] ?? 0;
-          final loadB =
-              proctorLoad['${b['id']}_$dateKey'] ?? 0;
+          final loadA = proctorLoad['${a['id']}_$dateKey'] ?? 0;
+          final loadB = proctorLoad['${b['id']}_$dateKey'] ?? 0;
           return loadA.compareTo(loadB);
         });
 
-        // Ambil semua kandidat dengan beban minimum (untuk randomisasi di antara mereka)
+        // Ambil semua kandidat dengan beban minimum
         final minLoad = proctorLoad['${candidates.first['id']}_$dateKey'] ?? 0;
         final minCandidates = candidates
             .where((c) => (proctorLoad['${c['id']}_$dateKey'] ?? 0) == minLoad)
             .toList();
 
-        // Pilih acak dari kandidat dengan beban minimum
+        // Pilih acak dari kandidat dengan beban minimum (sudah di-shuffle, tapi extra random)
         final picked = minCandidates[rng.nextInt(minCandidates.length)];
 
         assignedProctorId = picked['id'] as String;
@@ -269,7 +278,16 @@ class ExamSchedulerService {
       ));
     }
 
-    return result;
+    // Kembalikan result dengan urutan yang sama seperti sessions input
+    return sessions.map((orig) {
+      return result.firstWhere(
+        (r) => r.subjectId == orig.subjectId &&
+               r.classId == orig.classId &&
+               r.date == orig.date &&
+               r.slotName == orig.slotName,
+        orElse: () => orig,
+      );
+    }).toList();
   }
 
   // ─────────────────────────────────────────────────
