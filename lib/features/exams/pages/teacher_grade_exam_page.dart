@@ -75,9 +75,7 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
       // subjectId = semua bagian di tengah.
       final parts = widget.exam.id.split('_');
       final eventId = parts.isNotEmpty ? parts[0] : '';
-      // classId adalah bagian terakhir (bisa berisi koma tapi bukan underscore)
-      final classIdPart = parts.length > 2 ? parts.last : '';
-      // subjectId = semua bagian tengah di antara eventId dan classIdPart
+      // subjectId = semua bagian tengah di antara eventId dan classId (parts.last)
       final subjectId = parts.length > 2
           ? parts.sublist(1, parts.length - 1).join('_')
           : (parts.length > 1 ? parts[1] : '');
