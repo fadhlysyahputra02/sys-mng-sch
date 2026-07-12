@@ -130,8 +130,8 @@ class _TeacherProctorDashboardPageState
 
   String _resolveAngkatan(String classId, String className) {
     final a = _classIdToAngkatan[classId];
-    if (a != null && a.isNotEmpty) return a;
-    return _getGradeLevel(className);
+    final rawGrade = (a != null && a.isNotEmpty) ? a : _getGradeLevel(className);
+    return rawGrade == '3' ? '2020' : (rawGrade == '2' ? '2021' : (rawGrade == '1' ? '2022' : rawGrade));
   }
 
   @override
@@ -1614,6 +1614,50 @@ class _TeacherProctorDashboardPageState
                               fontSize: 11,
                             ),
                           ),
+                        ),
+                        const SizedBox(width: 8),
+                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: FirebaseFirestore.instance
+                              .collection('schools')
+                              .doc(schoolId)
+                              .collection('exam_submissions')
+                              .where('examId', isEqualTo: exam.id)
+                              .snapshots(),
+                          builder: (context, subSnap) {
+                            if (!subSnap.hasData) return const SizedBox.shrink();
+                            final subs = subSnap.data!.docs;
+                            final ungradedCount = subs.where((doc) {
+                              final data = doc.data();
+                              return data['isGraded'] == false;
+                            }).length;
+
+                            if (ungradedCount > 0) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.info_outline_rounded, size: 10, color: Colors.amber),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$ungradedCount Belum Dikoreksi',
+                                      style: const TextStyle(
+                                        color: Colors.amber,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 9,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
                         ),
                         const Spacer(),
                         ElevatedButton.icon(

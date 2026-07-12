@@ -11,7 +11,8 @@ import '../../chat/widgets/chat_unread_badge.dart';
 import '../../schools/services/school_service.dart';
 import '../../students/pages/student_tasks_page.dart';
 import '../../exams/pages/student_exams_page.dart';
-
+import '../../exams/pages/student_exam_participation_page.dart';
+import '../../exams/models/exam_event_model.dart';
 import '../../../core/widgets/motif_card.dart';
 import 'parent_payment_page.dart';
 
@@ -396,6 +397,18 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                _buildExamSemesterCard(
+                                  isDark: isDark,
+                                  schoolId: user.schoolId,
+                                  classId: _studentClassId ?? '',
+                                  studentId: (_parentData?['studentId'] ?? '').toString(),
+                                  studentName: _parentData?['studentName'] ?? 'Anak',
+                                  studentNis: _parentData?['studentNis']?.toString() ?? '',
+                                  titleColor: textColor,
+                                  subtitleColor: subTextColor,
+                                  cardColor: cardBg,
+                                  cardBorder: cardBorder,
+                                ),
                                 _buildSectionTitle(
                                   'Menu Utama',
                                   Icons.dashboard_rounded,
@@ -457,6 +470,188 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                     ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Future<bool> _shouldShowExamSemesterCard({
+    required String schoolId,
+    required String classId,
+    required String studentId,
+  }) async {
+    if (classId.isEmpty || studentId.isEmpty) return false;
+    try {
+      final sessionsSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_sessions')
+          .get();
+
+      final List<ExamSession> sessions = sessionsSnap.docs
+          .map((d) => ExamSession.fromFirestore(d))
+          .where((s) => s.classId.split(',').map((e) => e.trim()).contains(classId))
+          .toList();
+
+      if (sessions.isEmpty) return false;
+
+      final filteredSessions = sessions.where((s) {
+        final status = s.examStatus.toLowerCase().trim();
+        return status != 'finished' && status != 'selesai' && status != 'archived';
+      }).toList();
+
+      if (filteredSessions.isEmpty) return false;
+
+      final futures = filteredSessions.map((s) => FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_sessions')
+          .doc(s.id)
+          .collection('participations')
+          .doc(studentId)
+          .get());
+      
+      final results = await Future.wait(futures);
+      final hasRegisteredParticipation = results.any((doc) => doc.exists);
+      if (!hasRegisteredParticipation) return false;
+
+      final registeredSessions = <ExamSession>[];
+      for (int i = 0; i < filteredSessions.length; i++) {
+        if (results[i].exists) {
+          registeredSessions.add(filteredSessions[i]);
+        }
+      }
+
+      final uniqueEventIds = registeredSessions.map((s) => s.eventId).toSet();
+      bool hasActiveEvent = false;
+
+      for (final eventId in uniqueEventIds) {
+        final eventDoc = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('exam_events')
+            .doc(eventId)
+            .get();
+
+        if (eventDoc.exists && eventDoc.data() != null) {
+          final eventStatus = (eventDoc.data()?['examStatus'] ?? '').toString().toLowerCase().trim();
+          if (eventStatus != 'finished' && eventStatus != 'selesai' && eventStatus != 'archived') {
+            hasActiveEvent = true;
+            break;
+          }
+        }
+      }
+
+      return hasActiveEvent;
+    } catch (e) {
+      debugPrint('Error checking _shouldShowExamSemesterCard: $e');
+      return false;
+    }
+  }
+
+  Widget _buildExamSemesterCard({
+    required bool isDark,
+    required String schoolId,
+    required String classId,
+    required String studentId,
+    required String studentName,
+    required String studentNis,
+    required Color titleColor,
+    required Color subtitleColor,
+    required Color cardColor,
+    required Color cardBorder,
+  }) {
+    return FutureBuilder<bool>(
+      future: _shouldShowExamSemesterCard(
+        schoolId: schoolId,
+        classId: classId,
+        studentId: studentId,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        final hasSchedule = snapshot.data == true;
+        if (!hasSchedule) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle(
+              'Ujian Semester',
+              Icons.fact_check_rounded,
+              titleColor,
+              subtitleColor,
+            ),
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: () {
+                Get.to(() => StudentExamParticipationPage(
+                      classId: classId,
+                      studentDocId: studentId,
+                      studentName: studentName,
+                      studentNis: studentNis,
+                    ));
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: cardBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Icons.assignment_turned_in_rounded,
+                          color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Jadwal Ujian Semester',
+                            style: TextStyle(
+                              color: titleColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Ketuk untuk melihat jadwal dan ujian UTS/UAS Anak Anda.',
+                            style: TextStyle(color: subtitleColor, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios_rounded,
+                        size: 14, color: subtitleColor),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+          ],
         );
       },
     );

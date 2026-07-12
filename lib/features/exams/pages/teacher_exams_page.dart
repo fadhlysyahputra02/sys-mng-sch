@@ -839,9 +839,60 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                                 ),
                                               ],
                                             ),
-                                            Text(
-                                              'Batas: $dateStr',
-                                              style: TextStyle(fontSize: 11, color: subTextColor, fontWeight: FontWeight.w600),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                                  stream: FirebaseFirestore.instance
+                                                      .collection('schools')
+                                                      .doc(user.schoolId)
+                                                      .collection('exam_submissions')
+                                                      .where('examId', isEqualTo: exam.id)
+                                                      .snapshots(),
+                                                  builder: (context, subSnap) {
+                                                    if (!subSnap.hasData) return const SizedBox.shrink();
+                                                    final subs = subSnap.data!.docs;
+                                                    final ungradedCount = subs.where((doc) {
+                                                      final data = doc.data();
+                                                      return data['isGraded'] == false;
+                                                    }).length;
+
+                                                    if (ungradedCount > 0) {
+                                                      return Padding(
+                                                        padding: const EdgeInsets.only(right: 8.0),
+                                                        child: Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.amber.withValues(alpha: 0.15),
+                                                            borderRadius: BorderRadius.circular(10),
+                                                            border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                                                          ),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              const Icon(Icons.info_outline_rounded, size: 10, color: Colors.amber),
+                                                              const SizedBox(width: 4),
+                                                              Text(
+                                                                '$ungradedCount Belum Dikoreksi',
+                                                                style: const TextStyle(
+                                                                  color: Colors.amber,
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 9,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                    return const SizedBox.shrink();
+                                                  },
+                                                ),
+                                                Text(
+                                                  'Batas: $dateStr',
+                                                  style: TextStyle(fontSize: 11, color: subTextColor, fontWeight: FontWeight.w600),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),

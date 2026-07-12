@@ -1337,7 +1337,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             // Kumpulkan unique eventId+subjectId+gradeLevel combos dari authorSessions
             final uniqueAuthorKeys = authorSessions
                 .map((s) {
-                  final grade = _classIdToAngkatan[s.classId] ?? _getGradeLevelForDashboard(s.className);
+                  final rawGrade = _classIdToAngkatan[s.classId] ?? _getGradeLevelForDashboard(s.className);
+                  final grade = rawGrade == '3' ? '2020' : (rawGrade == '2' ? '2021' : (rawGrade == '1' ? '2022' : rawGrade));
                   return '${s.eventId}_${s.subjectId}_$grade';
                 })
                 .toSet();

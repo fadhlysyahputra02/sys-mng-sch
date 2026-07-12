@@ -1154,6 +1154,7 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                                     // Set flag SEBELUM navigate agar lifecycle observer di dashboard
                                     // tidak sempat menulis ke behavior_records saat transisi route
                                     SessionService.isTakingExam = true;
+                                    final cachedEvent = _globalEventCache[widget.studentDocId];
                                     Get.to(() => StudentTakeExamPage(
                                       exam: overriddenExam,
                                       studentDocId: widget.studentDocId,
@@ -1165,6 +1166,7 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                                       sessionExamStatus: session.examStatus,
                                       seatNumber: partSnap.data?.seatNumber,
                                       roomName: partSnap.data?.roomName ?? session.roomName,
+                                      examType: cachedEvent?.examType,
                                     ));
                                   },
                                   icon: const Icon(Icons.play_arrow_rounded, size: 14),

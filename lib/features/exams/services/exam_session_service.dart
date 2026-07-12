@@ -779,6 +779,10 @@ class ExamSessionService {
       final List<ExamSession> sessions = sessionsSnap.docs
           .map((d) => ExamSession.fromFirestore(d))
           .where((s) => s.classId.split(',').map((e) => e.trim()).contains(classId))
+          .where((s) {
+            final status = s.examStatus.toLowerCase().trim();
+            return status != 'finished' && status != 'selesai' && status != 'archived';
+          })
           .toList();
 
       if (sessions.isEmpty) return false;

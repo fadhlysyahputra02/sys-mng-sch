@@ -199,7 +199,10 @@ class _AdminExamScheduleViewPageState
                                 final qList = (data['questions'] as List?);
                                 if (qList != null && qList.isNotEmpty) {
                                   final sid = data['subjectId'] as String? ?? '';
-                                  if (sid.isNotEmpty) subjectsWithQuestions.add(sid);
+                                  final eid = data['eventId'] as String? ?? '';
+                                  if (sid.isNotEmpty && (eid == widget.eventId || doc.id.startsWith('${widget.eventId}_'))) {
+                                    subjectsWithQuestions.add(sid);
+                                  }
                                 }
                               }
 

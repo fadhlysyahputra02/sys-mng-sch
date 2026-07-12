@@ -25,6 +25,8 @@ class StudentTakeExamPage extends StatefulWidget {
   final String? sessionExamStatus;
   final int? seatNumber;
   final String? roomName;
+  /// Tipe ujian dari ExamEvent (e.g. 'UTS', 'UAS')
+  final String? examType;
 
   const StudentTakeExamPage({
     super.key,
@@ -38,6 +40,7 @@ class StudentTakeExamPage extends StatefulWidget {
     this.sessionExamStatus,
     this.seatNumber,
     this.roomName,
+    this.examType,
   });
 
   @override
@@ -537,7 +540,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${currentQuestion.type == 'essay' ? 'Essay' : 'Pilihan Ganda'} • ${currentQuestion.points} Poin',
+                                  currentQuestion.type == 'essay' ? 'Essay' : 'Pilihan Ganda',
                                   style: TextStyle(fontSize: 12, color: const Color(0xFF8B5CF6), fontWeight: FontWeight.bold),
                                 ),
                               ],
@@ -886,14 +889,10 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      widget.exam.title,
+                      widget.examType != null && widget.examType!.isNotEmpty
+                          ? '${widget.examType} - ${widget.exam.subjectName}'
+                          : widget.exam.subjectName,
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: titleColor),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.exam.subjectName,
-                      style: TextStyle(fontSize: 13, color: const Color(0xFF8B5CF6), fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),

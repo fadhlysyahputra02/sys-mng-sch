@@ -24,7 +24,7 @@ import 'student_grades_page.dart';
 import 'student_tasks_page.dart';
 import '../../exams/pages/student_exams_page.dart';
 import '../../exams/pages/student_exam_participation_page.dart';
-import '../../exams/services/exam_session_service.dart';
+import '../../exams/models/exam_event_model.dart';
 
 import '../../../core/widgets/flip_card.dart';
 import '../../../core/widgets/motif_card.dart';
@@ -897,6 +897,15 @@ class _StudentDashboardState extends State<StudentDashboard>
                         children: [
                           _buildProfileHeader(name, email, nis, isDark),
                           const SizedBox(height: 28),
+                          if (_studentData?['classId'] != null)
+                            _buildExamSemesterCard(
+                              isDark: isDark,
+                              schoolId: SessionService.currentUser!.schoolId,
+                              classId: _studentData!['classId'] as String,
+                              studentId: _studentDocId!,
+                              studentName: name,
+                              studentNis: nis,
+                            ),
                           _buildSectionTitle(
                             'Menu Utama',
                             Icons.dashboard_rounded,
@@ -1208,6 +1217,192 @@ class _StudentDashboardState extends State<StudentDashboard>
       ),
     );
   }
+
+  Future<bool> _shouldShowExamSemesterCard({
+    required String schoolId,
+    required String classId,
+    required String studentId,
+  }) async {
+    try {
+      // 1. Ambil semua sessions untuk kelas murid
+      final sessionsSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_sessions')
+          .get();
+
+      final List<ExamSession> sessions = sessionsSnap.docs
+          .map((d) => ExamSession.fromFirestore(d))
+          .where((s) => s.classId.split(',').map((e) => e.trim()).contains(classId))
+          .toList();
+
+      if (sessions.isEmpty) return false;
+
+      // Filter: pastikan examStatus session tidak Finished atau Archived
+      final filteredSessions = sessions.where((s) {
+        final status = s.examStatus.toLowerCase().trim();
+        return status != 'finished' && status != 'selesai' && status != 'archived';
+      }).toList();
+
+      if (filteredSessions.isEmpty) return false;
+
+      // 2. Cek apakah murid terdaftar di participations
+      final futures = filteredSessions.map((s) => FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_sessions')
+          .doc(s.id)
+          .collection('participations')
+          .doc(studentId)
+          .get());
+      
+      final results = await Future.wait(futures);
+      final hasRegisteredParticipation = results.any((doc) => doc.exists);
+      if (!hasRegisteredParticipation) return false;
+
+      // 3. Cek status Event dari session tersebut
+      final registeredSessions = <ExamSession>[];
+      for (int i = 0; i < filteredSessions.length; i++) {
+        if (results[i].exists) {
+          registeredSessions.add(filteredSessions[i]);
+        }
+      }
+
+      final uniqueEventIds = registeredSessions.map((s) => s.eventId).toSet();
+      bool hasActiveEvent = false;
+
+      for (final eventId in uniqueEventIds) {
+        final eventDoc = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('exam_events')
+            .doc(eventId)
+            .get();
+
+        if (eventDoc.exists && eventDoc.data() != null) {
+          final eventStatus = (eventDoc.data()?['examStatus'] ?? '').toString().toLowerCase().trim();
+          if (eventStatus != 'finished' && eventStatus != 'selesai' && eventStatus != 'archived') {
+            hasActiveEvent = true;
+            break;
+          }
+        }
+      }
+
+      return hasActiveEvent;
+    } catch (e) {
+      debugPrint('Error checking _shouldShowExamSemesterCard: $e');
+      return false;
+    }
+  }
+
+  Widget _buildExamSemesterCard({
+    required bool isDark,
+    required String schoolId,
+    required String classId,
+    required String studentId,
+    required String studentName,
+    required String studentNis,
+  }) {
+    return FutureBuilder<bool>(
+      future: _shouldShowExamSemesterCard(
+        schoolId: schoolId,
+        classId: classId,
+        studentId: studentId,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        final hasSchedule = snapshot.data == true;
+        if (!hasSchedule) return const SizedBox.shrink();
+
+        final cardColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+        final cardBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle(
+              'Ujian Semester',
+              Icons.fact_check_rounded,
+              isDark,
+            ),
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: () {
+                Get.to(() => StudentExamParticipationPage(
+                      classId: classId,
+                      studentDocId: studentId,
+                      studentName: studentName,
+                      studentNis: studentNis,
+                    ));
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: cardBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Icons.assignment_turned_in_rounded,
+                          color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Jadwal Ujian Semester',
+                            style: TextStyle(
+                              color: titleColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Ketuk untuk melihat jadwal dan mulai ujian UTS/UAS Anda.',
+                            style: TextStyle(color: subtitleColor, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios_rounded,
+                        size: 14, color: subtitleColor),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildSectionTitle(String title, IconData icon, bool isDark) {
     final iconColor = isDark
         ? Colors.white.withValues(alpha: 0.8)
@@ -1233,9 +1428,6 @@ class _StudentDashboardState extends State<StudentDashboard>
   Widget _buildMenuGrid(bool isDark) {
     final parentLinked = _studentData?['parentLinked'] == true;
     final isLulus = _studentData?['lulus'] == true;
-    final classId = _studentData?['classId'] as String?;
-    final studentId = _studentDocId;
-    final schoolId = SessionService.currentUser?.schoolId;
 
     final baseMenus = isLulus
         ? [
@@ -1556,32 +1748,7 @@ class _StudentDashboardState extends State<StudentDashboard>
       );
     }
 
-    if (isLulus || classId == null || studentId == null || schoolId == null) {
-      return buildGrid(baseMenus);
-    }
-
-    return FutureBuilder<bool>(
-      future: ExamSessionService().hasAnyActiveExamSchedule(
-        schoolId: schoolId,
-        classId: classId,
-        studentId: studentId,
-      ),
-      builder: (context, snapshot) {
-        final hasSchedule = snapshot.data == true;
-        final activeMenus = List<Map<String, dynamic>>.from(baseMenus);
-        if (hasSchedule) {
-          final insertIndex = activeMenus.indexWhere((m) => m['title'] == 'Pelanggaran');
-          if (insertIndex != -1) {
-            activeMenus.insert(insertIndex, {
-              'title': 'Jadwal UTS/UAS',
-              'icon': Icons.fact_check_rounded,
-              'color': const Color(0xFFEC4899),
-            });
-          }
-        }
-        return buildGrid(activeMenus);
-      },
-    );
+    return buildGrid(baseMenus);
   }
 
 

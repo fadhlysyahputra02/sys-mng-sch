@@ -773,6 +773,13 @@ class _LoginPageState extends State<LoginPage> {
                           // Email Field
                           TextField(
                             controller: emailController,
+                            onTap: () {
+                              if (emailController.selection.baseOffset != emailController.selection.extentOffset) {
+                                emailController.selection = TextSelection.collapsed(
+                                  offset: emailController.selection.extentOffset,
+                                );
+                              }
+                            },
                             style: TextStyle(color: textColor),
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
@@ -809,6 +816,13 @@ class _LoginPageState extends State<LoginPage> {
                           // Password Field
                           TextField(
                             controller: passwordController,
+                            onTap: () {
+                              if (passwordController.selection.baseOffset != passwordController.selection.extentOffset) {
+                                passwordController.selection = TextSelection.collapsed(
+                                  offset: passwordController.selection.extentOffset,
+                                );
+                              }
+                            },
                             obscureText: _obscurePassword,
                             style: TextStyle(color: textColor),
                             textInputAction: TextInputAction.done,

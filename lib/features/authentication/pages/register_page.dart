@@ -1077,6 +1077,13 @@ class _RegisterPageState extends State<RegisterPage> {
                           if (selectedRole != 'parent') ...[
                           TextField(
                             controller: emailController,
+                            onTap: () {
+                              if (emailController.selection.baseOffset != emailController.selection.extentOffset) {
+                                emailController.selection = TextSelection.collapsed(
+                                  offset: emailController.selection.extentOffset,
+                                );
+                              }
+                            },
                             style: TextStyle(color: textColor),
                             keyboardType: TextInputType.emailAddress,
                             decoration: InputDecoration(
@@ -1108,6 +1115,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
                           TextField(
                             controller: passwordController,
+                            onTap: () {
+                              if (passwordController.selection.baseOffset != passwordController.selection.extentOffset) {
+                                passwordController.selection = TextSelection.collapsed(
+                                  offset: passwordController.selection.extentOffset,
+                                );
+                              }
+                            },
                             obscureText: _obscurePassword,
                             style: TextStyle(color: textColor),
                             onChanged: (_) => setState(() {}),
@@ -1156,6 +1170,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
                           TextField(
                             controller: confirmPasswordController,
+                            onTap: () {
+                              if (confirmPasswordController.selection.baseOffset != confirmPasswordController.selection.extentOffset) {
+                                confirmPasswordController.selection = TextSelection.collapsed(
+                                  offset: confirmPasswordController.selection.extentOffset,
+                                );
+                              }
+                            },
                             obscureText: _obscureConfirmPassword,
                             style: TextStyle(color: textColor),
                             decoration: InputDecoration(

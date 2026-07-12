@@ -167,7 +167,8 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
     return res ?? false;
   }
 
-  /// Mengecek apakah sudah ada sesi ujian mapel ini yang waktunya sudah tiba.
+  /// Mengecek apakah sudah ada sesi ujian mapel ini yang waktunya sudah tiba,
+  /// ATAU event sudah diaktifkan (examStatus == 'Active').
   /// Jika ya, lock semua aksi edit.
   Future<void> _checkExamLock() async {
     final schoolId = SessionService.currentUser!.schoolId;
@@ -176,6 +177,27 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
       _lockedSessionInfo = null;
     });
     try {
+      // ── Cek 1: status event. Jika sudah Active, langsung lock. ──────────
+      final eventDoc = await _db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_events')
+          .doc(widget.eventId)
+          .get();
+
+      if (eventDoc.exists) {
+        final eventStatus = (eventDoc.data()?['examStatus'] ?? '').toString();
+        if (eventStatus == 'Active' || eventStatus == 'Finished') {
+          setState(() {
+            _isExamLocked = true;
+            _lockedSessionInfo =
+                'Event ujian sudah diaktifkan. Soal tidak dapat diubah selama event berlangsung.';
+          });
+          return;
+        }
+      }
+
+      // ── Cek 2: waktu sesi sudah tiba ────────────────────────────────────
       final snapshot = await _db
           .collection('schools')
           .doc(schoolId)

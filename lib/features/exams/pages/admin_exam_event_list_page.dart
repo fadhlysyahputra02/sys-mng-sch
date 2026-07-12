@@ -451,7 +451,7 @@ class AdminExamEventListPage extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      // More menu
+                      // More menu — hanya tampil untuk admin, berisi aksi sekunder
                       PopupMenuButton<String>(
                         onSelected: (val) =>
                             _onMenuAction(val, event, service, schoolId),
@@ -459,30 +459,25 @@ class AdminExamEventListPage extends StatelessWidget {
                             color: subtitleColor, size: 20),
                         color: isDark ? const Color(0xFF1A1730) : Colors.white,
                         itemBuilder: (_) => [
-                          if (event.examStatus == 'Planning')
-                            PopupMenuItem(
-                              value: 'activate',
-                              child: Text(AppLocalization.isIndonesian ? 'Aktifkan Event' : 'Activate Event',
-                                  style: TextStyle(color: titleColor)),
-                            ),
                           if (event.examStatus == 'Active')
                             PopupMenuItem(
                               value: 'finish',
                               child: Text(AppLocalization.isIndonesian ? 'Selesaikan Event' : 'Finish Event',
                                   style: TextStyle(color: titleColor)),
                             ),
-                          if (event.examStatus == 'Finished' || event.examStatus == 'Active' || event.examStatus == 'Planning')
+                          if (event.examStatus == 'Finished') ...[
                             PopupMenuItem(
                               value: 'archive',
                               child: Text(AppLocalization.isIndonesian ? 'Arsipkan Event' : 'Archive Event',
-                                  style: TextStyle(color: Colors.orangeAccent)),
+                                  style: const TextStyle(color: Colors.orangeAccent)),
                             ),
-                          if (isAdmin)
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text(AppLocalization.isIndonesian ? 'Hapus Event' : 'Delete Event',
-                                  style: const TextStyle(color: Color(0xFFEF4444))),
-                            ),
+                            if (isAdmin)
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text(AppLocalization.isIndonesian ? 'Hapus Event' : 'Delete Event',
+                                    style: const TextStyle(color: Color(0xFFEF4444))),
+                              ),
+                          ],
                         ],
                       ),
                     ],
@@ -547,6 +542,32 @@ class AdminExamEventListPage extends StatelessWidget {
                 ],
               ),
             ),
+            // ── Tombol Aktifkan Event (hanya muncul saat Planning) ──────────
+            if (event.examStatus == 'Planning')
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: cardBorder)),
+                ),
+                child: TextButton.icon(
+                  onPressed: () => _onMenuAction('activate', event, service, schoolId),
+                  icon: const Icon(Icons.play_circle_rounded, size: 18, color: Color(0xFF10B981)),
+                  label: Text(
+                    AppLocalization.isIndonesian ? 'Aktifkan Event' : 'Activate Event',
+                    style: const TextStyle(
+                      color: Color(0xFF10B981),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
