@@ -48,7 +48,6 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   String? _schoolName;
   String? _className;
-  String _plan = 'FREE';
   bool _isLoadingSchool = true;
   String? _tahunAjaran;
   String? _activeSemester;
@@ -167,6 +166,7 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Future<void> _checkAndReportBehaviorViolation({bool isLocked = false}) async {
+    if (SessionService.isTakingExam) return;
     if (_studentData?['lulus'] == true) return;
     final user = SessionService.currentUser;
     debugPrint(
@@ -272,6 +272,7 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Future<void> _checkAndReportBehaviorReturn() async {
+    if (SessionService.isTakingExam) return;
     if (_studentData?['lulus'] == true) return;
     final user = SessionService.currentUser;
     debugPrint(
@@ -372,6 +373,7 @@ class _StudentDashboardState extends State<StudentDashboard>
   }
 
   Future<void> _reportLogoutBehavior() async {
+    if (SessionService.isTakingExam) return;
     if (_studentData?['lulus'] == true) return;
     final user = SessionService.currentUser;
     if (user == null || _studentDocId == null) {
@@ -515,7 +517,6 @@ class _StudentDashboardState extends State<StudentDashboard>
       setState(() {
         if (schoolData != null) {
           _schoolName = schoolData['namaSekolah'];
-          _plan = (schoolData['plan'] ?? 'FREE').toString().toUpperCase();
           _tahunAjaran = schoolData['tahunAjaran'];
           _activeSemester = schoolData['semester'];
           _schoolLogoBase64 = schoolData['logoBase64'] as String?;
@@ -1162,8 +1163,6 @@ class _StudentDashboardState extends State<StudentDashboard>
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        _buildPlanBadge(),
                       ],
                     ),
                   ],
@@ -1209,71 +1208,6 @@ class _StudentDashboardState extends State<StudentDashboard>
       ),
     );
   }
-
-  Widget _buildPlanBadge() {
-    Color badgeColor;
-    Gradient badgeGradient;
-    IconData icon;
-    String label = _plan;
-
-    if (label == 'PRO') {
-      badgeColor = const Color(0xFFD97706);
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      icon = Icons.workspace_premium_rounded;
-    } else if (label == 'BASIC') {
-      badgeColor = const Color(0xFF2563EB);
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      icon = Icons.star_rounded;
-    } else {
-      badgeColor = const Color(0xFF4B5563);
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      icon = Icons.shield_outlined;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        gradient: badgeGradient,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: badgeColor.withValues(alpha: 0.3),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 10),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 9,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSectionTitle(String title, IconData icon, bool isDark) {
     final iconColor = isDark
         ? Colors.white.withValues(alpha: 0.8)

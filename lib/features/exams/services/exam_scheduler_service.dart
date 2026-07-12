@@ -317,7 +317,11 @@ class ExamSchedulerService {
           .collection('students')
           .where('classId', isEqualTo: cid)
           .get();
-      studentsByClass[cid] = snap.docs.map((d) {
+      final filteredDocs = snap.docs.where((d) {
+        final data = d.data();
+        return data['lulus'] != true && (data['aktif'] ?? true);
+      });
+      studentsByClass[cid] = filteredDocs.map((d) {
         final data = d.data();
         return {
           'id': d.id,

@@ -121,6 +121,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   String? _activeSemester;
   String? _schoolLogoBase64;
   int _selectedMenuIndex = 0;
+  Map<String, String> _classIdToAngkatan = {};
 
   @override
   void initState() {
@@ -135,11 +136,50 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     super.dispose();
   }
 
+  Future<void> _loadAngkatanMapping() async {
+    final user = SessionService.currentUser;
+    if (user == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(user.schoolId)
+          .collection('students')
+          .get();
+
+      final Map<String, Map<String, int>> classAngkatanCounts = {};
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final cid = data['classId'] as String? ?? '';
+        final angkatan = (data['angkatan'] ?? '').toString().trim();
+        final isLulus = data['lulus'] == true;
+        final isAktif = data['aktif'] ?? true;
+        if (cid.isNotEmpty && angkatan.isNotEmpty && !isLulus && isAktif) {
+          classAngkatanCounts.putIfAbsent(cid, () => {});
+          classAngkatanCounts[cid]![angkatan] = (classAngkatanCounts[cid]![angkatan] ?? 0) + 1;
+        }
+      }
+
+      final Map<String, String> mapping = {};
+      classAngkatanCounts.forEach((cid, counts) {
+        if (counts.isNotEmpty) {
+          mapping[cid] = counts.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+        }
+      });
+
+      if (mounted) {
+        setState(() {
+          _classIdToAngkatan = mapping;
+        });
+      }
+    } catch (_) {}
+  }
+
   /// Langkah paling penting: cari dokumen guru di subcollection teachers
   /// berdasarkan Firebase Auth UID, lalu simpan teacherId (doc.id)
   Future<void> _resolveTeacherDocId() async {
     if (SessionService.currentUser == null) return;
     final user = SessionService.currentUser!;
+    await _loadAngkatanMapping();
 
     // Load school and teacher in parallel
     final results = await Future.wait([
@@ -1294,9 +1334,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               return const SizedBox.shrink(); // Tidak ada tugas/event
             }
 
-            // Kumpulkan unique eventId+subjectId combos dari authorSessions
+            // Kumpulkan unique eventId+subjectId+gradeLevel combos dari authorSessions
             final uniqueAuthorKeys = authorSessions
-                .map((s) => '${s.eventId}_${s.subjectId}')
+                .map((s) {
+                  final grade = _classIdToAngkatan[s.classId] ?? _getGradeLevelForDashboard(s.className);
+                  return '${s.eventId}_${s.subjectId}_$grade';
+                })
                 .toSet();
 
             // Stream exam_questions untuk semua event yang terlibat
@@ -1318,10 +1361,22 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   final data = doc.data();
                   final qList = data['questions'] as List?;
                   if (qList != null && qList.isNotEmpty) {
+                    final docId = doc.id;
                     final eid = data['eventId'] as String? ?? '';
                     final sid = data['subjectId'] as String? ?? '';
                     if (eid.isNotEmpty && sid.isNotEmpty) {
-                      keysWithQuestions.add('${eid}_$sid');
+                      // Jika id doc mengandung suffix gradeLevel (e.g. eventId_subjectId_X)
+                      if (docId.startsWith('${eid}_${sid}_')) {
+                        final grade = docId.substring('${eid}_${sid}_'.length);
+                        keysWithQuestions.add('${eid}_${sid}_$grade');
+                      } else {
+                        // Support fallback/legacy key
+                        keysWithQuestions.add('${eid}_$sid');
+                        // Juga daftarkan ke all grade levels supaya tidak dianggap missing
+                        keysWithQuestions.add('${eid}_${sid}_X');
+                        keysWithQuestions.add('${eid}_${sid}_XI');
+                        keysWithQuestions.add('${eid}_${sid}_XII');
+                      }
                     }
                   }
                 }
@@ -2716,4 +2771,26 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       },
     );
   }
+}
+
+String _getGradeLevelForDashboard(String className) {
+  final cleanName = className.toUpperCase().trim();
+  if (cleanName.startsWith('XII') || cleanName.contains('12')) return '3';
+  if (cleanName.startsWith('XI') || cleanName.contains('11')) {
+    if (!cleanName.startsWith('XII')) return '2';
+  }
+  if (cleanName.startsWith('X') || cleanName.contains('10')) {
+    if (!cleanName.startsWith('XII') && !cleanName.startsWith('XI')) return '1';
+  }
+  if (cleanName.startsWith('IX') || cleanName.contains('9')) return '3';
+  if (cleanName.startsWith('VIII') || cleanName.contains('8')) return '2';
+  if (cleanName.startsWith('VII') || cleanName.contains('7')) {
+    if (!cleanName.startsWith('VIII')) return '1';
+  }
+  if (cleanName.contains('6')) return '6';
+  if (cleanName.contains('5')) return '5';
+  if (cleanName.contains('4')) return '4';
+  if (cleanName.contains('3')) return '3';
+  if (cleanName.contains('2')) return '2';
+  return '1';
 }

@@ -77,7 +77,26 @@ class ExamService {
         .snapshots()
         .map((snapshot) {
           final list = snapshot.docs.map((doc) => Exam.fromFirestore(doc)).toList();
-          return list.where((exam) => exam.teacherIds.contains(teacherId) || exam.teacherId == teacherId).toList();
+          return list.where((exam) {
+            final isSemester = exam.gradeCategory == 'UTS' || exam.gradeCategory == 'UAS';
+            final isMyExam = exam.teacherIds.contains(teacherId) || exam.teacherId == teacherId;
+            return isMyExam && !isSemester;
+          }).toList();
+        });
+  }
+
+  /// Stream list ujian semester (UTS/UAS) untuk guru pengoreksi tertentu
+  Stream<List<Exam>> getSemesterExamsForTeacher(String schoolId, String teacherId) {
+    return _examsRef(schoolId)
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs.map((doc) => Exam.fromFirestore(doc)).toList();
+          return list.where((exam) {
+            final isSemester = exam.gradeCategory == 'UTS' || exam.gradeCategory == 'UAS';
+            final isMyExam = exam.teacherIds.contains(teacherId) || exam.teacherId == teacherId;
+            return isMyExam && isSemester;
+          }).toList();
         });
   }
 
@@ -131,9 +150,10 @@ class ExamService {
       }
     }
 
-    final double score = totalMaxPoints == 0
-        ? 0.0
-        : double.parse(((pointsObtained / totalMaxPoints) * 100).toStringAsFixed(2));
+    // Skor akhir = total poin yang diraih secara langsung (bukan persentase)
+    // Untuk PG saja: score = jumlah poin PG yang benar
+    // Untuk PG+Essay: score sementara dari PG, akan ditambah nilai essay manual oleh guru
+    final double score = pointsObtained.toDouble();
 
     final isGraded = !hasEssay;
     final submissionId = '${exam.id}_$studentId';
@@ -159,38 +179,49 @@ class ExamService {
 
     // 2. Jika diaktifkan dan sudah selesai dinilai (tidak ada essay), otomatis sinkronisasikan nilai ke Buku Nilai (/grades)
     if (exam.syncToGrades && isGraded) {
-      final gradeDocRef = _firestore
-          .collection('schools')
-          .doc(schoolId)
-          .collection('grades')
-          .doc(exam.id);
+      // Split classId kalau sesi ini menggabungkan beberapa kelas (comma-separated)
+      final classIdParts = exam.classId.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      final classNameParts = exam.className.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
 
-      // Tulis metadata utama buku nilai (jika belum ada)
-      await gradeDocRef.set({
-        'gradeId': exam.id,
-        'schoolId': schoolId,
-        'classId': exam.classId,
-        'className': exam.className,
-        'subjectId': exam.subjectId,
-        'subjectName': exam.subjectName,
-        'teacherId': exam.teacherId,
-        'teacherName': exam.teacherName,
-        'title': exam.title,
-        'category': exam.gradeCategory,
-        'maxScore': 100.0,
-        'date': exam.createdAt.toIso8601String().split('T')[0],
-        'tahunAjaran': exam.tahunAjaran,
-        'semester': exam.semester,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      for (int i = 0; i < classIdParts.length; i++) {
+        final singleClassId = classIdParts[i];
+        final singleClassName = i < classNameParts.length ? classNameParts[i] : classNameParts.last;
 
-      // Update skor spesifik murid menggunakan dot path notation
-      await gradeDocRef.update({
-        'scores.$studentId': {
-          'score': score,
-          'notes': 'Otomatis dari Ujian Online: ${exam.title}',
-        },
-      });
+        // Gunakan ID: examId_classId agar setiap kelas punya dokumen sendiri
+        final gradeDocId = classIdParts.length > 1 ? '${exam.id}_$singleClassId' : exam.id;
+        final gradeDocRef = _firestore
+            .collection('schools')
+            .doc(schoolId)
+            .collection('grades')
+            .doc(gradeDocId);
+
+        // Tulis metadata utama buku nilai (jika belum ada)
+        await gradeDocRef.set({
+          'gradeId': gradeDocId,
+          'schoolId': schoolId,
+          'classId': singleClassId,
+          'className': singleClassName,
+          'subjectId': exam.subjectId,
+          'subjectName': exam.subjectName,
+          'teacherId': exam.teacherId,
+          'teacherName': exam.teacherName,
+          'title': exam.title,
+          'category': exam.gradeCategory,
+          'maxScore': 100.0,
+          'date': exam.createdAt.toIso8601String().split('T')[0],
+          'tahunAjaran': exam.tahunAjaran,
+          'semester': exam.semester,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        // Update skor spesifik murid menggunakan dot path notation
+        await gradeDocRef.update({
+          'scores.$studentId': {
+            'score': score,
+            'notes': 'Otomatis dari Ujian Online: ${exam.title}',
+          },
+        });
+      }
     }
   }
 
@@ -212,24 +243,41 @@ class ExamService {
     // 2. Hitung total poin
     int pointsObtained = 0;
     int totalMaxPoints = 0;
-    
+
+    // Validasi kritis: pastikan ID soal PG cocok dengan submission.answers.
+    // Jika tidak ada satupun yang cocok, penilaian PG akan 0 semua (salah kaprah).
+    // Ini bisa terjadi jika exam.questions berasal dari sumber berbeda dengan
+    // soal yang digunakan murid saat mengerjakan.
+    final pgQuestionsInExam = exam.questions.where((q) => q.type != 'essay').toList();
+    final bool pgIdsMatchSubmission = pgQuestionsInExam.isEmpty ||
+        pgQuestionsInExam.any((q) => submission.answers.containsKey(q.id));
+
+    if (!pgIdsMatchSubmission && submission.answers.isNotEmpty) {
+      // Ini adalah kondisi yang tidak diharapkan — ID tidak cocok.
+      // Lempar exception agar pemanggil bisa menangani / fallback.
+      throw Exception(
+        'Mismatch antara ID soal PG dan jawaban submission. '
+        'Pastikan exam.questions yang dikirim ke gradeSubmission '
+        'menggunakan soal yang sama dengan saat murid mengerjakan.',
+      );
+    }
+
     for (final q in exam.questions) {
       totalMaxPoints += q.points;
       if (q.type == 'essay') {
         final score = essayScores[q.id] ?? 0;
         pointsObtained += score;
       } else {
-        // PG
+        // PG: hitung poin hanya jika jawaban murid benar
         final studentAnswer = submission.answers[q.id];
-        if (studentAnswer == q.correctOptionIndex) {
+        if (studentAnswer != null && studentAnswer == q.correctOptionIndex) {
           pointsObtained += q.points;
         }
       }
     }
     
-    final double finalScore = totalMaxPoints == 0
-        ? 0.0
-        : double.parse(((pointsObtained / totalMaxPoints) * 100).toStringAsFixed(2));
+    // Skor akhir = total poin diraih secara langsung (bukan persentase)
+    double finalScore = pointsObtained.toDouble();
         
     // 3. Update dokumen submission di Firestore
     await _submissionsRef(schoolId).doc(submissionId).update({
@@ -240,36 +288,48 @@ class ExamService {
     
     // 4. Jika diaktifkan, sinkronisasikan nilai akhir ke Buku Nilai (/grades)
     if (exam.syncToGrades) {
-      final gradeDocRef = _firestore
-          .collection('schools')
-          .doc(schoolId)
-          .collection('grades')
-          .doc(exam.id);
+      // Split classId kalau sesi ini menggabungkan beberapa kelas (comma-separated)
+      final classIdParts = exam.classId.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      final classNameParts = exam.className.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
 
-      await gradeDocRef.set({
-        'gradeId': exam.id,
-        'schoolId': schoolId,
-        'classId': exam.classId,
-        'className': exam.className,
-        'subjectId': exam.subjectId,
-        'subjectName': exam.subjectName,
-        'teacherId': exam.teacherId,
-        'teacherName': exam.teacherName,
-        'title': exam.title,
-        'category': exam.gradeCategory,
-        'maxScore': 100.0,
-        'date': exam.createdAt.toIso8601String().split('T')[0],
-        'tahunAjaran': exam.tahunAjaran,
-        'semester': exam.semester,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      for (int i = 0; i < classIdParts.length; i++) {
+        final singleClassId = classIdParts[i];
+        final singleClassName = i < classNameParts.length ? classNameParts[i] : classNameParts.last;
+        final gradeDocId = classIdParts.length > 1 ? '${exam.id}_$singleClassId' : exam.id;
 
-      await gradeDocRef.update({
-        'scores.${submission.studentId}': {
-          'score': finalScore,
-          'notes': 'Hasil Ujian Online (Termasuk Essay): ${exam.title}',
-        },
-      });
+        final gradeDocRef = _firestore
+            .collection('schools')
+            .doc(schoolId)
+            .collection('grades')
+            .doc(gradeDocId);
+
+        await gradeDocRef.set({
+          'gradeId': gradeDocId,
+          'schoolId': schoolId,
+          'classId': singleClassId,
+          'className': singleClassName,
+          'subjectId': exam.subjectId,
+          'subjectName': exam.subjectName,
+          'teacherId': exam.teacherId,
+          'teacherName': exam.teacherName,
+          'title': exam.title,
+          'category': exam.gradeCategory,
+          'maxScore': 100.0,
+          'date': exam.createdAt.toIso8601String().split('T')[0],
+          'tahunAjaran': exam.tahunAjaran,
+          'semester': exam.semester,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        final bool isUjianSemester = exam.gradeCategory == 'UTS' || exam.gradeCategory == 'UAS';
+
+        await gradeDocRef.update({
+          'scores.${submission.studentId}': {
+            'score': finalScore,
+            'notes': isUjianSemester ? 'Hasil Ujian Online' : 'Hasil Ujian Online (Termasuk Essay): ${exam.title}',
+          },
+        });
+      }
     }
   }
 

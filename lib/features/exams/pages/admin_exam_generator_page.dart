@@ -417,7 +417,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         for (final doc in studentsDocs) {
           final data = doc.data();
           final cid = data['classId'] as String? ?? '';
-          if (cid.isNotEmpty) {
+          final isLulus = data['lulus'] == true;
+          final isAktif = data['aktif'] ?? true;
+          if (cid.isNotEmpty && !isLulus && isAktif) {
             _studentsByClass.putIfAbsent(cid, () => []).add({
               'id': doc.id,
               'nama': data['nama'] ?? '',
@@ -1823,13 +1825,13 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Finalisasi & Simpan Event',
+          Text('Masukkan Murid ke Ruangan & Atur Jadwal',
               style: TextStyle(
                   color: titleColor,
                   fontSize: 16,
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('Pastikan seluruh konfigurasi dasar berikut sudah sesuai.',
+          Text('Pastikan seluruh murid sudah memiliki ruangan ujian.',
               style: TextStyle(color: subtitleColor, fontSize: 13)),
           const SizedBox(height: 24),
 
@@ -2206,12 +2208,15 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
   void _autoAssignClassesToRooms() {
     if (_allClasses.isEmpty) return;
 
+    final activeClassIds = _subjectConfigs.expand((c) => c.classIds).toSet();
+    final participatingClasses = _allClasses.where((cls) => activeClassIds.contains(cls['id'])).toList();
+
     // 1. Map classId to cohort and student count
     final Map<String, String> classToCohort = {};
     final Map<String, int> classStudentCount = {};
     final Map<String, String> classIdToName = {};
     
-    for (final cls in _allClasses) {
+    for (final cls in participatingClasses) {
       final cid = cls['id'] as String;
       final cname = cls['name'] as String;
       classIdToName[cid] = cname;
@@ -2242,7 +2247,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
     // 2. Group class IDs by cohort (ONLY classes with students)
     final Map<String, List<String>> classesByCohort = {};
-    for (final cls in _allClasses) {
+    for (final cls in participatingClasses) {
       final cid = cls['id'] as String;
       if ((classStudentCount[cid] ?? 0) <= 0) continue; // Skip classes with no students
       final cohort = classToCohort[cid]!;

@@ -78,7 +78,6 @@ class AdminExamEventListPage extends StatelessWidget {
                         ElevatedButton.icon(
                           onPressed: () =>
                               Get.to(() => const AdminExamGeneratorPage()),
-                          icon: const Icon(Icons.auto_awesome_rounded, size: 16),
                           label: Text(AppLocalization.isIndonesian ? 'Buat Baru' : 'Create New'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF8B5CF6),
@@ -653,15 +652,17 @@ class AdminExamEventListPage extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                SelectableText(
                   AppLocalization.isIndonesian 
                       ? 'Apakah Anda yakin ingin menghapus "${event.title}"?\n\nPERINGATAN: Semua soal, jadwal, dan NILAI SISWA yang terkait dengan event ini akan TERHAPUS PERMANEN.' 
                       : 'Are you sure you want to delete "${event.title}"?\n\nWARNING: All questions, schedules, and STUDENT GRADES related to this event will be PERMANENTLY DELETED.',
                   style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  AppLocalization.isIndonesian ? 'Ketik "HAPUS" untuk konfirmasi:' : 'Type "DELETE" to confirm:',
+                SelectableText(
+                  AppLocalization.isIndonesian 
+                      ? 'Ketik nama event "${event.title}" untuk konfirmasi:' 
+                      : 'Type the event name "${event.title}" to confirm:',
                   style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
                 ),
                 const SizedBox(height: 8),
@@ -669,7 +670,7 @@ class AdminExamEventListPage extends StatelessWidget {
                   controller: ctrl,
                   style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                   decoration: InputDecoration(
-                    hintText: AppLocalization.isIndonesian ? 'HAPUS' : 'DELETE',
+                    hintText: event.title,
                     hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black38),
                     filled: true,
                     fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
@@ -696,7 +697,7 @@ class AdminExamEventListPage extends StatelessWidget {
               ),
               ElevatedButton(
                 onPressed: () {
-                  final expectedStr = AppLocalization.isIndonesian ? 'HAPUS' : 'DELETE';
+                  final expectedStr = event.title;
                   if (ctrl.text.trim() == expectedStr) {
                     Get.back(result: true);
                   } else {

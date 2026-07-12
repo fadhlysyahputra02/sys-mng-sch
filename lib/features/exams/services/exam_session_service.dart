@@ -123,25 +123,84 @@ class ExamSessionService {
       final eventData = eventDoc.data()!;
       final List subjectConfigsList = eventData['subjectConfigs'] as List? ?? [];
 
-      // Validasi: Cek apakah ada mapel yang belum punya soal
+      // Build classId -> angkatan mapping from students list
+      final studentsSnap = await _db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('students')
+          .get();
+
+      final Map<String, Map<String, int>> classAngkatanCounts = {};
+      for (final doc in studentsSnap.docs) {
+        final data = doc.data();
+        final cid = data['classId'] as String? ?? '';
+        final angkatan = (data['angkatan'] ?? '').toString().trim();
+        final isLulus = data['lulus'] == true;
+        final isAktif = data['aktif'] ?? true;
+        if (cid.isNotEmpty && angkatan.isNotEmpty && !isLulus && isAktif) {
+          classAngkatanCounts.putIfAbsent(cid, () => {});
+          classAngkatanCounts[cid]![angkatan] = (classAngkatanCounts[cid]![angkatan] ?? 0) + 1;
+        }
+      }
+
+      final Map<String, String> classIdToAngkatan = {};
+      classAngkatanCounts.forEach((cid, counts) {
+        if (counts.isNotEmpty) {
+          classIdToAngkatan[cid] = counts.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+        }
+      });
+
+      // Ambil seluruh sesi untuk event ini
+      final sessionsSnap = await _sessionsRef(schoolId)
+          .where('eventId', isEqualTo: eventId)
+          .get();
+
+      // Group active angkatans by subjectId
+      final Map<String, Set<String>> subjectActiveAngkatans = {};
+      for (final doc in sessionsSnap.docs) {
+        final sData = doc.data();
+        final subId = sData['subjectId']?.toString() ?? '';
+        final classId = sData['classId']?.toString() ?? '';
+        
+        final cids = classId.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty);
+        for (final cid in cids) {
+          final angkatan = classIdToAngkatan[cid] ?? '';
+          if (subId.isNotEmpty && angkatan.isNotEmpty) {
+            subjectActiveAngkatans.putIfAbsent(subId, () => {}).add(angkatan);
+          }
+        }
+      }
+
+      // Validasi: Cek apakah ada mapel yang belum punya soal untuk angkatan yang berpartisipasi
       final List<String> subjectsWithoutQuestions = [];
       for (final item in subjectConfigsList) {
         final map = Map<String, dynamic>.from(item);
         final subId = map['subjectId']?.toString() ?? '';
         final subName = map['subjectName']?.toString() ?? 'Mata Pelajaran';
         if (subId.isNotEmpty) {
-          final qDoc = await _db
-              .collection('schools')
-              .doc(schoolId)
-              .collection('exam_questions')
-              .doc('${eventId}_$subId')
-              .get();
-          if (!qDoc.exists || qDoc.data() == null) {
-            subjectsWithoutQuestions.add(subName);
-          } else {
-            final List questions = qDoc.data()!['questions'] as List? ?? [];
-            if (questions.isEmpty) {
-              subjectsWithoutQuestions.add(subName);
+          final activeAngkatans = subjectActiveAngkatans[subId] ?? {};
+          
+          if (activeAngkatans.isEmpty) continue;
+          
+          for (final angkatan in activeAngkatans) {
+            final docId = '${eventId}_${subId}_$angkatan';
+            final qDoc = await _db
+                .collection('schools')
+                .doc(schoolId)
+                .collection('exam_questions')
+                .doc(docId)
+                .get();
+            
+            bool hasQuestions = false;
+            if (qDoc.exists && qDoc.data() != null) {
+              final List questions = qDoc.data()!['questions'] as List? ?? [];
+              if (questions.isNotEmpty) {
+                hasQuestions = true;
+              }
+            }
+            
+            if (!hasQuestions) {
+              subjectsWithoutQuestions.add('$subName (Angkatan $angkatan)');
             }
           }
         }
@@ -182,6 +241,33 @@ class ExamSessionService {
       final schoolData = schoolDoc.data() ?? {};
       final tahunAjaran = schoolData['tahunAjaran']?.toString() ?? '';
       final semester = schoolData['semester']?.toString() ?? '';
+
+      // Build classId -> angkatan mapping from students list
+      final studentsSnap = await _db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('students')
+          .get();
+
+      final Map<String, Map<String, int>> classAngkatanCounts = {};
+      for (final doc in studentsSnap.docs) {
+        final data = doc.data();
+        final cid = data['classId'] as String? ?? '';
+        final angkatan = (data['angkatan'] ?? '').toString().trim();
+        final isLulus = data['lulus'] == true;
+        final isAktif = data['aktif'] ?? true;
+        if (cid.isNotEmpty && angkatan.isNotEmpty && !isLulus && isAktif) {
+          classAngkatanCounts.putIfAbsent(cid, () => {});
+          classAngkatanCounts[cid]![angkatan] = (classAngkatanCounts[cid]![angkatan] ?? 0) + 1;
+        }
+      }
+
+      final Map<String, String> classIdToAngkatan = {};
+      classAngkatanCounts.forEach((cid, counts) {
+        if (counts.isNotEmpty) {
+          classIdToAngkatan[cid] = counts.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+        }
+      });
 
       // 2. Ambil semua sesi untuk event ini
       final sessionsSnap = await _sessionsRef(schoolId)
@@ -227,13 +313,37 @@ class ExamSessionService {
           }
         } catch (_) {}
 
-        // Ambil questions dari exam_questions/${eventId}_${subjectId}
-        final qDoc = await _db
+        // Ambil questions dari exam_questions/${eventId}_${subjectId}_${angkatan} atau fallback ke ${eventId}_${subjectId}
+        final firstClassId = classId.split(',').first.trim();
+        var angkatan = classIdToAngkatan[firstClassId] ?? '';
+        if (angkatan.isEmpty) {
+          final lvl = _getGradeLevel(className);
+          if (lvl == '3') {
+            angkatan = '2020';
+          } else if (lvl == '2') {
+            angkatan = '2021';
+          } else if (lvl == '1') {
+            angkatan = '2022';
+          } else {
+            angkatan = '2022';
+          }
+        }
+
+        var qDoc = await _db
             .collection('schools')
             .doc(schoolId)
             .collection('exam_questions')
-            .doc('${eventId}_$subjectId')
+            .doc('${eventId}_${subjectId}_$angkatan')
             .get();
+
+        if (!qDoc.exists || qDoc.data() == null) {
+          qDoc = await _db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('exam_questions')
+              .doc('${eventId}_$subjectId')
+              .get();
+        }
 
         if (qDoc.exists && qDoc.data() != null) {
           final qData = qDoc.data()!;
@@ -277,32 +387,84 @@ class ExamSessionService {
 
   /// Hapus event beserta seluruh sesinya (batch delete)
   Future<void> deleteExamEvent(String schoolId, String eventId) async {
-    final batch = _db.batch();
+    final List<DocumentReference> refsToDelete = [];
 
-    // Hapus semua sesi terkait
+    // 1. Hapus semua sesi terkait (termasuk sub-koleksi participations)
     final sessions = await _sessionsRef(schoolId)
         .where('eventId', isEqualTo: eventId)
         .get();
-    for (final doc in sessions.docs) {
-      batch.delete(doc.reference);
+    for (final sDoc in sessions.docs) {
+      // Hapus participations dalam setiap sesi
+      final parts = await sDoc.reference.collection('participations').get();
+      for (final pDoc in parts.docs) {
+        refsToDelete.add(pDoc.reference);
+      }
+      refsToDelete.add(sDoc.reference);
     }
 
-    // Hapus exams yang digenerate oleh event ini
+    // 2. Hapus exams yang digenerate oleh event ini
     final examsSnap = await _db
         .collection('schools')
         .doc(schoolId)
         .collection('exams')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${eventId}_')
+        .where(FieldPath.documentId, isLessThanOrEqualTo: '${eventId}_\uf8ff')
         .get();
     for (final doc in examsSnap.docs) {
-      if (doc.id.startsWith('${eventId}_')) {
-        batch.delete(doc.reference);
-        // Hapus juga grades terkait
-        batch.delete(_db.collection('schools').doc(schoolId).collection('grades').doc(doc.id));
-      }
+      refsToDelete.add(doc.reference);
     }
 
-    batch.delete(_eventsRef(schoolId).doc(eventId));
-    await batch.commit();
+    // 3. Hapus exam_questions (bank soal) terkait event ini
+    final questionsSnap = await _db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('exam_questions')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${eventId}_')
+        .where(FieldPath.documentId, isLessThanOrEqualTo: '${eventId}_\uf8ff')
+        .get();
+    for (final doc in questionsSnap.docs) {
+      refsToDelete.add(doc.reference);
+    }
+
+    // 4. Hapus grades terkait yang di-generate oleh event ini (termasuk kelas gabungan)
+    final gradesSnap = await _db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('grades')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${eventId}_')
+        .where(FieldPath.documentId, isLessThanOrEqualTo: '${eventId}_\uf8ff')
+        .get();
+    for (final doc in gradesSnap.docs) {
+      refsToDelete.add(doc.reference);
+    }
+
+    // 5. Hapus exam submissions terkait event ini
+    final submissionsSnap = await _db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('exam_submissions')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${eventId}_')
+        .where(FieldPath.documentId, isLessThanOrEqualTo: '${eventId}_\uf8ff')
+        .get();
+    for (final doc in submissionsSnap.docs) {
+      refsToDelete.add(doc.reference);
+    }
+
+    // 6. Hapus event document itu sendiri
+    refsToDelete.add(_eventsRef(schoolId).doc(eventId));
+
+    // Eksekusi penghapusan dalam chunk berukuran maksimal 400 dokumen per batch
+    for (int i = 0; i < refsToDelete.length; i += 400) {
+      final chunk = refsToDelete.sublist(
+        i,
+        i + 400 > refsToDelete.length ? refsToDelete.length : i + 400,
+      );
+      final chunkBatch = _db.batch();
+      for (final ref in chunk) {
+        chunkBatch.delete(ref);
+      }
+      await chunkBatch.commit();
+    }
   }
 
   // ── ExamSession CRUD ─────────────────────────────────────────
@@ -370,7 +532,7 @@ class ExamSessionService {
         });
   }
 
-  /// Stream sesi untuk kelas tertentu (hanya jika event-nya Active/Finished, bukan Planning)
+  /// Stream sesi untuk kelas tertentu (hanya jika event-nya Active, bukan Planning atau Finished)
   Stream<List<ExamSession>> getSessionsByClass(
       String schoolId, String classId) {
     final controller = StreamController<List<ExamSession>>();
@@ -382,13 +544,15 @@ class ExamSessionService {
 
     void update() {
       if (controller.isClosed) return;
-      final nonPlanningEventIds = events
-          .where((e) => e.examStatus != 'Planning')
+      final activeEventIds = events
+          .where((e) => e.examStatus != 'Planning' && 
+                        e.examStatus != 'Finished' && 
+                        e.examStatus.toLowerCase() != 'archived')
           .map((e) => e.id)
           .toSet();
       final filtered = sessions
           .where((s) => s.classId.split(',').map((e) => e.trim()).contains(classId) &&
-                        nonPlanningEventIds.contains(s.eventId))
+                        activeEventIds.contains(s.eventId))
           .toList();
       controller.add(filtered);
     }
@@ -773,6 +937,7 @@ class ExamSessionService {
     required String eventId,
     required String subjectId,
     required List<Map<String, dynamic>> questionsList,
+    String? gradeLevel,
   }) async {
     // 1. Ambil detail event
     final eventDoc = await _eventsRef(schoolId).doc(eventId).get();
@@ -798,6 +963,33 @@ class ExamSessionService {
     final tahunAjaran = schoolData['tahunAjaran']?.toString() ?? '';
     final semester = schoolData['semester']?.toString() ?? '';
 
+    // Build classId -> angkatan mapping from students list
+    final studentsSnap = await _db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('students')
+        .get();
+
+    final Map<String, Map<String, int>> classAngkatanCounts = {};
+    for (final doc in studentsSnap.docs) {
+      final data = doc.data();
+      final cid = data['classId'] as String? ?? '';
+      final angkatan = (data['angkatan'] ?? '').toString().trim();
+      final isLulus = data['lulus'] == true;
+      final isAktif = data['aktif'] ?? true;
+      if (cid.isNotEmpty && angkatan.isNotEmpty && !isLulus && isAktif) {
+        classAngkatanCounts.putIfAbsent(cid, () => {});
+        classAngkatanCounts[cid]![angkatan] = (classAngkatanCounts[cid]![angkatan] ?? 0) + 1;
+      }
+    }
+
+    final Map<String, String> classIdToAngkatan = {};
+    classAngkatanCounts.forEach((cid, counts) {
+      if (counts.isNotEmpty) {
+        classIdToAngkatan[cid] = counts.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+      }
+    });
+
     // 2. Ambil seluruh sesi untuk event dan subject ini
     final sessionsSnap = await _sessionsRef(schoolId)
         .where('eventId', isEqualTo: eventId)
@@ -809,6 +1001,25 @@ class ExamSessionService {
       final subjectName = sData['subjectName']?.toString() ?? '';
       final classId = sData['classId']?.toString() ?? '';
       final className = sData['className']?.toString() ?? '';
+
+      final firstClassId = classId.split(',').first.trim();
+      var sessionAngkatan = classIdToAngkatan[firstClassId] ?? '';
+      if (sessionAngkatan.isEmpty) {
+        final lvl = _getGradeLevel(className);
+        if (lvl == '3') {
+          sessionAngkatan = '2020';
+        } else if (lvl == '2') {
+          sessionAngkatan = '2021';
+        } else if (lvl == '1') {
+          sessionAngkatan = '2022';
+        } else {
+          sessionAngkatan = '2022';
+        }
+      }
+      // Skip if gradeLevel filter is specified and doesn't match this class grade level (angkatan)
+      if (gradeLevel != null && sessionAngkatan != gradeLevel) {
+        continue;
+      }
 
       // Dapatkan corrector/author ids & names dari config
       final config = subjectConfigsMap[subjectId];
@@ -875,4 +1086,26 @@ class ExamSessionService {
       });
     }
   }
+}
+
+String _getGradeLevel(String className) {
+  final cleanName = className.toUpperCase().trim();
+  if (cleanName.startsWith('XII') || cleanName.contains('12')) return '3';
+  if (cleanName.startsWith('XI') || cleanName.contains('11')) {
+    if (!cleanName.startsWith('XII')) return '2';
+  }
+  if (cleanName.startsWith('X') || cleanName.contains('10')) {
+    if (!cleanName.startsWith('XII') && !cleanName.startsWith('XI')) return '1';
+  }
+  if (cleanName.startsWith('IX') || cleanName.contains('9')) return '3';
+  if (cleanName.startsWith('VIII') || cleanName.contains('8')) return '2';
+  if (cleanName.startsWith('VII') || cleanName.contains('7')) {
+    if (!cleanName.startsWith('VIII')) return '1';
+  }
+  if (cleanName.contains('6')) return '6';
+  if (cleanName.contains('5')) return '5';
+  if (cleanName.contains('4')) return '4';
+  if (cleanName.contains('3')) return '3';
+  if (cleanName.contains('2')) return '2';
+  return '1';
 }

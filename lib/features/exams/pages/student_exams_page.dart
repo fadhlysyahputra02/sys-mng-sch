@@ -559,6 +559,9 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                                   icon: const Icon(Icons.block_rounded, color: Colors.white),
                                                 );
                                               } else {
+                                                // Set flag SEBELUM navigate agar lifecycle observer di dashboard
+                                                // tidak sempat menulis ke behavior_records saat transisi route
+                                                SessionService.isTakingExam = true;
                                                 Get.to(() => StudentTakeExamPage(
                                                   exam: exam,
                                                   studentDocId: studentDocId,

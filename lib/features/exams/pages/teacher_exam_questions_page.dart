@@ -12,6 +12,7 @@ class TeacherExamQuestionsPage extends StatefulWidget {
   final String subjectId;
   final String subjectName;
   final String teacherId;
+  final String? gradeLevel;
 
   const TeacherExamQuestionsPage({
     super.key,
@@ -19,6 +20,7 @@ class TeacherExamQuestionsPage extends StatefulWidget {
     required this.subjectId,
     required this.subjectName,
     required this.teacherId,
+    this.gradeLevel,
   });
 
   @override
@@ -32,21 +34,147 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
   List<ExamQuestion> _questions = [];
   bool _hasUnsavedChanges = false;
 
+  int get _totalPoints {
+    return _questions.fold(0, (sum, q) => sum + q.points);
+  }
+
   // Lock state: true saat jam ujian sudah tiba atau sedang berlangsung
   bool _isExamLocked = false;
   String? _lockedSessionInfo; // Pesan info sesi yang sedang berlangsung
 
+  final List<String> _availableGrades = [];
+  late String _selectedGrade;
+  Map<String, String> _classIdToAngkatan = {};
+
   @override
   void initState() {
     super.initState();
-    _loadQuestionsData();
-    _checkExamLock();
+    _selectedGrade = widget.gradeLevel ?? '';
+    _loadAvailableGradesAndData();
+  }
+
+  Future<void> _loadAvailableGradesAndData() async {
+    final schoolId = SessionService.currentUser!.schoolId;
+    try {
+      // 1. Fetch active students to build classId -> angkatan mapping and list all active cohorts
+      final studentsSnap = await _db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('students')
+          .get();
+
+      final Set<String> allActiveAngkatans = {};
+      final Map<String, Map<String, int>> classAngkatanCounts = {};
+      for (final doc in studentsSnap.docs) {
+        final data = doc.data();
+        final cid = data['classId'] as String? ?? '';
+        final angkatan = (data['angkatan'] ?? '').toString().trim();
+        final isLulus = data['lulus'] == true;
+        final isAktif = data['aktif'] ?? true;
+        if (angkatan.isNotEmpty && !isLulus && isAktif) {
+          allActiveAngkatans.add(angkatan);
+        }
+        if (cid.isNotEmpty && angkatan.isNotEmpty && !isLulus && isAktif) {
+          classAngkatanCounts.putIfAbsent(cid, () => {});
+          classAngkatanCounts[cid]![angkatan] = (classAngkatanCounts[cid]![angkatan] ?? 0) + 1;
+        }
+      }
+
+      final Map<String, String> mapping = {};
+      classAngkatanCounts.forEach((cid, counts) {
+        if (counts.isNotEmpty) {
+          mapping[cid] = counts.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+        }
+      });
+      _classIdToAngkatan = mapping;
+
+      setState(() {
+        _availableGrades.clear();
+        _availableGrades.addAll(allActiveAngkatans.toList()..sort());
+        
+        // Fallback jika tidak ada angkatan terdeteksi
+        if (_availableGrades.isEmpty) {
+          _availableGrades.addAll(['2020', '2021', '2022']);
+        }
+
+        if (_selectedGrade.isEmpty || !_availableGrades.contains(_selectedGrade)) {
+          _selectedGrade = _availableGrades.contains(widget.gradeLevel) 
+              ? widget.gradeLevel! 
+              : _availableGrades.first;
+        }
+      });
+    } catch (_) {
+      setState(() {
+        _availableGrades.clear();
+        _availableGrades.addAll(['2020', '2021', '2022']);
+      });
+    }
+    await _loadQuestionsData();
+    await _checkExamLock();
+  }
+
+  Future<void> _changeGrade(String newGrade) async {
+    if (_selectedGrade == newGrade) return;
+    if (_hasUnsavedChanges) {
+      final confirm = await _showDiscardConfirmation();
+      if (confirm != true) return;
+    }
+    setState(() {
+      _selectedGrade = newGrade;
+      _isLoading = true;
+      _questions.clear();
+      _hasUnsavedChanges = false;
+    });
+    await _loadQuestionsData();
+    await _checkExamLock();
+  }
+
+  Future<bool> _showDiscardConfirmation() async {
+    final isDark = AuthBackground.isDarkMode.value;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final res = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B), size: 22),
+            const SizedBox(width: 8),
+            Text('Buang Perubahan?', style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: Text(
+          'Anda memiliki perubahan soal yang belum disimpan untuk Angkatan $_selectedGrade. Apakah Anda yakin ingin membuang perubahan tersebut?',
+          style: TextStyle(color: titleColor.withValues(alpha: 0.8), height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Buang', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    return res ?? false;
   }
 
   /// Mengecek apakah sudah ada sesi ujian mapel ini yang waktunya sudah tiba.
   /// Jika ya, lock semua aksi edit.
   Future<void> _checkExamLock() async {
     final schoolId = SessionService.currentUser!.schoolId;
+    setState(() {
+      _isExamLocked = false;
+      _lockedSessionInfo = null;
+    });
     try {
       final snapshot = await _db
           .collection('schools')
@@ -61,6 +189,12 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
       final now = DateTime.now();
       for (final doc in snapshot.docs) {
         final data = doc.data();
+        final classId = data['classId']?.toString() ?? '';
+        final sessionAngkatan = _classIdToAngkatan[classId] ?? '';
+
+        // Skip if this session is not for the currently selected grade level
+        if (sessionAngkatan != _selectedGrade) continue;
+
         final dateStr = data['date']?.toString() ?? '';
         final startTimeStr = data['startTime']?.toString() ?? '';
         if (dateStr.isEmpty || startTimeStr.isEmpty) continue;
@@ -100,7 +234,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
 
   Future<void> _loadQuestionsData() async {
     final schoolId = SessionService.currentUser!.schoolId;
-    final docId = '${widget.eventId}_${widget.subjectId}';
+    final docId = '${widget.eventId}_${widget.subjectId}_$_selectedGrade';
 
     try {
       final doc = await _db
@@ -132,7 +266,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
 
   Future<void> _saveData() async {
     final schoolId = SessionService.currentUser!.schoolId;
-    final docId = '${widget.eventId}_${widget.subjectId}';
+    final docId = '${widget.eventId}_${widget.subjectId}_$_selectedGrade';
 
     Get.dialog(
       const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),
@@ -163,6 +297,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
         eventId: widget.eventId,
         subjectId: widget.subjectId,
         questionsList: qListMap,
+        gradeLevel: _selectedGrade,
       );
 
       Get.back(); // Close loading dialog
@@ -347,32 +482,30 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                     );
                   }),
 
-                  // Bobot Poin (Hanya untuk Pilihan Ganda)
-                  Obx(() {
-                    if (typeObs.value != 'multiple_choice') {
-                      return const SizedBox.shrink();
-                    }
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Bobot Nilai (Poin)',
+                  // Bobot Poin (Untuk Pilihan Ganda & Essay)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Obx(() {
+                        final isEssay = typeObs.value == 'essay';
+                        return Text(isEssay ? 'Skor Maksimal (Max Score)' : 'Bobot Nilai (Poin)',
                             style: TextStyle(
                                 color: titleColor.withValues(alpha: 0.6),
                                 fontSize: 12,
-                                fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: pointsCtrl,
-                          keyboardType: TextInputType.number,
-                          style: TextStyle(color: titleColor),
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
+                                fontWeight: FontWeight.w600));
+                      }),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: pointsCtrl,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(color: titleColor),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        const SizedBox(height: 24),
-                      ],
-                    );
-                  }),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
 
                   // Button Simpan Pertanyaan
                   ElevatedButton(
@@ -383,7 +516,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                       }
 
                       final type = typeObs.value;
-                      final points = type == 'essay' ? 0 : (int.tryParse(pointsCtrl.text) ?? 10);
+                      final points = int.tryParse(pointsCtrl.text) ?? 10;
                       final List<String> options = [];
 
                       if (type == 'multiple_choice') {
@@ -552,251 +685,294 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
               ],
             ),
             body: AuthBackground(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 8),
-
-                          // Banner kunci: tampil saat ujian sudah dimulai
-                          if (_isExamLocked) ...[
-                            Container(
-                              margin: const EdgeInsets.only(top: 8, bottom: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.redAccent.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.lock_rounded, color: Colors.redAccent, size: 20),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Soal Terkunci — Ujian Sedang Berlangsung',
-                                          style: TextStyle(
-                                            color: Colors.redAccent,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        if (_lockedSessionInfo != null) ...[
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            _lockedSessionInfo!,
-                                            style: TextStyle(
-                                              color: Colors.redAccent.withValues(alpha: 0.8),
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    // Tab Selector
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: _availableGrades.map((grade) {
+                          final isSelected = _selectedGrade == grade;
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () => _changeGrade(grade),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFF8B5CF6)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'Angkatan $grade',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : (isDark ? Colors.white70 : Colors.black87),
                                     ),
                                   ),
-                                ],
+                                ),
                               ),
                             ),
-                          ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
-                          const SizedBox(height: 16),
+                    if (_isLoading)
+                      const Expanded(child: Center(child: CircularProgressIndicator()))
+                    else ...[
+                      // Banner kunci: tampil saat ujian sudah dimulai
+                      if (_isExamLocked) ...[
+                        Container(
+                          margin: const EdgeInsets.only(top: 8, bottom: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.lock_rounded, color: Colors.redAccent, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Soal Terkunci — Ujian Sedang Berlangsung',
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    if (_lockedSessionInfo != null) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _lockedSessionInfo!,
+                                        style: TextStyle(
+                                          color: Colors.redAccent.withValues(alpha: 0.8),
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
 
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      const SizedBox(height: 16),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Pertanyaan (${_questions.length})',
                                   style: TextStyle(
                                       color: titleColor,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16)),
-                              if (!_isExamLocked)
-                                ElevatedButton.icon(
-                                  onPressed: () => _addOrEditQuestion(),
-                                  icon: const Icon(Icons.add, size: 16),
-                                  label: const Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF8B5CF6),
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  ),
-                                ),
+                              const SizedBox(height: 2),
+                              Text('Total Skor Soal: $_totalPoints Poin',
+                                  style: const TextStyle(
+                                      color: Color(0xFF10B981),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12)),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          if (!_isExamLocked)
+                            ElevatedButton.icon(
+                              onPressed: () => _addOrEditQuestion(),
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF8B5CF6),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
 
-                          Expanded(
-                            child: _questions.isEmpty
-                                ? Center(
-                                    child: Text('Belum ada pertanyaan. Ketuk "Tambah" untuk membuat soal.',
-                                        style: TextStyle(color: subTextColor, fontSize: 12),
-                                        textAlign: TextAlign.center),
-                                  )
-                                : ListView.builder(
-                                    itemCount: _questions.length,
-                                    itemBuilder: (context, idx) {
-                                      final q = _questions[idx];
-                                      final isMc = q.type == 'multiple_choice';
+                      Expanded(
+                        child: _questions.isEmpty
+                            ? Center(
+                                child: Text('Belum ada pertanyaan. Ketuk "Tambah" untuk membuat soal.',
+                                    style: TextStyle(color: subTextColor, fontSize: 12),
+                                    textAlign: TextAlign.center),
+                              )
+                            : ListView.builder(
+                                itemCount: _questions.length,
+                                itemBuilder: (context, idx) {
+                                  final q = _questions[idx];
+                                  final isMc = q.type == 'multiple_choice';
 
-                                      return Container(
-                                        margin: const EdgeInsets.only(bottom: 12),
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          color: cardColor,
-                                          borderRadius: BorderRadius.circular(16),
-                                          border: Border.all(color: border),
-                                        ),
-                                        child: Column(
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: cardColor,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: border),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Row(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                CircleAvatar(
-                                                  radius: 12,
-                                                  backgroundColor: const Color(0xFF8B5CF6).withOpacity(0.1),
-                                                  child: Text('${idx + 1}',
-                                                      style: const TextStyle(
-                                                          color: Color(0xFF8B5CF6),
-                                                          fontSize: 11,
-                                                          fontWeight: FontWeight.bold)),
-                                                ),
-                                                const SizedBox(width: 10),
-                                                Expanded(
-                                                  child: Text(q.questionText,
-                                                      style: TextStyle(
-                                                          color: titleColor,
-                                                          fontWeight: FontWeight.w600,
-                                                          fontSize: 14)),
-                                                ),
-                                                if (!_isExamLocked) ...[
-                                                  Container(
-                                                    decoration: BoxDecoration(
-                                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                    child: IconButton(
-                                                      icon: const Icon(Icons.edit_rounded, size: 16, color: Color(0xFF8B5CF6)),
-                                                      onPressed: () => _addOrEditQuestion(existing: q, index: idx),
-                                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                                      padding: EdgeInsets.zero,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Container(
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.redAccent.withValues(alpha: 0.1),
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                    child: IconButton(
-                                                      icon: const Icon(Icons.delete_rounded, size: 16, color: Colors.redAccent),
-                                                      onPressed: () {
-                                                        setState(() {
-                                                          _questions.removeAt(idx);
-                                                          _hasUnsavedChanges = true;
-                                                        });
-                                                      },
-                                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                                      padding: EdgeInsets.zero,
-                                                    ),
-                                                  ),
-                                                ] else
-                                                  Container(
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.grey.withValues(alpha: 0.08),
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                    child: const Padding(
-                                                      padding: EdgeInsets.all(8),
-                                                      child: Icon(Icons.lock_outline_rounded, size: 14, color: Colors.grey),
-                                                    ),
-                                                  ),
-                                              ],
+                                            CircleAvatar(
+                                              radius: 12,
+                                              backgroundColor: const Color(0xFF8B5CF6).withOpacity(0.1),
+                                              child: Text('${idx + 1}',
+                                                  style: const TextStyle(
+                                                      color: Color(0xFF8B5CF6),
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold)),
                                             ),
-                                            if (isMc) ...[
-                                              const SizedBox(height: 12),
-                                              ...List.generate(q.options.length, (optIdx) {
-                                                final char = String.fromCharCode(65 + optIdx);
-                                                final isCorrect = q.correctOptionIndex == optIdx;
-                                                return Padding(
-                                                  padding: const EdgeInsets.only(bottom: 6.0, left: 34),
-                                                  child: Row(
-                                                    children: [
-                                                      Text('$char. ',
-                                                          style: TextStyle(
-                                                              color: isCorrect ? const Color(0xFF10B981) : subTextColor,
-                                                              fontWeight: isCorrect ? FontWeight.bold : FontWeight.normal)),
-                                                      Expanded(
-                                                        child: Text(q.options[optIdx],
-                                                            style: TextStyle(
-                                                                color: isCorrect ? titleColor : subTextColor,
-                                                                fontWeight: isCorrect ? FontWeight.bold : FontWeight.normal)),
-                                                      ),
-                                                      if (isCorrect)
-                                                        const Icon(Icons.check_rounded, color: Color(0xFF10B981), size: 16),
-                                                    ],
-                                                  ),
-                                                );
-                                              }),
-                                            ],
-                                            const SizedBox(height: 8),
-                                            Padding(
-                                              padding: const EdgeInsets.only(left: 34),
-                                              child: Text(
-                                                  isMc
-                                                      ? 'Tipe: Pilihan Ganda • Poin: ${q.points}'
-                                                      : 'Tipe: Essay',
-                                                  style: TextStyle(color: subTextColor, fontSize: 11)),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(q.questionText,
+                                                  style: TextStyle(
+                                                      color: titleColor,
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 14)),
                                             ),
-                                            if (q.createdByTeacherName != null || q.updatedByTeacherName != null) ...[
-                                              const SizedBox(height: 4),
-                                              Padding(
-                                                padding: const EdgeInsets.only(left: 34),
-                                                child: Row(
-                                                  children: [
-                                                    if (q.createdByTeacherName != null) ...[
-                                                      Icon(Icons.person_outline_rounded, size: 10, color: subTextColor),
-                                                      const SizedBox(width: 3),
-                                                      Text(
-                                                        AppLocalization.isIndonesian
-                                                            ? 'Dibuat: ${q.createdByTeacherName}'
-                                                            : 'Created: ${q.createdByTeacherName}',
-                                                        style: TextStyle(color: subTextColor, fontSize: 10),
-                                                      ),
-                                                    ],
-                                                    if (q.createdByTeacherName != null && q.updatedByTeacherName != null)
-                                                      Text(' • ', style: TextStyle(color: subTextColor, fontSize: 10)),
-                                                    if (q.updatedByTeacherName != null) ...[
-                                                      Icon(Icons.edit_note_rounded, size: 10, color: subTextColor),
-                                                      const SizedBox(width: 3),
-                                                      Text(
-                                                        AppLocalization.isIndonesian
-                                                            ? 'Diedit: ${q.updatedByTeacherName}'
-                                                            : 'Edited: ${q.updatedByTeacherName}',
-                                                        style: TextStyle(color: subTextColor, fontSize: 10),
-                                                      ),
-                                                    ],
-                                                  ],
+                                            if (!_isExamLocked) ...[
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: IconButton(
+                                                  icon: const Icon(Icons.edit_rounded, color: Color(0xFF8B5CF6), size: 16),
+                                                  onPressed: () => _addOrEditQuestion(existing: q, index: idx),
+                                                  constraints: const BoxConstraints(),
+                                                  padding: const EdgeInsets.all(6),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.redAccent.withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: IconButton(
+                                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 16),
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _questions.removeAt(idx);
+                                                      _hasUnsavedChanges = true;
+                                                    });
+                                                  },
+                                                  constraints: const BoxConstraints(),
+                                                  padding: const EdgeInsets.all(6),
                                                 ),
                                               ),
                                             ],
                                           ],
                                         ),
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ],
+                                        if (isMc) ...[
+                                          const SizedBox(height: 12),
+                                          ...List.generate(q.options.length, (optIdx) {
+                                            final char = String.fromCharCode(65 + optIdx);
+                                            final isCorrect = q.correctOptionIndex == optIdx;
+                                            return Padding(
+                                              padding: const EdgeInsets.only(bottom: 6.0, left: 34),
+                                              child: Row(
+                                                children: [
+                                                  Text('$char. ',
+                                                      style: TextStyle(
+                                                          color: isCorrect ? const Color(0xFF10B981) : subTextColor,
+                                                          fontWeight: isCorrect ? FontWeight.bold : FontWeight.normal)),
+                                                  Expanded(
+                                                    child: Text(q.options[optIdx],
+                                                        style: TextStyle(
+                                                            color: isCorrect ? titleColor : subTextColor,
+                                                            fontWeight: isCorrect ? FontWeight.bold : FontWeight.normal)),
+                                                  ),
+                                                  if (isCorrect)
+                                                    const Icon(Icons.check_rounded, color: Color(0xFF10B981), size: 16),
+                                                ],
+                                              ),
+                                            );
+                                          }),
+                                        ],
+                                        const SizedBox(height: 8),
+                                        Padding(
+                                          padding: const EdgeInsets.only(left: 34),
+                                          child: Text(
+                                              isMc
+                                                  ? 'Tipe: Pilihan Ganda • Poin: ${q.points}'
+                                                  : 'Tipe: Essay • Poin: ${q.points}',
+                                              style: TextStyle(color: subTextColor, fontSize: 11)),
+                                        ),
+                                        if (q.createdByTeacherName != null || q.updatedByTeacherName != null) ...[
+                                          const SizedBox(height: 4),
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 34),
+                                            child: Row(
+                                              children: [
+                                                if (q.createdByTeacherName != null) ...[
+                                                  Icon(Icons.person_outline_rounded, size: 10, color: subTextColor),
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    AppLocalization.isIndonesian
+                                                        ? 'Dibuat: ${q.createdByTeacherName}'
+                                                        : 'Created: ${q.createdByTeacherName}',
+                                                    style: TextStyle(color: subTextColor, fontSize: 10),
+                                                  ),
+                                                ],
+                                                if (q.createdByTeacherName != null && q.updatedByTeacherName != null)
+                                                  Text(' • ', style: TextStyle(color: subTextColor, fontSize: 10)),
+                                                if (q.updatedByTeacherName != null) ...[
+                                                  Icon(Icons.edit_note_rounded, size: 10, color: subTextColor),
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    AppLocalization.isIndonesian
+                                                        ? 'Diedit: ${q.updatedByTeacherName}'
+                                                        : 'Edited: ${q.updatedByTeacherName}',
+                                                    style: TextStyle(color: subTextColor, fontSize: 10),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                       ),
-                    ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
         );

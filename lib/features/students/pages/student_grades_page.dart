@@ -122,7 +122,8 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
       final Map<String, Map<String, dynamic>> grouped = {};
 
       if (_classId.isNotEmpty) {
-        final snapshot = await FirebaseFirestore.instance
+        // Query 1: exact classId match (single class sessions & new combined-class per-class docs)
+        final exactSnap = await FirebaseFirestore.instance
             .collection('schools')
             .doc(user.schoolId)
             .collection('grades')
@@ -131,8 +132,31 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
             .where('semester', isEqualTo: _selectedSemester)
             .get();
 
-        for (final doc in snapshot.docs) {
-          final data = doc.data();
+        // Query 2: broader fetch for same tahunAjaran/semester — includes legacy combined-class docs
+        // where classId was stored as "X-A,X-B". Client-side filter for matching.
+        final broadSnap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(user.schoolId)
+            .collection('grades')
+            .where('tahunAjaran', isEqualTo: _selectedTahunAjaran)
+            .where('semester', isEqualTo: _selectedSemester)
+            .get();
+
+        // Merge unique docs (prefer exactSnap, supplement with broadSnap matches)
+        final Map<String, Map<String, dynamic>> allDocs = {};
+        for (final doc in exactSnap.docs) {
+          allDocs[doc.id] = doc.data();
+        }
+        for (final doc in broadSnap.docs) {
+          if (allDocs.containsKey(doc.id)) continue; // already included
+          final docClassId = doc.data()['classId']?.toString() ?? '';
+          // Include if the combined classId string contains our classId
+          if (docClassId.split(',').map((s) => s.trim()).contains(_classId)) {
+            allDocs[doc.id] = doc.data();
+          }
+        }
+
+        for (final data in allDocs.values) {
           final scores = data['scores'] as Map<String, dynamic>? ?? {};
           
           final cleanYear = _selectedTahunAjaran.replaceAll('/', '_');

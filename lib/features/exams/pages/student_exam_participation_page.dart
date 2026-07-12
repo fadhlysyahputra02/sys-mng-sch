@@ -49,12 +49,27 @@ class _StudentExamParticipationPageState
   Stream<ExamEvent?>? _eventStream;
   String? _lastEventId;
   bool _prefetchDone = false;
+  String? _studentAngkatan;
 
   @override
   void initState() {
     super.initState();
     final schoolId = SessionService.currentUser!.schoolId;
     _sessionsStream = _service.getSessionsByClass(schoolId, widget.classId);
+
+    FirebaseFirestore.instance
+        .collection('schools')
+        .doc(schoolId)
+        .collection('students')
+        .doc(widget.studentDocId)
+        .get()
+        .then((doc) {
+      if (doc.exists && doc.data() != null && mounted) {
+        setState(() {
+          _studentAngkatan = (doc.data()?['angkatan'] ?? '').toString().trim();
+        });
+      }
+    });
 
     final cachedEvent = _globalEventCache[widget.studentDocId];
     if (cachedEvent != null) {
@@ -737,6 +752,7 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
   Stream<DocumentSnapshot>? _submissionStream;
   String? _lastExamDocId;
   String? _lastSubmissionDocId;
+  String? _studentAngkatan;
 
   @override
   void initState() {
@@ -744,6 +760,21 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
     _resolvedSession = widget.candidates.first;
     _resolve();
     _initParticipationStream();
+    
+    FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('students')
+        .doc(widget.studentDocId)
+        .get()
+        .then((doc) {
+      if (doc.exists && doc.data() != null && mounted) {
+        setState(() {
+          _studentAngkatan = (doc.data()?['angkatan'] ?? '').toString().trim();
+        });
+      }
+    });
+
     // ⏰ Refresh setiap 30 detik agar tombol muncul tepat waktu
     _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
@@ -1050,7 +1081,6 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                       );
                     }
                     // ── Waktu sudah tiba, lanjut ke pengecekan soal ──────────
-
                     _initExamStream(session);
                     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                       stream: _examStream,
@@ -1064,57 +1094,90 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                         }
 
                         final exam = Exam.fromFirestore(doc);
-                        if (exam.questions.isEmpty) {
-                          return const Text('Soal Kosong', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold));
-                        }
 
-                        _initSubmissionStream(exam.id);
-                        return StreamBuilder<DocumentSnapshot>(
-                          stream: _submissionStream,
-                          builder: (context, subSnap) {
-                            if (subSnap.connectionState == ConnectionState.waiting) {
-                              return const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2));
-                            }
-                            final isSubmitted = subSnap.data?.exists ?? false;
-
-                            if (isSubmitted) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
-                                    SizedBox(width: 4),
-                                    Text('Selesai', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                              );
+                        // Cocokkan soal langsung dengan angkatan murid tersebut
+                        return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          future: FirebaseFirestore.instance
+                              .collection('schools')
+                              .doc(widget.schoolId)
+                              .collection('exam_questions')
+                              .doc('${session.eventId}_${session.subjectId}_${_studentAngkatan ?? ""}')
+                              .get(),
+                          builder: (context, qSnap) {
+                            List<ExamQuestion> finalQuestions = exam.questions;
+                            
+                            if (qSnap.hasData && qSnap.data!.exists && qSnap.data!.data() != null) {
+                              final qData = qSnap.data!.data()!;
+                              final qList = (qData['questions'] as List? ?? [])
+                                  .map((q) => ExamQuestion.fromMap(Map<String, dynamic>.from(q)))
+                                  .toList();
+                              if (qList.isNotEmpty) {
+                                finalQuestions = qList;
+                              }
                             }
 
-                            return ElevatedButton.icon(
-                              onPressed: () => Get.to(() => StudentTakeExamPage(
-                                    exam: exam,
-                                    studentDocId: widget.studentDocId,
-                                    sessionId: session.id,
-                                    schoolId: widget.schoolId,
-                                    sessionStartTime: session.startTime,
-                                    sessionExamStatus: session.examStatus,
-                                    seatNumber: partSnap.data?.seatNumber,
-                                    roomName: partSnap.data?.roomName ?? session.roomName,
-                                  )),
-                              icon: const Icon(Icons.play_arrow_rounded, size: 14),
-                              label: const Text('Mulai Ujian', style: TextStyle(fontSize: 10)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF10B981),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                                minimumSize: const Size(0, 32),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                              ),
+                            if (finalQuestions.isEmpty) {
+                              return const Text('Soal Kosong', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold));
+                            }
+
+                            final overriddenExam = exam.copyWith(questions: finalQuestions);
+
+                            _initSubmissionStream(overriddenExam.id);
+                            return StreamBuilder<DocumentSnapshot>(
+                              stream: _submissionStream,
+                              builder: (context, subSnap) {
+                                if (subSnap.connectionState == ConnectionState.waiting) {
+                                  return const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2));
+                                }
+                                final isSubmitted = subSnap.data?.exists ?? false;
+
+                                if (isSubmitted) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
+                                        SizedBox(width: 4),
+                                        Text('Selesai', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                return ElevatedButton.icon(
+                                  onPressed: () {
+                                    // Set flag SEBELUM navigate agar lifecycle observer di dashboard
+                                    // tidak sempat menulis ke behavior_records saat transisi route
+                                    SessionService.isTakingExam = true;
+                                    Get.to(() => StudentTakeExamPage(
+                                      exam: overriddenExam,
+                                      studentDocId: widget.studentDocId,
+                                      sessionId: session.id,
+                                      schoolId: widget.schoolId,
+                                      sessionStartTime: session.startTime,
+                                      sessionEndTime: session.endTime,
+                                      sessionDate: session.date,
+                                      sessionExamStatus: session.examStatus,
+                                      seatNumber: partSnap.data?.seatNumber,
+                                      roomName: partSnap.data?.roomName ?? session.roomName,
+                                    ));
+                                  },
+                                  icon: const Icon(Icons.play_arrow_rounded, size: 14),
+                                  label: const Text('Mulai Ujian', style: TextStyle(fontSize: 10)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF10B981),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                    minimumSize: const Size(0, 32),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                );
+                              },
                             );
                           },
                         );

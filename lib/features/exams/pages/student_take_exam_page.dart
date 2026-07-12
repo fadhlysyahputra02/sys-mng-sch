@@ -8,6 +8,8 @@ import '../models/exam_model.dart';
 import '../services/exam_service.dart';
 import 'package:is_lock_screen2/is_lock_screen2.dart';
 import '../services/exam_behavior_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class StudentTakeExamPage extends StatefulWidget {
   final Exam exam;
@@ -16,6 +18,9 @@ class StudentTakeExamPage extends StatefulWidget {
   final String? schoolId;
   /// Format "HH:mm" — jam mulai sesi ujian
   final String? sessionStartTime;
+  /// Format "HH:mm" — jam selesai sesi ujian
+  final String? sessionEndTime;
+  final DateTime? sessionDate;
   /// examStatus dari ExamSession (e.g. 'Active', 'Scheduled')
   final String? sessionExamStatus;
   final int? seatNumber;
@@ -28,6 +33,8 @@ class StudentTakeExamPage extends StatefulWidget {
     this.sessionId,
     this.schoolId,
     this.sessionStartTime,
+    this.sessionEndTime,
+    this.sessionDate,
     this.sessionExamStatus,
     this.seatNumber,
     this.roomName,
@@ -54,8 +61,122 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
   @override
   void initState() {
     super.initState();
-    _secondsRemaining = widget.exam.durationMinutes * 60;
+    SessionService.isTakingExam = true;
+    final defaultSeconds = widget.exam.durationMinutes * 60;
+    int calculatedSeconds = defaultSeconds;
+
+    if (widget.sessionEndTime != null && widget.sessionDate != null) {
+      try {
+        final parts = widget.sessionEndTime!.split(':');
+        if (parts.length >= 2) {
+          final endHour = int.parse(parts[0]);
+          final endMin = int.parse(parts[1]);
+          final sessionEnd = DateTime(
+            widget.sessionDate!.year,
+            widget.sessionDate!.month,
+            widget.sessionDate!.day,
+            endHour,
+            endMin,
+          );
+          final now = DateTime.now();
+          final remainingSec = sessionEnd.difference(now).inSeconds;
+          if (remainingSec > 0 && remainingSec < defaultSeconds) {
+            calculatedSeconds = remainingSec;
+          } else if (remainingSec <= 0) {
+            calculatedSeconds = 1; // force immediate submission
+          }
+        }
+      } catch (_) {}
+    }
+    _secondsRemaining = calculatedSeconds;
     WidgetsBinding.instance.addObserver(this);
+    _loadDraftAnswers();
+  }
+
+  Future<void> _loadDraftAnswers() async {
+    try {
+      final user = SessionService.currentUser;
+      if (user == null) return;
+      final studentId = widget.studentDocId ?? user.uid;
+      final prefs = await SharedPreferences.getInstance();
+
+      final mcKey = 'exam_draft_mc_${studentId}_${widget.exam.id}';
+      final essayKey = 'exam_draft_essay_${studentId}_${widget.exam.id}';
+      final startedKey = 'exam_draft_started_${studentId}_${widget.exam.id}';
+
+      final mcRaw = prefs.getString(mcKey);
+      final essayRaw = prefs.getString(essayKey);
+      final draftStarted = prefs.getBool(startedKey) ?? false;
+
+      if (mcRaw != null && mcRaw.isNotEmpty) {
+        final Map<String, dynamic> decoded = jsonDecode(mcRaw);
+        decoded.forEach((key, val) {
+          if (val is int) {
+            _selectedAnswers[key] = val;
+          }
+        });
+      }
+      if (essayRaw != null && essayRaw.isNotEmpty) {
+        final Map<String, dynamic> decoded = jsonDecode(essayRaw);
+        decoded.forEach((key, val) {
+          if (val is String) {
+            _essayAnswers[key] = val;
+          }
+        });
+      }
+
+      if (draftStarted) {
+        _hasStarted = true;
+        _startTimer();
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+      debugPrint('Draft answers loaded: MC: ${_selectedAnswers.length}, Essay: ${_essayAnswers.length}, Started: $draftStarted');
+    } catch (e) {
+      debugPrint('Failed to load draft answers: $e');
+    }
+  }
+
+  Future<void> _saveDraftAnswers() async {
+    try {
+      final user = SessionService.currentUser;
+      if (user == null) return;
+      final studentId = widget.studentDocId ?? user.uid;
+      final prefs = await SharedPreferences.getInstance();
+
+      final mcKey = 'exam_draft_mc_${studentId}_${widget.exam.id}';
+      final essayKey = 'exam_draft_essay_${studentId}_${widget.exam.id}';
+      final startedKey = 'exam_draft_started_${studentId}_${widget.exam.id}';
+
+      await prefs.setString(mcKey, jsonEncode(_selectedAnswers));
+      await prefs.setString(essayKey, jsonEncode(_essayAnswers));
+      await prefs.setBool(startedKey, _hasStarted);
+      debugPrint('Draft answers auto-saved.');
+    } catch (e) {
+      debugPrint('Failed to auto-save draft answers: $e');
+    }
+  }
+
+  Future<void> _clearDraftAnswers() async {
+    try {
+      final user = SessionService.currentUser;
+      if (user == null) return;
+      final studentId = widget.studentDocId ?? user.uid;
+      final prefs = await SharedPreferences.getInstance();
+
+      final mcKey = 'exam_draft_mc_${studentId}_${widget.exam.id}';
+      final essayKey = 'exam_draft_essay_${studentId}_${widget.exam.id}';
+      final startedKey = 'exam_draft_started_${studentId}_${widget.exam.id}';
+
+      await prefs.remove(mcKey);
+      await prefs.remove(essayKey);
+      await prefs.remove(startedKey);
+      debugPrint('Draft answers cleared.');
+    } catch (e) {
+      debugPrint('Failed to clear draft answers: $e');
+    }
   }
 
   Future<void> _reportStatus(String type, String description) async {
@@ -131,6 +252,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
     });
     _reportStatus('Standby', 'Murid mulai mengerjakan ujian');
     _startTimer();
+    _saveDraftAnswers();
   }
 
   void _startTimer() {
@@ -192,6 +314,8 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
             .doc(studentId)
             .set({'submittedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
       }
+
+      await _clearDraftAnswers();
 
       Get.back();
       Get.snackbar(
@@ -286,6 +410,8 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
               .set({'submittedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
         }
 
+        await _clearDraftAnswers();
+
         Get.back();
         Get.snackbar(
           'Sukses',
@@ -342,6 +468,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
 
   @override
   void dispose() {
+    SessionService.isTakingExam = false;
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _questionNavScrollCtrl.dispose();
@@ -558,6 +685,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
                                     ),
                                     onChanged: (val) {
                                       _essayAnswers[currentQuestion.id] = val;
+                                      _saveDraftAnswers();
                                     },
                                   ),
                                 ),
@@ -577,6 +705,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
                                           setState(() {
                                             _selectedAnswers[currentQuestion.id] = optIdx;
                                           });
+                                          _saveDraftAnswers();
                                         },
                                         child: Container(
                                           padding: const EdgeInsets.all(16),

@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../app/routes/app_routes.dart';
+import '../../features/authentication/pages/logout_transition_page.dart';
 import 'auth_service.dart';
 import 'session_service.dart';
 import 'notification_listener_service.dart';
@@ -55,6 +55,10 @@ class AppAuthService {
 
     SessionService.logout();
 
-    Get.offAllNamed(AppRoutes.login);
+    Get.offAll(
+      () => const LogoutTransitionPage(),
+      transition: Transition.fadeIn,
+      duration: const Duration(milliseconds: 500),
+    );
   }
 }

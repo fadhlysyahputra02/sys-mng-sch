@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
@@ -28,31 +29,159 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
   final Map<String, TextEditingController> _essayControllers = {};
   bool _isSaving = false;
 
-  // Live score variables
+  // Live score variables (raw point sum, not percentage)
   int _totalMaxPoints = 0;
   int _pgPointsObtained = 0;
-  double _liveFinalScore = 0.0;
+  int _livePointsObtained = 0; // PG + essay raw sum
+
+  bool _isLoadingQuestions = true;
+  List<ExamQuestion> _loadedQuestions = [];
 
   @override
   void initState() {
     super.initState();
-    _calculateInitialPoints();
+    _loadOverriddenQuestions();
+  }
+
+  Future<void> _loadOverriddenQuestions() async {
+    setState(() {
+      _isLoadingQuestions = true;
+    });
+
+    final user = SessionService.currentUser!;
+    final schoolId = user.schoolId;
+    final studentId = widget.submission.studentId;
+
+    try {
+      // 1. Fetch student to get angkatan
+      final studentSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('students')
+          .doc(studentId)
+          .get();
+
+      String angkatan = '';
+      if (studentSnap.exists && studentSnap.data() != null) {
+        angkatan = (studentSnap.data()?['angkatan'] ?? '').toString().trim();
+      }
+
+      // 2. Parse eventId and subjectId from exam id.
+      // Format exam ID: "${eventId}_${subjectId}_${classId}"
+      // classId bisa mengandung koma (multi-kelas) tapi tidak underscore.
+      // subjectId bisa mengandung underscore, sehingga kita harus ambil
+      // bagian setelah parts[0] (eventId) dan sebelum classId (bagian terakhir).
+      // Cara paling aman: eventId = parts[0], classId = parts.last,
+      // subjectId = semua bagian di tengah.
+      final parts = widget.exam.id.split('_');
+      final eventId = parts.isNotEmpty ? parts[0] : '';
+      // classId adalah bagian terakhir (bisa berisi koma tapi bukan underscore)
+      final classIdPart = parts.length > 2 ? parts.last : '';
+      // subjectId = semua bagian tengah di antara eventId dan classIdPart
+      final subjectId = parts.length > 2
+          ? parts.sublist(1, parts.length - 1).join('_')
+          : (parts.length > 1 ? parts[1] : '');
+
+      List<ExamQuestion> loaded = [];
+
+      // Try loading with angkatan suffix
+      if (angkatan.isNotEmpty) {
+        final qSnap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('exam_questions')
+            .doc('${eventId}_${subjectId}_$angkatan')
+            .get();
+
+        if (qSnap.exists && qSnap.data() != null) {
+          final qList = (qSnap.data()?['questions'] as List? ?? [])
+              .map((q) => ExamQuestion.fromMap(Map<String, dynamic>.from(q)))
+              .toList();
+          if (qList.isNotEmpty) {
+            loaded = qList;
+          }
+        }
+      }
+
+      // Fallback 1: load without angkatan suffix
+      if (loaded.isEmpty) {
+        final qSnap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('exam_questions')
+            .doc('${eventId}_$subjectId')
+            .get();
+
+        if (qSnap.exists && qSnap.data() != null) {
+          final qList = (qSnap.data()?['questions'] as List? ?? [])
+              .map((q) => ExamQuestion.fromMap(Map<String, dynamic>.from(q)))
+              .toList();
+          if (qList.isNotEmpty) {
+            loaded = qList;
+          }
+        }
+      }
+
+      // Fallback 2: use the base exam questions
+      if (loaded.isEmpty) {
+        loaded = widget.exam.questions;
+      }
+
+      // ── VALIDASI KRITIS ──────────────────────────────────────────────────────
+      // Pastikan soal yang di-load memiliki ID yang sesuai dengan jawaban murid
+      // di submission.answers. Jika tidak ada satupun soal PG yang ID-nya cocok
+      // dengan submission.answers, maka soal dari exam_questions BERBEDA dengan
+      // soal yang digunakan murid saat mengerjakan — fallback ke base questions.
+      if (loaded != widget.exam.questions && widget.submission.answers.isNotEmpty) {
+        final loadedPgIds = loaded
+            .where((q) => q.type != 'essay')
+            .map((q) => q.id)
+            .toSet();
+        final submissionAnswerIds = widget.submission.answers.keys.toSet();
+        final hasMatchingIds = loadedPgIds.intersection(submissionAnswerIds).isNotEmpty;
+
+        if (!hasMatchingIds) {
+          // Soal yang di-load tidak cocok dengan jawaban murid.
+          // Gunakan base exam questions agar penilaian PG akurat.
+          debugPrint('[GradeExam] WARNING: Loaded questions IDs do not match '
+              'submission.answers keys. Falling back to base exam questions. '
+              'loadedIds: $loadedPgIds, submissionIds: $submissionAnswerIds');
+          loaded = widget.exam.questions;
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
+      setState(() {
+        _loadedQuestions = loaded;
+        _isLoadingQuestions = false;
+      });
+
+      // Dipanggil setelah setState selesai assign _loadedQuestions
+      _calculateInitialPoints();
+    } catch (e) {
+      // If error occurs, fallback to base exam questions
+      setState(() {
+        _loadedQuestions = widget.exam.questions;
+        _isLoadingQuestions = false;
+      });
+
+      _calculateInitialPoints();
+    }
   }
 
   void _calculateInitialPoints() {
     int totalMax = 0;
     int pgObtained = 0;
 
-    for (final q in widget.exam.questions) {
+    for (final q in _loadedQuestions) {
       totalMax += q.points;
       if (q.type == 'essay') {
-        // Initialize controller with existing score or default '0'
         final initialScore = widget.submission.essayScores[q.id]?.toString() ?? '0';
         final controller = TextEditingController(text: initialScore);
         controller.addListener(_updateLiveScore);
         _essayControllers[q.id] = controller;
       } else {
-        // PG
+        // PG – tambahkan poin jika jawaban benar
         final studentAnswer = widget.submission.answers[q.id];
         if (studentAnswer == q.correctOptionIndex) {
           pgObtained += q.points;
@@ -71,12 +200,8 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
       final score = int.tryParse(controller.text.trim()) ?? 0;
       essayObtained += score;
     });
-
-    final totalObtained = _pgPointsObtained + essayObtained;
     setState(() {
-      _liveFinalScore = _totalMaxPoints == 0
-          ? 0.0
-          : double.parse(((totalObtained / _totalMaxPoints) * 100).toStringAsFixed(2));
+      _livePointsObtained = _pgPointsObtained + essayObtained;
     });
   }
 
@@ -97,7 +222,7 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
       await _examService.gradeSubmission(
         schoolId: user.schoolId,
         submissionId: widget.submission.id,
-        exam: widget.exam,
+        exam: widget.exam.copyWith(questions: _loadedQuestions),
         essayScores: finalEssayScores,
       );
 
@@ -167,74 +292,85 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                 ),
               ),
-              body: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    // Rangkuman Atas
-                    Container(
-                      margin: const EdgeInsets.all(24),
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: cardBgColor,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: cardBorderColor),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              body: _isLoadingQuestions
+                  ? const Center(child: CircularProgressIndicator())
+                  : Form(
+                      key: _formKey,
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.submission.studentName,
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  widget.exam.title,
-                                  style: TextStyle(fontSize: 12, color: subTextColor),
-                                ),
-                              ],
-                            ),
-                          ),
+                          // Rangkuman Atas
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            margin: const EdgeInsets.all(24),
+                            padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: (_liveFinalScore >= 70 ? const Color(0xFF10B981) : Colors.amber).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
+                              color: cardBgColor,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: cardBorderColor),
                             ),
-                            child: Column(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'Skor Akhir',
-                                  style: TextStyle(fontSize: 10, color: subTextColor, fontWeight: FontWeight.w600),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        widget.submission.studentName,
+                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        widget.exam.title,
+                                        style: TextStyle(fontSize: 12, color: subTextColor),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _liveFinalScore.toStringAsFixed(1),
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: _liveFinalScore >= 70 ? const Color(0xFF10B981) : Colors.amber,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: (_livePointsObtained >= 70
+                                            ? const Color(0xFF10B981)
+                                            : Colors.amber)
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'Skor Akhir',
+                                        style: TextStyle(fontSize: 10, color: subTextColor, fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '$_livePointsObtained / 100',
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: _livePointsObtained >= 70
+                                              ? const Color(0xFF10B981)
+                                              : Colors.amber,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Poin',
+                                        style: TextStyle(fontSize: 10, color: subTextColor),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ],
-                      ),
-                    ),
 
-                    // List Soal
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: widget.exam.questions.length,
-                        itemBuilder: (context, index) {
-                          final q = widget.exam.questions[index];
+                          // List Soal
+                          Expanded(
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: _loadedQuestions.length,
+                              itemBuilder: (context, index) {
+                                final q = _loadedQuestions[index];
 
                           if (q.type == 'essay') {
                             final studentAnswer = widget.submission.essayAnswers[q.id] ?? '';
@@ -297,7 +433,7 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                   Row(
                                     children: [
                                       Text(
-                                        'Input Poin Ujian:',
+                                        'Input Poin Ujian (maks: ${q.points}):',
                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                                       ),
                                       const SizedBox(width: 12),
@@ -320,8 +456,9 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                           ),
                                           validator: (val) {
                                             final points = int.tryParse(val ?? '');
-                                            if (points == null) return 'Salah';
-                                            if (points < 0 || points > q.points) return '0-${q.points}';
+                                            if (points == null) return 'Angka tidak valid';
+                                            final maxAllowed = q.points > 0 ? q.points : 10;
+                                            if (points < 0 || points > maxAllowed) return '0-$maxAllowed';
                                             return null;
                                           },
                                         ),

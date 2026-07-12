@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -7,9 +8,14 @@ import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../students/pages/student_qr_scanner_page.dart';
 import '../models/exam_event_model.dart';
+import '../models/exam_model.dart';
+import '../models/exam_submission_model.dart';
 import '../services/exam_session_service.dart';
+import '../services/exam_service.dart';
 import '../services/exam_behavior_service.dart';
+import '../../students/data/student_service.dart';
 import 'teacher_exam_questions_page.dart';
+import 'teacher_grade_exam_page.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  TeacherProctorDashboardPage
@@ -32,20 +38,105 @@ class TeacherProctorDashboardPage extends StatefulWidget {
 }
 
 class _TeacherProctorDashboardPageState
-    extends State<TeacherProctorDashboardPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+    extends State<TeacherProctorDashboardPage> {
   final _service = ExamSessionService();
+  final _examService = ExamService();
+  Timer? _refreshTimer;
+  Map<String, String> _classIdToAngkatan = {};
+  bool _isAuthor = false;
+  bool _isLoadingAuthorCheck = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+    _loadAngkatanMapping();
+    _checkIfAuthor();
+  }
+
+  Future<void> _loadAngkatanMapping() async {
+    final schoolId = SessionService.currentUser!.schoolId;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('students')
+          .get();
+
+      final Map<String, Map<String, int>> classAngkatanCounts = {};
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final cid = data['classId'] as String? ?? '';
+        final angkatan = (data['angkatan'] ?? '').toString().trim();
+        final isLulus = data['lulus'] == true;
+        final isAktif = data['aktif'] ?? true;
+        if (cid.isNotEmpty && angkatan.isNotEmpty && !isLulus && isAktif) {
+          classAngkatanCounts.putIfAbsent(cid, () => {});
+          classAngkatanCounts[cid]![angkatan] = (classAngkatanCounts[cid]![angkatan] ?? 0) + 1;
+        }
+      }
+
+      final Map<String, String> mapping = {};
+      classAngkatanCounts.forEach((cid, counts) {
+        if (counts.isNotEmpty) {
+          mapping[cid] = counts.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+        }
+      });
+
+      if (mounted) {
+        setState(() {
+          _classIdToAngkatan = mapping;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _checkIfAuthor() async {
+    try {
+      final schoolId = SessionService.currentUser!.schoolId;
+      final sessionsSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_sessions')
+          .get();
+
+      bool isAuthor = false;
+      for (final doc in sessionsSnap.docs) {
+        final authorTeacherId = doc.data()['authorTeacherId']?.toString() ?? '';
+        if (authorTeacherId.split(',').contains(widget.teacherId)) {
+          isAuthor = true;
+          break;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _isAuthor = isAuthor;
+          _isLoadingAuthorCheck = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoadingAuthorCheck = false;
+        });
+      }
+    }
+  }
+
+  String _resolveAngkatan(String classId, String className) {
+    final a = _classIdToAngkatan[classId];
+    if (a != null && a.isNotEmpty) return a;
+    return _getGradeLevel(className);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -69,92 +160,118 @@ class _TeacherProctorDashboardPageState
             ? Colors.white.withValues(alpha: 0.06)
             : Colors.black.withValues(alpha: 0.04);
 
-        return Scaffold(
-          body: AuthBackground(
-            child: Column(
-              children: [
-                // AppBar
-                SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
-                    child: Row(
-                      children: [
-                        if (!widget.hideBackButton)
-                          IconButton(
-                            icon: Icon(Icons.arrow_back_rounded,
-                                color: titleColor),
-                            onPressed: () => Get.back(),
-                          ),
-                        if (widget.hideBackButton)
-                          const SizedBox(width: 16),
-                        Text(
-                          'Ujian Semester',
-                          style: TextStyle(
-                            color: titleColor,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+        if (_isLoadingAuthorCheck) {
+          return Scaffold(
+            body: AuthBackground(
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: isDark ? Colors.white : const Color(0xFF8B5CF6),
                 ),
+              ),
+            ),
+          );
+        }
 
-                // Tab Bar
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: tabBg,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: TabBar(
-                      controller: _tabController,
-                      indicator: BoxDecoration(
-                        color: const Color(0xFF8B5CF6),
-                        borderRadius: BorderRadius.circular(12),
+        return DefaultTabController(
+          key: ValueKey('proctor_tabs_${_isAuthor ? 3 : 2}'),
+          length: _isAuthor ? 3 : 2,
+          child: Scaffold(
+            body: AuthBackground(
+              child: Column(
+                children: [
+                  // AppBar
+                  SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                      child: Row(
+                        children: [
+                          if (!widget.hideBackButton)
+                            IconButton(
+                              icon: Icon(Icons.arrow_back_rounded,
+                                  color: titleColor),
+                              onPressed: () => Get.back(),
+                            ),
+                          if (widget.hideBackButton)
+                            const SizedBox(width: 16),
+                          Text(
+                            'Ujian Semester',
+                            style: TextStyle(
+                              color: titleColor,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      dividerColor: Colors.transparent,
-                      labelColor: Colors.white,
-                      unselectedLabelColor: subtitleColor,
-                      labelStyle: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 13),
-                      tabs: const [
-                        Tab(
-                          icon: Icon(Icons.supervisor_account_rounded, size: 18),
-                          text: 'Pengawas',
-                          iconMargin: EdgeInsets.only(bottom: 2),
+                    ),
+                  ),
+  
+                  // Tab Bar
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: tabBg,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: TabBar(
+                        indicator: BoxDecoration(
+                          color: const Color(0xFF8B5CF6),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        Tab(
-                          icon: Icon(Icons.edit_document, size: 18),
-                          text: 'Pembuat Soal',
-                          iconMargin: EdgeInsets.only(bottom: 2),
-                        ),
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        dividerColor: Colors.transparent,
+                        labelColor: Colors.white,
+                        unselectedLabelColor: subtitleColor,
+                        labelStyle: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13),
+                        tabs: [
+                          const Tab(
+                            icon: Icon(Icons.supervisor_account_rounded, size: 18),
+                            text: 'Pengawas',
+                            iconMargin: EdgeInsets.only(bottom: 2),
+                          ),
+                          const Tab(
+                            icon: Icon(Icons.edit_document, size: 18),
+                            text: 'Pembuat Soal',
+                            iconMargin: EdgeInsets.only(bottom: 2),
+                          ),
+                          if (_isAuthor)
+                            const Tab(
+                              icon: Icon(Icons.grading_rounded, size: 18),
+                              text: 'Koreksi Ujian',
+                              iconMargin: EdgeInsets.only(bottom: 2),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+  
+                  // Tab Content
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        // Tab 1: Pengawas
+                        _buildProctorTab(
+                            schoolId, isDark, cardColor, cardBorder,
+                            titleColor, subtitleColor),
+  
+                        // Tab 2: Pembuat Soal
+                        _buildAuthorTab(
+                            schoolId, isDark, cardColor, cardBorder,
+                            titleColor, subtitleColor),
+  
+                        // Tab 3: Koreksi Ujian
+                        if (_isAuthor)
+                          _buildGradingTab(
+                              schoolId, isDark, cardColor, cardBorder,
+                              titleColor, subtitleColor),
                       ],
                     ),
                   ),
-                ),
-
-                // Tab Content
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      // Tab 1: Pengawas
-                      _buildProctorTab(
-                          schoolId, isDark, cardColor, cardBorder,
-                          titleColor, subtitleColor),
-
-                      // Tab 2: Pembuat Soal
-                      _buildAuthorTab(
-                          schoolId, isDark, cardColor, cardBorder,
-                          titleColor, subtitleColor),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -271,6 +388,22 @@ class _TeacherProctorDashboardPageState
     // Active only if status is truly Active AND it's today AND endTime not yet passed
     final isActive = resolvedStatus == 'Active' && isToday;
 
+    // Cek apakah jam ujian sudah dimulai (untuk menampilkan tombol Selesaikan)
+    bool isSessionTimeStarted = false;
+    if (isToday && resolvedStatus == 'Active') {
+      try {
+        final parts = session.startTime.split(':');
+        if (parts.length >= 2) {
+          final now = DateTime.now();
+          final sessionStart = DateTime(
+            session.date.year, session.date.month, session.date.day,
+            int.parse(parts[0]), int.parse(parts[1]),
+          );
+          isSessionTimeStarted = !now.isBefore(sessionStart);
+        }
+      } catch (_) {}
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -314,9 +447,9 @@ class _TeacherProctorDashboardPageState
                 Row(
                   children: [
                     // Status badge
-                    _buildStatusBadge(resolvedStatus, isToday: isToday),
+                    _buildStatusBadge(session, resolvedStatus, isToday: isToday),
                     const SizedBox(width: 8),
-                    if (isToday && !isFinished)
+                    if (isToday && !isFinished && resolvedStatus == 'Active')
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
@@ -358,7 +491,7 @@ class _TeacherProctorDashboardPageState
                   style: TextStyle(color: subtitleColor, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
-                Text('Kelas: ${session.className.isEmpty ? session.classId : session.className}',
+                Text('Kelas: ${session.className.isEmpty ? session.classId : session.className} • Ruang: ${session.roomName.isEmpty ? '-' : session.roomName}',
                     style: TextStyle(color: subtitleColor, fontSize: 12)),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
@@ -439,22 +572,21 @@ class _TeacherProctorDashboardPageState
                             ),
                           ),
                         ),
-                        if (isActive) ...[
+                        if (isSessionTimeStarted) ...[
                           const SizedBox(width: 10),
-                          OutlinedButton.icon(
+                          OutlinedButton(
                             onPressed: () => _finishSession(schoolId, session),
-                            icon: const Icon(Icons.stop_circle_rounded,
-                                color: Color(0xFFEF4444), size: 16),
-                            label: const Text('Selesai',
-                                style: TextStyle(color: Color(0xFFEF4444))),
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(
                                   color: Color(0xFFEF4444), width: 1),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                               padding:
-                                  const EdgeInsets.symmetric(vertical: 10),
+                                  const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                              foregroundColor: const Color(0xFFEF4444),
                             ),
+                            child: const Text('Selesaikan',
+                                style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ],
@@ -469,15 +601,50 @@ class _TeacherProctorDashboardPageState
     );
   }
 
-  Widget _buildStatusBadge(String status, {bool isToday = false}) {
+  Widget _buildStatusBadge(ExamSession session, String status, {bool isToday = false}) {
     Color color;
     String label;
     IconData icon;
+
+    // Parse session start time
+    final now = DateTime.now();
+    DateTime? sessionStart;
+    try {
+      final parts = session.startTime.split(':');
+      if (parts.length >= 2) {
+        final hour = int.parse(parts[0]);
+        final min = int.parse(parts[1]);
+        sessionStart = DateTime(
+          session.date.year,
+          session.date.month,
+          session.date.day,
+          hour,
+          min,
+        );
+      }
+    } catch (_) {}
+
     switch (status) {
       case 'Active':
-        color = const Color(0xFF10B981);
-        label = 'Sedang Berlangsung';
-        icon = Icons.play_circle_rounded;
+        if (sessionStart != null && now.isBefore(sessionStart)) {
+          final diff = sessionStart.difference(now);
+          final diffMin = diff.inMinutes;
+          final diffSec = diff.inSeconds;
+
+          if (diffMin > 0) {
+            label = '$diffMin menit lagi';
+          } else if (diffSec > 0) {
+            label = '1 menit lagi';
+          } else {
+            label = 'Sedang Berlangsung';
+          }
+          color = const Color(0xFFF59E0B);
+          icon = Icons.timer_outlined;
+        } else {
+          color = const Color(0xFF10B981);
+          label = 'Sedang Berlangsung';
+          icon = Icons.play_circle_rounded;
+        }
         break;
       case 'Finished':
         color = const Color(0xFF64748B);
@@ -534,10 +701,11 @@ class _TeacherProctorDashboardPageState
 
         final sessions = snap.data ?? [];
 
-        // Grup unique per subjectId
+        // Grup unique per subjectId dan gradeLevel
         final Map<String, ExamSession> uniqueSubjects = {};
         for (final s in sessions) {
-          uniqueSubjects.putIfAbsent(s.subjectId, () => s);
+          final grade = _resolveAngkatan(s.classId, s.className);
+          uniqueSubjects.putIfAbsent('${s.subjectId}_$grade', () => s);
         }
         final subjects = uniqueSubjects.values.toList();
 
@@ -585,7 +753,7 @@ class _TeacherProctorDashboardPageState
             ...subjects.map((session) => _buildAuthorSubjectCard(
                 session, isDark, cardColor, cardBorder, titleColor, subtitleColor,
                 sessions
-                    .where((s) => s.subjectId == session.subjectId)
+                    .where((s) => s.subjectId == session.subjectId && _resolveAngkatan(s.classId, s.className) == _resolveAngkatan(session.classId, session.className))
                     .length)),
           ],
         );
@@ -602,12 +770,14 @@ class _TeacherProctorDashboardPageState
     Color subtitleColor,
     int sessionCount,
   ) {
+    final gradeLevel = _resolveAngkatan(session.classId, session.className);
     return GestureDetector(
       onTap: () => Get.to(() => TeacherExamQuestionsPage(
             eventId: session.eventId,
             subjectId: session.subjectId,
-            subjectName: session.subjectName,
+            subjectName: '${session.subjectName} - Kelas $gradeLevel',
             teacherId: widget.teacherId,
+            gradeLevel: gradeLevel,
           )),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -698,55 +868,499 @@ class _TeacherProctorDashboardPageState
     }
   }
 
+
+  void _showSubmissionsSheet(Exam exam) {
+    final isDark = AuthBackground.isDarkMode.value;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+    final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+    final user = SessionService.currentUser!;
+    String selectedAngkatan = 'Semua';
+
+    Get.bottomSheet(
+      StatefulBuilder(
+        builder: (context, setModalState) {
+          return DefaultTabController(
+            length: 2,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(28),
+                  topRight: Radius.circular(28),
+                ),
+                border: Border(top: BorderSide(color: cardBorderColor)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hasil Ujian Murid',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
+                            ),
+                            Text(
+                              exam.title,
+                              style: TextStyle(fontSize: 12, color: titleColor.withValues(alpha: 0.6)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: titleColor),
+                        onPressed: () => Get.back(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: StreamBuilder<List<ExamSubmission>>(
+                      stream: _examService.getExamSubmissions(user.schoolId, exam.id),
+                      builder: (context, submissionSnapshot) {
+                        if (submissionSnapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        final submissions = submissionSnapshot.data ?? [];
+
+                        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: StudentService().getStudentsBySchool(user.schoolId),
+                          builder: (context, studentSnapshot) {
+                            if (studentSnapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+
+                            final allStudentDocs = studentSnapshot.data?.docs ?? [];
+
+                            // Build school-wide studentId -> angkatan mapping
+                            final Map<String, String> studentIdToAngkatan = {};
+                            for (final doc in allStudentDocs) {
+                              final data = doc.data();
+                              final ang = (data['angkatan'] ?? '').toString().trim();
+                              studentIdToAngkatan[doc.id] = ang.isNotEmpty ? ang : 'Lainnya';
+                            }
+
+                            // Only students in this exam's class for "Belum" tab
+                            final classStudentDocs = allStudentDocs
+                                .where((doc) => doc.data()['classId'] == exam.classId)
+                                .toList();
+
+                            // Collect unique angkatan values from submissions + class students
+                            final submissionAngkatans = submissions
+                                .map((s) => studentIdToAngkatan[s.studentId] ?? 'Lainnya')
+                                .toSet();
+                            final classAngkatans = classStudentDocs
+                                .map((d) {
+                                  final a = (d.data()['angkatan'] ?? '').toString().trim();
+                                  return a.isNotEmpty ? a : 'Lainnya';
+                                })
+                                .toSet();
+                            final allAngkatans = {...submissionAngkatans, ...classAngkatans};
+                            final uniqueAngkatans = ['Semua', ...allAngkatans.toList()..sort()];
+
+                            final Map<String, ExamSubmission> submissionMap = {
+                              for (var sub in submissions) sub.studentId: sub
+                            };
+
+                            final notSubmittedStudents = classStudentDocs
+                                .where((doc) => !submissionMap.containsKey(doc.id))
+                                .toList();
+                            notSubmittedStudents.sort((a, b) {
+                              final nameA = a.data()['nama']?.toString().toLowerCase() ?? '';
+                              final nameB = b.data()['nama']?.toString().toLowerCase() ?? '';
+                              return nameA.compareTo(nameB);
+                            });
+
+                            // Filter lists based on selectedAngkatan
+                            final filteredSubmissions = submissions.where((sub) {
+                              if (selectedAngkatan == 'Semua') return true;
+                              return (studentIdToAngkatan[sub.studentId] ?? 'Lainnya') == selectedAngkatan;
+                            }).toList();
+
+                            final filteredNotSubmitted = notSubmittedStudents.where((doc) {
+                              if (selectedAngkatan == 'Semua') return true;
+                              return (studentIdToAngkatan[doc.id] ?? 'Lainnya') == selectedAngkatan;
+                            }).toList();
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Angkatan Filter Chips
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  physics: const BouncingScrollPhysics(),
+                                  child: Row(
+                                    children: uniqueAngkatans.map((ang) {
+                                      final isSelected = selectedAngkatan == ang;
+                                      return GestureDetector(
+                                        onTap: () {
+                                          setModalState(() {
+                                            selectedAngkatan = ang;
+                                          });
+                                        },
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          margin: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? const Color(0xFF8B5CF6).withValues(alpha: 0.15)
+                                                : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05)),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: isSelected
+                                                  ? const Color(0xFF8B5CF6)
+                                                  : (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1)),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (isSelected) ...[
+                                                const Icon(
+                                                  Icons.check,
+                                                  size: 14,
+                                                  color: Color(0xFF8B5CF6),
+                                                ),
+                                                const SizedBox(width: 6),
+                                              ],
+                                              Text(
+                                                ang == 'Semua' ? 'Semua Angkatan' : 'Angkatan $ang',
+                                                style: TextStyle(
+                                                  color: isSelected
+                                                      ? const Color(0xFF8B5CF6)
+                                                      : (isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.7)),
+                                                  fontSize: 12,
+                                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TabBar(
+                                  labelColor: const Color(0xFF8B5CF6),
+                                  unselectedLabelColor: titleColor.withValues(alpha: 0.6),
+                                  indicatorColor: const Color(0xFF8B5CF6),
+                                  indicatorSize: TabBarIndicatorSize.tab,
+                                  dividerColor: Colors.transparent,
+                                  tabs: [
+                                    Tab(
+                                      child: Text(
+                                        'Sudah (${filteredSubmissions.length})',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                    ),
+                                    Tab(
+                                      child: Text(
+                                        'Belum (${filteredNotSubmitted.length})',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Expanded(
+                                  child: TabBarView(
+                                    children: [
+                                      // TAB 1: SUDAH MENGERJAKAN
+                                      filteredSubmissions.isEmpty
+                                          ? Center(
+                                              child: Text(
+                                                'Belum ada murid yang mengumpulkan ujian.',
+                                                style: TextStyle(color: titleColor.withValues(alpha: 0.5), fontSize: 13),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            )
+                                          : ListView.builder(
+                                              physics: const BouncingScrollPhysics(),
+                                              itemCount: filteredSubmissions.length,
+                                              itemBuilder: (context, index) {
+                                                final sub = filteredSubmissions[index];
+                                                final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(sub.submittedAt);
+                                                final hasEssay = exam.questions.any((q) => q.type == 'essay');
+                                                final studentAngkatan = studentIdToAngkatan[sub.studentId] ?? 'Lainnya';
+
+                                                return Container(
+                                                  margin: const EdgeInsets.only(bottom: 12),
+                                                  decoration: BoxDecoration(
+                                                    color: cardBgColor,
+                                                    borderRadius: BorderRadius.circular(16),
+                                                    border: Border.all(color: cardBorderColor),
+                                                  ),
+                                                  child: Material(
+                                                    color: Colors.transparent,
+                                                    child: InkWell(
+                                                      borderRadius: BorderRadius.circular(16),
+                                                      onTap: () {
+                                                        Get.back();
+                                                        Get.to(() => TeacherGradeExamPage(
+                                                              exam: exam,
+                                                              submission: sub,
+                                                            ));
+                                                      },
+                                                      child: Padding(
+                                                        padding: const EdgeInsets.all(16),
+                                                        child: Row(
+                                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                          children: [
+                                                            Expanded(
+                                                              child: Column(
+                                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                                children: [
+                                                                  Text(
+                                                                    sub.studentName,
+                                                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
+                                                                  ),
+                                                                  const SizedBox(height: 4),
+                                                                  Text(
+                                                                    'Angkatan: $studentAngkatan\nDikumpulkan: $dateStr${exam.questions.any((q) => q.type == "multiple_choice") ? "\nBenar PG: ${sub.correctCount} | Salah PG: ${sub.incorrectCount}" : ""}',
+                                                                    style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6), height: 1.4),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                            const SizedBox(width: 8),
+                                                            if (hasEssay && !sub.isGraded)
+                                                              Container(
+                                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                                decoration: BoxDecoration(
+                                                                  color: Colors.amber.withValues(alpha: 0.15),
+                                                                  borderRadius: BorderRadius.circular(10),
+                                                                ),
+                                                                child: const Text(
+                                                                  'Perlu Koreksi',
+                                                                  style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12),
+                                                                ),
+                                                              )
+                                                            else
+                                                              Container(
+                                                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                                decoration: BoxDecoration(
+                                                                  color: (sub.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent).withValues(alpha: 0.15),
+                                                                  borderRadius: BorderRadius.circular(12),
+                                                                ),
+                                                                child: Text(
+                                                                  '${sub.score.toInt()}',
+                                                                  style: TextStyle(
+                                                                    color: sub.score >= 70 ? const Color(0xFF10B981) : Colors.redAccent,
+                                                                    fontWeight: FontWeight.bold,
+                                                                    fontSize: 18,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+
+                                      // TAB 2: BELUM MENGERJAKAN
+                                      filteredNotSubmitted.isEmpty
+                                          ? Center(
+                                              child: Text(
+                                                'Semua murid sudah mengumpulkan ujian.',
+                                                style: TextStyle(color: titleColor.withValues(alpha: 0.5), fontSize: 13),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            )
+                                          : ListView.builder(
+                                              physics: const BouncingScrollPhysics(),
+                                              itemCount: filteredNotSubmitted.length,
+                                              itemBuilder: (context, index) {
+                                                final student = filteredNotSubmitted[index].data();
+                                                final studentId = filteredNotSubmitted[index].id;
+                                                final name = student['nama'] ?? 'Murid';
+                                                final nis = student['nis'] ?? '-';
+                                                final isSusulan = exam.susulanStudentIds.contains(studentId);
+                                                final studentAngkatan = studentIdToAngkatan[studentId] ?? 'Lainnya';
+
+                                                return Container(
+                                                  margin: const EdgeInsets.only(bottom: 12),
+                                                  decoration: BoxDecoration(
+                                                    color: cardBgColor,
+                                                    borderRadius: BorderRadius.circular(16),
+                                                    border: Border.all(color: cardBorderColor),
+                                                  ),
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.all(16),
+                                                    child: Row(
+                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      children: [
+                                                        Expanded(
+                                                          child: Column(
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            children: [
+                                                              Text(
+                                                                name,
+                                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
+                                                              ),
+                                                              const SizedBox(height: 4),
+                                                              Text(
+                                                                'Angkatan: $studentAngkatan | NIS: $nis',
+                                                                style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6)),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        if (isSusulan)
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                            decoration: BoxDecoration(
+                                                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                                                              borderRadius: BorderRadius.circular(8),
+                                                            ),
+                                                            child: const Text(
+                                                              'Susulan',
+                                                              style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold, fontSize: 10),
+                                                            ),
+                                                          )
+                                                        else
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                            decoration: BoxDecoration(
+                                                              color: Colors.redAccent.withValues(alpha: 0.15),
+                                                              borderRadius: BorderRadius.circular(8),
+                                                            ),
+                                                            child: const Text(
+                                                              'Belum',
+                                                              style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 10),
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+      isScrollControlled: true,
+    );
+  }
+
   Future<void> _finishSession(String schoolId, ExamSession session) async {
     final isDark = AuthBackground.isDarkMode.value;
     final dialogBg = isDark ? const Color(0xFF1E1B4B) : Colors.white;
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final contentColor = isDark
-        ? Colors.white.withValues(alpha: 0.8)
-        : const Color(0xFF1E1B4B).withValues(alpha: 0.75);
+    final subtitleColor = isDark
+        ? Colors.white.withValues(alpha: 0.65)
+        : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
+    final roomName = session.roomName.isNotEmpty ? session.roomName : 'Ujian';
+    final expectedPhrase = 'selesaikan ruangan $roomName'.toLowerCase();
+    final inputController = TextEditingController();
+    bool isValid = false;
+
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: dialogBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.stop_circle_rounded,
-                color: Color(0xFFEF4444), size: 22),
-            const SizedBox(width: 8),
-            Text('Selesaikan Sesi?',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: titleColor)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: dialogBg,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Selesaikan Sesi?',
+            style: TextStyle(fontWeight: FontWeight.bold, color: titleColor),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'QR akan dinonaktifkan dan sesi "${session.subjectName}" di ruangan $roomName ditandai selesai. Siswa tidak dapat scan lagi.',
+                style: TextStyle(color: subtitleColor, height: 1.5, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              SelectableText(
+                'Ketik "selesaikan ruangan $roomName" untuk konfirmasi:',
+                style: TextStyle(color: subtitleColor, fontSize: 12, fontStyle: FontStyle.italic),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: inputController,
+                style: TextStyle(color: titleColor, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'selesaikan ruangan $roomName',
+                  hintStyle: TextStyle(color: subtitleColor.withValues(alpha: 0.5), fontSize: 12),
+                  filled: true,
+                  fillColor: isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.04),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                onChanged: (val) {
+                  setDialogState(() {
+                    isValid = val.trim().toLowerCase() == expectedPhrase;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Batal',
+                  style: TextStyle(
+                      color: titleColor.withValues(alpha: 0.6),
+                      fontWeight: FontWeight.w500)),
+            ),
+            ElevatedButton(
+              onPressed: isValid ? () => Navigator.pop(ctx, true) : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                disabledBackgroundColor:
+                    const Color(0xFFEF4444).withValues(alpha: 0.3),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Selesaikan',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
-        content: Text(
-          'QR akan dinonaktifkan dan sesi ditandai selesai. Siswa tidak dapat scan lagi.',
-          style: TextStyle(color: contentColor, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Batal',
-                style: TextStyle(
-                    color: titleColor.withValues(alpha: 0.6),
-                    fontWeight: FontWeight.w500)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Selesaikan',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
       ),
     );
 
+    inputController.dispose();
     if (confirm == true) {
       await _service.finishSession(
           schoolId: schoolId, sessionId: session.id);
@@ -866,6 +1480,172 @@ class _TeacherProctorDashboardPageState
     );
   }
 
+  Widget _buildGradingTab(
+    String schoolId,
+    bool isDark,
+    Color cardColor,
+    Color cardBorder,
+    Color titleColor,
+    Color subtitleColor,
+  ) {
+    return StreamBuilder<List<Exam>>(
+      stream: _examService.getSemesterExamsForTeacher(schoolId, widget.teacherId),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return Center(
+              child: CircularProgressIndicator(
+                  color: isDark ? Colors.white : const Color(0xFF8B5CF6)));
+        }
+
+        final exams = snap.data ?? [];
+
+        if (exams.isEmpty) {
+          return _buildEmptyState(
+            isDark,
+            titleColor,
+            subtitleColor,
+            Icons.grading_rounded,
+            'Tidak Ada Ujian yang Perlu Dikoreksi',
+            'Belum ada lembar pengerjaan atau data ujian semester aktif untuk Anda koreksi.',
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
+          physics: const BouncingScrollPhysics(),
+          itemCount: exams.length,
+          itemBuilder: (context, index) {
+            final exam = exams[index];
+            final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(exam.dueDate);
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: cardBorder),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.15)
+                        : Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            exam.title,
+                            style: TextStyle(
+                              color: titleColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            exam.gradeCategory,
+                            style: const TextStyle(
+                              color: Color(0xFF8B5CF6),
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Mata Pelajaran: ${exam.subjectName}',
+                      style: TextStyle(color: subtitleColor, fontSize: 12),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Batas Pengerjaan: $dateStr',
+                      style: TextStyle(color: subtitleColor, fontSize: 11),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            exam.className,
+                            style: const TextStyle(
+                              color: Color(0xFF6366F1),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${exam.questions.length} Soal',
+                            style: const TextStyle(
+                              color: Color(0xFF10B981),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        ElevatedButton.icon(
+                          onPressed: () => _showSubmissionsSheet(exam),
+                          icon: const Icon(Icons.grading_rounded, size: 14),
+                          label: const Text('Koreksi'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            minimumSize: const Size(0, 32),
+                            textStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildEmptyState(
     bool isDark,
     Color titleColor,
@@ -955,213 +1735,253 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
         final scaffoldBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
         final service = ExamSessionService();
 
-        return Scaffold(
-          backgroundColor: scaffoldBg,
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Denah & Monitor Ruang',
-                  style: TextStyle(color: titleColor, fontSize: 15, fontWeight: FontWeight.bold),
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('schools')
+              .doc(widget.schoolId)
+              .collection('exam_sessions')
+              .doc(widget.session.id)
+              .snapshots(),
+          builder: (context, sessionSnap) {
+            final sessionData = sessionSnap.data?.data();
+            final currentStatus = sessionData?['examStatus']?.toString() ?? widget.session.examStatus;
+            final isSessionFinished = currentStatus == 'Finished';
+
+            return Scaffold(
+              backgroundColor: scaffoldBg,
+              appBar: AppBar(
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Denah & Monitor Ruang',
+                      style: TextStyle(color: titleColor, fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      widget.session.roomName.isNotEmpty ? widget.session.roomName : 'Ruang Ujian',
+                      style: TextStyle(color: subtitleColor, fontSize: 11),
+                    ),
+                  ],
                 ),
-                Text(
-                  widget.session.roomName.isNotEmpty ? widget.session.roomName : 'Ruang Ujian',
-                  style: TextStyle(color: subtitleColor, fontSize: 11),
+                backgroundColor: scaffoldBg,
+                surfaceTintColor: Colors.transparent,
+                scrolledUnderElevation: 0,
+                elevation: 0,
+                leading: IconButton(
+                  icon: Icon(Icons.arrow_back_rounded, color: titleColor),
+                  onPressed: () => Get.back(),
                 ),
-              ],
-            ),
-            backgroundColor: scaffoldBg,
-            surfaceTintColor: Colors.transparent,
-            scrolledUnderElevation: 0,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back_rounded, color: titleColor),
-              onPressed: () => Get.back(),
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: _pairsPerRow,
+                          dropdownColor: isDark ? const Color(0xFF15122F) : Colors.white,
+                          style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.bold),
+                          items: const [
+                            DropdownMenuItem(value: 3, child: Text('3 Pasang Meja')),
+                            DropdownMenuItem(value: 4, child: Text('4 Pasang Meja')),
+                            DropdownMenuItem(value: 5, child: Text('5 Pasang Meja')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setState(() => _pairsPerRow = val);
+                          },
+                        ),
+                      ),
                     ),
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: _pairsPerRow,
-                      dropdownColor: isDark ? const Color(0xFF15122F) : Colors.white,
-                      style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.bold),
-                      items: const [
-                        DropdownMenuItem(value: 3, child: Text('3 Pasang Meja')),
-                        DropdownMenuItem(value: 4, child: Text('4 Pasang Meja')),
-                        DropdownMenuItem(value: 5, child: Text('5 Pasang Meja')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) setState(() => _pairsPerRow = val);
-                      },
-                    ),
-                  ),
-                ),
+                ],
               ),
-            ],
-          ),
-          body: AuthBackground(
-            child: StreamBuilder<List<ExamParticipation>>(
-              stream: service.getParticipations(
-                  schoolId: widget.schoolId, sessionId: widget.session.id),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final participations = snap.data ?? [];
-                if (participations.isEmpty) {
-                  return Center(
-                    child: Text('Belum ada alokasi kursi untuk sesi ini.',
-                        style: TextStyle(color: subtitleColor)),
-                  );
-                }
-
-                participations.sort((a, b) => a.seatNumber.compareTo(b.seatNumber));
-
-                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _behaviorStream,
-                  builder: (context, behaviorSnap) {
-                    final behaviorDocs = behaviorSnap.data?.docs ?? [];
-                    final Map<String, Map<String, dynamic>> behaviorByStudent = {};
-                    for (final doc in behaviorDocs) {
-                      final data = doc.data();
-                      final sid = data['studentId']?.toString() ?? '';
-                      if (sid.isNotEmpty) behaviorByStudent[sid] = data;
+              body: AuthBackground(
+                child: StreamBuilder<List<ExamParticipation>>(
+                  stream: service.getParticipations(
+                      schoolId: widget.schoolId, sessionId: widget.session.id),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
                     }
 
-                    // Compute stats
-                    int cStandby = 0, cKeluar = 0, cScreenOff = 0, cSelesai = 0, cBelum = 0;
-                    for (final p in participations) {
-                      if (p.submittedAt != null) { cSelesai++; continue; }
-                      final b = behaviorByStudent[p.studentId];
-                      if (b == null) { cBelum++; continue; }
-                      final t = (b['type']?.toString() ?? '').toLowerCase();
-                      if (t.contains('keluar')) cKeluar++;
-                      else if (t.contains('off') || t.contains('kunci') || t.contains('mati')) cScreenOff++;
-                      else cStandby++;
+                    final participations = snap.data ?? [];
+                    if (participations.isEmpty) {
+                      return Center(
+                        child: Text('Belum ada alokasi kursi untuk sesi ini.',
+                            style: TextStyle(color: subtitleColor)),
+                      );
                     }
 
-                    // Angkatan color map
-                    final angkatans = participations.map((p) => p.angkatan).toSet().toList()..sort();
-                    Color cohortColor(String a) {
-                      final i = angkatans.indexOf(a);
-                      if (i == 0) return const Color(0xFF8B5CF6);
-                      if (i == 1) return const Color(0xFF10B981);
-                      if (i == 2) return const Color(0xFFF59E0B);
-                      return const Color(0xFF3B82F6);
-                    }
+                    participations.sort((a, b) => a.seatNumber.compareTo(b.seatNumber));
 
-                    final maxSeat = participations.fold(0, (m, p) => p.seatNumber > m ? p.seatNumber : m);
-                    final colCount = _pairsPerRow * 2;
-                    final rowCount = (maxSeat / colCount).ceil();
-                    final seatMap = {for (var p in participations) p.seatNumber: p};
+                    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _behaviorStream,
+                      builder: (context, behaviorSnap) {
+                        final behaviorDocs = behaviorSnap.data?.docs ?? [];
+                        final Map<String, Map<String, dynamic>> behaviorByStudent = {};
+                        for (final doc in behaviorDocs) {
+                          final data = doc.data();
+                          final sid = data['studentId']?.toString() ?? '';
+                          if (sid.isNotEmpty) behaviorByStudent[sid] = data;
+                        }
 
-                    return Column(
-                      children: [
-                        // ── Stats Bar ──────────────────────────────────────
-                        _buildStatsBar(isDark,
-                          total: participations.length,
-                          standby: cStandby, keluar: cKeluar,
-                          screenOff: cScreenOff, selesai: cSelesai, belum: cBelum,
-                        ),
+                        // Compute stats
+                        int cStandby = 0, cKeluar = 0, cScreenOff = 0, cSelesai = 0, cBelum = 0;
+                        for (final p in participations) {
+                          if (p.submittedAt != null) { cSelesai++; continue; }
+                          final b = behaviorByStudent[p.studentId];
+                          if (b == null) { cBelum++; continue; }
+                          final t = (b['type']?.toString() ?? '').toLowerCase();
+                          if (t.contains('keluar')) cKeluar++;
+                          else if (t.contains('off') || t.contains('kunci') || t.contains('mati')) cScreenOff++;
+                          else cStandby++;
+                        }
 
-                        // ── Board Banner ───────────────────────────────────
-                        Container(
-                          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.10),
+                        // Angkatan color map
+                        final angkatans = participations.map((p) => p.angkatan).toSet().toList()..sort();
+                        Color cohortColor(String a) {
+                          final i = angkatans.indexOf(a);
+                          if (i == 0) return const Color(0xFF8B5CF6);
+                          if (i == 1) return const Color(0xFF10B981);
+                          if (i == 2) return const Color(0xFFF59E0B);
+                          return const Color(0xFF3B82F6);
+                        }
+
+                        final maxSeat = participations.fold(0, (m, p) => p.seatNumber > m ? p.seatNumber : m);
+                        final colCount = _pairsPerRow * 2;
+                        final rowCount = (maxSeat / colCount).ceil();
+                        final seatMap = {for (var p in participations) p.seatNumber: p};
+
+                        return Column(
+                          children: [
+                            // ── Stats Bar ──────────────────────────────────────
+                            _buildStatsBar(isDark,
+                              total: participations.length,
+                              standby: cStandby, keluar: cKeluar,
+                              screenOff: cScreenOff, selesai: cSelesai, belum: cBelum,
                             ),
-                          ),
-                          child: Center(
-                            child: Text('PAPAN TULIS / MEJA PENGAWAS',
-                              style: TextStyle(color: subtitleColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                          ),
-                        ),
 
-                        // ── Legend ─────────────────────────────────────────
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                          child: Wrap(spacing: 10, runSpacing: 4, children: [
-                            ...angkatans.map((a) => _legendItem(cohortColor(a), 'Angkatan $a', subtitleColor)),
-                            _legendItem(Colors.green, 'Standby', subtitleColor),
-                            _legendItem(Colors.redAccent, 'Keluar', subtitleColor),
-                            _legendItem(Colors.orange, 'Screen Off', subtitleColor),
-                            _legendItem(Colors.cyan, 'Selesai', subtitleColor),
-                          ]),
-                        ),
-
-                        // ── Seating Grid ───────────────────────────────────
-                        Expanded(
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-                            child: Column(
-                              children: List.generate(rowCount, (rIdx) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: List.generate(colCount, (cIdx) {
-                                      final seatNum = rIdx * colCount + cIdx + 1;
-                                      final student = seatMap[seatNum];
-                                      final behavior = student != null ? behaviorByStudent[student.studentId] : null;
-                                      final cc = student != null ? cohortColor(student.angkatan) : Colors.grey;
-
-                                      final card = _buildSeatCard(
-                                        isDark: isDark,
-                                        seatNum: seatNum,
-                                        student: student,
-                                        behavior: behavior,
-                                        cohortColor: cc,
-                                        subtitleColor: subtitleColor,
-                                      );
-
-                                      // Insert aisle gap after every pair (every 2 seats)
-                                      final isAfterPair = (cIdx % 2 == 1) && (cIdx < colCount - 1);
-                                      if (isAfterPair) {
-                                        return Row(mainAxisSize: MainAxisSize.min, children: [
-                                          card,
-                                          const SizedBox(width: 14),
-                                        ]);
-                                      }
-                                      return card;
-                                    }),
-                                  ),
-                                );
-                              }),
+                            // ── Board Banner ───────────────────────────────────
+                            Container(
+                              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.10),
+                                ),
+                              ),
+                              child: Center(
+                                child: Text('PAPAN TULIS / MEJA PENGAWAS',
+                                  style: TextStyle(color: subtitleColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+
+                            // ── Legend ─────────────────────────────────────────
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                              child: Wrap(spacing: 10, runSpacing: 4, children: [
+                                ...angkatans.map((a) => _legendItem(cohortColor(a), 'Angkatan $a', subtitleColor)),
+                                _legendItem(Colors.green, 'Standby', subtitleColor),
+                                _legendItem(Colors.redAccent, 'Keluar', subtitleColor),
+                                _legendItem(Colors.orange, 'Screen Off', subtitleColor),
+                                _legendItem(Colors.cyan, 'Selesai', subtitleColor),
+                              ]),
+                            ),
+
+                            // ── Seating Grid ───────────────────────────────────
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final availableWidth = constraints.maxWidth - 24; // 12px padding each side
+                                  final aisleCount = _pairsPerRow - 1;
+                                  final totalAisleWidth = aisleCount * 14.0;
+
+                                  const double minCardWidth = 60.0;
+                                  final calculatedWidth = (availableWidth - totalAisleWidth) / colCount;
+                                  final cardWidth = calculatedWidth < minCardWidth ? minCardWidth : calculatedWidth.clamp(60.0, 80.0);
+                                  final cardHeight = (cardWidth * 1.15).clamp(65.0, 95.0);
+
+                                  return SingleChildScrollView(
+                                    scrollDirection: Axis.vertical,
+                                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 80),
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: List.generate(rowCount, (rIdx) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(bottom: 8),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: List.generate(colCount, (cIdx) {
+                                                  final seatNum = rIdx * colCount + cIdx + 1;
+                                                  final student = seatMap[seatNum];
+                                                  final behavior = student != null ? behaviorByStudent[student.studentId] : null;
+                                                  final cc = student != null ? cohortColor(student.angkatan) : Colors.grey;
+
+                                                  final card = _buildSeatCard(
+                                                    isDark: isDark,
+                                                    seatNum: seatNum,
+                                                    student: student,
+                                                    behavior: behavior,
+                                                    cohortColor: cc,
+                                                    subtitleColor: subtitleColor,
+                                                    cardWidth: cardWidth,
+                                                    cardHeight: cardHeight,
+                                                    isFinished: isSessionFinished,
+                                                  );
+
+                                                  // Insert aisle gap after every pair (every 2 seats)
+                                                  final isAfterPair = (cIdx % 2 == 1) && (cIdx < colCount - 1);
+                                                  if (isAfterPair) {
+                                                    return Row(mainAxisSize: MainAxisSize.min, children: [
+                                                      card,
+                                                      const SizedBox(width: 14),
+                                                    ]);
+                                                  }
+                                                  return card;
+                                                }),
+                                              ),
+                                            );
+                                          }),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _scanStudentQr(context),
-            backgroundColor: const Color(0xFF8B5CF6),
-            foregroundColor: Colors.white,
-            icon: const Icon(Icons.qr_code_scanner_rounded),
-            label: const Text('Scan QR Murid', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
+                ),
+              ),
+              floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+              floatingActionButton: isSessionFinished
+                  ? null
+                  : FloatingActionButton.extended(
+                      onPressed: () => _scanStudentQr(context),
+                      backgroundColor: const Color(0xFF8B5CF6),
+                      foregroundColor: Colors.white,
+                      icon: const Icon(Icons.qr_code_scanner_rounded),
+                      label: const Text('Scan QR Murid', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+            );
+          },
         );
       },
     );
@@ -1179,8 +1999,10 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: border)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        alignment: WrapAlignment.spaceAround,
         children: [
           _statChip('Total', total, Colors.blueAccent),
           _statChip('Standby', standby, Colors.green),
@@ -1218,11 +2040,14 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
     required Map<String, dynamic>? behavior,
     required Color cohortColor,
     required Color subtitleColor,
+    double cardWidth = 68,
+    double cardHeight = 78,
+    bool isFinished = false,
   }) {
     // Empty slot
     if (student == null) {
       return Container(
-        width: 68, height: 78, margin: const EdgeInsets.all(3),
+        width: cardWidth, height: cardHeight, margin: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(10),
@@ -1258,38 +2083,69 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
     } else if (isScanned) {
       statusColor = cohortColor; statusLabel = 'Hadir'; statusIcon = Icons.check_circle_rounded;
     } else {
-      statusColor = cohortColor.withValues(alpha: 0.35); statusLabel = 'Belum'; statusIcon = Icons.radio_button_unchecked_rounded;
+      statusColor = cohortColor; statusLabel = 'Belum'; statusIcon = Icons.radio_button_unchecked_rounded;
     }
+
+    final isBelum = !isScanned && !isSubmitted && behavior == null;
+
+    final cardBgColor = isBelum
+        ? (isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02))
+        : statusColor;
+
+    final cardBorderColor = isBelum
+        ? statusColor.withValues(alpha: 0.35)
+        : statusColor;
+
+    final textColor = isBelum
+        ? (isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF1E1B4B).withValues(alpha: 0.4))
+        : Colors.white;
+
+    final seatNumColor = isBelum
+        ? statusColor.withValues(alpha: 0.6)
+        : Colors.white.withValues(alpha: 0.9);
+
+    final iconColor = isBelum
+        ? statusColor.withValues(alpha: 0.5)
+        : Colors.white;
+
+    final badgeBgColor = isBelum
+        ? statusColor.withValues(alpha: 0.1)
+        : Colors.white.withValues(alpha: 0.25);
+
+    final badgeTextColor = isBelum
+        ? statusColor
+        : Colors.white;
 
     // Short name
     final parts = student.studentName.split(' ');
     final shortName = parts.length > 1 ? '${parts[0]} ${parts[1][0]}.' : student.studentName;
 
     return GestureDetector(
-      onTap: () => _showStudentLog(student, behavior, isDark, subtitleColor),
+      onTap: () => _showStudentLog(student, behavior, isDark, subtitleColor, isFinished: isFinished),
       child: Container(
-        width: 68, height: 78, margin: const EdgeInsets.all(3),
+        width: cardWidth, height: cardHeight, margin: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: statusColor.withValues(alpha: 0.10),
+          color: cardBgColor,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: statusColor.withValues(alpha: 0.35), width: 1.5),
-          boxShadow: [BoxShadow(color: statusColor.withValues(alpha: 0.07), blurRadius: 4, offset: const Offset(0, 2))],
+          border: Border.all(color: cardBorderColor, width: 1.5),
+          boxShadow: isBelum
+              ? null
+              : [BoxShadow(color: statusColor.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))],
         ),
         padding: const EdgeInsets.all(5),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('#$seatNum', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: statusColor)),
-              Icon(statusIcon, size: 9, color: statusColor),
+              Text('#$seatNum', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: seatNumColor)),
+              Icon(statusIcon, size: 9, color: iconColor),
             ]),
             Text(shortName, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : const Color(0xFF1E1B4B))),
+              style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: textColor)),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-              child: Text(statusLabel, style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: statusColor)),
+              decoration: BoxDecoration(color: badgeBgColor, borderRadius: BorderRadius.circular(4)),
+              child: Text(statusLabel, style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: badgeTextColor)),
             ),
           ],
         ),
@@ -1297,7 +2153,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
     );
   }
 
-  void _showStudentLog(ExamParticipation student, Map<String, dynamic>? behavior, bool isDark, Color subTextColor) {
+  void _showStudentLog(ExamParticipation student, Map<String, dynamic>? behavior, bool isDark, Color subTextColor, {bool isFinished = false}) {
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final activityLog = behavior?['activityLog'] as List<dynamic>? ?? [];
     final sortedLog = List<dynamic>.from(activityLog)
@@ -1308,197 +2164,189 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
       });
 
     Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.65),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF100C22) : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            Center(child: Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: subTextColor.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 16),
-            // Student header
-            Row(children: [
-              CircleAvatar(
-                backgroundColor: const Color(0xFF8B5CF6),
-                radius: 20,
-                child: Text(student.seatNumber.toString(),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(student.studentName, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: titleColor)),
-                Text('Bangku #${student.seatNumber} • NIS: ${student.nis}', style: TextStyle(fontSize: 11, color: subTextColor)),
-              ])),
-              if (student.submittedAt != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.cyan.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
+      StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          bool isCancelling = false;
+          bool isAbsenting = false;
+
+          return Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.65),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF100C22) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle
+                Center(child: Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: subTextColor.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 16),
+                // Student header
+                Row(children: [
+                  CircleAvatar(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    radius: 20,
+                    child: Text(student.seatNumber.toString(),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                   ),
-                  child: const Text('✓ Selesai', style: TextStyle(color: Colors.cyan, fontSize: 10, fontWeight: FontWeight.bold)),
-                ),
-            ]),
-            if (student.submittedAt == null) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: student.scannedAt != null
-                        ? OutlinedButton.icon(
-                            onPressed: () async {
-                              Get.back(); // close bottom sheet
-                              Get.dialog(
-                                const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),
-                                barrierDismissible: false,
-                              );
-                              try {
-                                final service = ExamSessionService();
-                                await service.cancelProctorScanAttendance(
-                                  schoolId: widget.schoolId,
-                                  sessionId: widget.session.id,
-                                  studentId: student.studentId,
-                                );
-                                Get.back(); // close progress
-                                Get.snackbar(
-                                  'Sukses',
-                                  'Kehadiran manual dibatalkan.',
-                                  backgroundColor: Colors.amber,
-                                  colorText: Colors.white,
-                                );
-                              } catch (e) {
-                                Get.back(); // close progress
-                                Get.snackbar(
-                                  'Error',
-                                  e.toString(),
-                                  backgroundColor: Colors.redAccent,
-                                  colorText: Colors.white,
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.close_rounded, size: 16, color: Colors.orange),
-                            label: const Text('Batalkan Kehadiran', style: TextStyle(color: Colors.orange)),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.orange),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          )
-                        : ElevatedButton.icon(
-                            onPressed: () async {
-                              Get.back(); // close bottom sheet
-                              Get.dialog(
-                                const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),
-                                barrierDismissible: false,
-                              );
-                              try {
-                                final service = ExamSessionService();
-                                await service.recordProctorScanAttendance(
-                                  schoolId: widget.schoolId,
-                                  sessionId: widget.session.id,
-                                  studentId: student.studentId,
-                                );
-                                Get.back(); // close progress
-                                Get.snackbar(
-                                  'Sukses',
-                                  'Murid berhasil diabsen manual.',
-                                  backgroundColor: Colors.green,
-                                  colorText: Colors.white,
-                                );
-                              } catch (e) {
-                                Get.back(); // close progress
-                                Get.snackbar(
-                                  'Error',
-                                  e.toString(),
-                                  backgroundColor: Colors.redAccent,
-                                  colorText: Colors.white,
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                            label: const Text('Absen Manual (Tandai Hadir)'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF8B5CF6),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(student.studentName, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: titleColor)),
+                    Text('Bangku #${student.seatNumber} • NIS: ${student.nis}', style: TextStyle(fontSize: 11, color: subTextColor)),
+                  ])),
+                  if (student.submittedAt != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.cyan.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
+                      ),
+                      child: const Text('✓ Selesai', style: TextStyle(color: Colors.cyan, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                ]),
+                if (student.submittedAt == null && !isFinished) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: student.scannedAt != null
+                            ? OutlinedButton.icon(
+                                onPressed: (isCancelling || isAbsenting)
+                                    ? null
+                                    : () async {
+                                        setSheetState(() => isCancelling = true);
+                                        try {
+                                          await ExamSessionService().cancelProctorScanAttendance(
+                                            schoolId: widget.schoolId,
+                                            sessionId: widget.session.id,
+                                            studentId: student.studentId,
+                                          );
+                                          Get.back();
+                                          Get.snackbar('Sukses', 'Kehadiran manual dibatalkan.',
+                                            backgroundColor: Colors.amber, colorText: Colors.white);
+                                        } catch (e) {
+                                          setSheetState(() => isCancelling = false);
+                                          Get.snackbar('Error', e.toString(),
+                                            backgroundColor: Colors.redAccent, colorText: Colors.white);
+                                        }
+                                      },
+                                icon: isCancelling
+                                    ? const SizedBox(width: 14, height: 14,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange))
+                                    : const Icon(Icons.close_rounded, size: 16, color: Colors.orange),
+                                label: Text(isCancelling ? 'Memproses...' : 'Batalkan Kehadiran',
+                                  style: const TextStyle(color: Colors.orange)),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.orange),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              )
+                            : ElevatedButton.icon(
+                                onPressed: (isCancelling || isAbsenting)
+                                    ? null
+                                    : () async {
+                                        setSheetState(() => isAbsenting = true);
+                                        try {
+                                          await ExamSessionService().recordProctorScanAttendance(
+                                            schoolId: widget.schoolId,
+                                            sessionId: widget.session.id,
+                                            studentId: student.studentId,
+                                          );
+                                          Get.back();
+                                          Get.snackbar('Sukses', 'Murid berhasil diabsen manual.',
+                                            backgroundColor: Colors.green, colorText: Colors.white);
+                                        } catch (e) {
+                                          setSheetState(() => isAbsenting = false);
+                                          Get.snackbar('Error', e.toString(),
+                                            backgroundColor: Colors.redAccent, colorText: Colors.white);
+                                        }
+                                      },
+                                icon: isAbsenting
+                                    ? const SizedBox(width: 14, height: 14,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                    : const Icon(Icons.check_circle_outline_rounded, size: 16),
+                                label: Text(isAbsenting ? 'Memproses...' : 'Absen Manual (Tandai Hadir)'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF8B5CF6),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
-            const SizedBox(height: 20),
-            Text('Riwayat Log Aktivitas', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: titleColor)),
-            const Divider(height: 16),
-            if (sortedLog.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Center(child: Text(
-                  student.submittedAt != null
-                      ? 'Murid telah menyelesaikan dan mengumpulkan ujian.'
-                      : 'Belum ada aktivitas (murid belum mulai mengerjakan ujian).',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: subTextColor))),
-              )
-            else
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: sortedLog.length,
-                  itemBuilder: (_, idx) {
-                    final log = sortedLog[idx] as Map<String, dynamic>;
-                    final logType = log['type']?.toString() ?? '';
-                    final logDesc = log['description']?.toString() ?? '-';
-                    final ts = log['timestamp'];
-                    final logTime = ts is Timestamp ? ts.toDate() : null;
+                const SizedBox(height: 20),
+                Text('Riwayat Log Aktivitas', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: titleColor)),
+                const Divider(height: 16),
+                if (activityLog.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Center(child: Text(
+                      student.submittedAt != null
+                          ? 'Murid telah menyelesaikan dan mengumpulkan ujian.'
+                          : 'Belum ada aktivitas (murid belum mulai mengerjakan ujian).',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: subTextColor))),
+                  )
+                else
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: sortedLog.length,
+                      itemBuilder: (_, idx) {
+                        final log = sortedLog[idx] as Map<String, dynamic>;
+                        final logType = log['type']?.toString() ?? '';
+                        final logDesc = log['description']?.toString() ?? '-';
+                        final ts = log['timestamp'];
+                        final logTime = ts is Timestamp ? ts.toDate() : null;
 
-                    Color lc = Colors.grey;
-                    if (logType.toLowerCase().contains('standby')) lc = Colors.green;
-                    else if (logType.toLowerCase().contains('keluar')) lc = Colors.redAccent;
-                    else if (logType.toLowerCase().contains('off') || logType.toLowerCase().contains('kunci')) lc = Colors.orange;
+                        Color lc = Colors.grey;
+                        if (logType.toLowerCase().contains('standby')) lc = Colors.green;
+                        else if (logType.toLowerCase().contains('keluar')) lc = Colors.redAccent;
+                        else if (logType.toLowerCase().contains('off') || logType.toLowerCase().contains('kunci')) lc = Colors.orange;
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        SizedBox(width: 58, child: Text(
-                          logTime != null ? DateFormat('HH:mm:ss').format(logTime) : '--:--:--',
-                          style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: Colors.grey))),
-                        Container(margin: const EdgeInsets.only(top: 4), width: 7, height: 7,
-                          decoration: BoxDecoration(color: lc, shape: BoxShape.circle)),
-                        const SizedBox(width: 10),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(logType, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: lc)),
-                          Text(logDesc, style: TextStyle(fontSize: 10, color: subTextColor)),
-                        ])),
-                      ]),
-                    );
-                  },
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 5),
+                          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            SizedBox(width: 58, child: Text(
+                              logTime != null ? DateFormat('HH:mm:ss').format(logTime) : '--:--:--',
+                              style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: Colors.grey))),
+                            Container(margin: const EdgeInsets.only(top: 4), width: 7, height: 7,
+                              decoration: BoxDecoration(color: lc, shape: BoxShape.circle)),
+                            const SizedBox(width: 10),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(logType, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: lc)),
+                              Text(logDesc, style: TextStyle(fontSize: 10, color: subTextColor)),
+                            ])),
+                          ]),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
+                    foregroundColor: titleColor, elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
-              ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => Get.back(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
-                foregroundColor: titleColor, elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
       isScrollControlled: true,
     );
@@ -1577,4 +2425,24 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
   }
 }
 
-
+String _getGradeLevel(String className) {
+  final cleanName = className.toUpperCase().trim();
+  if (cleanName.startsWith('XII') || cleanName.contains('12')) return '3';
+  if (cleanName.startsWith('XI') || cleanName.contains('11')) {
+    if (!cleanName.startsWith('XII')) return '2';
+  }
+  if (cleanName.startsWith('X') || cleanName.contains('10')) {
+    if (!cleanName.startsWith('XII') && !cleanName.startsWith('XI')) return '1';
+  }
+  if (cleanName.startsWith('IX') || cleanName.contains('9')) return '3';
+  if (cleanName.startsWith('VIII') || cleanName.contains('8')) return '2';
+  if (cleanName.startsWith('VII') || cleanName.contains('7')) {
+    if (!cleanName.startsWith('VIII')) return '1';
+  }
+  if (cleanName.contains('6')) return '6';
+  if (cleanName.contains('5')) return '5';
+  if (cleanName.contains('4')) return '4';
+  if (cleanName.contains('3')) return '3';
+  if (cleanName.contains('2')) return '2';
+  return '1';
+}

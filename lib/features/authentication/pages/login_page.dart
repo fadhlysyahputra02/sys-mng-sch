@@ -16,6 +16,7 @@ import '../../../core/localization/app_localization.dart';
 import '../widgets/auth_background.dart';
 import '../widgets/language_toggle_button.dart';
 import '../widgets/theme_toggle_button.dart';
+import 'login_success_page.dart';
 
 
 class LoginPage extends StatefulWidget {
@@ -313,38 +314,55 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
+      String targetRoute = '';
+      dynamic targetArgs;
+
       switch (role) {
         case 'super_admin':
-          Get.offAllNamed(AppRoutes.superAdmin);
+          targetRoute = AppRoutes.superAdmin;
           break;
         case 'school_admin':
-          Get.offAllNamed(AppRoutes.schoolAdmin);
+          targetRoute = AppRoutes.schoolAdmin;
           break;
         case 'teacher':
-          Get.offAllNamed(AppRoutes.teacher);
+          targetRoute = AppRoutes.teacher;
           break;
         case 'student':
-          Get.offAllNamed(AppRoutes.student);
+          targetRoute = AppRoutes.student;
           break;
         case 'parent':
           if (userData['schoolId'] == null || (userData['schoolId'] as String).isEmpty) {
-            Get.offAllNamed(AppRoutes.parentRegister, arguments: {'showScanner': true});
+            targetRoute = AppRoutes.parentRegister;
+            targetArgs = {'showScanner': true};
           } else {
-            Get.offAllNamed(AppRoutes.parent);
+            targetRoute = AppRoutes.parent;
           }
           break;
         case 'officer':
-          Get.offAllNamed(AppRoutes.officerDashboard);
+          targetRoute = AppRoutes.officerDashboard;
           break;
         case 'tu':
-          Get.offAllNamed(AppRoutes.tuDashboard);
+          targetRoute = AppRoutes.tuDashboard;
           break;
         case 'librarian':
-          Get.offAllNamed(AppRoutes.librarianDashboard);
+          targetRoute = AppRoutes.librarianDashboard;
           break;
         default:
           throw ('Unknown role');
       }
+
+      Get.off(
+        () => LoginSuccessPage(
+          destinationRoute: targetRoute,
+          destinationArguments: targetArgs,
+          userName: SessionService.currentUser?.nama ?? '',
+          roleName: role,
+          logoBase64: _schoolLogoBase64,
+          schoolName: _schoolName,
+        ),
+        transition: Transition.fadeIn,
+        duration: const Duration(milliseconds: 500),
+      );
     } catch (e) {
       debugPrint('LOGIN ERROR: $e');
       String errorMessage = AppLocalization.loginDefaultError;

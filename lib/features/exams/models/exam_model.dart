@@ -101,6 +101,54 @@ class Exam {
     required this.questions,
     this.susulanStudentIds = const [],
   });
+  
+  Exam copyWith({
+    String? id,
+    String? title,
+    String? description,
+    String? classId,
+    String? className,
+    String? subjectId,
+    String? subjectName,
+    String? teacherId,
+    String? teacherName,
+    List<String>? teacherIds,
+    List<String>? teacherNames,
+    int? durationMinutes,
+    bool? syncToGrades,
+    String? gradeCategory,
+    String? tahunAjaran,
+    String? semester,
+    DateTime? createdAt,
+    DateTime? dueDate,
+    String? status,
+    List<ExamQuestion>? questions,
+    List<String>? susulanStudentIds,
+  }) {
+    return Exam(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      classId: classId ?? this.classId,
+      className: className ?? this.className,
+      subjectId: subjectId ?? this.subjectId,
+      subjectName: subjectName ?? this.subjectName,
+      teacherId: teacherId ?? this.teacherId,
+      teacherName: teacherName ?? this.teacherName,
+      teacherIds: teacherIds ?? this.teacherIds,
+      teacherNames: teacherNames ?? this.teacherNames,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      syncToGrades: syncToGrades ?? this.syncToGrades,
+      gradeCategory: gradeCategory ?? this.gradeCategory,
+      tahunAjaran: tahunAjaran ?? this.tahunAjaran,
+      semester: semester ?? this.semester,
+      createdAt: createdAt ?? this.createdAt,
+      dueDate: dueDate ?? this.dueDate,
+      status: status ?? this.status,
+      questions: questions ?? this.questions,
+      susulanStudentIds: susulanStudentIds ?? this.susulanStudentIds,
+    );
+  }
 
   factory Exam.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
