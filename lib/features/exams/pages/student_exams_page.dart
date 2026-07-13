@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
@@ -81,15 +82,20 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.lock_rounded, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+              const Icon(Icons.lock_rounded, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked',
+                style: const TextStyle(color: Colors.amber),
+              ),
             ],
           ),
           content: Text(
-            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            AppLocalization.isIndonesian
+                ? 'Sekolah belum berlangganan untuk mengaktifkan fitur ini.'
+                : 'The school has not subscribed to enable this feature.',
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -105,7 +111,10 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                   }
                 }
               },
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+              child: Text(
+                AppLocalization.isIndonesian ? 'Tutup' : 'Close',
+                style: const TextStyle(color: Color(0xFF6366F1)),
+              ),
             ),
           ],
         );
@@ -148,7 +157,7 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                         ),
                       ),
                 title: Text(
-                  'Ujian Online Kelas',
+                  AppLocalization.isIndonesian ? 'Ujian Online Kelas' : 'Class Online Exams',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                 ),
               ),
@@ -185,12 +194,14 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Tidak Ada Ujian Aktif',
+                              AppLocalization.isIndonesian ? 'Tidak Ada Ujian Aktif' : 'No Active Exams',
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Selamat! Saat ini tidak ada ujian online aktif yang harus dikerjakan untuk kelas Anda.',
+                              AppLocalization.isIndonesian
+                                  ? 'Selamat! Saat ini tidak ada ujian online aktif yang harus dikerjakan untuk kelas Anda.'
+                                  : 'Congratulations! There are currently no active online exams to take for your class.',
                               style: TextStyle(fontSize: 12, color: subTextColor),
                               textAlign: TextAlign.center,
                             ),
@@ -276,10 +287,10 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                                   ),
                                                   child: Text(
                                                       activeEvent.examStatus == 'Active'
-                                                          ? 'Sedang Berlangsung'
+                                                          ? (AppLocalization.isIndonesian ? 'Sedang Berlangsung' : 'In Progress')
                                                           : activeEvent.examStatus == 'Planning'
-                                                              ? 'Persiapan'
-                                                              : 'Terjadwal',
+                                                              ? (AppLocalization.isIndonesian ? 'Persiapan' : 'Preparation')
+                                                              : (AppLocalization.isIndonesian ? 'Terjadwal' : 'Scheduled'),
                                                       style: TextStyle(
                                                           color: activeEvent.examStatus == 'Active'
                                                               ? const Color(0xFF10B981)
@@ -353,8 +364,8 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                           ),
                                           child: Text(
                                             (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
-                                                ? 'Sedang Dikoreksi'
-                                                : 'Selesai',
+                                                ? (AppLocalization.isIndonesian ? 'Sedang Dikoreksi' : 'Under Review')
+                                                : (AppLocalization.isIndonesian ? 'Selesai' : 'Completed'),
                                             style: TextStyle(
                                               color: (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
                                                   ? Colors.amber
@@ -371,9 +382,9 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                             color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
-                                          child: const Text(
-                                            'Susulan',
-                                            style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold, fontSize: 10),
+                                          child: Text(
+                                            AppLocalization.isIndonesian ? 'Susulan' : 'Makeup Exam',
+                                            style: const TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold, fontSize: 10),
                                           ),
                                         )
                                       else if (isExpired)
@@ -383,9 +394,9 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                             color: Colors.redAccent.withValues(alpha: 0.15),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
-                                          child: const Text(
-                                            'Ditutup',
-                                            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 10),
+                                          child: Text(
+                                            AppLocalization.isIndonesian ? 'Ditutup' : 'Closed',
+                                            style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 10),
                                           ),
                                         )
                                       else
@@ -395,9 +406,9 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                             color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
-                                          child: const Text(
-                                            'Belum Dikerjakan',
-                                            style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 10),
+                                          child: Text(
+                                            AppLocalization.isIndonesian ? 'Belum Dikerjakan' : 'Not Started',
+                                            style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 10),
                                           ),
                                         ),
                                     ],
@@ -414,11 +425,13 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Durasi: ${exam.durationMinutes} Menit | ${exam.questions.length} Soal',
+                                        AppLocalization.isIndonesian
+                                            ? 'Durasi: ${exam.durationMinutes} Menit | ${exam.questions.length} Soal'
+                                            : 'Duration: ${exam.durationMinutes} Mins | ${exam.questions.length} Questions',
                                         style: TextStyle(fontSize: 11, color: subTextColor, fontWeight: FontWeight.w600),
                                       ),
                                       Text(
-                                        'Batas: $dateStr',
+                                        AppLocalization.isIndonesian ? 'Batas: $dateStr' : 'Deadline: $dateStr',
                                         style: TextStyle(fontSize: 11, color: subTextColor, fontWeight: FontWeight.w600),
                                       ),
                                     ],
@@ -439,8 +452,12 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                           Expanded(
                                             child: Text(
                                               (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
-                                                  ? 'Jawaban terkirim, menunggu penilaian essay.'
-                                                  : 'Jawaban Benar: ${submission.correctCount} / ${exam.questions.where((q) => q.type != 'essay').length} PG',
+                                                  ? (AppLocalization.isIndonesian
+                                                      ? 'Jawaban terkirim, menunggu penilaian essay.'
+                                                      : 'Answers submitted, awaiting essay grading.')
+                                                  : (AppLocalization.isIndonesian
+                                                      ? 'Jawaban Benar: ${submission.correctCount} / ${exam.questions.where((q) => q.type != 'essay').length} PG'
+                                                      : 'Correct Answers: ${submission.correctCount} / ${exam.questions.where((q) => q.type != 'essay').length} MC'),
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: titleColor,
@@ -454,8 +471,8 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                           const SizedBox(width: 12),
                                           Text(
                                             (exam.questions.any((q) => q.type == 'essay') && !submission.isGraded)
-                                                ? 'Skor: --'
-                                                : 'Skor: ${submission.score.toInt()}',
+                                                ? (AppLocalization.isIndonesian ? 'Skor: --' : 'Score: --')
+                                                : (AppLocalization.isIndonesian ? 'Skor: ${submission.score.toInt()}' : 'Score: ${submission.score.toInt()}'),
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
@@ -471,7 +488,9 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                     SizedBox(
                                       width: double.infinity,
                                       child: Text(
-                                        'Ujian sudah ditutup dan Anda melewatkan pengerjaan ujian ini.',
+                                        AppLocalization.isIndonesian
+                                            ? 'Ujian sudah ditutup dan Anda melewatkan pengerjaan ujian ini.'
+                                            : 'The exam is closed and you missed taking this exam.',
                                         style: TextStyle(fontSize: 11, color: Colors.redAccent.withValues(alpha: 0.8), fontStyle: FontStyle.italic),
                                         textAlign: TextAlign.center,
                                       ),
@@ -506,8 +525,10 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
 
                                             if (attendanceSnapshot.docs.isEmpty) {
                                               Get.snackbar(
-                                                'Absensi Diperlukan',
-                                                'Anda belum melakukan absensi hari ini. Silakan lakukan absensi terlebih dahulu sebelum dapat mengerjakan ujian online.',
+                                                AppLocalization.isIndonesian ? 'Absensi Diperlukan' : 'Attendance Required',
+                                                AppLocalization.isIndonesian
+                                                    ? 'Anda belum melakukan absensi hari ini. Silakan lakukan absensi terlebih dahulu sebelum dapat mengerjakan ujian online.'
+                                                    : 'You have not checked in today. Please check in attendance first before taking online exams.',
                                                 snackPosition: SnackPosition.TOP,
                                                 backgroundColor: Colors.amber,
                                                 colorText: Colors.black,
@@ -525,7 +546,9 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                                   final status = (doc.data()['status'] ?? '').toString().toLowerCase();
                                                   if (status == 'sakit' || status == 'izin') {
                                                     isPermittedOrSick = true;
-                                                    blockedReason = status == 'sakit' ? 'Sakit' : 'Izin';
+                                                    blockedReason = status == 'sakit'
+                                                        ? (AppLocalization.isIndonesian ? 'Sakit' : 'Sick')
+                                                        : (AppLocalization.isIndonesian ? 'Izin' : 'Permitted');
                                                   }
                                                   break;
                                                 }
@@ -540,7 +563,9 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                                     final status = (data['status'] ?? '').toString().toLowerCase();
                                                     if (status == 'sakit' || status == 'izin') {
                                                       isPermittedOrSick = true;
-                                                      blockedReason = status == 'sakit' ? 'Sakit' : 'Izin';
+                                                      blockedReason = status == 'sakit'
+                                                          ? (AppLocalization.isIndonesian ? 'Sakit' : 'Sick')
+                                                          : (AppLocalization.isIndonesian ? 'Izin' : 'Permitted');
                                                     }
                                                     break;
                                                   }
@@ -549,8 +574,10 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
 
                                               if (isPermittedOrSick) {
                                                 Get.snackbar(
-                                                  'Akses Ditolak',
-                                                  'Anda tidak dapat mengikuti ujian online karena status Anda hari ini atau di mata pelajaran ini adalah: $blockedReason.',
+                                                  AppLocalization.isIndonesian ? 'Akses Ditolak' : 'Access Denied',
+                                                  AppLocalization.isIndonesian
+                                                      ? 'Anda tidak dapat mengikuti ujian online karena status Anda hari ini atau di mata pelajaran ini adalah: $blockedReason.'
+                                                      : 'You cannot take this online exam because your attendance status today or for this subject is: $blockedReason.',
                                                   snackPosition: SnackPosition.TOP,
                                                   backgroundColor: Colors.redAccent,
                                                   colorText: Colors.white,
@@ -571,8 +598,10 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                           } catch (e) {
                                             Get.back(); // close loading dialog
                                             Get.snackbar(
-                                              'Gagal Verifikasi',
-                                              'Gagal memeriksa status absensi: $e',
+                                              AppLocalization.isIndonesian ? 'Gagal Verifikasi' : 'Verification Failed',
+                                              AppLocalization.isIndonesian
+                                                  ? 'Gagal memeriksa status absensi: $e'
+                                                  : 'Failed to verify attendance status: $e',
                                               backgroundColor: Colors.redAccent,
                                               colorText: Colors.white,
                                             );
@@ -585,9 +614,9 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                           padding: const EdgeInsets.symmetric(vertical: 12),
                                         ),
-                                        child: const Text(
-                                          'Mulai Kerjakan Ujian',
-                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        child: Text(
+                                          AppLocalization.isIndonesian ? 'Mulai Kerjakan Ujian' : 'Start Taking Exam',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                         ),
                                       ),
                                     ),

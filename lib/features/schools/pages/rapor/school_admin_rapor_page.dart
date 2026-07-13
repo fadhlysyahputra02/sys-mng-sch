@@ -505,7 +505,8 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                                     final data = doc.data();
                                     final name = data['nama'] ?? 'Murid';
                                     final nis = data['nis'] ?? '-';
-                                    final gender = data['jenisKelamin'] ?? 'L';
+                                    final genderRaw = data['gender']?.toString().toLowerCase() ?? 'laki-laki';
+                                    final gender = genderRaw.startsWith('p') ? 'P' : 'L';
 
                                     // Check report status
                                     final cleanYear = _tahunAjaran.replaceAll('/', '-');

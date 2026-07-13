@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../core/localization/app_localization.dart';
 
 class FlipCard extends StatefulWidget {
   final Widget front;
@@ -161,7 +162,7 @@ class _FlipCardState extends State<FlipCard> with SingleTickerProviderStateMixin
           opacity: _showHint ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 400),
           child: Text(
-            '← Geser →',
+            AppLocalization.isIndonesian ? '← Geser →' : '← Swipe →',
             style: TextStyle(
               fontSize: 9,
               color: hintTextColor,

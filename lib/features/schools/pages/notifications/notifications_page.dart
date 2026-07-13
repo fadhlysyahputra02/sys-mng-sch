@@ -370,6 +370,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           keep = true;
                         } else if (targetType == 'murid' && _studentNama != null && data['targetName'] == _studentNama) {
                           keep = true;
+                        } else if (targetType == 'personal' && targetId == user.uid) {
+                          keep = true;
                         }
                       }
 
@@ -380,12 +382,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       children: [
                         _buildNotificationList(
                           context,
-                          filteredDocs.where((doc) => doc.data()['targetType'] == 'umum').toList(),
+                          filteredDocs.where((doc) => 
+                            doc.data()['targetType'] == 'umum' && 
+                            doc.data()['senderRole'] != 'tu'
+                          ).toList(),
                           'umum',
                         ),
                         _buildNotificationList(
                           context,
-                          filteredDocs.where((doc) => doc.data()['targetType'] == 'kelas').toList(),
+                          filteredDocs.where((doc) => 
+                            doc.data()['targetType'] == 'kelas' && 
+                            doc.data()['senderRole'] != 'tu'
+                          ).toList(),
                           'kelas',
                         ),
                         _buildNotificationList(
@@ -401,8 +409,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           context,
                           isStudent
                               ? filteredDocs.where((doc) =>
-                                  doc.data()['targetType'] == 'murid' && doc.data()['senderRole'] != 'teacher').toList()
-                              : filteredDocs.where((doc) => doc.data()['targetType'] == 'murid').toList(),
+                                  (doc.data()['targetType'] == 'murid' && doc.data()['senderRole'] != 'teacher') ||
+                                  (doc.data()['targetType'] == 'personal') ||
+                                  (doc.data()['senderRole'] == 'tu')
+                                ).toList()
+                              : filteredDocs.where((doc) =>
+                                  doc.data()['targetType'] == 'murid' ||
+                                  doc.data()['targetType'] == 'personal' ||
+                                  doc.data()['senderRole'] == 'tu'
+                                ).toList(),
                           'murid',
                         ),
                       ],

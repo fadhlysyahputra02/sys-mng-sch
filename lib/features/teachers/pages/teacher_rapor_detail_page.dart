@@ -90,6 +90,13 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
   Map<String, int> _gradeTemplates = {};
   String? _schoolLogoBase64;
 
+  // Cache data cetak PDF untuk instant loading
+  final Map<String, String> _subjectIdToName = {};
+  final Map<String, int> _subjectIdToKkm = {};
+  final Map<String, Map<String, double>> _subjectWeightsMap = {};
+  Map<String, String> _descMap = {};
+  bool _isDataLoadedForPrint = false;
+
   @override
   void initState() {
     super.initState();
@@ -110,14 +117,8 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
 
   Future<void> _loadAllData() async {
     try {
-      // 1. Ambil Metadata Sekolah & Wali Kelas secara sekuensial terlebih dahulu
+      // 1. Ambil Metadata Sekolah secara sekuensial terlebih dahulu untuk tahunAjaran & semester
       final schoolData = await SchoolService().getSchoolByDomain(widget.schoolId);
-      final teacherDoc = await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .collection('teachers')
-          .doc(widget.teacherId)
-          .get();
 
       if (schoolData != null) {
         _schoolName = schoolData['namaSekolah'] ?? 'Sekolah';
@@ -134,13 +135,15 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
         });
         _schoolLogoBase64 = schoolData['logoBase64'] as String?;
       }
-      if (teacherDoc.exists) {
-        _teacherName = teacherDoc.data()?['nama'] ?? 'Wali Kelas';
-        _teacherUserId = teacherDoc.data()?['uid']?.toString();
-      }
 
-      // 2. Ambil absensi auto-hitung dari system & data rapor tersimpan jika ada menggunakan semester aktif
+      // 2. Ambil semua data lainnya secara paralel (Guru, Absensi, Laporan tersimpan, Mapel, Bobot, Deskripsi)
       final results = await Future.wait([
+        FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('teachers')
+            .doc(widget.teacherId)
+            .get(),
         _raporService.calculateAttendanceStats(
           schoolId: widget.schoolId,
           studentId: widget.studentId,
@@ -153,10 +156,73 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
           tahunAjaran: _tahunAjaran,
           semester: _activeSemester,
         ),
+        FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('subjects')
+            .get(),
+        FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('subject_weights')
+            .where('classId', isEqualTo: widget.classId)
+            .where('tahunAjaran', isEqualTo: _tahunAjaran)
+            .where('semester', isEqualTo: _activeSemester)
+            .get(),
+        _gradeService.getSubjectDescriptions(
+          schoolId: widget.schoolId,
+          studentId: widget.studentId,
+          tahunAjaran: _tahunAjaran,
+          semester: _activeSemester,
+        ),
       ]);
       
-      final calculatedAbs = results[0] as Map<String, int>;
-      final reportDoc = results[1] as DocumentSnapshot<Map<String, dynamic>>;
+      final teacherDoc = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+      final calculatedAbs = results[1] as Map<String, int>;
+      final reportDoc = results[2] as DocumentSnapshot<Map<String, dynamic>>;
+      final subjectsSnapshot = results[3] as QuerySnapshot<Map<String, dynamic>>;
+      final weightsSnapshot = results[4] as QuerySnapshot<Map<String, dynamic>>;
+      final descMapData = results[5] as Map<String, String>;
+
+      if (teacherDoc.exists) {
+        _teacherName = teacherDoc.data()?['nama'] ?? 'Wali Kelas';
+        _teacherUserId = teacherDoc.data()?['uid']?.toString();
+      }
+
+      // Simpan data mapel
+      _subjectIdToName.clear();
+      _subjectIdToKkm.clear();
+      for (final sDoc in subjectsSnapshot.docs) {
+        final data = sDoc.data();
+        final id = data['subjectId']?.toString() ?? sDoc.id;
+        final name = data['namaMapel']?.toString() ?? 'Mapel';
+        final kkmVal = data['kkm'] is int ? data['kkm'] as int : (int.tryParse(data['kkm']?.toString() ?? '75') ?? 75);
+        _subjectIdToName[id] = name;
+        _subjectIdToKkm[id] = kkmVal;
+      }
+
+      // Simpan bobot mapel
+      _subjectWeightsMap.clear();
+      for (final wDoc in weightsSnapshot.docs) {
+        final data = wDoc.data();
+        final subjectId = data['subjectId']?.toString() ?? '';
+        final weightsData = data['weights'] as Map<String, dynamic>?;
+        if (subjectId.isNotEmpty && weightsData != null) {
+          final Map<String, double> parsed = {};
+          weightsData.forEach((k, v) {
+            if (v is num) {
+              parsed[k] = v.toDouble();
+            } else if (v != null) {
+              parsed[k] = double.tryParse(v.toString()) ?? 20.0;
+            }
+          });
+          _subjectWeightsMap[subjectId] = parsed;
+        }
+      }
+
+      // Simpan deskripsi & tandai data cetak siap
+      _descMap = descMapData;
+      _isDataLoadedForPrint = true;
 
       if (mounted) {
         setState(() {
@@ -164,7 +230,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
           _sakitController.text = calculatedAbs['sakit'].toString();
           _izinController.text = calculatedAbs['izin'].toString();
           _alpaController.text = calculatedAbs['alpa'].toString();
-
+ 
           // Jika data rapor sudah pernah disimpan sebelumnya, timpa isian form
           if (reportDoc.exists) {
             final data = reportDoc.data()!;
@@ -184,7 +250,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
               final spiritualDesc = data['sikapSpiritualDeskripsi'] ?? '';
               final sosialPred = data['sikapSosialPredikat'] ?? 'B';
               final sosialDesc = data['sikapSosialDeskripsi'] ?? '';
-
+ 
               _attitudeAspects = [
                 AttitudeAspectItem(name: 'Spiritual', desc: spiritualDesc, predikat: spiritualPred),
                 AttitudeAspectItem(name: 'Sosial', desc: sosialDesc, predikat: sosialPred),
@@ -201,7 +267,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
               AttitudeAspectItem(name: 'Sosial', desc: '', predikat: 'B'),
             ];
           }
-
+ 
           _isLoadingReportData = false;
         });
       }
@@ -266,149 +332,128 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
     }
   }
 
-  /// Memuat nilai akademik dan mencetak Rapor PDF
   Future<void> _printRapor(List<QueryDocumentSnapshot<Map<String, dynamic>>> gradeDocs) async {
-    // 1. Ambil list mata pelajaran dari sekolah
-    final subjectsSnapshot = await FirebaseFirestore.instance
-        .collection('schools')
-        .doc(widget.schoolId)
-        .collection('subjects')
-        .get();
+    try {
+      if (!_isDataLoadedForPrint) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalization.isIndonesian
+                  ? 'Mohon tunggu, data sedang dimuat...'
+                  : 'Please wait, data is loading...'),
+              backgroundColor: const Color(0xFF8B5CF6),
+            ),
+          );
+        }
+        return;
+      }
 
-    final Map<String, String> subjectIdToName = {};
-    final Map<String, int> subjectIdToKkm = {};
-    for (final sDoc in subjectsSnapshot.docs) {
-      final data = sDoc.data();
-      final id = data['subjectId']?.toString() ?? sDoc.id;
-      final name = data['namaMapel']?.toString() ?? 'Mapel';
-      final kkmVal = data['kkm'] is int ? data['kkm'] as int : (int.tryParse(data['kkm']?.toString() ?? '75') ?? 75);
-      subjectIdToName[id] = name;
-      subjectIdToKkm[id] = kkmVal;
-    }
+      // 1. Kelompokkan nilai per mapel dan kategori
+      final Map<String, Map<String, List<Map<String, dynamic>>>> subjectCategoryGrades = {};
+      for (final gDoc in gradeDocs) {
+        final data = gDoc.data();
+        final subjectId = data['subjectId']?.toString() ?? '';
+        final category = data['category']?.toString() ?? 'Tugas';
+        final scores = data['scores'] as Map<String, dynamic>? ?? {};
 
-    // 2. Ambil bobot mapel
-    final weightsSnapshot = await FirebaseFirestore.instance
-        .collection('schools')
-        .doc(widget.schoolId)
-        .collection('subject_weights')
-        .where('classId', isEqualTo: widget.classId)
-        .where('tahunAjaran', isEqualTo: _tahunAjaran)
-        .where('semester', isEqualTo: _activeSemester)
-        .get();
+        if (subjectId.isEmpty) continue;
 
-    final Map<String, Map<String, double>> subjectWeightsMap = {};
-    for (final wDoc in weightsSnapshot.docs) {
-      final data = wDoc.data();
-      final subjectId = data['subjectId']?.toString() ?? '';
-      final weightsData = data['weights'] as Map<String, dynamic>?;
-      if (subjectId.isNotEmpty && weightsData != null) {
-        final Map<String, double> parsed = {};
-        weightsData.forEach((k, v) {
-          parsed[k] = (v as num).toDouble();
+        subjectCategoryGrades.putIfAbsent(subjectId, () => {});
+        subjectCategoryGrades[subjectId]!.putIfAbsent(category, () => []);
+
+        final cleanYear = _tahunAjaran.replaceAll('/', '_');
+        final fallbackKey = '${widget.studentId}_${cleanYear}_$_activeSemester';
+        final detail = scores[widget.studentId] ?? scores[fallbackKey];
+
+        subjectCategoryGrades[subjectId]![category]!.add({
+          widget.studentId: detail,
         });
-        subjectWeightsMap[subjectId] = parsed;
+      }
+
+      // 2. Hitung nilai akhir per mapel untuk siswa ini
+      final List<Map<String, dynamic>> subjectScores = [];
+
+      _subjectIdToName.forEach((subjectId, subjectName) {
+        final catGrades = subjectCategoryGrades[subjectId] ?? {};
+        final Map<String, double> categoryAverages = {};
+
+        catGrades.forEach((category, listScores) {
+          double sum = 0.0;
+          int count = 0;
+          for (final scores in listScores) {
+            final detail = scores[widget.studentId];
+            if (detail != null && detail is Map) {
+              final scoreVal = (detail['score'] ?? 0.0) as num;
+              sum += scoreVal.toDouble();
+              count++;
+            }
+          }
+          if (count > 0) {
+            categoryAverages[category] = sum / count;
+          }
+        });
+
+        // Ambil bobot aktif
+        final weights = _subjectWeightsMap[subjectId] ?? {
+          'Tugas': 20.0,
+          'Kuis': 20.0,
+          'Ulangan Harian': 20.0,
+          'UTS': 20.0,
+          'UAS': 20.0,
+        };
+
+        double weightedSum = 0.0;
+        final double totalWeightSum = weights.values.fold(0.0, (total, w) => total + w);
+        categoryAverages.forEach((category, avg) {
+          final w = weights[category] ?? 20.0;
+          weightedSum += avg * w;
+        });
+
+        final double finalScore = totalWeightSum > 0 ? weightedSum / totalWeightSum : 0.0;
+
+        // Masukkan ke data cetak dengan KKM dinamis
+        subjectScores.add({
+          'name': subjectName,
+          'kkm': (_subjectIdToKkm[subjectId] ?? 75).toString(),
+          'score': finalScore,
+          'deskripsi': _descMap[subjectId] ?? '',
+        });
+      });
+
+      // Urutkan mapel agar alfabetis
+      subjectScores.sort((a, b) => a['name'].toString().compareTo(b['name'].toString()));
+
+      // 3. Kirim data ke helper cetak PDF
+      await RaporPdfHelper.generateAndShowRaporPdf(
+        schoolName: _schoolName,
+        className: widget.className,
+        teacherName: _teacherName,
+        studentName: widget.studentName,
+        studentNis: widget.studentNis,
+        semester: _activeSemester,
+        yearInfo: _tahunAjaran,
+        subjectScores: subjectScores,
+        attitudeAspects: _attitudeAspects.map((e) => e.toMap()).toList(),
+        sakit: int.tryParse(_sakitController.text) ?? 0,
+        izin: int.tryParse(_izinController.text) ?? 0,
+        alpa: int.tryParse(_alpaController.text) ?? 0,
+        catatanWali: _catatanController.text,
+        gradeTemplates: _gradeTemplates,
+        logoBase64: _schoolLogoBase64,
+      );
+    } catch (e, stackTrace) {
+      debugPrint('Error generating PDF Report Card: $e\n$stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalization.isIndonesian
+                ? 'Gagal mencetak PDF Rapor: $e'
+                : 'Failed to print PDF Report Card: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
       }
     }
-
-    // 3. Kelompokkan nilai per mapel dan kategori
-    final Map<String, Map<String, List<Map<String, dynamic>>>> subjectCategoryGrades = {};
-    for (final gDoc in gradeDocs) {
-      final data = gDoc.data();
-      final subjectId = data['subjectId']?.toString() ?? '';
-      final category = data['category']?.toString() ?? 'Tugas';
-      final scores = data['scores'] as Map<String, dynamic>? ?? {};
-
-      if (subjectId.isEmpty) continue;
-
-      subjectCategoryGrades.putIfAbsent(subjectId, () => {});
-      subjectCategoryGrades[subjectId]!.putIfAbsent(category, () => []);
-
-      final cleanYear = _tahunAjaran.replaceAll('/', '_');
-      final fallbackKey = '${widget.studentId}_${cleanYear}_$_activeSemester';
-      final detail = scores[widget.studentId] ?? scores[fallbackKey];
-
-      subjectCategoryGrades[subjectId]![category]!.add({
-        widget.studentId: detail,
-      });
-    }
-
-    // 4. Hitung nilai akhir per mapel untuk siswa ini
-    final List<Map<String, dynamic>> subjectScores = [];
-    final descMap = await _gradeService.getSubjectDescriptions(
-      schoolId: widget.schoolId,
-      studentId: widget.studentId,
-      tahunAjaran: _tahunAjaran,
-      semester: _activeSemester,
-    );
-
-    subjectIdToName.forEach((subjectId, subjectName) {
-      final catGrades = subjectCategoryGrades[subjectId] ?? {};
-      final Map<String, double> categoryAverages = {};
-
-      catGrades.forEach((category, listScores) {
-        double sum = 0.0;
-        int count = 0;
-        for (final scores in listScores) {
-          final detail = scores[widget.studentId];
-          if (detail != null && detail is Map) {
-            final scoreVal = (detail['score'] ?? 0.0) as num;
-            sum += scoreVal.toDouble();
-            count++;
-          }
-        }
-        if (count > 0) {
-          categoryAverages[category] = sum / count;
-        }
-      });
-
-      // Ambil bobot aktif
-      final weights = subjectWeightsMap[subjectId] ?? {
-        'Tugas': 20.0,
-        'Kuis': 20.0,
-        'Ulangan Harian': 20.0,
-        'UTS': 20.0,
-        'UAS': 20.0,
-      };
-
-      double weightedSum = 0.0;
-      final double totalWeightSum = weights.values.fold(0.0, (total, w) => total + w);
-      categoryAverages.forEach((category, avg) {
-        final w = weights[category] ?? 20.0;
-        weightedSum += avg * w;
-      });
-
-      final double finalScore = totalWeightSum > 0 ? weightedSum / totalWeightSum : 0.0;
-
-      // Masukkan ke data cetak dengan KKM dinamis
-      subjectScores.add({
-        'name': subjectName,
-        'kkm': (subjectIdToKkm[subjectId] ?? 75).toString(),
-        'score': finalScore,
-        'deskripsi': descMap[subjectId] ?? '',
-      });
-    });
-
-    // Urutkan mapel agar alfabetis
-    subjectScores.sort((a, b) => a['name'].toString().compareTo(b['name'].toString()));
-
-    // 5. Kirim data ke helper cetak PDF
-    await RaporPdfHelper.generateAndShowRaporPdf(
-      schoolName: _schoolName,
-      className: widget.className,
-      teacherName: _teacherName,
-      studentName: widget.studentName,
-      studentNis: widget.studentNis,
-      semester: _activeSemester,
-      yearInfo: _tahunAjaran,
-      subjectScores: subjectScores,
-      attitudeAspects: _attitudeAspects.map((e) => e.toMap()).toList(),
-      sakit: int.tryParse(_sakitController.text) ?? 0,
-      izin: int.tryParse(_izinController.text) ?? 0,
-      alpa: int.tryParse(_alpaController.text) ?? 0,
-      catatanWali: _catatanController.text,
-      gradeTemplates: _gradeTemplates,
-      logoBase64: _schoolLogoBase64,
-    );
   }
 
   @override
@@ -773,6 +818,22 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
     required Color textColor,
     bool enabled = true,
   }) {
+    if (!enabled) {
+      return TextFormField(
+        initialValue: AppLocalization.isIndonesian ? 'Predikat $value' : 'Grade $value',
+        readOnly: true,
+        style: TextStyle(color: textColor, fontSize: 14),
+        decoration: InputDecoration(
+          labelText: AppLocalization.isIndonesian ? 'Predikat Sikap' : 'Attitude Grade',
+          labelStyle: TextStyle(color: textColor.withValues(alpha: 0.6)),
+          filled: true,
+          fillColor: cardBg,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: border)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: border)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: border)),
+        ),
+      );
+    }
     return DropdownButtonFormField<String>(
       initialValue: value,
       dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
@@ -788,10 +849,13 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       items: ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D'].map((p) {
         return DropdownMenuItem<String>(
           value: p,
-          child: Text(AppLocalization.isIndonesian ? 'Predikat $p' : 'Grade $p'),
+          child: Text(
+            AppLocalization.isIndonesian ? 'Predikat $p' : 'Grade $p',
+            style: TextStyle(color: textColor, fontSize: 14),
+          ),
         );
       }).toList(),
-      onChanged: enabled ? onChanged : null,
+      onChanged: onChanged,
     );
   }
 

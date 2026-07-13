@@ -1365,11 +1365,6 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                 actions: [
                   if (!_isMonthlyRecap) ...[
                     IconButton(
-                      icon: Icon(Icons.calendar_month_rounded, color: textColor),
-                      onPressed: _showDatePicker,
-                      tooltip: AppLocalization.isIndonesian ? 'Pilih Tanggal' : 'Select Date',
-                    ),
-                    IconButton(
                       icon: Icon(Icons.picture_as_pdf_rounded, color: textColor),
                       onPressed: _exportDailyPdf,
                       tooltip: AppLocalization.isIndonesian ? 'Ekspor PDF' : 'Export PDF',
@@ -1462,27 +1457,31 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
 
                     if (!_isMonthlyRecap) ...[
                       // Selected Date Card Header
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.calendar_today_rounded, color: Color(0xFF8B5CF6), size: 18),
-                            const SizedBox(width: 10),
-                            Text(
-                              _getFormattedIndonesianDate(_selectedDate),
-                              style: const TextStyle(
-                                color: Color(0xFF8B5CF6),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                      InkWell(
+                        onTap: _showDatePicker,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.calendar_today_rounded, color: Color(0xFF8B5CF6), size: 18),
+                              const SizedBox(width: 10),
+                              Text(
+                                _getFormattedIndonesianDate(_selectedDate),
+                                style: const TextStyle(
+                                  color: Color(0xFF8B5CF6),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),

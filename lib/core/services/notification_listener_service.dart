@@ -119,7 +119,9 @@ class NotificationListenerService {
 
           bool isRecipient = false;
 
-          if (user.role == 'super_admin' || user.role == 'school_admin' || user.role == 'tu') {
+          if (targetType == 'personal' && targetId == user.uid) {
+            isRecipient = true;
+          } else if (user.role == 'super_admin' || user.role == 'school_admin' || user.role == 'tu') {
             isRecipient = true;
           } else if (user.role == 'teacher') {
             if (targetType == 'umum') {
@@ -139,17 +141,23 @@ class NotificationListenerService {
             } else if (targetType == 'murid' && _studentNama != null && targetName == _studentNama) {
               isRecipient = true;
             }
+          } else if (user.role == 'parent') {
+            if (targetType == 'umum') {
+              isRecipient = true;
+            }
           }
 
           if (isRecipient) {
             _shownNotificationIds.add(docId);
-            _showNotificationBanner(
-              docId: docId,
-              title: data['title'] ?? 'Notifikasi Baru',
-              content: data['content'] ?? '',
-              senderName: data['senderName'] ?? 'Sistem',
-              targetType: targetType,
-            );
+            if (targetType != 'personal') {
+              _showNotificationBanner(
+                docId: docId,
+                title: data['title'] ?? 'Notifikasi Baru',
+                content: data['content'] ?? '',
+                senderName: data['senderName'] ?? 'Sistem',
+                targetType: targetType,
+              );
+            }
           }
         }
       }
@@ -189,6 +197,9 @@ class NotificationListenerService {
     } else if (targetType == 'murid') {
       accentColor = const Color(0xFF10B981); // Emerald
       iconData = Icons.school_rounded;
+    } else if (targetType == 'personal') {
+      accentColor = const Color(0xFFEC4899); // Rose
+      iconData = Icons.mail_rounded;
     }
 
     final context = Get.context;

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/localization/app_localization.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../tu/services/payment_service.dart';
 
@@ -48,7 +49,7 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
   String _formatDate(Timestamp? timestamp) {
     if (timestamp == null) return '-';
     final date = timestamp.toDate();
-    return DateFormat('dd MMMM yyyy', 'id_ID').format(date);
+    return DateFormat('dd MMMM yyyy', AppLocalization.isIndonesian ? 'id_ID' : 'en_US').format(date);
   }
 
   @override
@@ -65,7 +66,9 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
             backgroundColor: Colors.transparent,
             appBar: AppBar(
               title: Text(
-                'Keuangan & SPP - ${widget.studentName}',
+                AppLocalization.isIndonesian
+                    ? 'Keuangan & SPP - ${widget.studentName}'
+                    : 'Finance & SPP - ${widget.studentName}',
                 style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
               ),
               backgroundColor: Colors.transparent,
@@ -95,10 +98,10 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                   labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                   unselectedLabelStyle: const TextStyle(fontSize: 11),
                   labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  tabs: const [
-                    Tab(text: 'Belum Bayar'),
-                    Tab(text: 'Verifikasi'),
-                    Tab(text: 'Lunas'),
+                  tabs: [
+                    Tab(text: AppLocalization.isIndonesian ? 'Belum Bayar' : 'Unpaid'),
+                    Tab(text: AppLocalization.isIndonesian ? 'Verifikasi' : 'Verification'),
+                    Tab(text: AppLocalization.isIndonesian ? 'Lunas' : 'Paid'),
                   ],
                 ),
               ),
@@ -160,18 +163,24 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
     Color textColor,
   ) {
     if (bills.isEmpty) {
-      String emptyMsg = 'Tidak ada tagihan';
+      String emptyMsg = AppLocalization.isIndonesian ? 'Tidak ada tagihan' : 'No bills';
       IconData emptyIcon = Icons.check_circle_outline_rounded;
       Color iconColor = const Color(0xFF10B981);
 
       if (type == 'unpaid') {
-        emptyMsg = 'Semua tagihan Anda telah lunas!';
+        emptyMsg = AppLocalization.isIndonesian
+            ? 'Semua tagihan Anda telah lunas!'
+            : 'All your bills have been paid!';
       } else if (type == 'pending') {
-        emptyMsg = 'Tidak ada pembayaran yang sedang diproses.';
+        emptyMsg = AppLocalization.isIndonesian
+            ? 'Tidak ada pembayaran yang sedang diproses.'
+            : 'No payments are being processed.';
         emptyIcon = Icons.hourglass_empty_rounded;
         iconColor = Colors.amber;
       } else {
-        emptyMsg = 'Belum ada riwayat pembayaran lunas.';
+        emptyMsg = AppLocalization.isIndonesian
+            ? 'Belum ada riwayat pembayaran lunas.'
+            : 'No paid payment history yet.';
         emptyIcon = Icons.receipt_long_rounded;
         iconColor = Colors.grey;
       }
@@ -225,7 +234,9 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
             ),
             subtitle: Text(
-              'Jatuh Tempo: ${_formatDate(dueDateTs)}',
+              AppLocalization.isIndonesian
+                  ? 'Jatuh Tempo: ${_formatDate(dueDateTs)}'
+                  : 'Due Date: ${_formatDate(dueDateTs)}',
               style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12),
             ),
             trailing: Text(
@@ -257,7 +268,9 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Ditolak TU: $rejectionReason\nMohon unggah ulang bukti yang valid.',
+                                AppLocalization.isIndonesian
+                                    ? 'Ditolak TU: $rejectionReason\nMohon unggah ulang bukti yang valid.'
+                                    : 'Rejected by TU: $rejectionReason\nPlease upload a valid proof again.',
                                 style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
                               ),
                             ),
@@ -267,7 +280,7 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                       const SizedBox(height: 12),
                     ],
                     Text(
-                      'Instruksi Pembayaran:',
+                      AppLocalization.isIndonesian ? 'Instruksi Pembayaran:' : 'Payment Instructions:',
                       style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                     const SizedBox(height: 4),
@@ -286,7 +299,10 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           icon: const Icon(Icons.upload_file_rounded),
-                          label: const Text('Bayar & Unggah Bukti', style: TextStyle(fontWeight: FontWeight.bold)),
+                          label: Text(
+                            AppLocalization.isIndonesian ? 'Bayar & Unggah Bukti' : 'Pay & Upload Proof',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           onPressed: () => _showUploadReceiptSheet(context, billDocId, title, amount, isDark),
                         ),
                       )
@@ -297,7 +313,9 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Struk telah terunggah pada ${_formatDate(bill['uploadedAt'] as Timestamp?)}. Menunggu konfirmasi dari petugas TU.',
+                              AppLocalization.isIndonesian
+                                  ? 'Struk telah terunggah pada ${_formatDate(bill['uploadedAt'] as Timestamp?)}. Menunggu konfirmasi dari petugas TU.'
+                                  : 'Receipt uploaded on ${_formatDate(bill['uploadedAt'] as Timestamp?)}. Awaiting confirmation from TU staff.',
                               style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 12, fontStyle: FontStyle.italic),
                             ),
                           ),
@@ -316,7 +334,9 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Lunas diverifikasi oleh ${bill['verifiedBy'] ?? 'Petugas TU'} pada ${_formatDate(bill['verifiedAt'] as Timestamp?)}',
+                                AppLocalization.isIndonesian
+                                    ? 'Lunas diverifikasi oleh ${bill['verifiedBy'] ?? 'Petugas TU'} pada ${_formatDate(bill['verifiedAt'] as Timestamp?)}'
+                                    : 'Paid verified by ${bill['verifiedBy'] ?? 'TU Staff'} on ${_formatDate(bill['verifiedAt'] as Timestamp?)}',
                                 style: const TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.w600),
                               ),
                             ),
@@ -363,7 +383,14 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                   setSheetState(() => localBase64 = base64Encode(bytes));
                 }
               } catch (e) {
-                Get.snackbar('Error', 'Gagal mengambil gambar: $e', backgroundColor: Colors.red, colorText: Colors.white);
+                Get.snackbar(
+                  AppLocalization.isIndonesian ? 'Error' : 'Error',
+                  AppLocalization.isIndonesian
+                      ? 'Gagal mengambil gambar: $e'
+                      : 'Failed to capture image: $e',
+                  backgroundColor: Colors.red,
+                  colorText: Colors.white,
+                );
               }
             }
 
@@ -390,7 +417,7 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Konfirmasi Pembayaran',
+                    AppLocalization.isIndonesian ? 'Konfirmasi Pembayaran' : 'Payment Confirmation',
                     style: TextStyle(color: sheetTextColor, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
@@ -403,9 +430,18 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                     dropdownColor: isDark ? const Color(0xFF1F2937) : Colors.white,
                     value: selectedMethod,
                     style: TextStyle(color: sheetTextColor),
-                    decoration: const InputDecoration(labelText: 'Metode Pembayaran'),
+                    decoration: InputDecoration(
+                      labelText: AppLocalization.isIndonesian ? 'Metode Pembayaran' : 'Payment Method',
+                    ),
                     items: ['Transfer Bank', 'Virtual Account', 'E-Wallet', 'Lainnya']
-                        .map((method) => DropdownMenuItem(value: method, child: Text(method)))
+                        .map((method) {
+                          String displayMethod = method;
+                          if (!AppLocalization.isIndonesian) {
+                            if (method == 'Transfer Bank') displayMethod = 'Bank Transfer';
+                            if (method == 'Lainnya') displayMethod = 'Other';
+                          }
+                          return DropdownMenuItem(value: method, child: Text(displayMethod));
+                        })
                         .toList(),
                     onChanged: (val) {
                       if (val != null) {
@@ -415,7 +451,7 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Bukti Pembayaran / Struk:',
+                    AppLocalization.isIndonesian ? 'Bukti Pembayaran / Struk:' : 'Payment Proof / Receipt:',
                     style: TextStyle(color: sheetTextColor, fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   const SizedBox(height: 10),
@@ -460,7 +496,10 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             icon: const Icon(Icons.photo_library_rounded, color: Color(0xFF10B981)),
-                            label: Text('Galeri', style: TextStyle(color: sheetTextColor)),
+                            label: Text(
+                              AppLocalization.isIndonesian ? 'Galeri' : 'Gallery',
+                              style: TextStyle(color: sheetTextColor),
+                            ),
                             onPressed: () => pickImage(ImageSource.gallery),
                           ),
                         ),
@@ -472,7 +511,10 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             icon: const Icon(Icons.camera_alt_rounded, color: Color(0xFF10B981)),
-                            label: Text('Kamera', style: TextStyle(color: sheetTextColor)),
+                            label: Text(
+                              AppLocalization.isIndonesian ? 'Kamera' : 'Camera',
+                              style: TextStyle(color: sheetTextColor),
+                            ),
                             onPressed: () => pickImage(ImageSource.camera),
                           ),
                         ),
@@ -502,17 +544,29 @@ class _StudentPaymentPageState extends State<StudentPaymentPage> with SingleTick
                                 );
                                 Get.back(); // close loading
                                 Get.snackbar(
-                                  'Berhasil',
-                                  'Bukti transfer berhasil dikirim. Menunggu verifikasi petugas TU.',
+                                  AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+                                  AppLocalization.isIndonesian
+                                      ? 'Bukti transfer berhasil dikirim. Menunggu verifikasi petugas TU.'
+                                      : 'Transfer proof successfully sent. Awaiting verification by TU staff.',
                                   backgroundColor: const Color(0xFF10B981),
                                   colorText: Colors.white,
                                 );
                               } catch (e) {
                                 Get.back(); // close loading
-                                Get.snackbar('Error', 'Gagal mengirim bukti transfer: $e', backgroundColor: Colors.red, colorText: Colors.white);
+                                Get.snackbar(
+                                  AppLocalization.isIndonesian ? 'Error' : 'Error',
+                                  AppLocalization.isIndonesian
+                                      ? 'Gagal mengirim bukti transfer: $e'
+                                      : 'Failed to send transfer proof: $e',
+                                  backgroundColor: Colors.red,
+                                  colorText: Colors.white,
+                                );
                               }
                             },
-                      child: const Text('Kirim Bukti Pembayaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      child: Text(
+                        AppLocalization.isIndonesian ? 'Kirim Bukti Pembayaran' : 'Send Payment Proof',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
                     ),
                   ),
                 ],

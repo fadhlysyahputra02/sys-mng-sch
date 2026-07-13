@@ -5,6 +5,7 @@ const firestore_1 = require("firebase-functions/v2/firestore");
 const app_1 = require("firebase-admin/app");
 const messaging_1 = require("firebase-admin/messaging");
 const auth_1 = require("firebase-admin/auth");
+const firestore_2 = require("firebase-admin/firestore");
 (0, app_1.initializeApp)();
 /**
  * Triggered setiap kali dokumen baru dibuat di:
@@ -14,7 +15,7 @@ const auth_1 = require("firebase-admin/auth");
  * berdasarkan targetType dari dokumen notifikasi.
  */
 exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{schoolId}/notifications/{notifId}", async (event) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     const data = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
     const schoolId = event.params.schoolId;
     if (!data) {
@@ -28,8 +29,77 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
     const targetClassId = (_f = data.targetClassId) !== null && _f !== void 0 ? _f : "";
     const senderId = (_g = data.senderId) !== null && _g !== void 0 ? _g : "";
     const senderName = (_h = data.senderName) !== null && _h !== void 0 ? _h : "Sistem";
+    const category = (_j = data.category) !== null && _j !== void 0 ? _j : "";
     console.log(`[onNotificationCreated] schoolId=${schoolId}, targetType=${targetType}, ` +
         `targetId=${targetId}, senderId=${senderId}`);
+    // --- Personal Notification ---
+    if (targetType === "personal") {
+        const db = (0, firestore_2.getFirestore)();
+        const tokensSnap = await db
+            .collection("users")
+            .doc(targetId)
+            .collection("tokens")
+            .get();
+        const tokens = [];
+        tokensSnap.forEach((doc) => {
+            const token = doc.data().token;
+            if (token)
+                tokens.push(token);
+        });
+        if (tokens.length === 0) {
+            console.log(`No tokens found for user ${targetId}. Exiting.`);
+            return;
+        }
+        const messaging = (0, messaging_1.getMessaging)();
+        try {
+            const response = await messaging.sendEachForMulticast({
+                tokens: tokens,
+                notification: {
+                    title: title,
+                    body: body,
+                },
+                android: {
+                    priority: "high",
+                    notification: {
+                        channelId: "high_importance_channel",
+                        priority: "max",
+                        sound: "default",
+                        clickAction: "FLUTTER_NOTIFICATION_CLICK",
+                    },
+                },
+                apns: {
+                    headers: {
+                        "apns-priority": "10",
+                    },
+                    payload: {
+                        aps: {
+                            alert: {
+                                title: title,
+                                body: body,
+                            },
+                            sound: "default",
+                            badge: 1,
+                            "content-available": 1,
+                        },
+                    },
+                },
+                data: {
+                    schoolId: schoolId,
+                    targetType: targetType,
+                    targetId: targetId,
+                    senderId: senderId,
+                    senderName: senderName,
+                    category: category,
+                    click_action: "FLUTTER_NOTIFICATION_CLICK",
+                },
+            });
+            console.log(`✅ FCM sent to ${tokens.length} tokens for user ${targetId}: successCount=${response.successCount}`);
+        }
+        catch (err) {
+            console.error(`❌ Error sending personal FCM:`, err);
+        }
+        return;
+    }
     // --- Tentukan Topic FCM berdasarkan targetType ---
     // Nama topic HARUS sama persis dengan yang didaftarkan di:
     // push_notification_service.dart -> registerUserDevice()
@@ -96,6 +166,7 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
                     targetId: targetId,
                     senderId: senderId,
                     senderName: senderName,
+                    category: category,
                     click_action: "FLUTTER_NOTIFICATION_CLICK",
                 },
             });

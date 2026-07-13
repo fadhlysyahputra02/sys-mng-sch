@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../services/payment_service.dart';
+import '../../../../core/localization/app_localization.dart';
 
 class TUPaymentDashboard extends StatefulWidget {
   final String schoolId;
@@ -70,7 +71,10 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
           appBar: widget.hideBackButton
               ? null
               : AppBar(
-                  title: const Text('Manajemen Keuangan & SPP', style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(
+                    AppLocalization.isIndonesian ? 'Manajemen Keuangan & SPP' : 'Finance & Tuition Management',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   backgroundColor: Colors.transparent,
                   elevation: 0,
                   leading: IconButton(
@@ -89,7 +93,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Manajemen Keuangan & SPP',
+                          AppLocalization.isIndonesian ? 'Manajemen Keuangan & SPP' : 'Finance & Tuition Management',
                           style: TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                         _buildCreateBillButton(context, isDark),
@@ -116,9 +120,15 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                       unselectedLabelColor: textColor.withValues(alpha: 0.6),
                       indicatorSize: TabBarIndicatorSize.tab,
                       dividerColor: Colors.transparent,
-                      tabs: const [
-                        Tab(icon: Icon(Icons.list_alt_rounded), text: 'Daftar Tagihan'),
-                        Tab(icon: Icon(Icons.fact_check_rounded), text: 'Verifikasi Pembayaran'),
+                      tabs: [
+                        Tab(
+                          icon: const Icon(Icons.list_alt_rounded),
+                          text: AppLocalization.isIndonesian ? 'Daftar Tagihan' : 'Bill List',
+                        ),
+                        Tab(
+                          icon: const Icon(Icons.fact_check_rounded),
+                          text: AppLocalization.isIndonesian ? 'Verifikasi Pembayaran' : 'Verify Payments',
+                        ),
                       ],
                     ),
                   ),
@@ -165,16 +175,16 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
         child: InkWell(
           onTap: () => _showCreateBillDialog(context, isDark),
           borderRadius: BorderRadius.circular(14),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.add_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 8),
+                const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
                 Text(
-                  'Buat Tagihan Baru',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  AppLocalization.isIndonesian ? 'Buat Tagihan Baru' : 'Create New Bill',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ],
             ),
@@ -204,7 +214,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                 Icon(Icons.receipt_long_rounded, color: textColor.withValues(alpha: 0.3), size: 64),
                 const SizedBox(height: 16),
                 Text(
-                  'Belum ada tagihan dibuat',
+                  AppLocalization.isIndonesian ? 'Belum ada tagihan dibuat' : 'No bills created yet',
                   style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 15, fontWeight: FontWeight.w500),
                 ),
               ],
@@ -219,7 +229,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
             final bill = docs[index].data();
             final title = bill['title'] ?? '-';
             final amount = (bill['amount'] ?? 0).toDouble();
-            final targetClass = bill['className'] ?? 'Semua Kelas';
+            final targetClass = bill['className'] ?? (AppLocalization.isIndonesian ? 'Semua Kelas' : 'All Classes');
             final dueDateTs = bill['dueDate'] as Timestamp?;
             final desc = bill['description'] ?? '-';
 
@@ -242,7 +252,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                     style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   subtitle: Text(
-                    'Target: $targetClass • Jatuh Tempo: ${_formatDate(dueDateTs)}',
+                    '${AppLocalization.isIndonesian ? "Target" : "Target"}: $targetClass • ${AppLocalization.isIndonesian ? "Jatuh Tempo" : "Due Date"}: ${_formatDate(dueDateTs)}',
                     style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12),
                   ),
                   trailing: Text(
@@ -258,7 +268,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                           const Divider(),
                           const SizedBox(height: 8),
                           Text(
-                            'Instruksi / Catatan Pembayaran:',
+                            AppLocalization.isIndonesian ? 'Instruksi / Catatan Pembayaran:' : 'Payment Instructions / Notes:',
                             style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 12),
                           ),
                           const SizedBox(height: 4),
@@ -288,13 +298,13 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _buildFilterChip('pending', 'Menunggu Verifikasi', Colors.amber),
+              _buildFilterChip('pending', AppLocalization.isIndonesian ? 'Menunggu Verifikasi' : 'Pending Verification', Colors.amber),
               const SizedBox(width: 8),
-              _buildFilterChip('paid', 'Lunas', const Color(0xFF10B981)),
+              _buildFilterChip('paid', AppLocalization.isIndonesian ? 'Lunas' : 'Paid', const Color(0xFF10B981)),
               const SizedBox(width: 8),
-              _buildFilterChip('unpaid', 'Belum Bayar', Colors.grey),
+              _buildFilterChip('unpaid', AppLocalization.isIndonesian ? 'Belum Bayar' : 'Unpaid', Colors.grey),
               const SizedBox(width: 8),
-              _buildFilterChip('all', 'Semua Tagihan Murid', Colors.indigo),
+              _buildFilterChip('all', AppLocalization.isIndonesian ? 'Semua Tagihan Murid' : 'All Student Bills', Colors.indigo),
             ],
           ),
         ),
@@ -313,7 +323,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
             decoration: InputDecoration(
               filled: true,
               fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-              hintText: 'Cari nama murid, kelas, atau tagihan...',
+              hintText: AppLocalization.isIndonesian ? 'Cari nama murid, kelas, atau tagihan...' : 'Search student name, class, or bill...',
               hintStyle: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 13),
               prefixIcon: Icon(Icons.search_rounded, color: textColor.withValues(alpha: 0.6), size: 20),
               suffixIcon: _searchQuery.isNotEmpty
@@ -388,7 +398,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                       Icon(Icons.hourglass_empty_rounded, color: textColor.withValues(alpha: 0.3), size: 64),
                       const SizedBox(height: 16),
                       Text(
-                        'Tidak ada tagihan yang sesuai',
+                        AppLocalization.isIndonesian ? 'Tidak ada tagihan yang sesuai' : 'No matching bills found',
                         style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 14),
                       ),
                     ],
@@ -403,7 +413,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                   final studentBill = docs[index].data();
                   final docId = docs[index].id;
                   final title = studentBill['title'] ?? '-';
-                  final studentName = studentBill['studentName'] ?? 'Murid';
+                  final studentName = studentBill['studentName'] ?? (AppLocalization.isIndonesian ? 'Murid' : 'Student');
                   final className = studentBill['className'] ?? '-';
                   final amount = (studentBill['amount'] ?? 0).toDouble();
                   final status = studentBill['status'] ?? 'unpaid';
@@ -414,13 +424,13 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                   String statusLabel;
                   if (status == 'paid') {
                     statusColor = const Color(0xFF10B981);
-                    statusLabel = 'Lunas';
+                    statusLabel = AppLocalization.isIndonesian ? 'Lunas' : 'Paid';
                   } else if (status == 'pending') {
                     statusColor = Colors.amber;
-                    statusLabel = 'Menunggu Verifikasi';
+                    statusLabel = AppLocalization.isIndonesian ? 'Menunggu Verifikasi' : 'Pending Verification';
                   } else {
                     statusColor = Colors.grey;
-                    statusLabel = 'Belum Bayar';
+                    statusLabel = AppLocalization.isIndonesian ? 'Belum Bayar' : 'Unpaid';
                   }
 
                   return Container(
@@ -442,7 +452,7 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                                 style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 15),
                               ),
                               Text(
-                                'Kelas: $className • $title',
+                                '${AppLocalization.isIndonesian ? "Kelas" : "Class"}: $className • $title',
                                 style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 12),
                               ),
                               const SizedBox(height: 6),
@@ -464,12 +474,12 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                                   ),
                                   if (method != null)
                                     Text(
-                                      'Metode: $method',
+                                      '${AppLocalization.isIndonesian ? "Metode" : "Method"}: $method',
                                       style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 11),
                                     ),
                                   if (uploadedAt != null)
                                     Text(
-                                      'Tgl: ${_formatDate(uploadedAt)}',
+                                      '${AppLocalization.isIndonesian ? "Tgl" : "Date"}: ${_formatDate(uploadedAt)}',
                                       style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 11),
                                     ),
                                 ],
@@ -494,7 +504,10 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
                                 onPressed: () => _showVerificationDialog(context, docId, studentBill, isDark),
-                                child: const Text('Verifikasi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                child: Text(
+                                  AppLocalization.isIndonesian ? 'Verifikasi' : 'Verify',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
                               )
                             else if (status == 'unpaid')
                               TextButton.icon(
@@ -505,7 +518,10 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 icon: const Icon(Icons.money_rounded, size: 16),
-                                label: const Text('Bayar Tunai', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                label: Text(
+                                  AppLocalization.isIndonesian ? 'Bayar Tunai' : 'Pay Cash',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
                                 onPressed: () => _showDirectPaymentDialog(context, docId, studentName, title, amount),
                               ),
                           ],
@@ -545,7 +561,9 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
     final titleController = TextEditingController();
     final amountController = TextEditingController();
     final descController = TextEditingController(
-      text: 'Pembayaran dapat ditransfer ke rekening Bank BNI: 123-4567-890 a.n. Bendahara Sekolah. Silakan unggah struk transfer di bawah ini.',
+      text: AppLocalization.isIndonesian
+          ? 'Pembayaran dapat ditransfer ke rekening Bank BNI: 123-4567-890 a.n. Bendahara Sekolah. Silakan unggah struk transfer di bawah ini.'
+          : 'Payments can be transferred to Bank BNI account: 123-4567-890 on behalf of School Treasurer. Please upload your transfer receipt below.',
     );
     DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
     String? selectedClassId; // null = Semua Kelas
@@ -559,7 +577,10 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
-              title: Text('Buat Tagihan Baru', style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold)),
+              title: Text(
+                AppLocalization.isIndonesian ? 'Buat Tagihan Baru' : 'Create New Bill',
+                style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold),
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -569,8 +590,8 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                       controller: titleController,
                       style: TextStyle(color: dialogTextColor),
                       decoration: _dialogInputDeco(
-                        label: 'Nama Tagihan / Judul',
-                        hint: 'Contoh: SPP Bulan Juli 2026',
+                        label: AppLocalization.isIndonesian ? 'Nama Tagihan / Judul' : 'Bill Title / Subject',
+                        hint: AppLocalization.isIndonesian ? 'Contoh: SPP Bulan Juli 2026' : 'e.g., SPP July 2026',
                         textColor: dialogTextColor,
                       ),
                     ),
@@ -581,8 +602,8 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: _dialogInputDeco(
-                        label: 'Nominal (Rupiah)',
-                        hint: 'Contoh: 250000',
+                        label: AppLocalization.isIndonesian ? 'Nominal (Rupiah)' : 'Amount (Rupiah)',
+                        hint: AppLocalization.isIndonesian ? 'Contoh: 250000' : 'e.g., 250000',
                         textColor: dialogTextColor,
                       ),
                     ),
@@ -595,20 +616,28 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                           .collection('classes')
                           .snapshots(),
                       builder: (context, snapshot) {
-                        final classes = snapshot.data?.docs ?? [];
+                        final classes = (snapshot.data?.docs ?? []).toList()
+                          ..sort((a, b) {
+                            final aName = (a.data()['namaKelas'] ?? '').toString().toLowerCase();
+                            final bName = (b.data()['namaKelas'] ?? '').toString().toLowerCase();
+                            return aName.compareTo(bName);
+                          });
                         return DropdownButtonFormField<String>(
                           dropdownColor: isDark ? const Color(0xFF1F2937) : Colors.white,
                           value: selectedClassId,
                           style: TextStyle(color: dialogTextColor),
                           decoration: _dialogInputDeco(
-                            label: 'Ditujukan Kepada',
+                            label: AppLocalization.isIndonesian ? 'Ditujukan Kepada' : 'Addressed To',
                             hint: '',
                             textColor: dialogTextColor,
                           ),
                           items: [
                             DropdownMenuItem<String>(
                               value: null,
-                              child: Text('Semua Kelas (Seluruh Murid)', style: TextStyle(color: dialogTextColor)),
+                              child: Text(
+                                AppLocalization.isIndonesian ? 'Semua Kelas (Seluruh Murid)' : 'All Classes (All Students)',
+                                style: TextStyle(color: dialogTextColor),
+                              ),
                             ),
                             ...classes.map((clsDoc) {
                               final data = clsDoc.data();
@@ -637,11 +666,14 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Jatuh Tempo:', style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text(
+                          AppLocalization.isIndonesian ? 'Jatuh Tempo:' : 'Due Date:',
+                          style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
                         TextButton.icon(
                           icon: const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF10B981)),
                           label: Text(
-                            DateFormat('dd MMM yyyy', 'id_ID').format(selectedDate),
+                            DateFormat('dd MMM yyyy', AppLocalization.isIndonesian ? 'id_ID' : 'en_US').format(selectedDate),
                             style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold),
                           ),
                           onPressed: () async {
@@ -664,8 +696,8 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                       style: TextStyle(color: dialogTextColor),
                       maxLines: 3,
                       decoration: _dialogInputDeco(
-                        label: 'Deskripsi / Instruksi Bayar',
-                        hint: 'Detail rekening transfer dll.',
+                        label: AppLocalization.isIndonesian ? 'Deskripsi / Instruksi Bayar' : 'Description / Payment Instructions',
+                        hint: AppLocalization.isIndonesian ? 'Detail rekening transfer dll.' : 'Transfer account details, etc.',
                         textColor: dialogTextColor,
                         hasOutline: true,
                       ),
@@ -676,18 +708,31 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                  child: Text(
+                    AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
                   onPressed: () async {
                     if (titleController.text.trim().isEmpty) {
-                      Get.snackbar('Validasi', 'Nama tagihan tidak boleh kosong.', backgroundColor: Colors.orange, colorText: Colors.black);
+                      Get.snackbar(
+                        AppLocalization.isIndonesian ? 'Validasi' : 'Validation',
+                        AppLocalization.isIndonesian ? 'Nama tagihan tidak boleh kosong.' : 'Bill title cannot be empty.',
+                        backgroundColor: Colors.orange,
+                        colorText: Colors.black,
+                      );
                       return;
                     }
                     final amt = double.tryParse(amountController.text.trim());
                     if (amt == null || amt <= 0) {
-                      Get.snackbar('Validasi', 'Nominal harus berupa angka valid di atas 0.', backgroundColor: Colors.orange, colorText: Colors.black);
+                      Get.snackbar(
+                        AppLocalization.isIndonesian ? 'Validasi' : 'Validation',
+                        AppLocalization.isIndonesian ? 'Nominal harus berupa angka valid di atas 0.' : 'Amount must be a valid number above 0.',
+                        backgroundColor: Colors.orange,
+                        colorText: Colors.black,
+                      );
                       return;
                     }
 
@@ -708,13 +753,28 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                       );
                       Get.back(); // close loading
                       Navigator.pop(context); // close dialog
-                      Get.snackbar('Sukses', 'Tagihan berhasil dibuat dan dibagikan ke murid.', backgroundColor: const Color(0xFF10B981), colorText: Colors.white);
+                      Get.snackbar(
+                        AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                        AppLocalization.isIndonesian
+                            ? 'Tagihan berhasil dibuat dan dibagikan ke murid.'
+                            : 'Bill successfully created and shared with students.',
+                        backgroundColor: const Color(0xFF10B981),
+                        colorText: Colors.white,
+                      );
                     } catch (e) {
                       Get.back(); // close loading
-                      Get.snackbar('Error', 'Gagal membuat tagihan: $e', backgroundColor: Colors.red, colorText: Colors.white);
+                      Get.snackbar(
+                        AppLocalization.isIndonesian ? 'Error' : 'Error',
+                        '${AppLocalization.isIndonesian ? "Gagal membuat tagihan" : "Failed to create bill"}: $e',
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                      );
                     }
                   },
-                  child: const Text('Simpan & Bagikan', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    AppLocalization.isIndonesian ? 'Simpan & Bagikan' : 'Save & Share',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             );
@@ -740,18 +800,36 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
 
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
-          title: Text('Verifikasi Pembayaran', style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold)),
+          title: Text(
+            AppLocalization.isIndonesian ? 'Verifikasi Pembayaran' : 'Verify Payment',
+            style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Murid: $studentName', style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.w600)),
-                Text('Tagihan: $title', style: TextStyle(color: dialogTextColor)),
-                Text('Nominal: ${_formatRupiah(amount)}', style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
-                Text('Metode: $method', style: TextStyle(color: dialogTextColor.withValues(alpha: 0.6), fontSize: 13)),
+                Text(
+                  '${AppLocalization.isIndonesian ? "Murid" : "Student"}: $studentName',
+                  style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '${AppLocalization.isIndonesian ? "Tagihan" : "Bill"}: $title',
+                  style: TextStyle(color: dialogTextColor),
+                ),
+                Text(
+                  '${AppLocalization.isIndonesian ? "Nominal" : "Amount"}: ${_formatRupiah(amount)}',
+                  style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '${AppLocalization.isIndonesian ? "Metode" : "Method"}: $method',
+                  style: TextStyle(color: dialogTextColor.withValues(alpha: 0.6), fontSize: 13),
+                ),
                 const SizedBox(height: 16),
-                Text('Bukti Transfer:', style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(
+                  AppLocalization.isIndonesian ? 'Bukti Transfer:' : 'Transfer Receipt:',
+                  style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
                 const SizedBox(height: 8),
                 if (imageBase64 != null)
                   Container(
@@ -776,15 +854,22 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                   Container(
                     height: 100,
                     alignment: Alignment.center,
-                    child: const Text('Bukti gambar tidak tersedia', style: TextStyle(color: Colors.grey)),
+                    child: Text(
+                      AppLocalization.isIndonesian ? 'Bukti gambar tidak tersedia' : 'Receipt image not available',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                   ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: reasonController,
                   style: TextStyle(color: dialogTextColor),
                   decoration: _dialogInputDeco(
-                    label: 'Alasan Penolakan (Hanya jika DITOLAK)',
-                    hint: 'Contoh: Struk tidak jelas atau nominal salah',
+                    label: AppLocalization.isIndonesian
+                        ? 'Alasan Penolakan (Hanya jika DITOLAK)'
+                        : 'Rejection Reason (Only if REJECTED)',
+                    hint: AppLocalization.isIndonesian
+                        ? 'Contoh: Struk tidak jelas atau nominal salah'
+                        : 'e.g., Receipt is unclear or incorrect amount',
                     textColor: dialogTextColor,
                   ),
                 ),
@@ -794,14 +879,24 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Tutup', style: TextStyle(color: Colors.grey)),
+              child: Text(
+                AppLocalization.isIndonesian ? 'Tutup' : 'Close',
+                style: const TextStyle(color: Colors.grey),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600, foregroundColor: Colors.white),
               onPressed: () async {
                 final reason = reasonController.text.trim();
                 if (reason.isEmpty) {
-                  Get.snackbar('Validasi', 'Mohon isi alasan penolakan terlebih dahulu.', backgroundColor: Colors.orange, colorText: Colors.black);
+                  Get.snackbar(
+                    AppLocalization.isIndonesian ? 'Validasi' : 'Validation',
+                    AppLocalization.isIndonesian
+                        ? 'Mohon isi alasan penolakan terlebih dahulu.'
+                        : 'Please enter the rejection reason first.',
+                    backgroundColor: Colors.orange,
+                    colorText: Colors.black,
+                  );
                   return;
                 }
 
@@ -815,13 +910,28 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                   );
                   Get.back(); // loading
                   Navigator.pop(context); // dialog
-                  Get.snackbar('Sukses', 'Pembayaran ditolak. Murid akan diminta mengunggah ulang.', backgroundColor: Colors.red, colorText: Colors.white);
+                  Get.snackbar(
+                    AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                    AppLocalization.isIndonesian
+                        ? 'Pembayaran ditolak. Murid akan diminta mengunggah ulang.'
+                        : 'Payment rejected. Student will be asked to re-upload.',
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                  );
                 } catch (e) {
                   Get.back(); // loading
-                  Get.snackbar('Error', 'Gagal memproses penolakan: $e', backgroundColor: Colors.red, colorText: Colors.white);
+                  Get.snackbar(
+                    AppLocalization.isIndonesian ? 'Error' : 'Error',
+                    '${AppLocalization.isIndonesian ? "Gagal memproses penolakan" : "Failed to process rejection"}: $e',
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                  );
                 }
               },
-              child: const Text('Tolak Pembayaran', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(
+                AppLocalization.isIndonesian ? 'Tolak Pembayaran' : 'Reject Payment',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
@@ -833,7 +943,10 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                 Navigator.pop(context); // close verification dialog
                 _showDirectPaymentDialog(context, billDocId, studentName, title, amount);
               },
-              label: const Text('Bayar Tunai', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: Text(
+                AppLocalization.isIndonesian ? 'Bayar Tunai' : 'Pay Cash',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
@@ -849,13 +962,28 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                   );
                   Get.back(); // loading
                   Navigator.pop(context); // dialog
-                  Get.snackbar('Sukses', 'Pembayaran berhasil dikonfirmasi sebagai LUNAS.', backgroundColor: const Color(0xFF10B981), colorText: Colors.white);
+                  Get.snackbar(
+                    AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                    AppLocalization.isIndonesian
+                        ? 'Pembayaran berhasil dikonfirmasi sebagai LUNAS.'
+                        : 'Payment successfully confirmed as PAID.',
+                    backgroundColor: const Color(0xFF10B981),
+                    colorText: Colors.white,
+                  );
                 } catch (e) {
                   Get.back(); // loading
-                  Get.snackbar('Error', 'Gagal memproses persetujuan: $e', backgroundColor: Colors.red, colorText: Colors.white);
+                  Get.snackbar(
+                    AppLocalization.isIndonesian ? 'Error' : 'Error',
+                    '${AppLocalization.isIndonesian ? "Gagal memproses persetujuan" : "Failed to process approval"}: $e',
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                  );
                 }
               },
-              child: const Text('Setujui Pembayaran', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(
+                AppLocalization.isIndonesian ? 'Setujui Pembayaran' : 'Approve Payment',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );
@@ -873,18 +1001,29 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
       builder: (context) {
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.white,
-          title: Text('Konfirmasi Bayar Tunai', style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold)),
+          title: Text(
+            AppLocalization.isIndonesian ? 'Konfirmasi Bayar Tunai' : 'Confirm Cash Payment',
+            style: TextStyle(color: dialogTextColor, fontWeight: FontWeight.bold),
+          ),
           content: Text(
-            'Apakah Anda yakin ingin memverifikasi pembayaran tunai langsung di TU?\n\n'
-            'Murid: $studentName\n'
-            'Tagihan: $title\n'
-            'Nominal: ${_formatRupiah(amount)}',
+            AppLocalization.isIndonesian
+                ? 'Apakah Anda yakin ingin memverifikasi pembayaran tunai langsung di TU?\n\n'
+                    'Murid: $studentName\n'
+                    'Tagihan: $title\n'
+                    'Nominal: ${_formatRupiah(amount)}'
+                : 'Are you sure you want to verify direct cash payment at administration office?\n\n'
+                    'Student: $studentName\n'
+                    'Bill: $title\n'
+                    'Amount: ${_formatRupiah(amount)}',
             style: TextStyle(color: dialogTextColor.withValues(alpha: 0.8)),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+              child: Text(
+                AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
+                style: const TextStyle(color: Colors.grey),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
@@ -901,13 +1040,28 @@ class _TUPaymentDashboardState extends State<TUPaymentDashboard> with SingleTick
                   );
                   Get.back(); // loading
                   Navigator.pop(context); // dialog
-                  Get.snackbar('Sukses', 'Tagihan berhasil ditandai Lunas via Cash.', backgroundColor: const Color(0xFF10B981), colorText: Colors.white);
+                  Get.snackbar(
+                    AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                    AppLocalization.isIndonesian
+                        ? 'Tagihan berhasil ditandai Lunas via Cash.'
+                        : 'Bill successfully marked as Paid via Cash.',
+                    backgroundColor: const Color(0xFF10B981),
+                    colorText: Colors.white,
+                  );
                 } catch (e) {
                   Get.back(); // loading
-                  Get.snackbar('Error', 'Gagal memproses pembayaran tunai: $e', backgroundColor: Colors.red, colorText: Colors.white);
+                  Get.snackbar(
+                    AppLocalization.isIndonesian ? 'Error' : 'Error',
+                    '${AppLocalization.isIndonesian ? "Gagal memproses pembayaran tunai" : "Failed to process cash payment"}: $e',
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                  );
                 }
               },
-              child: const Text('Konfirmasi Lunas', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(
+                AppLocalization.isIndonesian ? 'Konfirmasi Lunas' : 'Confirm Paid',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );

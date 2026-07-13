@@ -24,6 +24,21 @@ class StudentService {
     return querySnapshot.docs.first;
   }
 
+  /// Fetch student document by parent UID from school subcollection
+  Future<DocumentSnapshot<Map<String, dynamic>>?> getStudentDocByParentUid(String schoolId, String parentUid) async {
+    final querySnapshot = await _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('students')
+        .where('parentId', isEqualTo: parentUid)
+        .limit(1)
+        .get();
+    if (querySnapshot.docs.isEmpty) {
+      return null;
+    }
+    return querySnapshot.docs.first;
+  }
+
   /// Existing stream method for real‑time updates
   Stream<StudentModel?> getStudentByUid(String uid) {
     return _firestore

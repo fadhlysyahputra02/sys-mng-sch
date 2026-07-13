@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/exam_event_model.dart';
 import 'exam_behavior_service.dart';
+import 'package:sys_mng_school/features/students/data/student_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  ExamSessionService — CRUD untuk exam_events & exam_sessions
@@ -216,6 +217,172 @@ class ExamSessionService {
 
     // Update status di Firestore setelah validasi berhasil
     await _eventsRef(schoolId).doc(eventId).update({'examStatus': status});
+
+    if (status == 'Active') {
+      // Kirim notifikasi push personal ke murid di kelas peserta, pembuat soal, dan pengawas
+      try {
+        final eventDoc = await _eventsRef(schoolId).doc(eventId).get();
+        if (eventDoc.exists) {
+          final eventData = eventDoc.data()!;
+          final eventTitle = eventData['title'] ?? 'Ujian';
+          final List subjectConfigsList = eventData['subjectConfigs'] as List? ?? [];
+          
+          // 1. Ambil data guru untuk mapping Doc ID -> Auth UID & bahasa
+          final teachersSnap = await _db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('teachers')
+              .get();
+          final Map<String, String> teacherDocIdToUid = {};
+          final Map<String, String> teacherDocIdToLang = {};
+          final Map<String, String> teacherDocIdToName = {};
+          for (final doc in teachersSnap.docs) {
+            final tData = doc.data();
+            final uid = tData['uid'] as String? ?? '';
+            final lang = tData['language'] as String? ?? 'id';
+            final name = tData['nama'] as String? ?? 'Guru';
+            if (uid.isNotEmpty) {
+              teacherDocIdToUid[doc.id] = uid;
+              teacherDocIdToLang[doc.id] = lang;
+              teacherDocIdToName[doc.id] = name;
+            }
+          }
+
+          // 2. Tentukan ID Kelas peserta unik
+          final List<String> uniqueClassIds = [];
+          for (final item in subjectConfigsList) {
+            final map = Map<String, dynamic>.from(item);
+            final classIds = (map['classIds'] as List? ?? []).map((e) => e.toString()).toList();
+            for (final cid in classIds) {
+              if (!uniqueClassIds.contains(cid)) {
+                uniqueClassIds.add(cid);
+              }
+            }
+          }
+
+          // 3. Tentukan pembuat soal unik (authorTeacherIds)
+          final List<String> uniqueAuthorDocIds = [];
+          for (final item in subjectConfigsList) {
+            final map = Map<String, dynamic>.from(item);
+            final authorIds = map['authorTeacherIds'] as List? ?? [];
+            for (final aid in authorIds) {
+              final aidStr = aid.toString().trim();
+              if (aidStr.isNotEmpty && !uniqueAuthorDocIds.contains(aidStr)) {
+                uniqueAuthorDocIds.add(aidStr);
+              }
+            }
+          }
+
+          // 4. Tentukan pengawas unik (proctorId dari sessions)
+          final sessionsSnap = await _sessionsRef(schoolId)
+              .where('eventId', isEqualTo: eventId)
+              .get();
+          final List<String> uniqueProctorDocIds = [];
+          for (final doc in sessionsSnap.docs) {
+            final sData = doc.data();
+            final proctorId = sData['proctorId'] as String? ?? '';
+            if (proctorId.isNotEmpty && !uniqueProctorDocIds.contains(proctorId)) {
+              uniqueProctorDocIds.add(proctorId);
+            }
+          }
+
+          int notifCount = 0;
+          WriteBatch batch = _db.batch();
+
+          // Kirim notifikasi personal ke murid di kelas peserta
+          if (uniqueClassIds.isNotEmpty) {
+            final List<DocumentSnapshot<Map<String, dynamic>>> allStudentDocs = [];
+            
+            // Chunk class IDs in groups of 10 to avoid Firestore whereIn limit
+            for (var i = 0; i < uniqueClassIds.length; i += 10) {
+              final chunk = uniqueClassIds.sublist(
+                i,
+                i + 10 > uniqueClassIds.length ? uniqueClassIds.length : i + 10,
+              );
+              
+              final snap = await _db
+                  .collection('schools')
+                  .doc(schoolId)
+                  .collection('students')
+                  .where('classId', whereIn: chunk)
+                  .get();
+                  
+              allStudentDocs.addAll(snap.docs);
+            }
+
+            for (var studentDoc in allStudentDocs) {
+              final studentData = studentDoc.data();
+              if (studentData == null) continue;
+              final studentUid = studentData['uid'] as String?;
+              final studentLang = studentData['language'] as String? ?? 'id';
+              final parentUid = studentData['parentId'] as String?;
+
+              if (studentUid != null && studentUid.isNotEmpty) {
+                final notifTitle = studentLang == 'en' ? 'New Exam Event' : 'Jadwal Ujian Baru';
+                final notifContent = studentLang == 'en'
+                    ? 'A new exam event "$eventTitle" has been published. Check your exam schedule now!'
+                    : 'Event ujian baru "$eventTitle" telah diterbitkan. Periksa jadwal ujianmu sekarang!';
+
+                final studentNotifRef = _db
+                    .collection('schools')
+                    .doc(schoolId)
+                    .collection('notifications')
+                    .doc();
+
+                batch.set(studentNotifRef, {
+                  'title': notifTitle,
+                  'content': notifContent,
+                  'targetType': 'personal',
+                  'targetId': studentUid,
+                  'targetName': studentData['nama'] ?? 'Murid',
+                  'senderId': 'exam_system',
+                  'senderName': 'Bagian Kurikulum',
+                  'senderRole': 'admin',
+                  'category': 'exam',
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+                notifCount++;
+              }
+
+              // Kirim ke orang tua juga jika terhubung
+              if (parentUid != null && parentUid.isNotEmpty) {
+                final parentNotifRef = _db
+                    .collection('schools')
+                    .doc(schoolId)
+                    .collection('notifications')
+                    .doc();
+
+                batch.set(parentNotifRef, {
+                  'title': 'Jadwal Ujian Baru',
+                  'content': 'Event ujian baru "$eventTitle" untuk anak Anda ${studentData['nama'] ?? "Murid"} telah diterbitkan.',
+                  'targetType': 'personal',
+                  'targetId': parentUid,
+                  'targetName': 'Orang Tua ${studentData['nama'] ?? "Murid"}',
+                  'senderId': 'exam_system',
+                  'senderName': 'Bagian Kurikulum',
+                  'senderRole': 'admin',
+                  'category': 'exam',
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+                notifCount++;
+              }
+
+              if (notifCount >= 400) {
+                await batch.commit();
+                batch = _db.batch();
+                notifCount = 0;
+              }
+            }
+
+            if (notifCount > 0) {
+              await batch.commit();
+            }
+          }
+        }
+      } catch (e) {
+        print('Gagal mengirim notifikasi ujian semester baru: $e');
+      }
+    }
 
     if (status == 'Finished') {
       try {
@@ -512,6 +679,145 @@ class ExamSessionService {
       }
       
       await batch.commit();
+    }
+
+    // Kirim notifikasi personal ke guru pembuat soal & pengawas setelah save & generate
+    if (sessions.isNotEmpty) {
+      try {
+        final eventId = sessions.first.eventId;
+        final eventDoc = await _eventsRef(schoolId).doc(eventId).get();
+        final eventTitle = eventDoc.exists ? (eventDoc.data()?['title'] ?? 'Ujian') : 'Ujian';
+
+        // 1. Ambil data guru untuk mapping Doc ID -> Auth UID & bahasa
+        final teachersSnap = await _db
+            .collection('schools')
+            .doc(schoolId)
+            .collection('teachers')
+            .get();
+        final Map<String, String> teacherDocIdToUid = {};
+        final Map<String, String> teacherDocIdToLang = {};
+        final Map<String, String> teacherDocIdToName = {};
+        for (final doc in teachersSnap.docs) {
+          final tData = doc.data();
+          final uid = tData['uid'] as String? ?? '';
+          final lang = tData['language'] as String? ?? 'id';
+          final name = tData['nama'] as String? ?? 'Guru';
+          if (uid.isNotEmpty) {
+            teacherDocIdToUid[doc.id] = uid;
+            teacherDocIdToLang[doc.id] = lang;
+            teacherDocIdToName[doc.id] = name;
+          }
+        }
+
+        // 2. Tentukan pembuat soal unik
+        final List<String> uniqueAuthorDocIds = [];
+        for (final session in sessions) {
+          final authorIds = session.authorTeacherId.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty);
+          for (final aid in authorIds) {
+            if (!uniqueAuthorDocIds.contains(aid)) {
+              uniqueAuthorDocIds.add(aid);
+            }
+          }
+        }
+
+        // 3. Tentukan pengawas unik
+        final List<String> uniqueProctorDocIds = [];
+        for (final session in sessions) {
+          final proctorId = session.proctorId.trim();
+          if (proctorId.isNotEmpty && !uniqueProctorDocIds.contains(proctorId)) {
+            uniqueProctorDocIds.add(proctorId);
+          }
+        }
+
+        int notifCount = 0;
+        WriteBatch batch = _db.batch();
+
+        // Kirim notifikasi personal ke guru pembuat soal
+        for (final authorDocId in uniqueAuthorDocIds) {
+          final uid = teacherDocIdToUid[authorDocId];
+          final lang = teacherDocIdToLang[authorDocId] ?? 'id';
+          final name = teacherDocIdToName[authorDocId] ?? 'Guru';
+
+          if (uid != null && uid.isNotEmpty) {
+            final notifTitle = lang == 'en' ? 'Exam Question Creator Assignment' : 'Tugas Pembuat Soal Ujian';
+            final notifContent = lang == 'en'
+                ? 'You are assigned as a question author for the semester exam "$eventTitle".'
+                : 'Anda ditugaskan sebagai pembuat soal untuk ujian semester "$eventTitle".';
+
+            final notifRef = _db
+                .collection('schools')
+                .doc(schoolId)
+                .collection('notifications')
+                .doc();
+
+            batch.set(notifRef, {
+              'title': notifTitle,
+              'content': notifContent,
+              'targetType': 'personal',
+              'targetId': uid,
+              'targetName': name,
+              'senderId': 'exam_system',
+              'senderName': 'Bagian Kurikulum',
+              'senderRole': 'admin',
+              'category': 'exam',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+            notifCount++;
+          }
+
+          if (notifCount >= 400) {
+            await batch.commit();
+            batch = _db.batch();
+            notifCount = 0;
+          }
+        }
+
+        // Kirim notifikasi personal ke guru pengawas
+        for (final proctorDocId in uniqueProctorDocIds) {
+          final uid = teacherDocIdToUid[proctorDocId];
+          final lang = teacherDocIdToLang[proctorDocId] ?? 'id';
+          final name = teacherDocIdToName[proctorDocId] ?? 'Guru';
+
+          if (uid != null && uid.isNotEmpty) {
+            final notifTitle = lang == 'en' ? 'Exam Proctor Assignment' : 'Tugas Pengawas Ujian';
+            final notifContent = lang == 'en'
+                ? 'You are assigned as a proctor, check your room now.'
+                : 'Anda ditugaskan sebagai pengawas, cek ruanganmu sekarang.';
+
+            final notifRef = _db
+                .collection('schools')
+                .doc(schoolId)
+                .collection('notifications')
+                .doc();
+
+            batch.set(notifRef, {
+              'title': notifTitle,
+              'content': notifContent,
+              'targetType': 'personal',
+              'targetId': uid,
+              'targetName': name,
+              'senderId': 'exam_system',
+              'senderName': 'Bagian Kurikulum',
+              'senderRole': 'admin',
+              'category': 'exam',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+            notifCount++;
+          }
+
+          if (notifCount >= 400) {
+            await batch.commit();
+            batch = _db.batch();
+            notifCount = 0;
+          }
+        }
+
+        if (notifCount > 0) {
+          await batch.commit();
+        }
+      } catch (e) {
+        print('Gagal mengirim notifikasi guru pembuat soal & pengawas: $e');
+      }
     }
   }
 

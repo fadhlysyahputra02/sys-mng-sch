@@ -34,6 +34,35 @@ class RaporPdfHelper {
       marginBottom: 36,
     );
 
+    final pageTheme = pw.PageTheme(
+      pageFormat: pageFormat,
+      buildBackground: (context) {
+        if (logoBase64 != null && logoBase64.isNotEmpty) {
+          try {
+            return pw.FullPage(
+              ignoreMargins: true,
+              child: pw.Center(
+                child: pw.Opacity(
+                  opacity: 0.10,
+                  child: pw.Container(
+                    width: 350,
+                    height: 350,
+                    child: pw.Image(
+                      pw.MemoryImage(base64Decode(logoBase64)),
+                      fit: pw.BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          } catch (_) {
+            return pw.SizedBox();
+          }
+        }
+        return pw.SizedBox();
+      },
+    );
+
     // Fallback template jika null
     final Map<String, int> gt =
         gradeTemplates ??
@@ -51,13 +80,15 @@ class RaporPdfHelper {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: pageFormat,
+        pageTheme: pageTheme,
         footer: (context) {
           return pw.Container(
             alignment: pw.Alignment.centerRight,
             margin: const pw.EdgeInsets.only(top: 15),
             child: pw.Text(
-              'Halaman ${context.pageNumber} dari ${context.pagesCount}',
+              AppLocalization.isIndonesian
+                  ? 'Halaman ${context.pageNumber}'
+                  : 'Page ${context.pageNumber}',
               style: pw.TextStyle(
                 fontSize: 8,
                 color: PdfColor.fromInt(0xFF94A3B8),
@@ -71,71 +102,87 @@ class RaporPdfHelper {
             pw.Center(
               child: pw.Column(
                 children: [
-                  if (logoBase64 != null && logoBase64.isNotEmpty) ...[
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.center,
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      children: [
-                        pw.Container(
-                          width: 50,
-                          height: 50,
-                          child: pw.Image(
-                            pw.MemoryImage(base64Decode(logoBase64)),
-                            fit: pw.BoxFit.contain,
+                   if (logoBase64 != null && logoBase64.isNotEmpty) ...[
+                    pw.Container(
+                      height: 50,
+                      child: pw.Stack(
+                        alignment: pw.Alignment.center,
+                        children: [
+                          pw.Align(
+                            alignment: pw.Alignment.centerLeft,
+                            child: pw.Container(
+                              width: 50,
+                              height: 50,
+                              child: pw.Image(
+                                pw.MemoryImage(base64Decode(logoBase64)),
+                                fit: pw.BoxFit.contain,
+                              ),
+                            ),
                           ),
-                        ),
-                        pw.SizedBox(width: 12),
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              AppLocalization.isIndonesian
-                                  ? 'LAPORAN HASIL BELAJAR (RAPOR)'
-                                  : 'STUDENT PROGRESS REPORT (REPORT CARD)',
-                              style: pw.TextStyle(
-                                fontSize: 14,
-                                fontWeight: pw.FontWeight.bold,
-                                color: PdfColor.fromInt(0xFF1E1B4B),
+                          pw.Column(
+                            mainAxisAlignment: pw.MainAxisAlignment.center,
+                            crossAxisAlignment: pw.CrossAxisAlignment.center,
+                            children: [
+                              pw.Text(
+                                AppLocalization.isIndonesian
+                                    ? 'LAPORAN HASIL BELAJAR (RAPOR)'
+                                    : 'STUDENT PROGRESS REPORT',
+                                style: pw.TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColor.fromInt(0xFF1E1B4B),
+                                ),
                               ),
-                            ),
-                            pw.SizedBox(height: 2),
-                            pw.Text(
-                              schoolName.toUpperCase(),
-                              style: pw.TextStyle(
-                                fontSize: 11,
-                                fontWeight: pw.FontWeight.bold,
-                                color: PdfColor.fromInt(0xFF4B5563),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                schoolName.toUpperCase(),
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColor.fromInt(0xFF4B5563),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ] else ...[
-                    pw.Text(
-                      AppLocalization.isIndonesian
-                          ? 'LAPORAN HASIL BELAJAR (RAPOR)'
-                          : 'STUDENT PROGRESS REPORT (REPORT CARD)',
-                      style: pw.TextStyle(
-                        fontSize: 14,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColor.fromInt(0xFF1E1B4B),
-                      ),
-                    ),
-                    pw.SizedBox(height: 2),
-                    pw.Text(
-                      schoolName.toUpperCase(),
-                      style: pw.TextStyle(
-                        fontSize: 11,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColor.fromInt(0xFF4B5563),
-                      ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          AppLocalization.isIndonesian
+                              ? 'LAPORAN HASIL BELAJAR (RAPOR)'
+                              : 'STUDENT PROGRESS REPORT',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromInt(0xFF1E1B4B),
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          schoolName.toUpperCase(),
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromInt(0xFF4B5563),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                   pw.SizedBox(height: 10),
                   pw.Container(
-                    height: 1.5,
-                    color: PdfColor.fromInt(0xFF1E1B4B),
+                    height: 3,
+                    child: pw.Column(
+                      children: [
+                        pw.Container(height: 1.5, color: PdfColor.fromInt(0xFF1E1B4B)),
+                        pw.SizedBox(height: 1),
+                        pw.Container(height: 0.5, color: PdfColor.fromInt(0xFF1E1B4B)),
+                      ],
+                    ),
                   ),
                   pw.SizedBox(height: 16),
                 ],
@@ -173,7 +220,7 @@ class RaporPdfHelper {
             pw.SizedBox(height: 6),
             pw.Table(
               border: pw.TableBorder.all(
-                color: PdfColor.fromInt(0xFFCBD5E1),
+                color: PdfColor(0.796, 0.835, 0.882, 0.90),
                 width: 0.5,
               ),
               columnWidths: {
@@ -183,9 +230,7 @@ class RaporPdfHelper {
               },
               children: [
                 pw.TableRow(
-                  decoration: const pw.BoxDecoration(
-                    color: PdfColor.fromInt(0xFFF1F5F9),
-                  ),
+                  decoration: null,
                   children: [
                     _buildTableHeaderCell(AppLocalization.isIndonesian ? 'Aspek Sikap' : 'Attitude Aspect'),
                     _buildTableHeaderCell(AppLocalization.isIndonesian ? 'Predikat' : 'Grade'),
@@ -228,7 +273,7 @@ class RaporPdfHelper {
             pw.SizedBox(height: 6),
             pw.Table(
               border: pw.TableBorder.all(
-                color: PdfColor.fromInt(0xFFCBD5E1),
+                color: PdfColor(0.796, 0.835, 0.882, 0.90),
                 width: 0.5,
               ),
               columnWidths: {
@@ -242,9 +287,7 @@ class RaporPdfHelper {
               children: [
                 // Header
                 pw.TableRow(
-                  decoration: const pw.BoxDecoration(
-                    color: PdfColor.fromInt(0xFFF1F5F9),
-                  ),
+                  decoration: null,
                   children: [
                     _buildTableHeaderCell('No'),
                     _buildTableHeaderCell(AppLocalization.isIndonesian ? 'Mata Pelajaran' : 'Subject', alignLeft: true),
@@ -308,11 +351,7 @@ class RaporPdfHelper {
                   }
 
                   return pw.TableRow(
-                    decoration: pw.BoxDecoration(
-                      color: idx % 2 == 0
-                          ? PdfColors.white
-                          : PdfColor.fromInt(0xFFF8FAFC),
-                    ),
+                    decoration: null,
                     children: [
                       _buildTableCell((idx + 1).toString()),
                       _buildTableCell(name, alignLeft: true, isBold: true),
@@ -342,7 +381,7 @@ class RaporPdfHelper {
                       pw.SizedBox(height: 6),
                       pw.Table(
                         border: pw.TableBorder.all(
-                          color: PdfColor.fromInt(0xFFCBD5E1),
+                          color: PdfColor(0.796, 0.835, 0.882, 0.90),
                           width: 0.5,
                         ),
                         columnWidths: {
@@ -351,9 +390,7 @@ class RaporPdfHelper {
                         },
                         children: [
                           pw.TableRow(
-                            decoration: const pw.BoxDecoration(
-                              color: PdfColor.fromInt(0xFFF1F5F9),
-                            ),
+                            decoration: null,
                             children: [
                               _buildTableHeaderCell(
                                 AppLocalization.isIndonesian ? 'Alasan Absensi' : 'Absence Reason',
@@ -403,10 +440,9 @@ class RaporPdfHelper {
                         padding: const pw.EdgeInsets.all(10),
                         decoration: pw.BoxDecoration(
                           border: pw.Border.all(
-                            color: PdfColor.fromInt(0xFFCBD5E1),
+                            color: PdfColor(0.796, 0.835, 0.882, 0.90),
                             width: 0.5,
                           ),
-                          color: PdfColor.fromInt(0xFFF8FAFC),
                           borderRadius: const pw.BorderRadius.all(
                             pw.Radius.circular(6),
                           ),
@@ -464,6 +500,14 @@ class RaporPdfHelper {
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
                     pw.Text(
+                      '${DateTime.now().day} ${AppLocalization.isIndonesian ? _getIndonesianMonth(DateTime.now().month) : _getEnglishMonth(DateTime.now().month)} ${DateTime.now().year}',
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColor.fromInt(0xFF1E293B),
+                      ),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
                       AppLocalization.isIndonesian ? 'Mengetahui,' : 'Acknowledged,',
                       style: pw.TextStyle(
                         fontSize: 9,
@@ -511,6 +555,22 @@ class RaporPdfHelper {
     return pdf;
   }
 
+  static String _getIndonesianMonth(int month) {
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return months[month - 1];
+  }
+
+  static String _getEnglishMonth(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
+  }
+
   /// Helper untuk baris informasi biodata
   static pw.Widget _buildInfoRow(String label, String value) {
     return pw.Padding(
@@ -519,7 +579,7 @@ class RaporPdfHelper {
         mainAxisSize: pw.MainAxisSize.min,
         children: [
           pw.SizedBox(
-            width: 75,
+            width: 105,
             child: pw.Text(
               label,
               style: pw.TextStyle(
@@ -545,12 +605,39 @@ class RaporPdfHelper {
 
   /// Helper judul section
   static pw.Widget _buildSectionHeader(String title) {
-    return pw.Text(
-      title,
-      style: pw.TextStyle(
-        fontSize: 10,
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColor.fromInt(0xFF1E1B4B),
+    return pw.Container(
+      width: double.infinity,
+      decoration: const pw.BoxDecoration(
+        borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Container(
+            width: 3,
+            height: 18,
+            decoration: const pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFF4F46E5), // indigo indicator
+              borderRadius: pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(4),
+                bottomLeft: pw.Radius.circular(4),
+              ),
+            ),
+          ),
+          pw.SizedBox(width: 8),
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(vertical: 4),
+              child: pw.Text(
+                title,
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromInt(0xFF312E81), // deep indigo
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

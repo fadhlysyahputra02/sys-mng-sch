@@ -42,12 +42,17 @@ class PaymentService {
 
     final studentsSnapshot = await studentsQuery.get();
 
-    // 3. Create student_bills in batches of 400 (to avoid Firestore batch write limit of 500)
+    // 3. Create student_bills and personal notifications in batches of 400
     int count = 0;
     WriteBatch batch = _firestore.batch();
+    final String formattedAmount = _formatRupiah(amount);
 
     for (var studentDoc in studentsSnapshot.docs) {
       final studentData = studentDoc.data();
+      final studentUid = studentData['uid'] as String?;
+      final studentLang = studentData['language'] as String? ?? 'id';
+      final parentUid = studentData['parentId'] as String?;
+
       final studentBillRef = _firestore
           .collection('schools')
           .doc(schoolId)
@@ -77,6 +82,57 @@ class PaymentService {
 
       batch.set(studentBillRef, studentBillData);
       count++;
+
+      // Kirim notifikasi personal ke murid
+      if (studentUid != null && studentUid.isNotEmpty) {
+        final notifTitle = studentLang == 'en' ? 'New Bill' : 'Tagihan Baru';
+        final notifContent = studentLang == 'en'
+            ? 'New bill "$title" of $formattedAmount has been issued.'
+            : 'Tagihan baru "$title" sebesar $formattedAmount telah diterbitkan.';
+
+        final studentNotifRef = _firestore
+            .collection('schools')
+            .doc(schoolId)
+            .collection('notifications')
+            .doc();
+
+        batch.set(studentNotifRef, {
+          'title': notifTitle,
+          'content': notifContent,
+          'targetType': 'personal',
+          'targetId': studentUid,
+          'targetName': studentData['nama'] ?? 'Murid',
+          'senderId': 'tu_system',
+          'senderName': 'Bagian Keuangan',
+          'senderRole': 'tu',
+          'category': 'payment',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        count++;
+      }
+
+      // Kirim notifikasi personal ke orang tua (jika terhubung)
+      if (parentUid != null && parentUid.isNotEmpty) {
+        final parentNotifRef = _firestore
+            .collection('schools')
+            .doc(schoolId)
+            .collection('notifications')
+            .doc();
+
+        batch.set(parentNotifRef, {
+          'title': 'Tagihan Baru',
+          'content': 'Tagihan baru "$title" untuk anak Anda ${studentData['nama'] ?? "Murid"} sebesar $formattedAmount telah diterbitkan.',
+          'targetType': 'personal',
+          'targetId': parentUid,
+          'targetName': 'Orang Tua ${studentData['nama'] ?? "Murid"}',
+          'senderId': 'tu_system',
+          'senderName': 'Bagian Keuangan',
+          'senderRole': 'tu',
+          'category': 'payment',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        count++;
+      }
 
       if (count >= 400) {
         await batch.commit();
@@ -180,11 +236,144 @@ class PaymentService {
       updates['uploadedAt'] = null;
     }
 
+    // Ambil data sebelum update untuk kebutuhan notifikasi
+    DocumentSnapshot<Map<String, dynamic>>? billDoc;
+    try {
+      billDoc = await _firestore
+          .collection('schools')
+          .doc(schoolId)
+          .collection('student_bills')
+          .doc(studentBillId)
+          .get();
+    } catch (_) {}
+
     await _firestore
         .collection('schools')
         .doc(schoolId)
         .collection('student_bills')
         .doc(studentBillId)
         .update(updates);
+
+    if (billDoc != null && billDoc.exists) {
+      final billData = billDoc.data();
+      if (billData != null) {
+        final String studentId = billData['studentId'] ?? '';
+        final String billTitle = billData['title'] ?? 'Tagihan';
+        final String studentName = billData['studentName'] ?? 'Murid';
+
+        if (studentId.isNotEmpty) {
+          try {
+            final studentDoc = await _firestore
+                .collection('schools')
+                .doc(schoolId)
+                .collection('students')
+                .doc(studentId)
+                .get();
+
+            if (studentDoc.exists) {
+              final studentUid = studentDoc.data()?['uid'];
+              final parentUid = studentDoc.data()?['parentId'];
+
+              // Ambil bahasa preferensi murid
+              String studentLang = 'id';
+              if (studentUid != null && studentUid.toString().isNotEmpty) {
+                try {
+                  final userDoc = await _firestore.collection('users').doc(studentUid.toString()).get();
+                  if (userDoc.exists) {
+                    studentLang = userDoc.data()?['language'] ?? 'id';
+                  }
+                } catch (_) {}
+              }
+
+              // Ambil bahasa preferensi orang tua
+              String parentLang = 'id';
+              if (parentUid != null && parentUid.toString().isNotEmpty) {
+                try {
+                  final userDoc = await _firestore.collection('users').doc(parentUid.toString()).get();
+                  if (userDoc.exists) {
+                    parentLang = userDoc.data()?['language'] ?? 'id';
+                  }
+                } catch (_) {}
+              }
+
+              // Tentukan pesan untuk murid
+              final studentTitle = studentLang == 'en'
+                  ? (status == 'paid' ? 'Payment Approved' : 'Payment Rejected')
+                  : (status == 'paid' ? 'Pembayaran Lunas' : 'Pembayaran Ditolak');
+
+              final studentContent = studentLang == 'en'
+                  ? (status == 'paid'
+                      ? 'Payment for "$billTitle" has been verified and marked as PAID.'
+                      : 'Payment for "$billTitle" has been REJECTED. Reason: ${rejectionReason ?? "-"}')
+                  : (status == 'paid'
+                      ? 'Pembayaran untuk "$billTitle" telah diverifikasi dan dinyatakan LUNAS.'
+                      : 'Pembayaran untuk "$billTitle" DITOLAK. Alasan: ${rejectionReason ?? "-"}');
+
+              // Tentukan pesan untuk orang tua
+              final parentTitle = parentLang == 'en'
+                  ? (status == 'paid' ? 'Payment Approved' : 'Payment Rejected')
+                  : (status == 'paid' ? 'Pembayaran Lunas' : 'Pembayaran Ditolak');
+
+              final parentContent = parentLang == 'en'
+                  ? (status == 'paid'
+                      ? 'Payment for "$billTitle" has been verified and marked as PAID.'
+                      : 'Payment for "$billTitle" has been REJECTED. Reason: ${rejectionReason ?? "-"}')
+                  : (status == 'paid'
+                      ? 'Pembayaran untuk "$billTitle" telah diverifikasi dan dinyatakan LUNAS.'
+                      : 'Pembayaran untuk "$billTitle" DITOLAK. Alasan: ${rejectionReason ?? "-"}');
+
+              // Kirim notifikasi ke murid
+              if (studentUid != null && studentUid.toString().isNotEmpty) {
+                await _firestore
+                    .collection('schools')
+                    .doc(schoolId)
+                    .collection('notifications')
+                    .add({
+                  'title': studentTitle,
+                  'content': studentContent,
+                  'targetType': 'personal',
+                  'targetId': studentUid,
+                  'targetName': studentName,
+                  'senderId': 'tu_system',
+                  'senderName': verifiedBy ?? 'Petugas TU',
+                  'senderRole': 'tu',
+                  'category': 'payment',
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+              }
+
+              // Kirim notifikasi ke orang tua (jika terhubung)
+              if (parentUid != null && parentUid.toString().isNotEmpty) {
+                await _firestore
+                    .collection('schools')
+                    .doc(schoolId)
+                    .collection('notifications')
+                    .add({
+                  'title': parentTitle,
+                  'content': parentContent,
+                  'targetType': 'personal',
+                  'targetId': parentUid,
+                  'targetName': 'Orang Tua $studentName',
+                  'senderId': 'tu_system',
+                  'senderName': verifiedBy ?? 'Petugas TU',
+                  'senderRole': 'tu',
+                  'category': 'payment',
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+              }
+            }
+          } catch (e) {
+            print('Gagal mengirim notifikasi pembayaran: $e');
+          }
+        }
+      }
+    }
+  }
+
+  String _formatRupiah(double amount) {
+    return 'Rp ${amount.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    )}';
   }
 }

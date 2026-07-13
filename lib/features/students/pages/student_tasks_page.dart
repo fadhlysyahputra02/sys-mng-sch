@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../tasks/models/task_model.dart';
 import '../../tasks/services/task_service.dart';
 import 'student_submit_task_page.dart';
@@ -49,8 +50,10 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
     Get.snackbar(
-      'Salin Link',
-      '$label berhasil disalin ke clipboard!',
+      AppLocalization.isIndonesian ? 'Salin Link' : 'Copy Link',
+      AppLocalization.isIndonesian
+          ? '$label berhasil disalin ke clipboard!'
+          : '$label successfully copied to clipboard!',
       snackPosition: SnackPosition.TOP,
       backgroundColor: const Color(0xFF10B981),
       colorText: Colors.white,
@@ -60,12 +63,23 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
   }
 
   String _formatDateTime(DateTime dateTime) {
-    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    final months = [
+    final isIndo = AppLocalization.isIndonesian;
+    final daysIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    final daysEng = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final monthsIndo = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
-    return '${days[dateTime.weekday % 7]}, ${dateTime.day} ${months[dateTime.month - 1]} ${dateTime.year} - ${DateFormat('HH:mm').format(dateTime.toLocal())} WIB';
+    final monthsEng = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    final dayStr = isIndo ? daysIndo[dateTime.weekday % 7] : daysEng[dateTime.weekday % 7];
+    final mStr = isIndo ? monthsIndo[dateTime.month - 1] : monthsEng[dateTime.month - 1];
+    final timeStr = DateFormat('HH:mm').format(dateTime.toLocal());
+    return isIndo 
+        ? '$dayStr, ${dateTime.day} $mStr ${dateTime.year} - $timeStr WIB'
+        : '$dayStr, $mStr ${dateTime.day}, ${dateTime.year} - $timeStr';
   }
 
   @override
@@ -106,7 +120,9 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
                     ),
                   ),
                   title: Text(
-                    widget.isParent ? 'Tugas Anak' : 'Tugas Saya',
+                    widget.isParent
+                        ? (AppLocalization.isIndonesian ? 'Tugas Anak' : "Child's Tasks")
+                        : (AppLocalization.isIndonesian ? 'Tugas Saya' : 'My Tasks'),
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                   ),
                 ),
@@ -117,12 +133,14 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Kelas: ${widget.className}',
+                          AppLocalization.isIndonesian ? 'Kelas: ${widget.className}' : 'Class: ${widget.className}',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Tahun Ajaran: ${widget.tahunAjaran} - ${widget.semester}',
+                          AppLocalization.isIndonesian
+                              ? 'Tahun Ajaran: ${widget.tahunAjaran} - ${widget.semester}'
+                              : 'Academic Year: ${widget.tahunAjaran} - ${widget.semester.replaceAll('Ganjil', 'Odd').replaceAll('Genap', 'Even')}',
                           style: TextStyle(fontSize: 12, color: subTextColor),
                         ),
                       ],
@@ -138,10 +156,10 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
                       unselectedLabelColor: subTextColor,
                       indicatorColor: const Color(0xFF8B5CF6),
                       indicatorSize: TabBarIndicatorSize.tab,
-                      tabs: const [
-                        Tab(text: 'Belum Selesai'),
-                        Tab(text: 'Terlambat'),
-                        Tab(text: 'Selesai'),
+                      tabs: [
+                        Tab(text: AppLocalization.isIndonesian ? 'Belum Selesai' : 'Pending'),
+                        Tab(text: AppLocalization.isIndonesian ? 'Terlambat' : 'Overdue'),
+                        Tab(text: AppLocalization.isIndonesian ? 'Selesai' : 'Completed'),
                       ],
                     ),
                     isDark,
@@ -247,15 +265,21 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
 
       if (type == 'todo') {
         icon = Icons.assignment_turned_in_rounded;
-        message = 'Hebat! Semua tugas telah diselesaikan.';
+        message = AppLocalization.isIndonesian
+            ? 'Hebat! Semua tugas telah diselesaikan.'
+            : 'Great! All tasks have been completed.';
         iconColor = const Color(0xFF10B981);
       } else if (type == 'late') {
         icon = Icons.error_outline_rounded;
-        message = 'Tidak ada tugas yang terlambat.';
+        message = AppLocalization.isIndonesian
+            ? 'Tidak ada tugas yang terlambat.'
+            : 'No overdue tasks.';
         iconColor = const Color(0xFF10B981);
       } else {
         icon = Icons.folder_open_rounded;
-        message = 'Belum ada tugas yang diselesaikan.';
+        message = AppLocalization.isIndonesian
+            ? 'Belum ada tugas yang diselesaikan.'
+            : 'No tasks completed yet.';
         iconColor = subTextColor;
       }
 
@@ -295,7 +319,9 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: titleColor),
             ),
             subtitle: Text(
-              '${task.subjectName} • Oleh: ${task.teacherName}',
+              AppLocalization.isIndonesian
+                  ? '${task.subjectName} • Oleh: ${task.teacherName}'
+                  : '${task.subjectName} • By: ${task.teacherName}',
               style: TextStyle(fontSize: 11, color: subTextColor),
             ),
             trailing: _buildTrailingIndicator(task, submission, type),
@@ -308,7 +334,7 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Tenggat Pengumpulan:',
+                    AppLocalization.isIndonesian ? 'Tenggat Pengumpulan:' : 'Submission Deadline:',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: titleColor),
                   ),
                   Text(
@@ -320,7 +346,7 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Deskripsi/Instruksi:',
+                    AppLocalization.isIndonesian ? 'Deskripsi/Instruksi:' : 'Description/Instructions:',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: titleColor),
                   ),
                   const SizedBox(height: 4),
@@ -349,10 +375,13 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
                             ),
                           ),
                           GestureDetector(
-                            onTap: () => _copyToClipboard(task.attachmentLink!, 'Link materi'),
-                            child: const Text(
-                              'Salin Link',
-                              style: TextStyle(fontSize: 11, color: Color(0xFF3B82F6), fontWeight: FontWeight.bold),
+                            onTap: () => _copyToClipboard(
+                              task.attachmentLink!,
+                              AppLocalization.isIndonesian ? 'Link materi' : 'Material link',
+                            ),
+                            child: Text(
+                              AppLocalization.isIndonesian ? 'Salin Link' : 'Copy Link',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF3B82F6), fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
@@ -384,7 +413,11 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
-          isGraded ? 'Nilai: ${submission.grade!.toStringAsFixed(0)}' : 'Terkirim',
+          isGraded
+              ? (AppLocalization.isIndonesian
+                  ? 'Nilai: ${submission.grade!.toStringAsFixed(0)}'
+                  : 'Grade: ${submission.grade!.toStringAsFixed(0)}')
+              : (AppLocalization.isIndonesian ? 'Terkirim' : 'Submitted'),
           style: TextStyle(
             color: isGraded ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
             fontSize: 10,
@@ -401,9 +434,9 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
           color: const Color(0xFFEF4444).withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Text(
-          'Terlambat',
-          style: TextStyle(
+        child: Text(
+          AppLocalization.isIndonesian ? 'Terlambat' : 'Overdue',
+          style: const TextStyle(
             color: Color(0xFFEF4444),
             fontSize: 10,
             fontWeight: FontWeight.bold,
@@ -418,13 +451,17 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
     Color color;
 
     if (difference.inDays > 0) {
-      timeText = '${difference.inDays} Hari Lagi';
+      timeText = AppLocalization.isIndonesian
+          ? '${difference.inDays} Hari Lagi'
+          : '${difference.inDays} Days Left';
       color = const Color(0xFF8B5CF6);
     } else if (difference.inHours > 0) {
-      timeText = '${difference.inHours} Jam Lagi';
+      timeText = AppLocalization.isIndonesian
+          ? '${difference.inHours} Jam Lagi'
+          : '${difference.inHours} Hours Left';
       color = const Color(0xFFF59E0B);
     } else {
-      timeText = 'Segera Berakhir';
+      timeText = AppLocalization.isIndonesian ? 'Segera Berakhir' : 'Ending Soon';
       color = const Color(0xFFEF4444);
     }
 
@@ -464,7 +501,9 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
               const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 14),
               const SizedBox(width: 6),
               Text(
-                'Sudah dikumpulkan pada ${DateFormat('dd MMM yyyy, HH:mm').format(submission.submittedAt.toLocal())}',
+                AppLocalization.isIndonesian
+                    ? 'Sudah dikumpulkan pada ${DateFormat('dd MMM yyyy, HH:mm').format(submission.submittedAt.toLocal())}'
+                    : 'Submitted on ${DateFormat('dd MMM yyyy, HH:mm').format(submission.submittedAt.toLocal())}',
                 style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
               ),
             ],
@@ -472,7 +511,7 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
           if (submission.studentNotes != null && submission.studentNotes!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              'Jawaban/Catatan Anda:',
+              AppLocalization.isIndonesian ? 'Jawaban/Catatan Anda:' : 'Your Answer/Notes:',
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: titleColor),
             ),
             Text(
@@ -501,7 +540,10 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => _copyToClipboard(submission.answerLink!, 'Link jawaban'),
+                    onTap: () => _copyToClipboard(
+                      submission.answerLink!,
+                      AppLocalization.isIndonesian ? 'Link jawaban' : 'Answer link',
+                    ),
                     child: const Icon(Icons.copy_rounded, size: 16, color: Color(0xFF3B82F6)),
                   ),
                 ],
@@ -525,7 +567,9 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
                       const Icon(Icons.grade_rounded, color: Color(0xFF10B981), size: 16),
                       const SizedBox(width: 6),
                       Text(
-                        'Nilai Tugas Anda: ${submission.grade!.toStringAsFixed(0)} / 100',
+                        AppLocalization.isIndonesian
+                            ? 'Nilai Tugas Anda: ${submission.grade!.toStringAsFixed(0)} / 100'
+                            : 'Your Task Grade: ${submission.grade!.toStringAsFixed(0)} / 100',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF10B981)),
                       ),
                     ],
@@ -533,7 +577,9 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
                   if (submission.teacherFeedback != null && submission.teacherFeedback!.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Text(
-                      'Catatan Guru: "${submission.teacherFeedback}"',
+                      AppLocalization.isIndonesian
+                          ? 'Catatan Guru: "${submission.teacherFeedback}"'
+                          : 'Teacher Notes: "${submission.teacherFeedback}"',
                       style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: titleColor.withValues(alpha: 0.8)),
                     ),
                   ],
@@ -548,13 +594,15 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
                 color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.hourglass_empty_rounded, color: Color(0xFF3B82F6), size: 14),
-                  SizedBox(width: 6),
+                  const Icon(Icons.hourglass_empty_rounded, color: Color(0xFF3B82F6), size: 14),
+                  const SizedBox(width: 6),
                   Text(
-                    'Menunggu pemeriksaan & penilaian oleh Guru.',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF3B82F6), fontWeight: FontWeight.bold),
+                    AppLocalization.isIndonesian
+                        ? 'Menunggu pemeriksaan & penilaian oleh Guru.'
+                        : 'Awaiting grading by Teacher.',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF3B82F6), fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -573,10 +621,12 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
           color: Colors.grey.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Center(
+        child: Center(
           child: Text(
-            'Tugas belum dikumpulkan oleh anak.',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+            AppLocalization.isIndonesian
+                ? 'Tugas belum dikumpulkan oleh anak.'
+                : 'Task not yet submitted by child.',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
           ),
         ),
       );
@@ -598,7 +648,9 @@ class _StudentTasksPageState extends State<StudentTasksPage> with SingleTickerPr
           elevation: 0,
         ),
         child: Text(
-          type == 'late' ? 'Kumpulkan Terlambat' : 'Kumpulkan Tugas',
+          type == 'late'
+              ? (AppLocalization.isIndonesian ? 'Kumpulkan Terlambat' : 'Submit Late')
+              : (AppLocalization.isIndonesian ? 'Kumpulkan Tugas' : 'Submit Assignment'),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
         ),
       ),

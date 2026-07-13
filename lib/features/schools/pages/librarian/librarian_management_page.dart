@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/services/session_service.dart';
 import '../../../authentication/widgets/auth_background.dart';
+import '../../../../core/localization/app_localization.dart';
 
 class LibrarianManagementPage extends StatefulWidget {
   final bool hideBackButton;
@@ -79,14 +80,14 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
       Get.back();
 
       Get.snackbar(
-        'Berhasil',
-        'Akun petugas $nama berhasil dibuat.',
+        AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+        AppLocalization.isIndonesian ? 'Akun petugas $nama berhasil dibuat.' : 'Librarian account $nama successfully created.',
         backgroundColor: const Color(0xFF10B981),
         colorText: Colors.white,
       );
     } catch (e) {
       Get.snackbar(
-        'Gagal',
+        AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
         e.toString().replaceAll('Exception: ', ''),
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -114,20 +115,22 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
             const Icon(Icons.warning_amber_rounded, color: Colors.red),
             const SizedBox(width: 10),
             Text(
-              'Hapus Petugas',
+              AppLocalization.isIndonesian ? 'Hapus Petugas' : 'Delete Officer',
               style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
             ),
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin menonaktifkan petugas "$nama" dari otoritas perpustakaan?',
+          AppLocalization.isIndonesian
+              ? 'Apakah Anda yakin ingin menonaktifkan petugas "$nama" dari otoritas perpustakaan?'
+              : 'Are you sure you want to deactivate the librarian "$nama" from the library authority?',
           style: TextStyle(color: textColor.withValues(alpha: 0.8)),
         ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
             child: Text(
-              'Batal',
+              AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
               style: TextStyle(color: textColor.withValues(alpha: 0.5)),
             ),
           ),
@@ -137,7 +140,10 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
               backgroundColor: Colors.red,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              AppLocalization.isIndonesian ? 'Hapus' : 'Delete',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -155,23 +161,23 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
           'isLibrarian': false,
         });
         Get.snackbar(
-          'Berhasil',
-          'Akses petugas perpustakaan untuk guru $nama berhasil dinonaktifkan.',
+          AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+          AppLocalization.isIndonesian ? 'Akses petugas perpustakaan untuk guru $nama berhasil dinonaktifkan.' : 'Library access for teacher $nama successfully deactivated.',
           backgroundColor: const Color(0xFF10B981),
           colorText: Colors.white,
         );
       } else {
         await FirebaseFirestore.instance.collection('users').doc(uid).delete();
         Get.snackbar(
-          'Berhasil',
-          'Akun petugas perpustakaan $nama berhasil dinonaktifkan.',
+          AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+          AppLocalization.isIndonesian ? 'Akun $nama berhasil dinonaktifkan.' : 'Account $nama successfully deactivated.',
           backgroundColor: const Color(0xFF10B981),
           colorText: Colors.white,
         );
       }
     } catch (e) {
       Get.snackbar(
-        'Gagal',
+        AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
         e.toString(),
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -206,7 +212,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Tambah Guru Sebagai Petugas Perpustakaan',
+                    AppLocalization.isIndonesian ? 'Tambah Guru Sebagai Petugas Perpustakaan' : 'Add Teacher as Librarian',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -215,7 +221,9 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Aktifkan akses perpustakaan untuk guru yang dipilih.',
+                    AppLocalization.isIndonesian
+                        ? 'Aktifkan akses perpustakaan untuk guru yang dipilih.'
+                        : 'Enable library access for the selected teacher.',
                     style: TextStyle(
                       fontSize: 12,
                       color: subTextColor,
@@ -227,7 +235,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                   TextField(
                     style: TextStyle(color: textColor, fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'Cari nama guru...',
+                      hintText: AppLocalization.isIndonesian ? 'Cari nama guru...' : 'Search teacher name...',
                       hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                       prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
                       filled: true,
@@ -269,7 +277,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                             return Center(
                               child: Text(
-                                'Tidak ada guru yang terdaftar.',
+                                AppLocalization.isIndonesian ? 'Tidak ada guru yang terdaftar.' : 'No registered teachers.',
                                 style: TextStyle(color: subTextColor),
                               ),
                             );
@@ -284,7 +292,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                           if (teachers.isEmpty) {
                             return Center(
                               child: Text(
-                                'Nama guru tidak cocok.',
+                                AppLocalization.isIndonesian ? 'Nama guru tidak cocok.' : 'No matching teacher found.',
                                 style: TextStyle(color: subTextColor),
                               ),
                             );
@@ -343,10 +351,10 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                                             'isLibrarian': val,
                                           });
                                           Get.snackbar(
-                                            'Berhasil',
+                                            AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
                                             val
-                                                ? '$nama diaktifkan sebagai petugas perpustakaan.'
-                                                : '$nama dinonaktifkan dari petugas perpustakaan.',
+                                                ? (AppLocalization.isIndonesian ? '$nama diaktifkan sebagai petugas perpustakaan.' : '$nama enabled as librarian.')
+                                                : (AppLocalization.isIndonesian ? '$nama dinonaktifkan dari petugas perpustakaan.' : '$nama disabled from librarian.'),
                                             backgroundColor: const Color(0xFF10B981),
                                             colorText: Colors.white,
                                             duration: const Duration(seconds: 2),
@@ -376,9 +384,9 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: const Text(
-                        'Tutup',
-                        style: TextStyle(
+                      child: Text(
+                        AppLocalization.isIndonesian ? 'Tutup' : 'Close',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
@@ -465,7 +473,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Tambah Petugas Perpustakaan Baru',
+                        AppLocalization.isIndonesian ? 'Tambah Petugas Perpustakaan Baru' : 'Add New Librarian',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -474,7 +482,9 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Buat akun masuk khusus untuk petugas perpustakaan.',
+                        AppLocalization.isIndonesian
+                            ? 'Buat akun masuk khusus untuk petugas perpustakaan.'
+                            : 'Create a dedicated login account for library staff.',
                         style: TextStyle(
                           fontSize: 12,
                           color: subTextColor,
@@ -487,7 +497,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                         controller: _namaController,
                         style: TextStyle(color: textColor),
                         decoration: InputDecoration(
-                          labelText: 'Nama Lengkap',
+                          labelText: AppLocalization.isIndonesian ? 'Nama Lengkap' : 'Full Name',
                           labelStyle: TextStyle(color: subTextColor),
                           prefixIcon: Icon(Icons.person_outline_rounded, color: subTextColor),
                           filled: true,
@@ -502,7 +512,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                           ),
                         ),
                         validator: (val) =>
-                            val == null || val.trim().isEmpty ? 'Nama lengkap harus diisi' : null,
+                            val == null || val.trim().isEmpty ? (AppLocalization.isIndonesian ? 'Nama lengkap harus diisi' : 'Full name is required') : null,
                       ),
                       const SizedBox(height: 16),
 
@@ -527,8 +537,8 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                           ),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Email harus diisi';
-                          if (!GetUtils.isEmail(val.trim())) return 'Format email tidak valid';
+                          if (val == null || val.trim().isEmpty) return AppLocalization.isIndonesian ? 'Email harus diisi' : 'Email is required';
+                          if (!GetUtils.isEmail(val.trim())) return AppLocalization.isIndonesian ? 'Format email tidak valid' : 'Invalid email format';
                           return null;
                         },
                       ),
@@ -563,14 +573,14 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                           ),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Password harus diisi';
+                          if (val == null || val.trim().isEmpty) return AppLocalization.isIndonesian ? 'Password harus diisi' : 'Password is required';
                           final passVal = val.trim();
                           final hasUpper = RegExp(r'[A-Z]').hasMatch(passVal);
                           final hasLower = RegExp(r'[a-z]').hasMatch(passVal);
                           final hasNum = RegExp(r'[0-9]').hasMatch(passVal);
                           final hasSpec = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(passVal);
                           final isValid = passVal.length >= 6 && hasUpper && hasLower && hasNum && hasSpec;
-                          if (!isValid) return 'Password tidak memenuhi syarat keamanan';
+                          if (!isValid) return AppLocalization.isIndonesian ? 'Password tidak memenuhi syarat keamanan' : 'Password does not meet security requirements';
                           return null;
                         },
                       ),
@@ -581,11 +591,11 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              buildRequirementItem('Minimal 6 karakter', pass.length >= 6),
-                              buildRequirementItem('Memiliki huruf besar (A-Z)', hasUppercase),
-                              buildRequirementItem('Memiliki huruf kecil (a-z)', hasLowercase),
-                              buildRequirementItem('Memiliki angka (0-9)', hasNumber),
-                              buildRequirementItem('Memiliki karakter khusus (!@#\$%^&* dll)', hasSpecialChar),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Minimal 6 karakter' : 'At least 6 characters', pass.length >= 6),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki huruf besar (A-Z)' : 'Must have uppercase (A-Z)', hasUppercase),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki huruf kecil (a-z)' : 'Must have lowercase (a-z)', hasLowercase),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki angka (0-9)' : 'Must have number (0-9)', hasNumber),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki karakter khusus (!@#\$%^&* dll)' : 'Must have special character (!@#\$%^&* etc)', hasSpecialChar),
                             ],
                           ),
                         ),
@@ -599,7 +609,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                         obscureText: obscureConfirm,
                         onChanged: (_) => setStateDialog(() {}),
                         decoration: InputDecoration(
-                          labelText: 'Konfirmasi Password',
+                          labelText: AppLocalization.isIndonesian ? 'Konfirmasi Password' : 'Confirm Password',
                           labelStyle: TextStyle(color: subTextColor),
                           prefixIcon: Icon(Icons.lock_outline_rounded, color: subTextColor),
                           suffixIcon: IconButton(
@@ -621,8 +631,8 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                           ),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Konfirmasi password harus diisi';
-                          if (val.trim() != _passwordController.text.trim()) return 'Password tidak cocok';
+                          if (val == null || val.trim().isEmpty) return AppLocalization.isIndonesian ? 'Konfirmasi password harus diisi' : 'Confirm password is required';
+                          if (val.trim() != _passwordController.text.trim()) return AppLocalization.isIndonesian ? 'Password tidak cocok' : 'Passwords do not match';
                           return null;
                         },
                       ),
@@ -635,7 +645,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                           TextButton(
                             onPressed: _isLoading ? null : () => Get.back(),
                             child: Text(
-                              'Batal',
+                              AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
                               style: TextStyle(color: textColor.withValues(alpha: 0.5)),
                             ),
                           ),
@@ -664,9 +674,9 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                                           AlwaysStoppedAnimation<Color>(Colors.white),
                                     ),
                                   )
-                                : const Text(
-                                    'Simpan',
-                                    style: TextStyle(
+                                : Text(
+                                    AppLocalization.isIndonesian ? 'Simpan' : 'Save',
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -719,7 +729,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                'Data Petugas Perpustakaan',
+                                AppLocalization.isIndonesian ? 'Data Petugas Perpustakaan' : 'Library Staff Data',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -748,16 +758,16 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(10),
                                     onTap: _showAddOfficerDialog,
-                                    child: const Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.add_rounded, color: Colors.white, size: 16),
-                                          SizedBox(width: 4),
+                                          const Icon(Icons.add_rounded, color: Colors.white, size: 16),
+                                          const SizedBox(width: 4),
                                           Text(
-                                            'Petugas Perpustakaan Baru',
-                                            style: TextStyle(
+                                            AppLocalization.isIndonesian ? 'Petugas Perpustakaan Baru' : 'New Librarian',
+                                            style: const TextStyle(
                                               color: Colors.white,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 12,
@@ -781,16 +791,16 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(10),
                                     onTap: _showAddTeacherLibrarianDialog,
-                                    child: const Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.person_add_rounded, color: Colors.white, size: 16),
-                                          SizedBox(width: 4),
+                                          const Icon(Icons.person_add_rounded, color: Colors.white, size: 16),
+                                          const SizedBox(width: 4),
                                           Text(
-                                            'Petugas Guru',
-                                            style: TextStyle(
+                                            AppLocalization.isIndonesian ? 'Petugas Guru' : 'Teacher Librarian',
+                                            style: const TextStyle(
                                               color: Colors.white,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 12,
@@ -834,7 +844,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Terjadi kesalahan memuat data',
+                                AppLocalization.isIndonesian ? 'Terjadi kesalahan memuat data' : 'An error occurred loading data',
                                 style: TextStyle(
                                     color: textColor,
                                     fontWeight: FontWeight.bold,
@@ -876,7 +886,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                'Belum ada data petugas',
+                                AppLocalization.isIndonesian ? 'Belum ada data petugas' : 'No librarians registered yet',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: textColor.withValues(alpha: 0.6),
@@ -885,7 +895,9 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Tap tombol di atas untuk mendaftarkan petugas baru',
+                                AppLocalization.isIndonesian
+                                    ? 'Tap tombol di atas untuk mendaftarkan petugas baru'
+                                    : 'Tap the buttons above to register a new librarian',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: mutedColor,
@@ -1004,7 +1016,9 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                                                 ),
                                               ),
                                               child: Text(
-                                                isTeacher ? 'Petugas Guru' : 'Petugas Perpustakaan',
+                                                isTeacher
+                                                    ? (AppLocalization.isIndonesian ? 'Petugas Guru' : 'Teacher Librarian')
+                                                    : (AppLocalization.isIndonesian ? 'Petugas Perpustakaan' : 'Librarian'),
                                                 style: TextStyle(
                                                   color: isTeacher
                                                       ? const Color(0xFF10B981)
@@ -1023,9 +1037,9 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                                                   borderRadius: BorderRadius.circular(8),
                                                   border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                                                 ),
-                                                child: const Text(
-                                                  'Scan Guru',
-                                                  style: TextStyle(color: Colors.blue, fontSize: 9, fontWeight: FontWeight.bold),
+                                                child: Text(
+                                                  AppLocalization.isIndonesian ? 'Scan Guru' : 'Scan Teacher',
+                                                  style: const TextStyle(color: Colors.blue, fontSize: 9, fontWeight: FontWeight.bold),
                                                 ),
                                               ),
                                             if (data['scanMuridEnabled'] as bool? ?? (data['isGateOfficer'] as bool? ?? !isTeacher))
@@ -1037,9 +1051,9 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                                                   borderRadius: BorderRadius.circular(8),
                                                   border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                                                 ),
-                                                child: const Text(
-                                                  'Scan Murid',
-                                                  style: TextStyle(color: Colors.green, fontSize: 9, fontWeight: FontWeight.bold),
+                                                child: Text(
+                                                  AppLocalization.isIndonesian ? 'Scan Murid' : 'Scan Student',
+                                                  style: const TextStyle(color: Colors.green, fontSize: 9, fontWeight: FontWeight.bold),
                                                 ),
                                               ),
                                           ],
@@ -1056,7 +1070,7 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
                                       color: Colors.red,
                                       size: 22,
                                     ),
-                                    tooltip: 'Hapus Petugas',
+                                    tooltip: AppLocalization.isIndonesian ? 'Hapus Petugas' : 'Delete Officer',
                                   ),
                                 ],
                               ),

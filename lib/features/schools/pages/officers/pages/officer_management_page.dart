@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
+import '../../../../../core/localization/app_localization.dart';
 
 class OfficerManagementPage extends StatefulWidget {
   final bool hideBackButton;
@@ -79,14 +80,16 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
       Get.back();
 
       Get.snackbar(
-        'Berhasil',
-        'Akun petugas $nama berhasil dibuat.',
+        AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+        AppLocalization.isIndonesian
+            ? 'Akun petugas $nama berhasil dibuat.'
+            : 'Officer account $nama successfully created.',
         backgroundColor: const Color(0xFF10B981),
         colorText: Colors.white,
       );
     } catch (e) {
       Get.snackbar(
-        'Gagal',
+        AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
         e.toString().replaceAll('Exception: ', ''),
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -114,20 +117,22 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
             const Icon(Icons.warning_amber_rounded, color: Colors.red),
             const SizedBox(width: 10),
             Text(
-              'Hapus Petugas',
+              AppLocalization.isIndonesian ? 'Hapus Petugas' : 'Delete Officer',
               style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
             ),
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin menonaktifkan petugas "$nama" dari otoritas scan absensi?',
+          AppLocalization.isIndonesian
+              ? 'Apakah Anda yakin ingin menonaktifkan petugas "$nama" dari otoritas scan absensi?'
+              : 'Are you sure you want to deactivate officer "$nama" from scan attendance authority?',
           style: TextStyle(color: textColor.withValues(alpha: 0.8)),
         ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
             child: Text(
-              'Batal',
+              AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
               style: TextStyle(color: textColor.withValues(alpha: 0.5)),
             ),
           ),
@@ -137,7 +142,10 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
               backgroundColor: Colors.red,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              AppLocalization.isIndonesian ? 'Hapus' : 'Delete',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -157,23 +165,27 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
           'scanMuridEnabled': false,
         });
         Get.snackbar(
-          'Berhasil',
-          'Akses petugas untuk guru $nama berhasil dinonaktifkan.',
+          AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+          AppLocalization.isIndonesian
+              ? 'Akses petugas untuk guru $nama berhasil dinonaktifkan.'
+              : 'Officer access for teacher $nama successfully disabled.',
           backgroundColor: const Color(0xFF10B981),
           colorText: Colors.white,
         );
       } else {
         await FirebaseFirestore.instance.collection('users').doc(uid).delete();
         Get.snackbar(
-          'Berhasil',
-          'Akun petugas $nama berhasil dinonaktifkan.',
+          AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+          AppLocalization.isIndonesian
+              ? 'Akun petugas $nama berhasil dinonaktifkan.'
+              : 'Officer account $nama successfully deactivated.',
           backgroundColor: const Color(0xFF10B981),
           colorText: Colors.white,
         );
       }
     } catch (e) {
       Get.snackbar(
-        'Gagal',
+        AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
         e.toString(),
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -208,7 +220,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Tambah Guru Sebagai Petugas',
+                    AppLocalization.isIndonesian ? 'Tambah Guru Sebagai Petugas' : 'Add Teacher as Officer',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -217,7 +229,9 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Aktifkan akses scan absensi gerbang untuk guru yang dipilih.',
+                    AppLocalization.isIndonesian
+                        ? 'Aktifkan akses scan absensi gerbang untuk guru yang dipilih.'
+                        : 'Enable gate attendance scanning access for selected teacher.',
                     style: TextStyle(
                       fontSize: 12,
                       color: subTextColor,
@@ -229,7 +243,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                   TextField(
                     style: TextStyle(color: textColor, fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'Cari nama guru...',
+                      hintText: AppLocalization.isIndonesian ? 'Cari nama guru...' : 'Search teacher name...',
                       hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                       prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
                       filled: true,
@@ -271,7 +285,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                             return Center(
                               child: Text(
-                                'Tidak ada guru yang terdaftar.',
+                                AppLocalization.isIndonesian ? 'Tidak ada guru yang terdaftar.' : 'No teachers registered.',
                                 style: TextStyle(color: subTextColor),
                               ),
                             );
@@ -286,7 +300,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                           if (teachers.isEmpty) {
                             return Center(
                               child: Text(
-                                'Nama guru tidak cocok.',
+                                AppLocalization.isIndonesian ? 'Nama guru tidak cocok.' : 'Teacher name does not match.',
                                 style: TextStyle(color: subTextColor),
                               ),
                             );
@@ -352,10 +366,10 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                                 'scanMuridEnabled': val,
                                               });
                                               Get.snackbar(
-                                                'Berhasil',
+                                                AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
                                                 val
-                                                    ? '$nama diaktifkan sebagai petugas scan.'
-                                                    : '$nama dinonaktifkan dari petugas scan.',
+                                                    ? (AppLocalization.isIndonesian ? '$nama diaktifkan sebagai petugas scan.' : '$nama enabled as scan officer.')
+                                                    : (AppLocalization.isIndonesian ? '$nama dinonaktifkan dari petugas scan.' : '$nama disabled from scan officer.'),
                                                 backgroundColor: const Color(0xFF10B981),
                                                 colorText: Colors.white,
                                                 duration: const Duration(seconds: 2),
@@ -368,7 +382,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                       if (isGateOfficer) ...[
                                         const Divider(height: 16),
                                         Text(
-                                          'Hak Akses Scan:',
+                                          AppLocalization.isIndonesian ? 'Hak Akses Scan:' : 'Scan Permission:',
                                           style: TextStyle(
                                             color: textColor.withOpacity(0.7),
                                             fontSize: 11,
@@ -382,7 +396,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                               child: CheckboxListTile(
                                                 contentPadding: EdgeInsets.zero,
                                                 title: Text(
-                                                  'Scan Guru',
+                                                  AppLocalization.isIndonesian ? 'Scan Guru' : 'Scan Teacher',
                                                   style: TextStyle(color: textColor, fontSize: 12),
                                                 ),
                                                 value: scanGuruEnabled,
@@ -411,7 +425,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                               child: CheckboxListTile(
                                                 contentPadding: EdgeInsets.zero,
                                                 title: Text(
-                                                  'Scan Murid',
+                                                  AppLocalization.isIndonesian ? 'Scan Murid' : 'Scan Student',
                                                   style: TextStyle(color: textColor, fontSize: 12),
                                                 ),
                                                 value: scanMuridEnabled,
@@ -460,7 +474,10 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                         backgroundColor: const Color(0xFF6366F1),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        AppLocalization.isIndonesian ? 'Tutup' : 'Close',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   )
                 ],
@@ -542,7 +559,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Tambah Petugas Baru',
+                        AppLocalization.isIndonesian ? 'Tambah Petugas Baru' : 'Add New Officer',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -551,7 +568,9 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Buat akun masuk khusus untuk petugas / satpam / piket sekolah.',
+                        AppLocalization.isIndonesian
+                            ? 'Buat akun masuk khusus untuk petugas / satpam / piket sekolah.'
+                            : 'Create a login account specifically for school officers / security.',
                         style: TextStyle(
                           fontSize: 12,
                           color: subTextColor,
@@ -564,7 +583,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                         controller: _namaController,
                         style: TextStyle(color: textColor),
                         decoration: InputDecoration(
-                          labelText: 'Nama Lengkap',
+                          labelText: AppLocalization.isIndonesian ? 'Nama Lengkap' : 'Full Name',
                           labelStyle: TextStyle(color: subTextColor),
                           prefixIcon: Icon(Icons.person_outline_rounded, color: subTextColor),
                           filled: true,
@@ -579,7 +598,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                           ),
                         ),
                         validator: (val) =>
-                            val == null || val.trim().isEmpty ? 'Nama lengkap harus diisi' : null,
+                            val == null || val.trim().isEmpty ? (AppLocalization.isIndonesian ? 'Nama lengkap harus diisi' : 'Full name is required') : null,
                       ),
                       const SizedBox(height: 16),
 
@@ -604,8 +623,8 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                           ),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Email harus diisi';
-                          if (!GetUtils.isEmail(val.trim())) return 'Format email tidak valid';
+                          if (val == null || val.trim().isEmpty) return AppLocalization.isIndonesian ? 'Email harus diisi' : 'Email is required';
+                          if (!GetUtils.isEmail(val.trim())) return AppLocalization.isIndonesian ? 'Format email tidak valid' : 'Invalid email format';
                           return null;
                         },
                       ),
@@ -640,14 +659,14 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                           ),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Password harus diisi';
+                          if (val == null || val.trim().isEmpty) return AppLocalization.isIndonesian ? 'Password harus diisi' : 'Password is required';
                           final passVal = val.trim();
                           final hasUpper = RegExp(r'[A-Z]').hasMatch(passVal);
                           final hasLower = RegExp(r'[a-z]').hasMatch(passVal);
                           final hasNum = RegExp(r'[0-9]').hasMatch(passVal);
                           final hasSpec = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(passVal);
                           final isValid = passVal.length >= 6 && hasUpper && hasLower && hasNum && hasSpec;
-                          if (!isValid) return 'Password tidak memenuhi syarat keamanan';
+                          if (!isValid) return AppLocalization.isIndonesian ? 'Password tidak memenuhi syarat keamanan' : 'Password does not meet security requirements';
                           return null;
                         },
                       ),
@@ -658,11 +677,11 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              buildRequirementItem('Minimal 6 karakter', pass.length >= 6),
-                              buildRequirementItem('Memiliki huruf besar (A-Z)', hasUppercase),
-                              buildRequirementItem('Memiliki huruf kecil (a-z)', hasLowercase),
-                              buildRequirementItem('Memiliki angka (0-9)', hasNumber),
-                              buildRequirementItem('Memiliki karakter khusus (!@#\$%^&* dll)', hasSpecialChar),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Minimal 6 karakter' : 'At least 6 characters', pass.length >= 6),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki huruf besar (A-Z)' : 'Must have uppercase (A-Z)', hasUppercase),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki huruf kecil (a-z)' : 'Must have lowercase (a-z)', hasLowercase),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki angka (0-9)' : 'Must have number (0-9)', hasNumber),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki karakter khusus (!@#\$%^&* dll)' : 'Must have special character (!@#\$%^&* etc.)', hasSpecialChar),
                             ],
                           ),
                         ),
@@ -676,7 +695,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                         obscureText: obscureConfirm,
                         onChanged: (_) => setStateDialog(() {}),
                         decoration: InputDecoration(
-                          labelText: 'Konfirmasi Password',
+                          labelText: AppLocalization.isIndonesian ? 'Konfirmasi Password' : 'Confirm Password',
                           labelStyle: TextStyle(color: subTextColor),
                           prefixIcon: Icon(Icons.lock_outline_rounded, color: subTextColor),
                           suffixIcon: IconButton(
@@ -698,8 +717,8 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                           ),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Konfirmasi password harus diisi';
-                          if (val.trim() != _passwordController.text.trim()) return 'Password tidak cocok';
+                          if (val == null || val.trim().isEmpty) return AppLocalization.isIndonesian ? 'Konfirmasi password harus diisi' : 'Confirm password is required';
+                          if (val.trim() != _passwordController.text.trim()) return AppLocalization.isIndonesian ? 'Password tidak cocok' : 'Passwords do not match';
                           return null;
                         },
                       ),
@@ -712,7 +731,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                           TextButton(
                             onPressed: _isLoading ? null : () => Get.back(),
                             child: Text(
-                              'Batal',
+                              AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
                               style: TextStyle(color: textColor.withValues(alpha: 0.5)),
                             ),
                           ),
@@ -741,9 +760,9 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                           AlwaysStoppedAnimation<Color>(Colors.white),
                                     ),
                                   )
-                                : const Text(
-                                    'Simpan',
-                                    style: TextStyle(
+                                : Text(
+                                    AppLocalization.isIndonesian ? 'Simpan' : 'Save',
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -796,7 +815,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                'Data Petugas',
+                                AppLocalization.isIndonesian ? 'Data Petugas' : 'Officer Data',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -825,15 +844,15 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(10),
                                     onTap: _showAddOfficerDialog,
-                                    child: const Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Icon(Icons.add_rounded, color: Colors.white, size: 16),
                                           SizedBox(width: 4),
                                           Text(
-                                            'Petugas Baru',
+                                            AppLocalization.isIndonesian ? 'Petugas Baru' : 'New Officer',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontWeight: FontWeight.bold,
@@ -858,15 +877,15 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(10),
                                     onTap: _showAddTeacherOfficerDialog,
-                                    child: const Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Icon(Icons.person_add_rounded, color: Colors.white, size: 16),
                                           SizedBox(width: 4),
                                           Text(
-                                            'Petugas Guru',
+                                            AppLocalization.isIndonesian ? 'Petugas Guru' : 'Teacher Officer',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontWeight: FontWeight.bold,
@@ -911,7 +930,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Terjadi kesalahan memuat data',
+                                AppLocalization.isIndonesian ? 'Terjadi kesalahan memuat data' : 'An error occurred while loading data',
                                 style: TextStyle(
                                     color: textColor,
                                     fontWeight: FontWeight.bold,
@@ -953,7 +972,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                'Belum ada data petugas',
+                                AppLocalization.isIndonesian ? 'Belum ada data petugas' : 'No officer data yet',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: textColor.withValues(alpha: 0.6),
@@ -962,7 +981,9 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Tap tombol di atas untuk mendaftarkan petugas baru',
+                                AppLocalization.isIndonesian
+                                    ? 'Tap tombol di atas untuk mendaftarkan petugas baru'
+                                    : 'Tap the button above to register a new officer',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: mutedColor,
@@ -1081,7 +1102,9 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                                 ),
                                               ),
                                               child: Text(
-                                                isTeacher ? 'Petugas Guru' : 'Petugas Kehadiran',
+                                                isTeacher
+                                                    ? (AppLocalization.isIndonesian ? 'Petugas Guru' : 'Teacher Officer')
+                                                    : (AppLocalization.isIndonesian ? 'Petugas Kehadiran' : 'Attendance Officer'),
                                                 style: TextStyle(
                                                   color: isTeacher
                                                       ? const Color(0xFF10B981)
@@ -1100,9 +1123,9 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                                   borderRadius: BorderRadius.circular(8),
                                                   border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                                                 ),
-                                                child: const Text(
-                                                  'Scan Guru',
-                                                  style: TextStyle(color: Colors.blue, fontSize: 9, fontWeight: FontWeight.bold),
+                                                child: Text(
+                                                  AppLocalization.isIndonesian ? 'Scan Guru' : 'Scan Teacher',
+                                                  style: const TextStyle(color: Colors.blue, fontSize: 9, fontWeight: FontWeight.bold),
                                                 ),
                                               ),
                                             if (data['scanMuridEnabled'] as bool? ?? (data['isGateOfficer'] as bool? ?? !isTeacher))
@@ -1114,9 +1137,9 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                                   borderRadius: BorderRadius.circular(8),
                                                   border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                                                 ),
-                                                child: const Text(
-                                                  'Scan Murid',
-                                                  style: TextStyle(color: Colors.green, fontSize: 9, fontWeight: FontWeight.bold),
+                                                child: Text(
+                                                  AppLocalization.isIndonesian ? 'Scan Murid' : 'Scan Student',
+                                                  style: const TextStyle(color: Colors.green, fontSize: 9, fontWeight: FontWeight.bold),
                                                 ),
                                               ),
                                           ],
@@ -1133,7 +1156,7 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                       color: Colors.red,
                                       size: 22,
                                     ),
-                                    tooltip: 'Hapus Petugas',
+                                    tooltip: AppLocalization.isIndonesian ? 'Hapus Petugas' : 'Delete Officer',
                                   ),
                                 ],
                               ),

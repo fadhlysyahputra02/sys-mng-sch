@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/localization/app_localization.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
@@ -42,14 +43,22 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
 
   String _getFormattedIndonesianDate() {
     final now = DateTime.now();
-    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    final months = [
+    final isIndo = AppLocalization.isIndonesian;
+    final daysIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    final daysEng = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final monthsIndo = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
     ];
-    final dayName = days[now.weekday % 7];
-    final monthName = months[now.month - 1];
-    return '$dayName, ${now.day} $monthName ${now.year}';
+    final monthsEng = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    final dayName = isIndo ? daysIndo[now.weekday % 7] : daysEng[now.weekday % 7];
+    final monthName = isIndo ? monthsIndo[now.month - 1] : monthsEng[now.month - 1];
+    return isIndo 
+        ? '$dayName, ${now.day} $monthName ${now.year}'
+        : '$dayName, $monthName ${now.day}, ${now.year}';
   }
 
   String _getTodayHariIndonesian() {
@@ -77,7 +86,7 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
     final dt = timestamp.toDate().toLocal();
     final hour = dt.hour.toString().padLeft(2, '0');
     final minute = dt.minute.toString().padLeft(2, '0');
-    return '$hour:$minute WIB';
+    return AppLocalization.isIndonesian ? '$hour:$minute WIB' : '$hour:$minute';
   }
 
   void _openScanModal(
@@ -109,9 +118,9 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Absensi Kelas',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        Text(
+                          AppLocalization.isIndonesian ? 'Absensi Kelas' : 'Class Attendance',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -129,7 +138,9 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Arahkan kamera ke QR Code yang ditampilkan guru',
+                AppLocalization.isIndonesian
+                    ? 'Arahkan kamera ke QR Code yang ditampilkan guru'
+                    : 'Point the camera at the QR Code displayed by the teacher',
                 style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.5)),
               ),
               const SizedBox(height: 20),
@@ -139,7 +150,9 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
 
                   // Cek apakah jam pelajaran sudah lewat sebelum scan
                   if (_isTimeExpired(jamSelesai)) {
-                    _showErrorSnackbar('Waktu absensi sudah berakhir pukul $jamSelesai');
+                    _showErrorSnackbar(AppLocalization.isIndonesian
+                        ? 'Waktu absensi sudah berakhir pukul $jamSelesai'
+                        : 'Attendance time has ended at $jamSelesai');
                     return;
                   }
 
@@ -151,7 +164,9 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
 
                   // Cek apakah jam pelajaran sudah lewat setelah scan selesai
                   if (_isTimeExpired(jamSelesai)) {
-                    _showErrorSnackbar('Waktu absensi sudah berakhir pukul $jamSelesai');
+                    _showErrorSnackbar(AppLocalization.isIndonesian
+                        ? 'Waktu absensi sudah berakhir pukul $jamSelesai'
+                        : 'Attendance time has ended at $jamSelesai');
                     return;
                   }
 
@@ -169,7 +184,9 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                   }
 
                   if (scannedScheduleId == null || scannedScheduleId != scheduleId) {
-                    _showErrorSnackbar('QR tidak valid untuk pelajaran ini');
+                    _showErrorSnackbar(AppLocalization.isIndonesian
+                        ? 'QR tidak valid untuk pelajaran ini'
+                        : 'Invalid QR code for this subject');
                     return;
                   }
 
@@ -193,7 +210,10 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                   }
                 },
                 icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 20),
-                label: const Text('BUKA KAMERA SCAN QR', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: Text(
+                  AppLocalization.isIndonesian ? 'BUKA KAMERA SCAN QR' : 'OPEN CAMERA SCAN QR',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF8B5CF6),
                   foregroundColor: Colors.white,
@@ -211,8 +231,16 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
 
   void _showSuccessSnackbar() {
     Get.rawSnackbar(
-      titleText: const Text('Absen Berhasil', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-      messageText: const Text('Kehadiran Anda hari ini telah tercatat!', style: TextStyle(color: Colors.white70, fontSize: 14)),
+      titleText: Text(
+        AppLocalization.isIndonesian ? 'Absen Berhasil' : 'Check-In Successful',
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+      ),
+      messageText: Text(
+        AppLocalization.isIndonesian
+            ? 'Kehadiran Anda hari ini telah tercatat!'
+            : 'Your attendance for today has been recorded!',
+        style: const TextStyle(color: Colors.white70, fontSize: 14),
+      ),
       icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 28),
       margin: const EdgeInsets.all(16),
       borderRadius: 16,
@@ -226,7 +254,10 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
 
   void _showErrorSnackbar(String error) {
     Get.rawSnackbar(
-      titleText: const Text('Absen Gagal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+      titleText: Text(
+        AppLocalization.isIndonesian ? 'Absen Gagal' : 'Check-In Failed',
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+      ),
       messageText: Text(error, style: const TextStyle(color: Colors.white70, fontSize: 14)),
       icon: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
       margin: const EdgeInsets.all(16),
@@ -275,7 +306,7 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                     ),
                   ),
                   title: Text(
-                    'Absensi Hari Ini',
+                    AppLocalization.isIndonesian ? 'Absensi Hari Ini' : "Today's Attendance",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
                   ),
                   actions: [
@@ -287,7 +318,7 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                       ),
                       child: IconButton(
                         icon: Icon(Icons.history_rounded, color: iconColor, size: 20),
-                        tooltip: 'Riwayat Absensi',
+                        tooltip: AppLocalization.isIndonesian ? 'Riwayat Absensi' : 'Attendance History',
                         onPressed: () {
                           Navigator.push(
                             context,
@@ -323,7 +354,10 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                       stream: _scheduleService.getSchedulesByClassName(user.schoolId, widget.className),
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
-                          return _buildInfoBox('Gagal memuat jadwal', isError: true);
+                          return _buildInfoBox(
+                            AppLocalization.isIndonesian ? 'Gagal memuat jadwal' : 'Failed to load schedule',
+                            isError: true,
+                          );
                         }
                         if (snapshot.connectionState == ConnectionState.waiting) {
                           final isDark = AuthBackground.isDarkMode.value;
@@ -363,13 +397,19 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                         });
 
                         if (todaySchedules.isEmpty) {
-                          return _buildInfoBox('Tidak ada jadwal pelajaran untuk hari ini');
+                          return _buildInfoBox(
+                            AppLocalization.isIndonesian
+                                ? 'Tidak ada jadwal pelajaran untuk hari ini'
+                                : 'No subjects scheduled for today',
+                          );
                         }
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _buildSectionLabel('Jadwal Pelajaran'),
+                            _buildSectionLabel(
+                              AppLocalization.isIndonesian ? 'Jadwal Pelajaran' : 'Subject Schedule',
+                            ),
                             const SizedBox(height: 12),
                             ...todaySchedules.map((s) {
                               final scheduleId = s['scheduleId'] ?? '';
@@ -477,7 +517,7 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Riwayat Absensi',
+                      AppLocalization.isIndonesian ? 'Riwayat Absensi' : 'Attendance History',
                       style: TextStyle(
                         color: textColor,
                         fontWeight: FontWeight.bold,
@@ -486,7 +526,7 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Lihat absensi per bulan',
+                      AppLocalization.isIndonesian ? 'Lihat absensi per bulan' : 'View monthly attendance',
                       style: TextStyle(
                         color: subTextColor,
                         fontSize: 11,
@@ -553,7 +593,9 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Absensi harian berbasis QR Code',
+                      AppLocalization.isIndonesian
+                          ? 'Absensi harian berbasis QR Code'
+                          : 'Daily attendance based on QR Code',
                       style: TextStyle(color: subTextColor, fontSize: 12),
                     ),
                   ],
@@ -587,7 +629,7 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
               ),
               const Spacer(),
               Text(
-                'Hari ini',
+                AppLocalization.isIndonesian ? 'Hari ini' : 'Today',
                 style: TextStyle(color: subTextColor, fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ],
@@ -730,8 +772,7 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                     ),
                   ],
                 ),
-              ),
-              // Status badge kanan atas
+              ), // Status badge kanan atas
               if (isCheckedIn)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -740,7 +781,10 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                   ),
-                  child: const Text('Hadir', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    AppLocalization.isIndonesian ? 'Hadir' : 'Present',
+                    style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                 )
               else if (expired)
                 Container(
@@ -750,7 +794,10 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.35)),
                   ),
-                  child: const Text('Tidak Hadir', style: TextStyle(color: Color(0xFFEF4444), fontSize: 11, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    AppLocalization.isIndonesian ? 'Tidak Hadir' : 'Absent',
+                    style: const TextStyle(color: Color(0xFFEF4444), fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                 )
               else if (isActive)
                 Container(
@@ -760,7 +807,10 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                   ),
-                  child: const Text('Aktif', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    AppLocalization.isIndonesian ? 'Aktif' : 'Active',
+                    style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                 ),
             ],
           ),
@@ -779,7 +829,9 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                   const Icon(Icons.access_time_rounded, color: Color(0xFF10B981), size: 14),
                   const SizedBox(width: 6),
                   Text(
-                    'Hadir pukul ${_formatTimestamp(timestamp)}',
+                    AppLocalization.isIndonesian
+                        ? 'Hadir pukul ${_formatTimestamp(timestamp)}'
+                        : 'Present at ${_formatTimestamp(timestamp)}',
                     style: const TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                   
@@ -799,7 +851,9 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                   const Icon(Icons.lock_clock_rounded, color: Color(0xFFEF4444), size: 14),
                   const SizedBox(width: 6),
                   Text(
-                    'Waktu absensi sudah berakhir pukul $jamSelesai',
+                    AppLocalization.isIndonesian
+                        ? 'Waktu absensi sudah berakhir pukul $jamSelesai'
+                        : 'Attendance time has ended at $jamSelesai',
                     style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.w500),
                   ),
                 ],
@@ -814,13 +868,13 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                   color: const Color(0xFF10B981).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.play_circle_filled_rounded, color: Color(0xFF10B981), size: 14),
-                    SizedBox(width: 6),
+                    const Icon(Icons.play_circle_filled_rounded, color: Color(0xFF10B981), size: 14),
+                    const SizedBox(width: 6),
                     Text(
-                      'Kelas yang sedang berlangsung',
-                      style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold),
+                      AppLocalization.isIndonesian ? 'Kelas yang sedang berlangsung' : 'Class in progress',
+                      style: const TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -829,7 +883,10 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
               ElevatedButton.icon(
                 onPressed: () => _openScanModal(context, scheduleId, subjectName, jamSelesai),
                 icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-                label: const Text('SCAN QR ABSEN', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                label: Text(
+                  AppLocalization.isIndonesian ? 'SCAN QR ABSEN' : 'SCAN QR ATTENDANCE',
+                  style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF10B981),
                   foregroundColor: Colors.white,
@@ -852,7 +909,7 @@ class _StudentAttendancePageState extends State<StudentAttendancePage> {
                     Icon(Icons.hourglass_empty_rounded, color: subColor, size: 14),
                     const SizedBox(width: 6),
                     Text(
-                      'Belum dimulai',
+                      AppLocalization.isIndonesian ? 'Belum dimulai' : 'Not started',
                       style: TextStyle(color: subColor, fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   ],

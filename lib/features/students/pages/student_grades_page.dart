@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../authentication/widgets/auth_background.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 class StudentGradesPage extends StatefulWidget {
   final String studentDocId;
@@ -326,23 +327,16 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
     try {
       final parts = dateStr.split('-');
       if (parts.length == 3) {
-        final months = [
-          '',
-          'Jan',
-          'Feb',
-          'Mar',
-          'Apr',
-          'Mei',
-          'Jun',
-          'Jul',
-          'Agu',
-          'Sep',
-          'Okt',
-          'Nov',
-          'Des',
+        final isIndo = AppLocalization.isIndonesian;
+        final monthsIndo = [
+          '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+        ];
+        final monthsEng = [
+          '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
         ];
         final month = int.parse(parts[1]);
-        return '${parts[2]} ${months[month]} ${parts[0]}';
+        final mName = isIndo ? monthsIndo[month] : monthsEng[month];
+        return isIndo ? '${parts[2]} $mName ${parts[0]}' : '$mName ${parts[2]}, ${parts[0]}';
       }
     } catch (_) {}
     return dateStr;
@@ -373,9 +367,14 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
 
         return Scaffold(
           body: AuthBackground(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
+            child: RefreshIndicator(
+              onRefresh: _loadGrades,
+              color: const Color(0xFF8B5CF6),
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                slivers: [
                 // App Bar
                 SliverAppBar(
                   backgroundColor: Colors.transparent,
@@ -401,7 +400,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Nilai Saya',
+                        AppLocalization.isIndonesian ? 'Nilai Saya' : 'My Grades',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
@@ -409,29 +408,12 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                         ),
                       ),
                       Text(
-                        '$_selectedTahunAjaran  •  $_selectedSemester',
+                        '$_selectedTahunAjaran  •  ${AppLocalization.isIndonesian ? _selectedSemester : _selectedSemester.replaceAll('Ganjil', 'Odd').replaceAll('Genap', 'Even').replaceAll('Semester 1', 'Semester 1').replaceAll('Semester 2', 'Semester 2')}',
                         style: TextStyle(fontSize: 11, color: subTextColor),
                       ),
                     ],
                   ),
-                  actions: [
-                    Container(
-                      margin: const EdgeInsets.only(right: 16),
-                      decoration: BoxDecoration(
-                        color: iconBgColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.refresh_rounded,
-                          color: iconColor,
-                          size: 20,
-                        ),
-                        tooltip: 'Refresh',
-                        onPressed: _loadGrades,
-                      ),
-                    ),
-                  ],
+                  actions: const [],
                 ),
 
                 // Filter Card
@@ -460,7 +442,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                               const Icon(Icons.filter_alt_rounded, color: Color(0xFF8B5CF6), size: 18),
                               const SizedBox(width: 8),
                               Text(
-                                'Filter Nilai',
+                                AppLocalization.isIndonesian ? 'Filter Nilai' : 'Grade Filter',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
                               ),
                             ],
@@ -474,7 +456,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                   value: _selectedTahunAjaran,
                                   dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                   decoration: InputDecoration(
-                                    labelText: 'Tahun Ajaran',
+                                    labelText: AppLocalization.isIndonesian ? 'Tahun Ajaran' : 'Academic Year',
                                     labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                     fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.03),
                                     filled: true,
@@ -507,7 +489,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                   value: _selectedSemester,
                                   dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                   decoration: InputDecoration(
-                                    labelText: 'Semester',
+                                    labelText: AppLocalization.isIndonesian ? 'Semester' : 'Semester',
                                     labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                     fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.03),
                                     filled: true,
@@ -522,7 +504,11 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                   items: _semesterOptions.map((sem) {
                                     return DropdownMenuItem<String>(
                                       value: sem,
-                                      child: Text(sem),
+                                      child: Text(
+                                        AppLocalization.isIndonesian
+                                            ? sem
+                                            : sem.replaceAll('Ganjil', 'Odd').replaceAll('Genap', 'Even').replaceAll('Semester 1', 'Semester 1').replaceAll('Semester 2', 'Semester 2'),
+                                      ),
                                     );
                                   }).toList(),
                                   onChanged: (val) {
@@ -565,7 +551,9 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Gagal memuat data nilai',
+                              AppLocalization.isIndonesian
+                                  ? 'Gagal memuat data nilai'
+                                  : 'Failed to load grades',
                               style: TextStyle(
                                 color: titleColor,
                                 fontSize: 16,
@@ -585,7 +573,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                             ElevatedButton.icon(
                               onPressed: _loadGrades,
                               icon: const Icon(Icons.refresh_rounded),
-                              label: const Text('Coba Lagi'),
+                              label: Text(AppLocalization.isIndonesian ? 'Coba Lagi' : 'Try Again'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF8B5CF6),
                                 foregroundColor: Colors.white,
@@ -613,7 +601,9 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            _classId.isEmpty ? 'Tidak Terdaftar Kelas' : 'Belum Ada Nilai',
+                            _classId.isEmpty
+                                ? (AppLocalization.isIndonesian ? 'Tidak Terdaftar Kelas' : 'Not Registered in a Class')
+                                : (AppLocalization.isIndonesian ? 'Belum Ada Nilai' : 'No Grades Yet'),
                             style: TextStyle(
                               color: titleColor,
                               fontSize: 18,
@@ -623,8 +613,12 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                           const SizedBox(height: 8),
                           Text(
                             _classId.isEmpty
-                                ? 'Anda tidak terdaftar di kelas manapun\npada tahun ajaran dan semester ini.'
-                                : 'Nilai Anda akan tampil di sini\nsetelah guru memasukkan nilai.',
+                                ? (AppLocalization.isIndonesian
+                                    ? 'Anda tidak terdaftar di kelas manapun\npada tahun ajaran dan semester ini.'
+                                    : 'You are not registered in any class\nduring this academic year and semester.')
+                                : (AppLocalization.isIndonesian
+                                    ? 'Nilai Anda akan tampil di sini\nsetelah guru memasukkan nilai.'
+                                    : 'Your grades will appear here\nonce teachers enter them.'),
                             textAlign: TextAlign.center,
                             style: TextStyle(color: subTextColor, fontSize: 13),
                           ),
@@ -814,7 +808,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  'Nilai Akhir',
+                                                  AppLocalization.isIndonesian ? 'Nilai Akhir' : 'Final Grade',
                                                   style: TextStyle(
                                                     color: subTextColor,
                                                     fontSize: 10,
@@ -910,7 +904,7 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
                                               ),
                                               const Spacer(),
                                               Text(
-                                                'Rata-rata: ${catAvg.toStringAsFixed(1)}',
+                                                AppLocalization.isIndonesian ? 'Rata-rata: ${catAvg.toStringAsFixed(1)}' : 'Average: ${catAvg.toStringAsFixed(1)}',
                                                 style: TextStyle(
                                                   color: _getScoreColor(catAvg),
                                                   fontWeight: FontWeight.w600,
@@ -1063,10 +1057,11 @@ class _StudentGradesPageState extends State<StudentGradesPage> {
               ],
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Color _getCategoryColor(String category) {
     switch (category) {

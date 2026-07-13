@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sys_mng_school/core/services/session_service.dart';
+import 'package:sys_mng_school/features/students/data/student_service.dart';
 
 /// Kelas untuk mengelola bahasa aplikasi (Indonesia / English)
 class AppLocalization {
@@ -28,6 +31,22 @@ class AppLocalization {
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_prefKey, currentLocale.value);
+
+        // Sinkronisasi bahasa ke user document di Firestore jika sedang login
+        final user = SessionService.currentUser;
+        if (user != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .update({'language': currentLocale.value});
+
+          if (user.role == 'student') {
+            final studentDoc = await StudentService().getStudentDocByUid(user.schoolId, user.uid);
+            if (studentDoc != null) {
+              await studentDoc.reference.update({'language': currentLocale.value});
+            }
+          }
+        }
       } catch (e) {
         debugPrint('AppLocalization save error: $e');
       }

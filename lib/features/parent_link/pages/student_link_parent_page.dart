@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../../core/localization/app_localization.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../services/link_service.dart';
 
@@ -211,7 +212,7 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Sambungkan ke Orang Tua',
+                            AppLocalization.isIndonesian ? 'Sambungkan ke Orang Tua' : 'Connect to Parent',
                             style: TextStyle(
                               color: textColor,
                               fontWeight: FontWeight.bold,
@@ -239,7 +240,9 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
                                 child: Column(
                                   children: [
                                     Text(
-                                      'Tunjukkan QR ini ke orang tua',
+                                      AppLocalization.isIndonesian
+                                          ? 'Tunjukkan QR ini ke orang tua'
+                                          : 'Show this QR to parent',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         color: textColor,
@@ -249,7 +252,9 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Orang tua scan QR saat mendaftar akun',
+                                      AppLocalization.isIndonesian
+                                          ? 'Orang tua scan QR saat mendaftar akun'
+                                          : 'Parent scans the QR code during registration',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         color: subTextColor,
@@ -338,8 +343,10 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
                                                 const SizedBox(width: 8),
                                                 Text(
                                                   _isExpired
-                                                      ? 'QR kedaluwarsa'
-                                                      : 'Berlaku: ${_formatCountdown(_remaining)}',
+                                                      ? (AppLocalization.isIndonesian ? 'QR kedaluwarsa' : 'QR expired')
+                                                      : (AppLocalization.isIndonesian
+                                                          ? 'Berlaku: ${_formatCountdown(_remaining)}'
+                                                          : 'Valid for: ${_formatCountdown(_remaining)}'),
                                                   style: TextStyle(
                                                     color: _isExpired
                                                         ? const Color(0xFFEF4444)
@@ -357,7 +364,7 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
                                     const SizedBox(height: 24),
                                     _buildInfoRow(
                                       icon: Icons.person_rounded,
-                                      label: 'Murid',
+                                      label: AppLocalization.isIndonesian ? 'Murid' : 'Student',
                                       value: widget.studentName,
                                       textColor: textColor,
                                       subTextColor: subTextColor,
@@ -367,7 +374,7 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
                                     const SizedBox(height: 12),
                                     _buildInfoRow(
                                       icon: Icons.key_rounded,
-                                      label: 'Token',
+                                      label: AppLocalization.isIndonesian ? 'Token' : 'Token',
                                       value: (_payload?['token'] ?? '-')
                                           .toString()
                                           .substring(0, 8),
@@ -383,7 +390,7 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
                                         child: ElevatedButton.icon(
                                           onPressed: _generateQr,
                                           icon: const Icon(Icons.refresh_rounded),
-                                          label: const Text('Buat QR Baru'),
+                                          label: Text(AppLocalization.isIndonesian ? 'Buat QR Baru' : 'Create New QR'),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor:
                                                 const Color(0xFF8B5CF6),
@@ -432,7 +439,7 @@ class _StudentLinkParentPageState extends State<StudentLinkParentPage> {
                 backgroundColor: const Color(0xFF8B5CF6),
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Coba Lagi'),
+              child: Text(AppLocalization.isIndonesian ? 'Coba Lagi' : 'Try Again'),
             ),
           ],
         ),

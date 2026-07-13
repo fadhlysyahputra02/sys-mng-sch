@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../widgets/monthly_attendance_table_section.dart';
+import '../../../core/localization/app_localization.dart';
 
 class StudentAttendanceHistoryPage extends StatelessWidget {
   final String studentDocId;
@@ -63,7 +64,7 @@ class StudentAttendanceHistoryPage extends StatelessWidget {
                     ),
                   ),
                   title: Text(
-                    'Riwayat Absensi',
+                    AppLocalization.isIndonesian ? 'Riwayat Absensi' : 'Attendance History',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,

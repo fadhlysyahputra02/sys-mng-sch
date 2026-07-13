@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
+import '../../../../../core/localization/app_localization.dart';
 
 class TuManagementPage extends StatefulWidget {
   final bool hideBackButton;
@@ -74,14 +75,14 @@ class _TuManagementPageState extends State<TuManagementPage> {
       Get.back();
 
       Get.snackbar(
-        'Berhasil',
-        'Akun Tata Usaha $nama berhasil dibuat.',
+        AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+        AppLocalization.isIndonesian ? 'Akun Tata Usaha $nama berhasil dibuat.' : 'TU account $nama successfully created.',
         backgroundColor: const Color(0xFF10B981),
         colorText: Colors.white,
       );
     } catch (e) {
       Get.snackbar(
-        'Gagal',
+        AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
         e.toString().replaceAll('Exception: ', ''),
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -104,22 +105,27 @@ class _TuManagementPageState extends State<TuManagementPage> {
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: dialogBorder),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
-            SizedBox(width: 10),
-            Text('Hapus Tata Usaha', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            const SizedBox(width: 10),
+            Text(
+              AppLocalization.isIndonesian ? 'Hapus Tata Usaha' : 'Delete TU Staff',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin menghapus akun "$nama"? Tindakan ini akan menolak akses login mereka ke sistem.',
+          AppLocalization.isIndonesian
+              ? 'Apakah Anda yakin ingin menghapus akun "$nama"? Tindakan ini akan menolak akses login mereka ke sistem.'
+              : 'Are you sure you want to delete the account "$nama"? This action will deny their login access to the system.',
           style: TextStyle(color: textColor.withValues(alpha: 0.8)),
         ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
             child: Text(
-              'Batal',
+              AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
               style: TextStyle(color: textColor.withValues(alpha: 0.5)),
             ),
           ),
@@ -129,7 +135,10 @@ class _TuManagementPageState extends State<TuManagementPage> {
               backgroundColor: Colors.red,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              AppLocalization.isIndonesian ? 'Hapus' : 'Delete',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -141,14 +150,14 @@ class _TuManagementPageState extends State<TuManagementPage> {
       await FirebaseFirestore.instance.collection('users').doc(uid).delete();
 
       Get.snackbar(
-        'Berhasil',
-        'Akun $nama berhasil dinonaktifkan.',
+        AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+        AppLocalization.isIndonesian ? 'Akun $nama berhasil dinonaktifkan.' : 'Account $nama successfully deactivated.',
         backgroundColor: const Color(0xFF10B981),
         colorText: Colors.white,
       );
     } catch (e) {
       Get.snackbar(
-        'Gagal',
+        AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
         e.toString(),
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -226,7 +235,7 @@ class _TuManagementPageState extends State<TuManagementPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Tambah Tata Usaha Baru',
+                        AppLocalization.isIndonesian ? 'Tambah Tata Usaha Baru' : 'Add New TU Staff',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -235,7 +244,9 @@ class _TuManagementPageState extends State<TuManagementPage> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Buat akun masuk khusus untuk staf back office sekolah.',
+                        AppLocalization.isIndonesian
+                            ? 'Buat akun masuk khusus untuk staf back office sekolah.'
+                            : 'Create a dedicated login account for school back office staff.',
                         style: TextStyle(
                           fontSize: 12,
                           color: subTextColor,
@@ -248,7 +259,7 @@ class _TuManagementPageState extends State<TuManagementPage> {
                         controller: _namaController,
                         style: TextStyle(color: textColor),
                         decoration: InputDecoration(
-                          labelText: 'Nama Lengkap',
+                          labelText: AppLocalization.isIndonesian ? 'Nama Lengkap' : 'Full Name',
                           labelStyle: TextStyle(color: subTextColor),
                           prefixIcon: Icon(Icons.person_outline_rounded, color: subTextColor),
                           filled: true,
@@ -263,7 +274,7 @@ class _TuManagementPageState extends State<TuManagementPage> {
                           ),
                         ),
                         validator: (val) =>
-                            val == null || val.trim().isEmpty ? 'Nama lengkap harus diisi' : null,
+                            val == null || val.trim().isEmpty ? (AppLocalization.isIndonesian ? 'Nama lengkap harus diisi' : 'Full name is required') : null,
                       ),
                       const SizedBox(height: 16),
 
@@ -288,8 +299,8 @@ class _TuManagementPageState extends State<TuManagementPage> {
                           ),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Email harus diisi';
-                          if (!GetUtils.isEmail(val.trim())) return 'Format email tidak valid';
+                          if (val == null || val.trim().isEmpty) return AppLocalization.isIndonesian ? 'Email harus diisi' : 'Email is required';
+                          if (!GetUtils.isEmail(val.trim())) return AppLocalization.isIndonesian ? 'Format email tidak valid' : 'Invalid email format';
                           return null;
                         },
                       ),
@@ -324,14 +335,14 @@ class _TuManagementPageState extends State<TuManagementPage> {
                           ),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Password harus diisi';
+                          if (val == null || val.trim().isEmpty) return AppLocalization.isIndonesian ? 'Password harus diisi' : 'Password is required';
                           final passVal = val.trim();
                           final hasUpper = RegExp(r'[A-Z]').hasMatch(passVal);
                           final hasLower = RegExp(r'[a-z]').hasMatch(passVal);
                           final hasNum = RegExp(r'[0-9]').hasMatch(passVal);
                           final hasSpec = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(passVal);
                           final isValid = passVal.length >= 6 && hasUpper && hasLower && hasNum && hasSpec;
-                          if (!isValid) return 'Password tidak memenuhi syarat keamanan';
+                          if (!isValid) return AppLocalization.isIndonesian ? 'Password tidak memenuhi syarat keamanan' : 'Password does not meet security requirements';
                           return null;
                         },
                       ),
@@ -342,11 +353,11 @@ class _TuManagementPageState extends State<TuManagementPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              buildRequirementItem('Minimal 6 karakter', pass.length >= 6),
-                              buildRequirementItem('Memiliki huruf besar (A-Z)', hasUppercase),
-                              buildRequirementItem('Memiliki huruf kecil (a-z)', hasLowercase),
-                              buildRequirementItem('Memiliki angka (0-9)', hasNumber),
-                              buildRequirementItem('Memiliki karakter khusus (!@#\$%^&* dll)', hasSpecialChar),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Minimal 6 karakter' : 'At least 6 characters', pass.length >= 6),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki huruf besar (A-Z)' : 'Must have uppercase (A-Z)', hasUppercase),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki huruf kecil (a-z)' : 'Must have lowercase (a-z)', hasLowercase),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki angka (0-9)' : 'Must have number (0-9)', hasNumber),
+                              buildRequirementItem(AppLocalization.isIndonesian ? 'Memiliki karakter khusus (!@#\$%^&* dll)' : 'Must have special character (!@#\$%^&* etc)', hasSpecialChar),
                             ],
                           ),
                         ),
@@ -360,7 +371,7 @@ class _TuManagementPageState extends State<TuManagementPage> {
                         obscureText: obscureConfirm,
                         onChanged: (_) => setStateDialog(() {}),
                         decoration: InputDecoration(
-                          labelText: 'Konfirmasi Password',
+                          labelText: AppLocalization.isIndonesian ? 'Konfirmasi Password' : 'Confirm Password',
                           labelStyle: TextStyle(color: subTextColor),
                           prefixIcon: Icon(Icons.lock_outline_rounded, color: subTextColor),
                           suffixIcon: IconButton(
@@ -382,8 +393,8 @@ class _TuManagementPageState extends State<TuManagementPage> {
                           ),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Konfirmasi password harus diisi';
-                          if (val.trim() != _passwordController.text.trim()) return 'Password tidak cocok';
+                          if (val == null || val.trim().isEmpty) return AppLocalization.isIndonesian ? 'Konfirmasi password harus diisi' : 'Confirm password is required';
+                          if (val.trim() != _passwordController.text.trim()) return AppLocalization.isIndonesian ? 'Password tidak cocok' : 'Passwords do not match';
                           return null;
                         },
                       ),
@@ -396,7 +407,7 @@ class _TuManagementPageState extends State<TuManagementPage> {
                            TextButton(
                             onPressed: _isLoading ? null : () => Get.back(),
                             child: Text(
-                              'Batal',
+                              AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
                               style: TextStyle(color: textColor.withValues(alpha: 0.5)),
                             ),
                           ),
@@ -424,9 +435,9 @@ class _TuManagementPageState extends State<TuManagementPage> {
                                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                     ),
                                   )
-                                : const Text(
-                                    'Simpan',
-                                    style: TextStyle(
+                                : Text(
+                                    AppLocalization.isIndonesian ? 'Simpan' : 'Save',
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -476,7 +487,7 @@ class _TuManagementPageState extends State<TuManagementPage> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            'Data Tata Usaha',
+                            AppLocalization.isIndonesian ? 'Data Tata Usaha' : 'TU Administration Data',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -505,16 +516,16 @@ class _TuManagementPageState extends State<TuManagementPage> {
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
                               onTap: _showAddTuDialog,
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                                    SizedBox(width: 6),
+                                    const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                                    const SizedBox(width: 6),
                                     Text(
-                                      'Tambah',
-                                      style: TextStyle(
+                                      AppLocalization.isIndonesian ? 'Tambah' : 'Add',
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
@@ -556,7 +567,7 @@ class _TuManagementPageState extends State<TuManagementPage> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Terjadi kesalahan memuat data',
+                                AppLocalization.isIndonesian ? 'Terjadi kesalahan memuat data' : 'An error occurred loading data',
                                 style: TextStyle(
                                     color: textColor,
                                     fontWeight: FontWeight.bold,
@@ -593,7 +604,7 @@ class _TuManagementPageState extends State<TuManagementPage> {
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                'Belum ada data Tata Usaha',
+                                AppLocalization.isIndonesian ? 'Belum ada data Tata Usaha' : 'No TU data yet',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: textColor.withValues(alpha: 0.6),
@@ -602,7 +613,9 @@ class _TuManagementPageState extends State<TuManagementPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Tap "Tambah" untuk mendaftarkan akun TU',
+                                AppLocalization.isIndonesian
+                                    ? 'Tap "Tambah" untuk mendaftarkan akun TU'
+                                    : 'Tap "Add" to register a TU account',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: mutedColor,
@@ -703,9 +716,9 @@ class _TuManagementPageState extends State<TuManagementPage> {
                                                   .withValues(alpha: 0.4),
                                             ),
                                           ),
-                                          child: const Text(
-                                            'Tata Usaha',
-                                            style: TextStyle(
+                                          child: Text(
+                                            AppLocalization.isIndonesian ? 'Tata Usaha' : 'Administration',
+                                            style: const TextStyle(
                                               color: Color(0xFF3B82F6),
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
@@ -724,7 +737,7 @@ class _TuManagementPageState extends State<TuManagementPage> {
                                       color: Colors.red,
                                       size: 22,
                                     ),
-                                    tooltip: 'Hapus Tata Usaha',
+                                    tooltip: AppLocalization.isIndonesian ? 'Hapus Tata Usaha' : 'Delete TU Staff',
                                   ),
                                 ],
                               ),

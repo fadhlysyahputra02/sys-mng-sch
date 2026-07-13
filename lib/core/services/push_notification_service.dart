@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -5,8 +6,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import '../../app/routes/app_routes.dart';
 import 'session_service.dart';
+import '../localization/app_localization.dart';
 import 'package:sys_mng_school/features/students/data/student_service.dart';
 import 'package:sys_mng_school/features/schools/pages/teachers/data/teacher_service.dart';
+import 'package:sys_mng_school/features/students/pages/student_payment_page.dart';
+import 'package:sys_mng_school/features/parent/pages/parent_payment_page.dart';
+import 'package:sys_mng_school/features/exams/pages/student_exam_participation_page.dart';
+import 'package:sys_mng_school/features/exams/pages/teacher_proctor_dashboard_page.dart';
 
 // Helper platform-safe: gunakan defaultTargetPlatform (tidak pakai dart:io Platform)
 // sehingga aman dijalankan di Flutter Web.
@@ -60,6 +66,14 @@ class PushNotificationService {
     await _localNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) {
+          try {
+            final Map<String, dynamic> data = jsonDecode(payload);
+            _handleNotificationClick(RemoteMessage(data: data));
+            return;
+          } catch (_) {}
+        }
         Get.toNamed(AppRoutes.notifications);
       },
     );
@@ -106,6 +120,7 @@ class PushNotificationService {
               presentSound: true,
             ),
           ),
+          payload: jsonEncode(message.data),
         );
       }
     });
@@ -113,15 +128,15 @@ class PushNotificationService {
     // 4. Handle clicks ketika aplikasi di background/terbuka dari push
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint('FCM Notification clicked: ${message.messageId}');
-      Get.toNamed(AppRoutes.notifications);
+      _handleNotificationClick(message);
     });
 
     // 5. Handle clicks ketika aplikasi mati (terminated)
     final initialMessage = await _firebaseMessaging.getInitialMessage();
     if (initialMessage != null) {
       debugPrint('FCM App opened from terminated state by notification click: ${initialMessage.messageId}');
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        Get.toNamed(AppRoutes.notifications);
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        _handleNotificationClick(initialMessage);
       });
     }
 
@@ -185,6 +200,7 @@ class PushNotificationService {
 
       if (token != null) {
         debugPrint('FCM Token: $token');
+        final schoolId = user.schoolId;
         
         await FirebaseFirestore.instance
             .collection('users')
@@ -197,8 +213,28 @@ class PushNotificationService {
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
+        // Sinkronisasi bahasa yang dipilih ke profil user di Firestore
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .update({
+            'language': AppLocalization.currentLocale.value,
+          });
+
+          if (user.role == 'student') {
+            final studentDoc = await StudentService().getStudentDocByUid(schoolId, user.uid);
+            if (studentDoc != null) {
+              await studentDoc.reference.update({
+                'language': AppLocalization.currentLocale.value,
+              });
+            }
+          }
+        } catch (e) {
+          debugPrint('PushNotificationService: Gagal sinkronisasi bahasa: $e');
+        }
+
         // 3. Subscribe ke Topik Umum
-        final schoolId = user.schoolId;
         await _firebaseMessaging.subscribeToTopic('school_${schoolId}_umum');
         await _firebaseMessaging.subscribeToTopic('school_${schoolId}_role_${user.role}');
 
@@ -304,5 +340,80 @@ class PushNotificationService {
     } catch (e) {
       debugPrint('PushNotificationService: Error unregistering device: $e');
     }
+  }
+
+  void _handleNotificationClick(RemoteMessage message) async {
+    final data = message.data;
+    final category = data['category'];
+    
+    if (category == 'payment') {
+      final user = SessionService.currentUser;
+      if (user != null) {
+        if (user.role == 'student') {
+          final studentDoc = await StudentService().getStudentDocByUid(user.schoolId, user.uid);
+          if (studentDoc != null) {
+            Get.to(() => StudentPaymentPage(
+              schoolId: user.schoolId,
+              studentId: studentDoc.id,
+              studentName: studentDoc.data()?['nama'] ?? 'Murid',
+            ));
+            return;
+          }
+        } else if (user.role == 'parent') {
+          final studentDoc = await StudentService().getStudentDocByParentUid(user.schoolId, user.uid);
+          if (studentDoc != null) {
+            Get.to(() => ParentPaymentPage(
+              schoolId: user.schoolId,
+              studentId: studentDoc.id,
+              studentName: studentDoc.data()?['nama'] ?? 'Anak',
+            ));
+            return;
+          }
+        }
+      }
+    } else if (category == 'exam') {
+      final user = SessionService.currentUser;
+      if (user != null) {
+        if (user.role == 'student') {
+          final studentDoc = await StudentService().getStudentDocByUid(user.schoolId, user.uid);
+          if (studentDoc != null) {
+            final classId = studentDoc.data()?['classId'] as String?;
+            if (classId != null && classId.isNotEmpty) {
+              Get.to(() => StudentExamParticipationPage(
+                classId: classId,
+                studentDocId: studentDoc.id,
+                studentName: studentDoc.data()?['nama'] ?? '',
+                studentNis: studentDoc.data()?['nis'] ?? '',
+              ));
+              return;
+            }
+          }
+        } else if (user.role == 'parent') {
+          final studentDoc = await StudentService().getStudentDocByParentUid(user.schoolId, user.uid);
+          if (studentDoc != null) {
+            final classId = studentDoc.data()?['classId'] as String?;
+            if (classId != null && classId.isNotEmpty) {
+              Get.to(() => StudentExamParticipationPage(
+                classId: classId,
+                studentDocId: studentDoc.id,
+                studentName: studentDoc.data()?['nama'] ?? '',
+                studentNis: studentDoc.data()?['nis'] ?? '',
+              ));
+              return;
+            }
+          }
+        } else if (user.role == 'teacher') {
+          final teacherDoc = await TeacherService().getTeacherByUid(user.schoolId, user.uid);
+          if (teacherDoc != null) {
+            final teacherId = teacherDoc.data()?['teacherId'] ?? teacherDoc.id;
+            Get.to(() => TeacherProctorDashboardPage(teacherId: teacherId));
+            return;
+          }
+        }
+      }
+    }
+    
+    // Default fallback
+    Get.toNamed(AppRoutes.notifications);
   }
 }

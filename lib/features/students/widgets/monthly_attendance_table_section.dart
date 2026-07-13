@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/localization/app_localization.dart';
 
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 import '../data/student_service.dart';
@@ -109,21 +110,16 @@ class _MonthlyAttendanceTableSectionState
   }
 
   String _monthName(int month) {
-    const months = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
+    final isIndo = AppLocalization.isIndonesian;
+    final monthsIndo = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
     ];
-    return months[month - 1];
+    final monthsEng = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    return isIndo ? monthsIndo[month - 1] : monthsEng[month - 1];
   }
 
   @override
@@ -140,7 +136,7 @@ class _MonthlyAttendanceTableSectionState
             children: [
               Expanded(
                 child: Text(
-                  'Rekapitulasi Kehadiran',
+                  AppLocalization.isIndonesian ? 'Rekapitulasi Kehadiran' : 'Attendance Recap',
                   style: TextStyle(
                     color: widget.textColor,
                     fontWeight: FontWeight.bold,
@@ -194,7 +190,9 @@ class _MonthlyAttendanceTableSectionState
         ),
         const SizedBox(height: 8),
         Text(
-          '${widget.studentName} • Kelas ${_resolvedClassName ?? widget.className}',
+          AppLocalization.isIndonesian
+              ? '${widget.studentName} • Kelas ${_resolvedClassName ?? widget.className}'
+              : '${widget.studentName} • Class ${_resolvedClassName ?? widget.className}',
           style: TextStyle(color: widget.subTextColor, fontSize: 12),
         ),
         const SizedBox(height: 16),
@@ -211,7 +209,9 @@ class _MonthlyAttendanceTableSectionState
               )
             : (_resolvedClassName ?? '').isEmpty
                 ? _emptyBox(
-                    'Siswa tidak terdaftar di kelas manapun pada periode ${_monthName(_selectedMonth.month)} ${_selectedMonth.year}.',
+                    AppLocalization.isIndonesian
+                        ? 'Siswa tidak terdaftar di kelas manapun pada periode ${_monthName(_selectedMonth.month)} ${_selectedMonth.year}.'
+                        : 'Student is not registered in any class during the period ${_monthName(_selectedMonth.month)} ${_selectedMonth.year}.',
                   )
                 : StreamBuilder(
                     stream: _scheduleService.getSchedulesByClassName(
@@ -256,7 +256,9 @@ class _MonthlyAttendanceTableSectionState
 
                           if (recaps.isEmpty) {
                             return _emptyBox(
-                              'Belum ada data absensi ${_monthName(_selectedMonth.month)} ${_selectedMonth.year}.',
+                              AppLocalization.isIndonesian
+                                  ? 'Belum ada data absensi ${_monthName(_selectedMonth.month)} ${_selectedMonth.year}.'
+                                  : 'No attendance data for ${_monthName(_selectedMonth.month)} ${_selectedMonth.year} yet.',
                             );
                           }
 
@@ -358,7 +360,9 @@ class _MonthlyAttendanceTableSectionState
                         ),
                       ),
                       Text(
-                        'Kelas ${recap.className}',
+                        AppLocalization.isIndonesian
+                            ? 'Kelas ${recap.className}'
+                            : 'Class ${recap.className}',
                         style: TextStyle(
                             color: widget.subTextColor, fontSize: 12),
                       ),
@@ -379,7 +383,7 @@ class _MonthlyAttendanceTableSectionState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Detail Kehadiran Harian',
+                  AppLocalization.isIndonesian ? 'Detail Kehadiran Harian' : 'Daily Attendance Details',
                   style: TextStyle(
                     color: widget.textColor,
                     fontWeight: FontWeight.bold,
@@ -401,7 +405,7 @@ class _MonthlyAttendanceTableSectionState
         recap.totalHadir + recap.totalIzin + recap.totalSakit + recap.totalAlpa;
     if (total == 0) {
       return Text(
-        'Belum ada data absensi',
+        AppLocalization.isIndonesian ? 'Belum ada data absensi' : 'No attendance data yet',
         style: TextStyle(color: widget.subTextColor, fontSize: 12),
       );
     }
@@ -470,10 +474,26 @@ class _MonthlyAttendanceTableSectionState
           spacing: 12,
           runSpacing: 8,
           children: [
-            legend('Hadir', const Color(0xFF10B981), recap.totalHadir),
-            legend('Izin', const Color(0xFF3B82F6), recap.totalIzin),
-            legend('Sakit', const Color(0xFFF59E0B), recap.totalSakit),
-            legend('Alpa', const Color(0xFFEF4444), recap.totalAlpa),
+            legend(
+              AppLocalization.isIndonesian ? 'Hadir' : 'Present',
+              const Color(0xFF10B981),
+              recap.totalHadir,
+            ),
+            legend(
+              AppLocalization.isIndonesian ? 'Izin' : 'Permit',
+              const Color(0xFF3B82F6),
+              recap.totalIzin,
+            ),
+            legend(
+              AppLocalization.isIndonesian ? 'Sakit' : 'Sick',
+              const Color(0xFFF59E0B),
+              recap.totalSakit,
+            ),
+            legend(
+              AppLocalization.isIndonesian ? 'Alpa' : 'Absent',
+              const Color(0xFFEF4444),
+              recap.totalAlpa,
+            ),
           ],
         ),
       ],
@@ -491,7 +511,7 @@ class _MonthlyAttendanceTableSectionState
     final columns = <DataColumn>[
       DataColumn(
         label: Text(
-          'Nama',
+          AppLocalization.isIndonesian ? 'Nama' : 'Name',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: widget.textColor,

@@ -70,7 +70,8 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
   String _formatTime(Timestamp? timestamp) {
     if (timestamp == null) return '--:--';
     final date = timestamp.toDate().toLocal();
-    return '${DateFormat('HH:mm').format(date)} WIB';
+    final formatted = DateFormat('HH:mm').format(date);
+    return AppLocalization.isIndonesian ? '$formatted WIB' : formatted;
   }
 
   String _getDayName(int weekday) {
@@ -118,6 +119,10 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
       case 'tanpa keterangan':
         color = const Color(0xFFEF4444);
         label = AppLocalization.statusAbsent;
+        break;
+      case 'belum absen':
+        color = const Color(0xFFF59E0B);
+        label = AppLocalization.notYetCheckedIn;
         break;
       default:
         color = Colors.grey;
@@ -244,7 +249,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                         ],
                                       ),
                                     ),
-                                    _buildStatusBadge(hasData ? status : 'alfa'),
+                                    _buildStatusBadge(hasData ? status : 'belum absen'),
                                   ],
                                 ),
                                 const SizedBox(height: 20),

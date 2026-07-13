@@ -322,7 +322,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     const SizedBox(height: 28),
 
                     // MENU UTAMA
-                    _buildSectionTitle('Menu Utama', Icons.dashboard_rounded, isDark),
+                    _buildSectionTitle(AppLocalization.isIndonesian ? 'Menu Utama' : 'Main Menu', Icons.dashboard_rounded, isDark),
                     const SizedBox(height: 16),
 
                     GridView.builder(
@@ -858,7 +858,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               ),
               const SizedBox(width: 12),
               Text(
-                _getMenuTranslation(title),
+                title,
                 style: TextStyle(
                   color: textColor,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -1110,7 +1110,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  'Rekap Absensi School',
+                  AppLocalization.isIndonesian ? 'Rekap Absensi Sekolah' : 'School Attendance Recap',
                   style: TextStyle(
                     color: textColor,
                     fontSize: 28,
@@ -1120,7 +1120,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Pilih jenis rekap absensi yang ingin Anda tinjau atau cetak laporan.',
+                  AppLocalization.isIndonesian
+                      ? 'Pilih jenis rekap absensi yang ingin Anda tinjau atau cetak laporan.'
+                      : 'Select the type of attendance recap you want to review or print.',
                   style: TextStyle(
                     color: subTextColor,
                     fontSize: 15,
@@ -1136,8 +1138,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     SizedBox(
                       width: 280,
                       child: _buildSelectionCard(
-                        title: 'Rekap Absensi Siswa',
-                        description: 'Laporan & statistik kehadiran harian dan bulanan siswa',
+                        title: AppLocalization.isIndonesian ? 'Rekap Absensi Siswa' : 'Student Attendance Recap',
+                        description: AppLocalization.isIndonesian
+                            ? 'Laporan & statistik kehadiran harian dan bulanan siswa'
+                            : 'Daily and monthly student attendance reports & statistics',
                         icon: Icons.calendar_month_rounded,
                         color: const Color(0xFF8B5CF6),
                         onTap: () => Get.to(() => const DailyRecapPage()),
@@ -1149,8 +1153,10 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     SizedBox(
                       width: 280,
                       child: _buildSelectionCard(
-                        title: 'Rekap Absensi Guru',
-                        description: 'Laporan & statistik kehadiran harian dan bulanan guru',
+                        title: AppLocalization.isIndonesian ? 'Rekap Absensi Guru' : 'Teacher Attendance Recap',
+                        description: AppLocalization.isIndonesian
+                            ? 'Laporan & statistik kehadiran harian dan bulanan guru'
+                            : 'Daily and monthly teacher attendance reports & statistics',
                         icon: Icons.co_present_rounded,
                         color: const Color(0xFF6366F1),
                         onTap: () => Get.to(() => const AdminTeacherAttendancePage(isMonthly: false)),
@@ -1205,7 +1211,9 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Selamat datang kembali di panel administrasi ${_schoolName ?? "sekolah"}.',
+                      AppLocalization.isIndonesian
+                          ? 'Selamat datang kembali di panel administrasi ${_schoolName ?? "sekolah"}.'
+                          : 'Welcome back to the administration panel of ${_schoolName ?? "school"}.',
                       style: TextStyle(
                         fontSize: 14,
                         color: subtitleColor,
@@ -1255,7 +1263,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             const SizedBox(height: 36),
 
             // Live counters statistics
-            _buildSectionTitle('Statistik Sekolah', Icons.analytics_rounded, isDark),
+            _buildSectionTitle(AppLocalization.isIndonesian ? 'Statistik Sekolah' : 'School Statistics', Icons.analytics_rounded, isDark),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -1264,7 +1272,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('teachers').snapshots(),
                     builder: (context, snapshot) {
                       final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                      return _buildStatCardDesktop('Total Guru', '$count', Icons.person_rounded, const Color(0xFF6366F1), isDark);
+                      return _buildStatCardDesktop(AppLocalization.isIndonesian ? 'Total Guru' : 'Total Teachers', '$count', Icons.person_rounded, const Color(0xFF6366F1), isDark);
                     },
                   ),
                 ),
@@ -1274,7 +1282,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('students').snapshots(),
                     builder: (context, snapshot) {
                       final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                      return _buildStatCardDesktop('Total Murid', '$count', Icons.groups_rounded, const Color(0xFF0EA5E9), isDark);
+                      return _buildStatCardDesktop(AppLocalization.isIndonesian ? 'Total Murid' : 'Total Students', '$count', Icons.groups_rounded, const Color(0xFF0EA5E9), isDark);
                     },
                   ),
                 ),
@@ -1284,7 +1292,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('classes').snapshots(),
                     builder: (context, snapshot) {
                       final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                      return _buildStatCardDesktop('Total Kelas', '$count', Icons.class_rounded, const Color(0xFFF59E0B), isDark);
+                      return _buildStatCardDesktop(AppLocalization.isIndonesian ? 'Total Kelas' : 'Total Classes', '$count', Icons.class_rounded, const Color(0xFFF59E0B), isDark);
                     },
                   ),
                 ),
@@ -1294,7 +1302,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                     stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('subjects').snapshots(),
                     builder: (context, snapshot) {
                       final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                      return _buildStatCardDesktop('Mata Pelajaran', '$count', Icons.menu_book_rounded, const Color(0xFF10B981), isDark);
+                      return _buildStatCardDesktop(AppLocalization.isIndonesian ? 'Mata Pelajaran' : 'Subjects', '$count', Icons.menu_book_rounded, const Color(0xFF10B981), isDark);
                     },
                   ),
                 ),
@@ -1304,7 +1312,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             const SizedBox(height: 40),
 
             // Live Data Panels
-            _buildSectionTitle('Info Cepat', Icons.info_outline_rounded, isDark),
+            _buildSectionTitle(AppLocalization.isIndonesian ? 'Info Cepat' : 'Quick Info', Icons.info_outline_rounded, isDark),
             const SizedBox(height: 16),
             SizedBox(
               height: 360,
@@ -1314,7 +1322,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   // Panel 1: Daftar Hadir Harian Guru
                   Expanded(
                     child: _buildLiveDataPanel(
-                      title: 'Hadir Harian Guru',
+                      title: AppLocalization.isIndonesian ? 'Hadir Harian Guru' : 'Daily Teacher Attendance',
                       icon: Icons.co_present_rounded,
                       color: const Color(0xFF6366F1),
                       isDark: isDark,
@@ -1349,14 +1357,14 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                           isDark: isDark,
                         );
                       },
-                      emptyText: 'Belum ada absensi guru hari ini',
+                      emptyText: AppLocalization.isIndonesian ? 'Belum ada absensi guru hari ini' : 'No teacher attendance today',
                     ),
                   ),
                   const SizedBox(width: 16),
                   // Panel 2: Daftar Pelanggaran Siswa
                   Expanded(
                     child: _buildLiveDataPanel(
-                      title: 'Pelanggaran Siswa',
+                      title: AppLocalization.isIndonesian ? 'Pelanggaran Siswa' : 'Student Violations',
                       icon: Icons.report_problem_rounded,
                       color: const Color(0xFFEF4444),
                       isDark: isDark,
@@ -1382,14 +1390,14 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                           isDark: isDark,
                         );
                       },
-                      emptyText: 'Tidak ada catatan pelanggaran',
+                      emptyText: AppLocalization.isIndonesian ? 'Tidak ada catatan pelanggaran' : 'No violation records',
                     ),
                   ),
                   const SizedBox(width: 16),
                   // Panel 3: Murid Terlambat
                   Expanded(
                     child: _buildLiveDataPanel(
-                      title: 'Murid Terlambat',
+                      title: AppLocalization.isIndonesian ? 'Murid Terlambat' : 'Late Students',
                       icon: Icons.timer_off_rounded,
                       color: const Color(0xFFF59E0B),
                       isDark: isDark,
@@ -1421,7 +1429,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                           isDark: isDark,
                         );
                       },
-                      emptyText: 'Tidak ada murid terlambat hari ini',
+                      emptyText: AppLocalization.isIndonesian ? 'Tidak ada murid terlambat hari ini' : 'No late students today',
                     ),
                   ),
                 ],
@@ -1682,7 +1690,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: Text(
-                      'Lihat Semua',
+                      AppLocalization.isIndonesian ? 'Lihat Semua' : 'View All',
                       style: TextStyle(
                         color: color,
                         fontSize: 11,
@@ -1904,7 +1912,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
       try {
         await AppAuthService.logout();
       } catch (e) {
-        Get.snackbar('Error', 'Gagal logout: $e');
+        Get.snackbar('Error', '${AppLocalization.isIndonesian ? "Gagal logout" : "Logout failed"}: $e');
       }
     }
   }

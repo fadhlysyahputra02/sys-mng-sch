@@ -1,11 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/semester_state_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/user_service.dart';
+import '../../../core/localization/app_localization.dart';
+import '../../students/data/student_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 
 class SplashPage extends StatefulWidget {
@@ -85,6 +88,27 @@ class _SplashPageState extends State<SplashPage>
       final schoolId = (userData['schoolId'] ?? '').toString();
       if (schoolId.isNotEmpty) {
         SemesterStateService.listen(schoolId);
+      }
+
+      // ✅ Sinkronisasi bahasa lokal ke Firestore jika belum ada/berbeda
+      final localLang = AppLocalization.currentLocale.value;
+      if (userData['language'] != localLang) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(firebaseUser.uid)
+              .update({'language': localLang});
+
+          final roleTemp = (userData['role'] ?? '').toString().trim().toLowerCase();
+          if (roleTemp == 'student' && schoolId.isNotEmpty) {
+            final studentDoc = await StudentService().getStudentDocByUid(schoolId, firebaseUser.uid);
+            if (studentDoc != null) {
+              await studentDoc.reference.update({'language': localLang});
+            }
+          }
+        } catch (e) {
+          debugPrint('SplashPage: Gagal sinkronisasi bahasa awal: $e');
+        }
       }
 
       String role = (userData['role'] ?? '').toString().trim().toLowerCase();

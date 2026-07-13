@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../core/localization/app_localization.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../../../core/services/session_service.dart';
 
@@ -33,7 +34,7 @@ class ParentViolationPage extends StatelessWidget {
               elevation: 0,
               iconTheme: IconThemeData(color: textColor),
               title: Text(
-                'Laporan Pelanggaran',
+                AppLocalization.isIndonesian ? 'Laporan Pelanggaran' : 'Violation Report',
                 style: TextStyle(
                   color: textColor,
                   fontWeight: FontWeight.bold,
@@ -70,7 +71,12 @@ class ParentViolationPage extends StatelessWidget {
     required Color cardBorder,
   }) {
     if (studentId.isEmpty) {
-      return _emptyCard('Data pelanggaran belum tersedia.', subTextColor, cardBg, cardBorder);
+      return _emptyCard(
+        AppLocalization.isIndonesian ? 'Data pelanggaran belum tersedia.' : 'Violation data is not yet available.',
+        subTextColor,
+        cardBg,
+        cardBorder,
+      );
     }
 
     return StreamBuilder<QuerySnapshot>(
@@ -86,7 +92,9 @@ class ParentViolationPage extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                'Terjadi kesalahan saat memuat data: ${snapshot.error}',
+                AppLocalization.isIndonesian
+                    ? 'Terjadi kesalahan saat memuat data: ${snapshot.error}'
+                    : 'An error occurred while loading data: ${snapshot.error}',
                 style: const TextStyle(color: Colors.redAccent, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
@@ -109,7 +117,9 @@ class ParentViolationPage extends StatelessWidget {
         }
         
         final bool isParent = SessionService.currentUser?.role == 'parent';
-        final targetSubjectText = isParent ? 'Anak Anda' : 'Anda';
+        final targetSubjectText = isParent
+            ? (AppLocalization.isIndonesian ? 'Anak Anda' : 'Your Child')
+            : (AppLocalization.isIndonesian ? 'Anda' : 'You');
 
         // Sort client-side by date descending
         final sortedDocs = docs.toList()..sort((a, b) {
@@ -150,7 +160,9 @@ class ParentViolationPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'POIN PELANGGARAN ${targetSubjectText.toUpperCase()}',
+                    AppLocalization.isIndonesian
+                        ? 'POIN PELANGGARAN ${targetSubjectText.toUpperCase()}'
+                        : '${targetSubjectText.toUpperCase()} VIOLATION POINTS',
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 11,
@@ -165,9 +177,15 @@ class ParentViolationPage extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Total Poin', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                            Text(
+                              AppLocalization.isIndonesian ? 'Total Poin' : 'Total Points',
+                              style: const TextStyle(color: Colors.white70, fontSize: 11),
+                            ),
                             const SizedBox(height: 4),
-                            Text('$totalPoin Poin', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                            Text(
+                              AppLocalization.isIndonesian ? '$totalPoin Poin' : '$totalPoin Pts',
+                              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                            ),
                           ],
                         ),
                       ),
@@ -175,9 +193,15 @@ class ParentViolationPage extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Total Pelanggaran', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                            Text(
+                              AppLocalization.isIndonesian ? 'Total Pelanggaran' : 'Total Violations',
+                              style: const TextStyle(color: Colors.white70, fontSize: 11),
+                            ),
                             const SizedBox(height: 4),
-                            Text('${docs.length} Kali', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                            Text(
+                              AppLocalization.isIndonesian ? '${docs.length} Kali' : '${docs.length} Times',
+                              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                            ),
                           ],
                         ),
                       ),
@@ -189,7 +213,7 @@ class ParentViolationPage extends StatelessWidget {
             const SizedBox(height: 24),
 
             Text(
-              'Detail Riwayat Pelanggaran',
+              AppLocalization.isIndonesian ? 'Detail Riwayat Pelanggaran' : 'Violation History Details',
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 12),
@@ -211,14 +235,18 @@ class ParentViolationPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Tidak Ada Pelanggaran',
+                            AppLocalization.isIndonesian ? 'Tidak Ada Pelanggaran' : 'No Violations',
                             style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             isParent
-                                ? 'Anak Anda memiliki catatan pelanggaran yang bersih.'
-                                : 'Anda memiliki catatan pelanggaran yang bersih.',
+                                ? (AppLocalization.isIndonesian
+                                    ? 'Anak Anda memiliki catatan pelanggaran yang bersih.'
+                                    : 'Your child has a clean violation record.')
+                                : (AppLocalization.isIndonesian
+                                    ? 'Anda memiliki catatan pelanggaran yang bersih.'
+                                    : 'You have a clean violation record.'),
                             style: TextStyle(color: subTextColor, fontSize: 12),
                           ),
                         ],
@@ -250,7 +278,7 @@ class ParentViolationPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              data['jenis'] ?? data['type'] ?? 'Pelanggaran',
+                              data['jenis'] ?? data['type'] ?? (AppLocalization.isIndonesian ? 'Pelanggaran' : 'Violation'),
                               style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 13),
                             ),
                             if ((data['keterangan'] ?? data['description'] ?? '').toString().isNotEmpty) ...[
@@ -335,7 +363,7 @@ class ParentViolationPage extends StatelessWidget {
                           Text(dateStr, style: TextStyle(color: subTextColor, fontSize: 10)),
                           const SizedBox(height: 4),
                           Text(
-                            '-$poin poin',
+                            AppLocalization.isIndonesian ? '-$poin poin' : '-$poin pts',
                             style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 12),
                           ),
                         ],

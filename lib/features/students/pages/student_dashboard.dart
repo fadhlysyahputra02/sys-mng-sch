@@ -538,10 +538,10 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour >= 0 && hour <= 10) return 'Selamat Pagi';
-    if (hour <= 14) return 'Selamat Siang';
-    if (hour <= 18) return 'Selamat Sore';
-    return 'Selamat Malam';
+    if (hour >= 0 && hour <= 10) return AppLocalization.greetingMorning;
+    if (hour <= 14) return AppLocalization.greetingAfternoon;
+    if (hour <= 18) return AppLocalization.greetingEvening;
+    return AppLocalization.greetingNight;
   }
 
   void _showFullScreenQr(BuildContext context, String qrData) {
@@ -1137,8 +1137,10 @@ class _StudentDashboardState extends State<StudentDashboard>
                         Expanded(
                           child: Text(
                             _className != null
-                                ? (_studentData?['lulus'] == true ? 'Kelas: $_className (Alumni)' : 'Kelas: $_className')
-                                : 'Belum masuk kelas',
+                                ? (_studentData?['lulus'] == true
+                                    ? '${AppLocalization.classLabel}: $_className (Alumni)'
+                                    : '${AppLocalization.classLabel}: $_className')
+                                : (AppLocalization.isIndonesian ? 'Belum masuk kelas' : 'Not assigned to class'),
                             style: TextStyle(
                               fontSize: 12,
                               color: emailColor,
@@ -1177,7 +1179,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Tahun Ajaran: ${_tahunAjaran ?? "-"}  |  ${_activeSemester ?? "-"}',
+                      '${AppLocalization.academicYearLabel}: ${_tahunAjaran ?? "-"}  |  ${_activeSemester != null ? (AppLocalization.isIndonesian ? _activeSemester : (_activeSemester!.replaceAll('Ganjil', 'Odd').replaceAll('Genap', 'Even'))) : "-"}',
                       style: const TextStyle(
                         color: Color(0xFF6366F1),
                         fontSize: 13,
@@ -1360,7 +1362,9 @@ class _StudentDashboardState extends State<StudentDashboard>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Ketuk untuk melihat jadwal dan mulai ujian UTS/UAS Anda.',
+                            AppLocalization.isIndonesian
+                                ? 'Ketuk untuk melihat jadwal dan mulai ujian UTS/UAS Anda.'
+                                : 'Tap to view schedule and start your Midterm/Final exams.',
                             style: TextStyle(color: subtitleColor, fontSize: 12),
                           ),
                         ],
@@ -1464,7 +1468,10 @@ class _StudentDashboardState extends State<StudentDashboard>
               'color': const Color(0xFFEF4444),
             },
             {
-              'title': parentLinked ? 'Sudah Terhubung' : 'Sambungkan ke Orang Tua',
+              'id': parentLinked ? 'Sudah Terhubung' : 'Sambungkan ke Orang Tua',
+              'title': parentLinked
+                  ? (AppLocalization.isIndonesian ? 'Sudah Terhubung' : 'Already Connected')
+                  : (AppLocalization.isIndonesian ? 'Sambungkan ke Orang Tua' : 'Connect to Parent'),
               'icon': parentLinked
                   ? Icons.verified_rounded
                   : Icons.family_restroom_rounded,
@@ -2020,8 +2027,10 @@ class _StudentDashboardState extends State<StudentDashboard>
       case 'Sambungkan ke Orang Tua':
         if (_studentDocId == null) {
           Get.snackbar(
-            'Informasi',
-            'Data murid belum lengkap. Hubungi admin sekolah.',
+            AppLocalization.isIndonesian ? 'Informasi' : 'Information',
+            AppLocalization.isIndonesian
+                ? 'Data murid belum lengkap. Hubungi admin sekolah.'
+                : 'Student data is incomplete. Contact school admin.',
             snackPosition: SnackPosition.BOTTOM,
             backgroundColor: Colors.amber,
             colorText: Colors.black,
@@ -2040,8 +2049,10 @@ class _StudentDashboardState extends State<StudentDashboard>
           if (linked == true && mounted) {
             await _resolveStudentDocId();
             Get.snackbar(
-              'Berhasil',
-              'Akun orang tua berhasil terhubung.',
+              AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+              AppLocalization.isIndonesian
+                  ? 'Akun orang tua berhasil terhubung.'
+                  : 'Parent account successfully connected.',
               snackPosition: SnackPosition.BOTTOM,
               backgroundColor: const Color(0xFF10B981),
               colorText: Colors.white,
@@ -2054,8 +2065,10 @@ class _StudentDashboardState extends State<StudentDashboard>
         break;
       case 'Sudah Terhubung':
         Get.snackbar(
-          'Terhubung',
-          'Akun Anda sudah terhubung dengan orang tua.',
+          AppLocalization.isIndonesian ? 'Terhubung' : 'Connected',
+          AppLocalization.isIndonesian
+              ? 'Akun Anda sudah terhubung dengan orang tua.'
+              : 'Your account is already connected with parents.',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: const Color(0xFF10B981),
           colorText: Colors.white,

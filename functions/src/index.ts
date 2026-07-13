@@ -2,6 +2,7 @@ import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/fire
 import { initializeApp } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
 initializeApp();
 
@@ -30,11 +31,82 @@ export const onNotificationCreated = onDocumentCreated(
     const targetClassId: string = data.targetClassId ?? "";
     const senderId: string = data.senderId ?? "";
     const senderName: string = data.senderName ?? "Sistem";
+    const category: string = data.category ?? "";
 
     console.log(
       `[onNotificationCreated] schoolId=${schoolId}, targetType=${targetType}, ` +
       `targetId=${targetId}, senderId=${senderId}`
     );
+
+    // --- Personal Notification ---
+    if (targetType === "personal") {
+      const db = getFirestore();
+      const tokensSnap = await db
+        .collection("users")
+        .doc(targetId)
+        .collection("tokens")
+        .get();
+
+      const tokens: string[] = [];
+      tokensSnap.forEach((doc) => {
+        const token = doc.data().token;
+        if (token) tokens.push(token);
+      });
+
+      if (tokens.length === 0) {
+        console.log(`No tokens found for user ${targetId}. Exiting.`);
+        return;
+      }
+
+      const messaging = getMessaging();
+      try {
+        const response = await messaging.sendEachForMulticast({
+          tokens: tokens,
+          notification: {
+            title: title,
+            body: body,
+          },
+          android: {
+            priority: "high",
+            notification: {
+              channelId: "high_importance_channel",
+              priority: "max",
+              sound: "default",
+              clickAction: "FLUTTER_NOTIFICATION_CLICK",
+            },
+          },
+          apns: {
+            headers: {
+              "apns-priority": "10",
+            },
+            payload: {
+              aps: {
+                alert: {
+                  title: title,
+                  body: body,
+                },
+                sound: "default",
+                badge: 1,
+                "content-available": 1,
+              },
+            },
+          },
+          data: {
+            schoolId: schoolId,
+            targetType: targetType,
+            targetId: targetId,
+            senderId: senderId,
+            senderName: senderName,
+            category: category,
+            click_action: "FLUTTER_NOTIFICATION_CLICK",
+          },
+        });
+        console.log(`✅ FCM sent to ${tokens.length} tokens for user ${targetId}: successCount=${response.successCount}`);
+      } catch (err) {
+        console.error(`❌ Error sending personal FCM:`, err);
+      }
+      return;
+    }
 
     // --- Tentukan Topic FCM berdasarkan targetType ---
     // Nama topic HARUS sama persis dengan yang didaftarkan di:
@@ -103,6 +175,7 @@ export const onNotificationCreated = onDocumentCreated(
             targetId: targetId,
             senderId: senderId,
             senderName: senderName,
+            category: category,
             click_action: "FLUTTER_NOTIFICATION_CLICK",
           },
         });

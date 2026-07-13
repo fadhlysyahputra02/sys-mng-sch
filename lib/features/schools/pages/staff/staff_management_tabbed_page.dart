@@ -4,6 +4,7 @@ import '../../../authentication/widgets/auth_background.dart';
 import '../officers/pages/officer_management_page.dart';
 import '../tu/pages/tu_management_page.dart';
 import '../librarian/librarian_management_page.dart';
+import '../../../../core/localization/app_localization.dart';
 
 class StaffManagementTabbedPage extends StatelessWidget {
   const StaffManagementTabbedPage({super.key});
@@ -36,7 +37,7 @@ class StaffManagementTabbedPage extends StatelessWidget {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              'Manajemen Petugas',
+                              AppLocalization.isIndonesian ? 'Manajemen Petugas' : 'Staff / Officer Management',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -55,10 +56,10 @@ class StaffManagementTabbedPage extends StatelessWidget {
                     unselectedLabelColor: unselectedColor,
                     indicatorColor: indicatorColor,
                     labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    tabs: const [
-                      Tab(text: 'Petugas Absensi'),
-                      Tab(text: 'Tata Usaha'),
-                      Tab(text: 'Perpustakaan'),
+                    tabs: [
+                      Tab(text: AppLocalization.isIndonesian ? 'Petugas Absensi' : 'Attendance Officers'),
+                      Tab(text: AppLocalization.isIndonesian ? 'Tata Usaha' : 'Administration (TU)'),
+                      Tab(text: AppLocalization.isIndonesian ? 'Perpustakaan' : 'Library'),
                     ],
                   ),
                   Expanded(

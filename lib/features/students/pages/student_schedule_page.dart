@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
@@ -23,6 +24,20 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
     'Sabtu',
     'Minggu',
   ];
+
+  String _getLocalDayName(String day) {
+    final isIndo = AppLocalization.isIndonesian;
+    switch (day) {
+      case 'Senin': return isIndo ? 'Senin' : 'Monday';
+      case 'Selasa': return isIndo ? 'Selasa' : 'Tuesday';
+      case 'Rabu': return isIndo ? 'Rabu' : 'Wednesday';
+      case 'Kamis': return isIndo ? 'Kamis' : 'Thursday';
+      case 'Jumat': return isIndo ? 'Jumat' : 'Friday';
+      case 'Sabtu': return isIndo ? 'Sabtu' : 'Saturday';
+      case 'Minggu': return isIndo ? 'Minggu' : 'Sunday';
+      default: return day;
+    }
+  }
 
   int _timeToMinutes(String time) {
     final parts = time.split(':');
@@ -65,7 +80,9 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                     ),
                   ),
                   title: Text(
-                    'Jadwal Kelas ${widget.className}',
+                    AppLocalization.isIndonesian
+                        ? 'Jadwal Kelas ${widget.className}'
+                        : '${widget.className} Class Schedule',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
                   ),
                   bottom: TabBar(
@@ -76,7 +93,7 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                     unselectedLabelColor: tabUnselectedColor,
                     labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
-                    tabs: _days.map((day) => Tab(text: day)).toList(),
+                    tabs: _days.map((day) => Tab(text: _getLocalDayName(day))).toList(),
                   ),
                 ),
             body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -90,7 +107,9 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                         const Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
                         const SizedBox(height: 12),
                         Text(
-                          'Terjadi kesalahan memuat jadwal',
+                          AppLocalization.isIndonesian
+                              ? 'Terjadi kesalahan memuat jadwal'
+                              : 'Error loading schedule',
                           style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -148,7 +167,9 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Tidak ada jadwal pelajaran pada hari $day',
+              AppLocalization.isIndonesian
+                  ? 'Tidak ada jadwal pelajaran pada hari $day'
+                  : 'No subjects scheduled for ${_getLocalDayName(day)}',
               style: TextStyle(
                 fontSize: 14,
                 color: subTextColor,
@@ -267,7 +288,7 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                                     border: Border.all(color: accentColor.withValues(alpha: 0.3)),
                                   ),
                                   child: Text(
-                                    'Istirahat',
+                                    AppLocalization.isIndonesian ? 'Istirahat' : 'Rest Break',
                                     style: TextStyle(
                                       color: accentColor,
                                       fontSize: 10,
@@ -289,7 +310,7 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
-                                    'Guru: $teacherName',
+                                    AppLocalization.isIndonesian ? 'Guru: $teacherName' : 'Teacher: $teacherName',
                                     style: TextStyle(
                                       color: isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
                                       fontSize: 13,
@@ -303,7 +324,7 @@ class _StudentSchedulePageState extends State<StudentSchedulePage> {
                             )
                           else
                             Text(
-                              'Waktunya Istirahat & Santai',
+                              AppLocalization.isIndonesian ? 'Waktunya Istirahat & Santai' : 'Time to Rest & Relax',
                               style: TextStyle(
                                 color: subTextColor,
                                 fontSize: 12,
