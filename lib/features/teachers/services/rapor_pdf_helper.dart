@@ -3,6 +3,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/localization/app_localization.dart';
+
 class RaporPdfHelper {
   /// Membuat dokumen PDF untuk E-Rapor Siswa
   static pw.Document _buildPdfDocument({
@@ -87,7 +89,9 @@ class RaporPdfHelper {
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
                             pw.Text(
-                              'LAPORAN HASIL BELAJAR (RAPOR)',
+                              AppLocalization.isIndonesian
+                                  ? 'LAPORAN HASIL BELAJAR (RAPOR)'
+                                  : 'STUDENT PROGRESS REPORT (REPORT CARD)',
                               style: pw.TextStyle(
                                 fontSize: 14,
                                 fontWeight: pw.FontWeight.bold,
@@ -109,7 +113,9 @@ class RaporPdfHelper {
                     ),
                   ] else ...[
                     pw.Text(
-                      'LAPORAN HASIL BELAJAR (RAPOR)',
+                      AppLocalization.isIndonesian
+                          ? 'LAPORAN HASIL BELAJAR (RAPOR)'
+                          : 'STUDENT PROGRESS REPORT (REPORT CARD)',
                       style: pw.TextStyle(
                         fontSize: 14,
                         fontWeight: pw.FontWeight.bold,
@@ -144,17 +150,17 @@ class RaporPdfHelper {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildInfoRow('Nama Siswa', studentName),
-                    _buildInfoRow('NISN / NIS', studentNis),
-                    _buildInfoRow('Sekolah', schoolName),
+                    _buildInfoRow(AppLocalization.isIndonesian ? 'Nama Siswa' : 'Student Name', studentName),
+                    _buildInfoRow(AppLocalization.isIndonesian ? 'NISN / NIS' : 'Student ID / NISN', studentNis),
+                    _buildInfoRow(AppLocalization.isIndonesian ? 'Sekolah' : 'School', schoolName),
                   ],
                 ),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildInfoRow('Kelas', className),
-                    _buildInfoRow('Semester', semester),
-                    _buildInfoRow('Tahun Ajaran', yearInfo),
+                    _buildInfoRow(AppLocalization.isIndonesian ? 'Kelas' : 'Class', className),
+                    _buildInfoRow(AppLocalization.isIndonesian ? 'Semester' : 'Semester', AppLocalization.isIndonesian ? semester : semester.replaceAll('Ganjil', 'Odd').replaceAll('Genap', 'Even')),
+                    _buildInfoRow(AppLocalization.isIndonesian ? 'Tahun Ajaran' : 'Academic Year', yearInfo),
                   ],
                 ),
               ],
@@ -163,7 +169,7 @@ class RaporPdfHelper {
             pw.SizedBox(height: 20),
 
             // 3. CAPAIAN SIKAP (Dinamis)
-            _buildSectionHeader('A. PENILAIAN SIKAP'),
+            _buildSectionHeader(AppLocalization.isIndonesian ? 'A. PENILAIAN SIKAP' : 'A. ATTITUDE ASSESSMENT'),
             pw.SizedBox(height: 6),
             pw.Table(
               border: pw.TableBorder.all(
@@ -181,18 +187,26 @@ class RaporPdfHelper {
                     color: PdfColor.fromInt(0xFFF1F5F9),
                   ),
                   children: [
-                    _buildTableHeaderCell('Aspek Sikap'),
-                    _buildTableHeaderCell('Predikat'),
-                    _buildTableHeaderCell('Deskripsi / Keterangan'),
+                    _buildTableHeaderCell(AppLocalization.isIndonesian ? 'Aspek Sikap' : 'Attitude Aspect'),
+                    _buildTableHeaderCell(AppLocalization.isIndonesian ? 'Predikat' : 'Grade'),
+                    _buildTableHeaderCell(AppLocalization.isIndonesian ? 'Deskripsi / Keterangan' : 'Description / Notes'),
                   ],
                 ),
                 ...List.generate(attitudeAspects.length, (index) {
                   final aspect = attitudeAspects[index];
-                  final name = aspect['name']?.toString() ?? '';
+                  final aspectName = aspect['name']?.toString() ?? '';
+                  final name = AppLocalization.isIndonesian
+                      ? aspectName
+                      : (aspectName == 'Spiritual'
+                          ? 'Spiritual'
+                          : aspectName == 'Sosial'
+                              ? 'Social'
+                              : aspectName);
                   final pred = aspect['predikat']?.toString() ?? 'B';
                   final desc = aspect['deskripsi']?.toString() ?? '';
-                  final defaultDesc =
-                      'Menunjukkan sikap ${name.toLowerCase()} yang baik.';
+                  final defaultDesc = AppLocalization.isIndonesian
+                      ? 'Menunjukkan sikap ${name.toLowerCase()} yang baik.'
+                      : 'Shows good ${name.toLowerCase()} attitude.';
                   return pw.TableRow(
                     children: [
                       _buildTableCell('${index + 1}. $name', alignLeft: true),
@@ -210,7 +224,7 @@ class RaporPdfHelper {
             pw.SizedBox(height: 20),
 
             // 4. PENILAIAN PENGETAHUAN & KETERAMPILAN
-            _buildSectionHeader('B. PENILAIAN AKADEMIK'),
+            _buildSectionHeader(AppLocalization.isIndonesian ? 'B. PENILAIAN AKADEMIK' : 'B. ACADEMIC ASSESSMENT'),
             pw.SizedBox(height: 6),
             pw.Table(
               border: pw.TableBorder.all(
@@ -233,12 +247,12 @@ class RaporPdfHelper {
                   ),
                   children: [
                     _buildTableHeaderCell('No'),
-                    _buildTableHeaderCell('Mata Pelajaran', alignLeft: true),
+                    _buildTableHeaderCell(AppLocalization.isIndonesian ? 'Mata Pelajaran' : 'Subject', alignLeft: true),
                     _buildTableHeaderCell('KKM'),
-                    _buildTableHeaderCell('Nilai'),
-                    _buildTableHeaderCell('Predikat'),
+                    _buildTableHeaderCell(AppLocalization.isIndonesian ? 'Nilai' : 'Grade'),
+                    _buildTableHeaderCell(AppLocalization.isIndonesian ? 'Predikat' : 'Grade'),
                     _buildTableHeaderCell(
-                      'Deskripsi Pencapaian',
+                      AppLocalization.isIndonesian ? 'Deskripsi Pencapaian' : 'Achievement Description',
                       alignLeft: true,
                     ),
                   ],
@@ -284,10 +298,13 @@ class RaporPdfHelper {
 
                   String desc = item['deskripsi']?.toString() ?? '';
                   if (desc.isEmpty && scoreVal > 0) {
-                    desc =
-                        'Menunjukkan penguasaan materi yang baik pada mata pelajaran ini.';
+                    desc = AppLocalization.isIndonesian
+                        ? 'Menunjukkan penguasaan materi yang baik pada mata pelajaran ini.'
+                        : 'Shows good mastery of the material in this subject.';
                   } else if (scoreVal == 0.0) {
-                    desc = 'Belum ada penilaian hasil belajar.';
+                    desc = AppLocalization.isIndonesian
+                        ? 'Belum ada penilaian hasil belajar.'
+                        : 'No assessment records yet.';
                   }
 
                   return pw.TableRow(
@@ -321,7 +338,7 @@ class RaporPdfHelper {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      _buildSectionHeader('C. KETIDAKHADIRAN'),
+                      _buildSectionHeader(AppLocalization.isIndonesian ? 'C. KETIDAKHADIRAN' : 'C. ABSENCE / ATTENDANCE'),
                       pw.SizedBox(height: 6),
                       pw.Table(
                         border: pw.TableBorder.all(
@@ -339,31 +356,31 @@ class RaporPdfHelper {
                             ),
                             children: [
                               _buildTableHeaderCell(
-                                'Alasan Absensi',
+                                AppLocalization.isIndonesian ? 'Alasan Absensi' : 'Absence Reason',
                                 alignLeft: true,
                               ),
-                              _buildTableHeaderCell('Jumlah'),
+                              _buildTableHeaderCell(AppLocalization.isIndonesian ? 'Jumlah' : 'Total'),
                             ],
                           ),
                           pw.TableRow(
                             children: [
-                              _buildTableCell('1. Sakit (S)', alignLeft: true),
-                              _buildTableCell('$sakit Hari'),
+                              _buildTableCell(AppLocalization.isIndonesian ? '1. Sakit (S)' : '1. Sick (S)', alignLeft: true),
+                              _buildTableCell(AppLocalization.isIndonesian ? '$sakit Hari' : '$sakit Days'),
                             ],
                           ),
                           pw.TableRow(
                             children: [
-                              _buildTableCell('2. Izin (I)', alignLeft: true),
-                              _buildTableCell('$izin Hari'),
+                              _buildTableCell(AppLocalization.isIndonesian ? '2. Izin (I)' : '2. Permit (P)', alignLeft: true),
+                              _buildTableCell(AppLocalization.isIndonesian ? '$izin Hari' : '$izin Days'),
                             ],
                           ),
                           pw.TableRow(
                             children: [
                               _buildTableCell(
-                                '3. Tanpa Keterangan (A)',
+                                AppLocalization.isIndonesian ? '3. Tanpa Keterangan (A)' : '3. Unexcused Absence (A)',
                                 alignLeft: true,
                               ),
-                              _buildTableCell('$alpa Hari'),
+                              _buildTableCell(AppLocalization.isIndonesian ? '$alpa Hari' : '$alpa Days'),
                             ],
                           ),
                         ],
@@ -378,7 +395,7 @@ class RaporPdfHelper {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      _buildSectionHeader('D. CATATAN WALI KELAS'),
+                      _buildSectionHeader(AppLocalization.isIndonesian ? 'D. CATATAN WALI KELAS' : 'D. HOMEROOM TEACHER NOTES'),
                       pw.SizedBox(height: 6),
                       pw.Container(
                         width: double.infinity,
@@ -396,7 +413,9 @@ class RaporPdfHelper {
                         ),
                         child: pw.Text(
                           catatanWali.trim().isEmpty
-                              ? 'Pertahankan prestasimu dan teruslah belajar dengan giat agar cita-citamu tercapai.'
+                              ? (AppLocalization.isIndonesian
+                                  ? 'Pertahankan prestasimu dan teruslah belajar dengan giat agar cita-citamu tercapai.'
+                                  : 'Keep up your achievements and study hard to reach your goals.')
                               : catatanWali,
                           style: pw.TextStyle(
                             fontSize: 9,
@@ -421,7 +440,7 @@ class RaporPdfHelper {
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
                     pw.Text(
-                      'Orang Tua/Wali Murid,',
+                      AppLocalization.isIndonesian ? 'Orang Tua/Wali Murid,' : 'Parent / Guardian,',
                       style: pw.TextStyle(
                         fontSize: 9,
                         color: PdfColor.fromInt(0xFF4B5563),
@@ -445,14 +464,14 @@ class RaporPdfHelper {
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
                     pw.Text(
-                      'Mengetahui,',
+                      AppLocalization.isIndonesian ? 'Mengetahui,' : 'Acknowledged,',
                       style: pw.TextStyle(
                         fontSize: 9,
                         color: PdfColor.fromInt(0xFF4B5563),
                       ),
                     ),
                     pw.Text(
-                      'Wali Kelas',
+                      AppLocalization.isIndonesian ? 'Wali Kelas' : 'Homeroom Teacher',
                       style: pw.TextStyle(
                         fontSize: 9,
                         color: PdfColor.fromInt(0xFF1E293B),

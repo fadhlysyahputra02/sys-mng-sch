@@ -975,6 +975,13 @@ class _RegisterPageState extends State<RegisterPage> {
                             // Nama Lengkap Admin
                             TextField(
                               controller: namaController,
+                              onTap: () {
+                                if (namaController.selection.baseOffset != namaController.selection.extentOffset) {
+                                  namaController.selection = TextSelection.collapsed(
+                                    offset: namaController.selection.extentOffset,
+                                  );
+                                }
+                              },
                               style: TextStyle(color: textColor),
                               textCapitalization: TextCapitalization.words,
                               decoration: InputDecoration(
@@ -1006,6 +1013,13 @@ class _RegisterPageState extends State<RegisterPage> {
                             // Kode Registrasi
                             TextField(
                               controller: kodeController,
+                              onTap: () {
+                                if (kodeController.selection.baseOffset != kodeController.selection.extentOffset) {
+                                  kodeController.selection = TextSelection.collapsed(
+                                    offset: kodeController.selection.extentOffset,
+                                  );
+                                }
+                              },
                               style: TextStyle(color: textColor),
                               decoration: InputDecoration(
                                 labelText: AppLocalization.schoolCode,
@@ -1039,6 +1053,13 @@ class _RegisterPageState extends State<RegisterPage> {
                             // Field NIP / NIS
                             TextField(
                               controller: nipNisController,
+                              onTap: () {
+                                if (nipNisController.selection.baseOffset != nipNisController.selection.extentOffset) {
+                                  nipNisController.selection = TextSelection.collapsed(
+                                    offset: nipNisController.selection.extentOffset,
+                                  );
+                                }
+                              },
                               style: TextStyle(color: textColor),
                               decoration: InputDecoration(
                                 labelText: _nipNisLabel,

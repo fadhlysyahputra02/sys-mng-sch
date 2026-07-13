@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../tasks/models/task_model.dart';
 import '../../tasks/services/task_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherTaskDetailPage extends StatefulWidget {
   final String schoolId;
@@ -40,8 +41,10 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
     Get.snackbar(
-      'Salin Link',
-      '$label berhasil disalin ke clipboard!',
+      AppLocalization.isIndonesian ? 'Salin Link' : 'Copy Link',
+      AppLocalization.isIndonesian
+          ? '$label berhasil disalin ke clipboard!'
+          : '$label copied to clipboard successfully!',
       snackPosition: SnackPosition.TOP,
       backgroundColor: const Color(0xFF10B981),
       colorText: Colors.white,
@@ -51,12 +54,22 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
   }
 
   String _formatDateTime(DateTime dateTime) {
-    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    final months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return '${days[dateTime.weekday % 7]}, ${dateTime.day} ${months[dateTime.month - 1]} ${dateTime.year} - ${DateFormat('HH:mm').format(dateTime.toLocal())} WIB';
+    final isIndo = AppLocalization.isIndonesian;
+    if (isIndo) {
+      final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      final months = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      return '${days[dateTime.weekday % 7]}, ${dateTime.day} ${months[dateTime.month - 1]} ${dateTime.year} - ${DateFormat('HH:mm').format(dateTime.toLocal())} WIB';
+    } else {
+      final days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      final months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return '${days[dateTime.weekday % 7]}, ${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year} - ${DateFormat('hh:mm a').format(dateTime.toLocal())}';
+    }
   }
 
   void _showGradingDialog(TaskSubmission submission) {
@@ -93,7 +106,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                   const Icon(Icons.grade_rounded, color: Color(0xFF8B5CF6)),
                   const SizedBox(width: 10),
                   Text(
-                    'Beri Nilai',
+                    AppLocalization.isIndonesian ? 'Beri Nilai' : 'Give Grade',
                     style: TextStyle(
                       color: titleColor,
                       fontWeight: FontWeight.bold,
@@ -110,13 +123,13 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Siswa: ${submission.studentName}',
+                        AppLocalization.isIndonesian ? 'Siswa: ${submission.studentName}' : 'Student: ${submission.studentName}',
                         style: TextStyle(color: titleColor, fontWeight: FontWeight.w600, fontSize: 14),
                       ),
                       const SizedBox(height: 16),
                       // Input Nilai
                       Text(
-                        'Nilai (0 - 100)',
+                        AppLocalization.isIndonesian ? 'Nilai (0 - 100)' : 'Grade (0 - 100)',
                         style: TextStyle(color: subTextColor, fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
@@ -125,17 +138,19 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         style: TextStyle(color: titleColor, fontSize: 15),
                         decoration: InputDecoration(
-                          hintText: 'Masukkan nilai (contoh: 85)',
+                          hintText: AppLocalization.isIndonesian ? 'Masukkan nilai (contoh: 85)' : 'Enter grade (e.g. 85)',
                           hintStyle: TextStyle(color: subTextColor.withValues(alpha: 0.6), fontSize: 13),
                           fillColor: inputFill,
                           filled: true,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Nilai wajib diisi';
+                          if (val == null || val.trim().isEmpty) {
+                            return AppLocalization.isIndonesian ? 'Nilai wajib diisi' : 'Grade is required';
+                          }
                           final numVal = double.tryParse(val);
                           if (numVal == null || numVal < 0 || numVal > 100) {
-                            return 'Nilai harus di antara 0 dan 100';
+                            return AppLocalization.isIndonesian ? 'Nilai harus di antara 0 dan 100' : 'Grade must be between 0 and 100';
                           }
                           return null;
                         },
@@ -143,7 +158,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                       const SizedBox(height: 16),
                       // Input Feedback
                       Text(
-                        'Feedback / Catatan Guru',
+                        AppLocalization.isIndonesian ? 'Feedback / Catatan Guru' : 'Feedback / Teacher Notes',
                         style: TextStyle(color: subTextColor, fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
@@ -152,7 +167,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                         maxLines: 3,
                         style: TextStyle(color: titleColor, fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: 'Tulis feedback atau catatan evaluasi...',
+                          hintText: AppLocalization.isIndonesian ? 'Tulis feedback atau catatan evaluasi...' : 'Write feedback or evaluation notes...',
                           hintStyle: TextStyle(color: subTextColor.withValues(alpha: 0.6), fontSize: 13),
                           fillColor: inputFill,
                           filled: true,
@@ -167,7 +182,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                 TextButton(
                   onPressed: isSavingGrade ? null : () => Navigator.pop(context),
                   child: Text(
-                    'Batal',
+                    AppLocalization.cancel,
                     style: TextStyle(
                       color: isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.5),
                       fontWeight: FontWeight.w600,
@@ -197,8 +212,8 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                             if (context.mounted) {
                               Navigator.pop(context);
                               Get.snackbar(
-                                'Sukses',
-                                'Nilai berhasil disimpan!',
+                                AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                                AppLocalization.isIndonesian ? 'Nilai berhasil disimpan!' : 'Grade successfully saved!',
                                 snackPosition: SnackPosition.TOP,
                                 backgroundColor: const Color(0xFF10B981),
                                 colorText: Colors.white,
@@ -208,8 +223,8 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                             }
                           } catch (e) {
                             Get.snackbar(
-                              'Gagal',
-                              'Gagal menyimpan nilai: $e',
+                              AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+                              AppLocalization.isIndonesian ? 'Gagal menyimpan nilai: $e' : 'Failed to save grade: $e',
                               snackPosition: SnackPosition.TOP,
                               backgroundColor: const Color(0xFFEF4444),
                               colorText: Colors.white,
@@ -233,7 +248,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                           width: 18,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                      : Text(AppLocalization.isIndonesian ? 'Simpan' : 'Save', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -278,7 +293,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                     ),
                   ),
                   title: Text(
-                    'Detail Tugas',
+                    AppLocalization.isIndonesian ? 'Detail Tugas' : 'Task Detail',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                   ),
                 ),
@@ -338,11 +353,15 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Dibuat: ${_formatDateTime(widget.task.createdAt)}',
+                            AppLocalization.isIndonesian
+                                ? 'Dibuat: ${_formatDateTime(widget.task.createdAt)}'
+                                : 'Created: ${_formatDateTime(widget.task.createdAt)}',
                             style: TextStyle(fontSize: 11, color: subTextColor),
                           ),
                           Text(
-                            'Tenggat: ${_formatDateTime(widget.task.dueDate)}',
+                            AppLocalization.isIndonesian
+                                ? 'Tenggat: ${_formatDateTime(widget.task.dueDate)}'
+                                : 'Due: ${_formatDateTime(widget.task.dueDate)}',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -355,7 +374,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                           Divider(color: cardBorderColor),
                           const SizedBox(height: 12),
                           Text(
-                            'Instruksi:',
+                            AppLocalization.isIndonesian ? 'Instruksi:' : 'Instructions:',
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: titleColor),
                           ),
                           const SizedBox(height: 6),
@@ -391,9 +410,9 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                                       minimumSize: Size.zero,
                                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     ),
-                                    child: const Text(
-                                      'Salin',
-                                      style: TextStyle(fontSize: 12, color: Color(0xFF3B82F6), fontWeight: FontWeight.bold),
+                                    child: Text(
+                                      AppLocalization.isIndonesian ? 'Salin' : 'Copy',
+                                      style: const TextStyle(fontSize: 12, color: Color(0xFF3B82F6), fontWeight: FontWeight.bold),
                                     ),
                                   ),
                                 ],
@@ -414,9 +433,9 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                       unselectedLabelColor: subTextColor,
                       indicatorColor: const Color(0xFF8B5CF6),
                       indicatorSize: TabBarIndicatorSize.tab,
-                      tabs: const [
-                        Tab(text: 'Sudah Mengumpulkan'),
-                        Tab(text: 'Belum Mengumpulkan'),
+                      tabs: [
+                        Tab(text: AppLocalization.isIndonesian ? 'Sudah Mengumpulkan' : 'Submitted'),
+                        Tab(text: AppLocalization.isIndonesian ? 'Belum Mengumpulkan' : 'Unsubmitted'),
                       ],
                     ),
                     isDark,
@@ -493,7 +512,9 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
             Icon(Icons.people_outline_rounded, size: 48, color: subTextColor),
             const SizedBox(height: 12),
             Text(
-              'Belum ada siswa yang mengumpulkan.',
+              AppLocalization.isIndonesian
+                  ? 'Belum ada siswa yang mengumpulkan.'
+                  : 'No students have submitted yet.',
               style: TextStyle(color: subTextColor, fontSize: 13),
             ),
           ],
@@ -535,7 +556,9 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      isGraded ? 'Sudah Dinilai' : 'Perlu Diperiksa',
+                      isGraded
+                          ? (AppLocalization.isIndonesian ? 'Sudah Dinilai' : 'Graded')
+                          : (AppLocalization.isIndonesian ? 'Perlu Diperiksa' : 'Needs Review'),
                       style: TextStyle(
                         color: isGraded ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
                         fontSize: 10,
@@ -549,7 +572,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
               Row(
                 children: [
                   Text(
-                    'Kirim: ${DateFormat('dd MMM yyyy, HH:mm').format(submission.submittedAt.toLocal())}',
+                    '${AppLocalization.isIndonesian ? 'Kirim' : 'Sent'}: ${DateFormat('dd MMM yyyy, HH:mm').format(submission.submittedAt.toLocal())}',
                     style: TextStyle(fontSize: 10, color: subTextColor),
                   ),
                   if (submission.submittedAt.isAfter(widget.task.dueDate)) ...[
@@ -560,9 +583,9 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                         color: const Color(0xFFEF4444).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text(
-                        'Terlambat',
-                        style: TextStyle(
+                      child: Text(
+                        AppLocalization.isIndonesian ? 'Terlambat' : 'Late',
+                        style: const TextStyle(
                           color: Color(0xFFEF4444),
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
@@ -575,7 +598,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
               if (submission.studentNotes != null && submission.studentNotes!.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Catatan Siswa:',
+                  AppLocalization.isIndonesian ? 'Catatan Siswa:' : 'Student Notes:',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: titleColor),
                 ),
                 Text(
@@ -624,7 +647,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                         Row(
                           children: [
                             Text(
-                              'Nilai: ',
+                              AppLocalization.isIndonesian ? 'Nilai: ' : 'Grade: ',
                               style: TextStyle(fontSize: 12, color: subTextColor),
                             ),
                             Text(
@@ -642,7 +665,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                     )
                   else
                     Text(
-                      'Belum dinilai',
+                      AppLocalization.isIndonesian ? 'Belum dinilai' : 'Not graded yet',
                       style: TextStyle(fontSize: 12, color: subTextColor),
                     ),
                   ElevatedButton(
@@ -657,7 +680,9 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                       elevation: 0,
                     ),
                     child: Text(
-                      isGraded ? 'Edit Nilai' : 'Beri Nilai',
+                      isGraded
+                          ? (AppLocalization.isIndonesian ? 'Edit Nilai' : 'Edit Grade')
+                          : (AppLocalization.isIndonesian ? 'Beri Nilai' : 'Give Grade'),
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -685,7 +710,9 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
             const Icon(Icons.check_circle_outline_rounded, size: 48, color: Color(0xFF10B981)),
             const SizedBox(height: 12),
             Text(
-              'Semua siswa telah mengumpulkan!',
+              AppLocalization.isIndonesian
+                  ? 'Semua siswa telah mengumpulkan!'
+                  : 'All students have submitted!',
               style: TextStyle(color: subTextColor, fontSize: 13),
             ),
           ],
@@ -730,7 +757,7 @@ class _TeacherTaskDetailPageState extends State<TeacherTaskDetailPage> with Sing
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'NIS: $nis',
+                      AppLocalization.isIndonesian ? 'NIS: $nis' : 'Student ID: $nis',
                       style: TextStyle(fontSize: 11, color: subTextColor),
                     ),
                   ],

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../../core/localization/app_localization.dart';
 import '../models/exam_event_model.dart';
 import '../services/exam_behavior_service.dart';
 import '../services/exam_session_service.dart';
@@ -130,10 +131,10 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
                               value: _pairsPerRow,
                               dropdownColor: isDark ? const Color(0xFF15122F) : Colors.white,
                               style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
-                              items: const [
-                                DropdownMenuItem(value: 3, child: Text('3 Pasang Meja (6 Baris)')),
-                                DropdownMenuItem(value: 4, child: Text('4 Pasang Meja (8 Baris)')),
-                                DropdownMenuItem(value: 5, child: Text('5 Pasang Meja (10 Baris)')),
+                              items: [
+                                DropdownMenuItem(value: 3, child: Text(AppLocalization.isIndonesian ? '3 Pasang Meja (6 Baris)' : '3 Desk Pairs (6 Rows)')),
+                                DropdownMenuItem(value: 4, child: Text(AppLocalization.isIndonesian ? '4 Pasang Meja (8 Baris)' : '4 Desk Pairs (8 Rows)')),
+                                DropdownMenuItem(value: 5, child: Text(AppLocalization.isIndonesian ? '5 Pasang Meja (10 Baris)' : '5 Desk Pairs (10 Rows)')),
                               ],
                               onChanged: (val) {
                                 if (val != null) {
@@ -161,7 +162,7 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
                       if (partSnap.hasError) {
                         return Center(
                           child: Text(
-                            'Gagal memuat peserta ujian: ${partSnap.error}',
+                            AppLocalization.isIndonesian ? 'Gagal memuat peserta ujian: ${partSnap.error}' : 'Failed to load exam participants: ${partSnap.error}',
                             style: const TextStyle(color: Colors.redAccent),
                           ),
                         );
@@ -290,12 +291,12 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Total', total.toString(), Colors.blueAccent),
-          _buildStatItem('Standby', standby.toString(), Colors.green),
-          _buildStatItem('Keluar', keluar.toString(), Colors.redAccent),
-          _buildStatItem('Screen Off', screenOff.toString(), Colors.orange),
-          _buildStatItem('Selesai', selesai.toString(), Colors.cyan),
-          _buildStatItem('Belum', belum.toString(), Colors.grey),
+          _buildStatItem(AppLocalization.isIndonesian ? 'Total' : 'Total', total.toString(), Colors.blueAccent),
+          _buildStatItem(AppLocalization.isIndonesian ? 'Standby' : 'Standby', standby.toString(), Colors.green),
+          _buildStatItem(AppLocalization.isIndonesian ? 'Keluar' : 'Left', keluar.toString(), Colors.redAccent),
+          _buildStatItem(AppLocalization.isIndonesian ? 'Screen Off' : 'Screen Off', screenOff.toString(), Colors.orange),
+          _buildStatItem(AppLocalization.isIndonesian ? 'Selesai' : 'Finished', selesai.toString(), Colors.cyan),
+          _buildStatItem(AppLocalization.isIndonesian ? 'Belum' : 'Not yet', belum.toString(), Colors.grey),
         ],
       ),
     );
@@ -403,7 +404,7 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
     required Map<String, Map<String, dynamic>> behaviorByStudent,
   }) {
     if (participations.isEmpty) {
-      return const Center(child: Text('Belum ada data peserta untuk sesi ini'));
+      return Center(child: Text(AppLocalization.isIndonesian ? 'Belum ada data peserta untuk sesi ini' : 'No participant data for this session yet'));
     }
 
 
@@ -528,30 +529,30 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
 
     // Determine status colors
     Color statusColor = Colors.grey;
-    String statusLabel = 'Belum Mulai';
+    String statusLabel = AppLocalization.isIndonesian ? 'Belum Mulai' : 'Not Started';
     IconData statusIcon = Icons.remove_circle_outline_rounded;
 
     if (student.submittedAt != null) {
       statusColor = Colors.cyan;
-      statusLabel = 'Selesai';
+      statusLabel = AppLocalization.isIndonesian ? 'Selesai' : 'Finished';
       statusIcon = Icons.check_circle_rounded;
     } else if (behavior == null) {
       statusColor = Colors.grey;
-      statusLabel = 'Belum Mulai';
+      statusLabel = AppLocalization.isIndonesian ? 'Belum Mulai' : 'Not Started';
       statusIcon = Icons.access_time_rounded;
     } else {
       final type = behavior['type']?.toString().toLowerCase() ?? '';
       if (type.contains('keluar') || type.contains('meninggalkan')) {
         statusColor = Colors.redAccent;
-        statusLabel = 'Keluar';
+        statusLabel = AppLocalization.isIndonesian ? 'Keluar' : 'Exit';
         statusIcon = Icons.exit_to_app_rounded;
       } else if (type.contains('mati') || type.contains('kunci') || type.contains('off')) {
         statusColor = Colors.orange;
-        statusLabel = 'Screen Off';
+        statusLabel = AppLocalization.isIndonesian ? 'Screen Off' : 'Screen Off';
         statusIcon = Icons.screen_lock_portrait_rounded;
       } else {
         statusColor = Colors.green;
-        statusLabel = 'Standby';
+        statusLabel = AppLocalization.isIndonesian ? 'Standby' : 'Standby';
         statusIcon = Icons.play_arrow_rounded;
       }
     }
@@ -654,7 +655,7 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
     }).toList();
 
     if (filtered.isEmpty) {
-      return const Center(child: Text('Murid tidak ditemukan'));
+      return Center(child: Text(AppLocalization.isIndonesian ? 'Murid tidak ditemukan' : 'Student not found'));
     }
 
     return ListView.builder(
@@ -666,30 +667,30 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
 
         // Determine status colors
         Color statusColor = Colors.grey;
-        String statusLabel = 'Belum Mulai';
+        String statusLabel = AppLocalization.isIndonesian ? 'Belum Mulai' : 'Not Started';
         IconData statusIcon = Icons.access_time_rounded;
 
         if (student.submittedAt != null) {
           statusColor = Colors.cyan;
-          statusLabel = 'Selesai';
+          statusLabel = AppLocalization.isIndonesian ? 'Selesai' : 'Finished';
           statusIcon = Icons.check_circle_rounded;
         } else if (behavior == null) {
           statusColor = Colors.grey;
-          statusLabel = 'Belum Mulai';
+          statusLabel = AppLocalization.isIndonesian ? 'Belum Mulai' : 'Not Started';
           statusIcon = Icons.access_time_rounded;
         } else {
           final type = behavior['type']?.toString().toLowerCase() ?? '';
           if (type.contains('keluar') || type.contains('meninggalkan')) {
             statusColor = Colors.redAccent;
-            statusLabel = 'Keluar';
+            statusLabel = AppLocalization.isIndonesian ? 'Keluar' : 'Exit';
             statusIcon = Icons.exit_to_app_rounded;
           } else if (type.contains('mati') || type.contains('kunci') || type.contains('off')) {
             statusColor = Colors.orange;
-            statusLabel = 'Screen Off';
+            statusLabel = AppLocalization.isIndonesian ? 'Screen Off' : 'Screen Off';
             statusIcon = Icons.screen_lock_portrait_rounded;
           } else {
             statusColor = Colors.green;
-            statusLabel = 'Standby';
+            statusLabel = AppLocalization.isIndonesian ? 'Standby' : 'Standby';
             statusIcon = Icons.play_arrow_rounded;
           }
         }
@@ -840,7 +841,7 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
                     ),
-                    child: const Text('✓ Selesai', style: TextStyle(color: Colors.cyan, fontSize: 10, fontWeight: FontWeight.bold)),
+                    child: Text(AppLocalization.isIndonesian ? '✓ Selesai' : '✓ Finished', style: const TextStyle(color: Colors.cyan, fontSize: 10, fontWeight: FontWeight.bold)),
                   ),
               ],
             ),
@@ -867,15 +868,15 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
                                 );
                                 Get.back(); // close progress
                                 Get.snackbar(
-                                  'Sukses',
-                                  'Kehadiran manual dibatalkan.',
+                                  AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                                  AppLocalization.isIndonesian ? 'Kehadiran manual dibatalkan.' : 'Manual presence cancelled.',
                                   backgroundColor: Colors.amber,
                                   colorText: Colors.white,
                                 );
                               } catch (e) {
                                 Get.back(); // close progress
                                 Get.snackbar(
-                                  'Error',
+                                  AppLocalization.isIndonesian ? 'Error' : 'Error',
                                   e.toString(),
                                   backgroundColor: Colors.redAccent,
                                   colorText: Colors.white,
@@ -883,7 +884,7 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
                               }
                             },
                             icon: const Icon(Icons.close_rounded, size: 16, color: Colors.orange),
-                            label: const Text('Batalkan Kehadiran', style: TextStyle(color: Colors.orange)),
+                            label: Text(AppLocalization.isIndonesian ? 'Batalkan Kehadiran' : 'Cancel Attendance', style: const TextStyle(color: Colors.orange)),
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(color: Colors.orange),
                               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -907,15 +908,15 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
                                 );
                                 Get.back(); // close progress
                                 Get.snackbar(
-                                  'Sukses',
-                                  'Murid berhasil diabsen manual.',
+                                  AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                                  AppLocalization.isIndonesian ? 'Murid berhasil diabsen manual.' : 'Student successfully marked present manually.',
                                   backgroundColor: Colors.green,
                                   colorText: Colors.white,
                                 );
                               } catch (e) {
                                 Get.back(); // close progress
                                 Get.snackbar(
-                                  'Error',
+                                  AppLocalization.isIndonesian ? 'Error' : 'Error',
                                   e.toString(),
                                   backgroundColor: Colors.redAccent,
                                   colorText: Colors.white,
@@ -923,7 +924,7 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
                               }
                             },
                             icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                            label: const Text('Absen Manual (Tandai Hadir)'),
+                            label: Text(AppLocalization.isIndonesian ? 'Absen Manual (Tandai Hadir)' : 'Manual Presence (Mark Present)'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF8B5CF6),
                               foregroundColor: Colors.white,
@@ -938,7 +939,7 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
             ],
             const SizedBox(height: 20),
             Text(
-              'Riwayat Log Aktivitas',
+              AppLocalization.isIndonesian ? 'Riwayat Log Aktivitas' : 'Activity Log History',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: titleColor),
             ),
             const SizedBox(height: 12),
@@ -949,7 +950,7 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
-                    'Belum ada aktivitas tercatat (murid belum mulai ujian)',
+                    AppLocalization.isIndonesian ? 'Belum ada aktivitas tercatat (murid belum mulai ujian)' : 'No activity recorded yet (student hasn\'t started the exam)',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: subTextColor),
                   ),

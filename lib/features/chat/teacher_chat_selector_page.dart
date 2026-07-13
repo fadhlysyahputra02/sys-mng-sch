@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../authentication/widgets/auth_background.dart';
+import '../../core/localization/app_localization.dart';
 import 'teacher_chat_list_page.dart';
 import 'teacher_parent_chat_list_page.dart';
 
@@ -58,15 +59,15 @@ class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.lock_rounded, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+              const Icon(Icons.lock_rounded, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked', style: const TextStyle(color: Colors.amber)),
             ],
           ),
           content: Text(
-            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            AppLocalization.isIndonesian ? 'Sekolah belum berlangganan untuk mengaktifkan fitur ini.' : 'The school has not subscribed to enable this feature.',
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -77,7 +78,7 @@ class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
                   Get.offAllNamed('/teacher'); // Exit to Dashboard
                 }
               },
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+              child: Text(AppLocalization.isIndonesian ? 'Tutup' : 'Close', style: const TextStyle(color: Color(0xFF6366F1))),
             ),
           ],
         );
@@ -157,7 +158,7 @@ class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
-                      'Pilih kategori chat yang ingin Anda buka:',
+                      AppLocalization.isIndonesian ? 'Pilih kategori chat yang ingin Anda buka:' : 'Choose the chat category you want to open:',
                       style: TextStyle(color: subTextColor, fontSize: 14),
                     ),
                   ),
@@ -179,8 +180,8 @@ class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
                           subTextColor: subTextColor,
                           icon: Icons.school_rounded,
                           color: const Color(0xFF10B981),
-                          title: 'Chat dengan Murid',
-                          subtitle: 'Kirim & terima pesan langsung dari siswa',
+                          title: AppLocalization.isIndonesian ? 'Chat dengan Murid' : 'Chat with Students',
+                          subtitle: AppLocalization.isIndonesian ? 'Kirim & terima pesan langsung dari siswa' : 'Send & receive messages directly from students',
                           onTap: () {
                             Get.to(
                               () => TeacherChatListPage(
@@ -204,9 +205,8 @@ class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
                           subTextColor: subTextColor,
                           icon: Icons.family_restroom_rounded,
                           color: const Color(0xFFF97316),
-                          title: 'Chat dengan Wali Murid',
-                          subtitle:
-                              'Komunikasi langsung dengan orang tua siswa',
+                          title: AppLocalization.isIndonesian ? 'Chat dengan Wali Murid' : 'Chat with Parents',
+                          subtitle: AppLocalization.isIndonesian ? 'Komunikasi langsung dengan orang tua siswa' : 'Direct communication with student parents',
                           onTap: () {
                             Get.to(
                               () => TeacherParentChatListPage(

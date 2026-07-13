@@ -27,7 +27,6 @@ import '../rapor/school_admin_rapor_page.dart';
 import '../violations/admin_violations_history_page.dart';
 import '../../../../core/widgets/motif_card.dart';
 import '../approvals/approval_dashboard_page.dart';
-import '../../../../core/localization/app_localization.dart';
 import '../../../exams/pages/admin_exam_event_list_page.dart';
 
 
@@ -436,25 +435,6 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Row for Badges
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.5)),
-                ),
-                child: const Text(
-                  'Admin Sekolah',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6)),
-                ),
-              ), // Removed plan badge display
-            ],
-          ),
-          const SizedBox(height: 16),
           Divider(color: dividerColor, height: 1),
           const SizedBox(height: 16),
           // Footer: Date and System Status
@@ -794,37 +774,37 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               children: [
-                _buildSidebarItem('Dashboard', Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuDashboard, Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Manajemen Guru', Icons.school_rounded, 1, const Color(0xFFF59E0B), isDark),
+                _buildSidebarItem(AppLocalization.menuTeacherManagement, Icons.school_rounded, 1, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Manajemen Siswa', Icons.people_rounded, 2, const Color(0xFF3B82F6), isDark),
+                _buildSidebarItem(AppLocalization.menuStudentManagement, Icons.people_rounded, 2, const Color(0xFF3B82F6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Mata Pelajaran', Icons.menu_book_rounded, 3, const Color(0xFF10B981), isDark),
+                _buildSidebarItem(AppLocalization.menuSubjects, Icons.menu_book_rounded, 3, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Kelas', Icons.class_rounded, 4, const Color(0xFFF59E0B), isDark),
+                _buildSidebarItem(AppLocalization.menuClass, Icons.class_rounded, 4, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Jadwal', Icons.calendar_today_rounded, 5, const Color(0xFFEC4899), isDark),
+                _buildSidebarItem(AppLocalization.menuSchedule, Icons.calendar_today_rounded, 5, const Color(0xFFEC4899), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Rekap Absensi', Icons.calendar_month_rounded, 6, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuAttendanceSummary, Icons.calendar_month_rounded, 6, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                 _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 7, const Color(0xFFEF4444), isDark),
+                 _buildSidebarItem(AppLocalization.menuNotifications, Icons.notifications_rounded, 7, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Petugas', Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuOfficers, Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Rekap Nilai', Icons.grade_rounded, 10, const Color(0xFFEF4444), isDark),
+                _buildSidebarItem(AppLocalization.menuGradesSummary, Icons.grade_rounded, 10, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('E-Rapor', Icons.description_rounded, 11, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuERapor, Icons.description_rounded, 11, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Pelanggaran Murid', Icons.report_problem_rounded, 12, const Color(0xFFEF4444), isDark),
+                _buildSidebarItem(AppLocalization.menuStudentViolations, Icons.report_problem_rounded, 12, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Persetujuan', Icons.edit_note_rounded, 13, const Color(0xFF10B981), isDark),
+                _buildSidebarItem(AppLocalization.menuApprovals, Icons.edit_note_rounded, 13, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Laporan Mengajar', Icons.edit_document, 14, const Color(0xFFF59E0B), isDark),
+                _buildSidebarItem(AppLocalization.menuTeachingReport, Icons.edit_document, 14, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Ujian Semester', Icons.assignment_rounded, 15, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuSemesterExam, Icons.assignment_rounded, 15, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
+                _buildSidebarItem(AppLocalization.menuSettings, Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
             ),
           ),
@@ -832,6 +812,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
             color: dividerColor,
             height: 1,
           ),
+
           // Logout Item at the bottom
           Padding(
             padding: const EdgeInsets.all(12),
@@ -1535,23 +1516,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.5)),
-                    ),
-                    child: const Text(
-                      'Admin Sekolah',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6)),
-                    ),
-                  ), // Removed plan badge display
-                ],
-              ),
-              const SizedBox(height: 14),
+
               Row(
                 children: [
                   Container(

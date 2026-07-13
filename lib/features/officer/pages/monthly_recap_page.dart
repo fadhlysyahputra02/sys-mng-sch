@@ -280,30 +280,35 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4.landscape,
+        pageFormat: PdfPageFormat.a4,
         build: (pw.Context context) {
           return [
             pw.Text(
-              'Laporan Rekap Bulanan Kehadiran',
-              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+              AppLocalization.isIndonesian ? 'Laporan Kehadiran Bulanan Siswa' : 'Student Monthly Attendance Report',
+              style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.black),
             ),
-            pw.SizedBox(height: 4),
+            pw.SizedBox(height: 8),
             pw.Text(
-              'Kelas: ${_selectedClassName ?? '-'}  |  Bulan: $monthName $computedYear',
-              style: const pw.TextStyle(fontSize: 12),
+              '${AppLocalization.isIndonesian ? 'Kelas' : 'Class'}: ${_selectedClassName ?? '-'}  |  ${AppLocalization.isIndonesian ? 'Periode' : 'Period'}: $monthName $computedYear',
+              style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
             ),
-            pw.SizedBox(height: 16),
+            pw.SizedBox(height: 20),
             pw.TableHelper.fromTextArray(
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.black),
+              cellAlignment: pw.Alignment.centerLeft,
+              oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+              border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
               headers: [
                 'No',
-                'Nama Siswa',
-                'Hadir (H)',
-                'Terlambat (T)',
-                'Pulang (P)',
-                'Izin (I)',
-                'Sakit (S)',
-                'Alpha (A)',
-                'Total Tidak Hadir'
+                AppLocalization.isIndonesian ? 'Nama Siswa' : 'Student Name',
+                AppLocalization.isIndonesian ? 'Hadir' : 'Present',
+                AppLocalization.isIndonesian ? 'Telat' : 'Late',
+                AppLocalization.isIndonesian ? 'Pulang' : 'Left',
+                AppLocalization.isIndonesian ? 'Izin' : 'Permit',
+                AppLocalization.isIndonesian ? 'Sakit' : 'Sick',
+                'Alfa',
+                AppLocalization.isIndonesian ? 'Total Tidak Hadir' : 'Total Absent',
               ],
               data: List<List<String>>.generate(_students.length, (index) {
                 final student = _students[index];
@@ -329,10 +334,14 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
       ),
     );
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Rekap_Bulanan_${_selectedClassName}_${computedYear}_${_selectedMonth.toString().padLeft(2, '0')}.pdf',
-    );
+      final fileName = AppLocalization.isIndonesian
+          ? 'Rekap_Bulanan_Siswa_${_selectedClassName}_${monthName}_${computedYear}.pdf'
+          : 'Student_Monthly_Recap_${_selectedClassName}_${monthName}_${computedYear}.pdf';
+
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: fileName,
+      );
   }
 
   Future<void> _exportExcel() async {
@@ -429,7 +438,9 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
       final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(user.schoolId).get();
       final schoolName = schoolDoc.data()?['namaSekolah'] ?? 'Sekolah';
 
-      final fileName = 'rekap absensi bulanan siswa ($schoolName) bulan ($monthName).xlsx';
+      final fileName = AppLocalization.isIndonesian
+          ? 'rekap absensi bulanan siswa ($schoolName) kelas (${_selectedClassName ?? "-"}) bulan ($monthName).xlsx'
+          : 'student monthly attendance ($schoolName) class (${_selectedClassName ?? "-"}) month ($monthName).xlsx';
 
       if (kIsWeb) {
         excelFile.save(fileName: fileName);

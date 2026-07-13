@@ -16,6 +16,7 @@ import '../services/exam_behavior_service.dart';
 import '../../students/data/student_service.dart';
 import 'teacher_exam_questions_page.dart';
 import 'teacher_grade_exam_page.dart';
+import '../../../core/localization/app_localization.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  TeacherProctorDashboardPage
@@ -144,9 +145,12 @@ class _TeacherProctorDashboardPageState
   Widget build(BuildContext context) {
     final schoolId = SessionService.currentUser!.schoolId;
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, _, __) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subtitleColor = isDark
             ? Colors.white.withValues(alpha: 0.55)
@@ -195,7 +199,7 @@ class _TeacherProctorDashboardPageState
                           if (widget.hideBackButton)
                             const SizedBox(width: 16),
                           Text(
-                            'Ujian Semester',
+                            AppLocalization.isIndonesian ? 'Ujian Semester' : 'Semester Exam',
                             style: TextStyle(
                               color: titleColor,
                               fontSize: 20,
@@ -227,21 +231,21 @@ class _TeacherProctorDashboardPageState
                         labelStyle: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 13),
                         tabs: [
-                          const Tab(
-                            icon: Icon(Icons.supervisor_account_rounded, size: 18),
-                            text: 'Pengawas',
-                            iconMargin: EdgeInsets.only(bottom: 2),
+                          Tab(
+                            icon: const Icon(Icons.supervisor_account_rounded, size: 18),
+                            text: AppLocalization.isIndonesian ? 'Pengawas' : 'Proctor',
+                            iconMargin: const EdgeInsets.only(bottom: 2),
                           ),
-                          const Tab(
-                            icon: Icon(Icons.edit_document, size: 18),
-                            text: 'Pembuat Soal',
-                            iconMargin: EdgeInsets.only(bottom: 2),
+                          Tab(
+                            icon: const Icon(Icons.edit_document, size: 18),
+                            text: AppLocalization.isIndonesian ? 'Pembuat Soal' : 'Author',
+                            iconMargin: const EdgeInsets.only(bottom: 2),
                           ),
                           if (_isAuthor)
-                            const Tab(
-                              icon: Icon(Icons.grading_rounded, size: 18),
-                              text: 'Koreksi Ujian',
-                              iconMargin: EdgeInsets.only(bottom: 2),
+                            Tab(
+                              icon: const Icon(Icons.grading_rounded, size: 18),
+                              text: AppLocalization.isIndonesian ? 'Koreksi Ujian' : 'Exam Grading',
+                              iconMargin: const EdgeInsets.only(bottom: 2),
                             ),
                         ],
                       ),
@@ -275,6 +279,8 @@ class _TeacherProctorDashboardPageState
             ),
           ),
         );
+      },
+    );
       },
     );
   }
@@ -337,8 +343,10 @@ class _TeacherProctorDashboardPageState
             titleColor,
             subtitleColor,
             Icons.supervisor_account_rounded,
-            'Tidak Ada Tugas Mengawas',
-            'Anda belum ditugaskan sebagai pengawas ujian.',
+            AppLocalization.isIndonesian ? 'Tidak Ada Tugas Mengawas' : 'No Proctoring Tasks',
+            AppLocalization.isIndonesian
+                ? 'Anda belum ditugaskan sebagai pengawas ujian.'
+                : 'You have not been assigned as an exam proctor.',
           );
         }
 
@@ -346,8 +354,13 @@ class _TeacherProctorDashboardPageState
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
           children: [
             if (upcoming.isNotEmpty) ...[
-              _buildSectionHeader('Jadwal Mendatang', Icons.upcoming_rounded,
-                  const Color(0xFF8B5CF6), isDark, titleColor),
+              const SizedBox(height: 10),
+              _buildSectionHeader(
+                  AppLocalization.isIndonesian ? 'Jadwal Mendatang' : 'Upcoming Schedule',
+                  Icons.upcoming_rounded,
+                  const Color(0xFF8B5CF6),
+                  isDark,
+                  titleColor),
               const SizedBox(height: 10),
               ...upcoming.map((s) => _buildProctorSessionCard(
                   s, isDark, cardColor, cardBorder, titleColor, subtitleColor,
@@ -356,8 +369,12 @@ class _TeacherProctorDashboardPageState
             ],
             if (past.isNotEmpty) ...[
               const SizedBox(height: 20),
-              _buildSectionHeader('Selesai', Icons.history_rounded,
-                  const Color(0xFF64748B), isDark, titleColor),
+              _buildSectionHeader(
+                  AppLocalization.isIndonesian ? 'Selesai' : 'Finished',
+                  Icons.history_rounded,
+                  const Color(0xFF64748B),
+                  isDark,
+                  titleColor),
               const SizedBox(height: 10),
               ...past.map((s) => _buildProctorSessionCard(
                   s, isDark, cardColor, cardBorder, titleColor, subtitleColor,
@@ -457,8 +474,8 @@ class _TeacherProctorDashboardPageState
                           color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text('Hari Ini',
-                            style: TextStyle(
+                        child: Text(AppLocalization.isIndonesian ? 'Hari Ini' : 'Today',
+                            style: const TextStyle(
                                 color: Color(0xFFF59E0B),
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold)),
@@ -487,11 +504,11 @@ class _TeacherProctorDashboardPageState
                         fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Text(
-                  '${DateFormat('EEEE, dd MMMM yyyy', 'id').format(session.date)} • ${session.startTime}–${session.endTime}',
+                  '${AppLocalization.isIndonesian ? DateFormat('EEEE, dd MMMM yyyy', 'id').format(session.date) : DateFormat('EEEE, MMMM dd, yyyy', 'en').format(session.date)} • ${session.startTime}–${session.endTime}',
                   style: TextStyle(color: subtitleColor, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
-                Text('Kelas: ${session.className.isEmpty ? session.classId : session.className} • Ruang: ${session.roomName.isEmpty ? '-' : session.roomName}',
+                Text('${AppLocalization.isIndonesian ? 'Kelas' : 'Class'}: ${session.className.isEmpty ? session.classId : session.className} • ${AppLocalization.isIndonesian ? 'Ruang' : 'Room'}: ${session.roomName.isEmpty ? '-' : session.roomName}',
                     style: TextStyle(color: subtitleColor, fontSize: 12)),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
@@ -500,8 +517,8 @@ class _TeacherProctorDashboardPageState
                         session: session,
                       )),
                   icon: const Icon(Icons.grid_on_rounded, size: 16, color: Color(0xFF8B5CF6)),
-                  label: const Text('Denah Tempat Duduk',
-                      style: TextStyle(color: Color(0xFF8B5CF6))),
+                  label: Text(AppLocalization.isIndonesian ? 'Denah Tempat Duduk' : 'Seating Plan',
+                      style: const TextStyle(color: Color(0xFF8B5CF6))),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF8B5CF6), width: 1),
                     minimumSize: const Size(double.infinity, 38),
@@ -512,55 +529,43 @@ class _TeacherProctorDashboardPageState
                         fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                 ),
-                if (!isFinished) ...[
-                  const SizedBox(height: 14),
-                  // Action Buttons
-                  Row(
-                    children: [
-                      // Future session — show info chip only
-                      if (!isToday)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF64748B).withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: const Color(0xFF64748B).withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.event_rounded,
-                                  size: 14, color: Color(0xFF64748B)),
-                              SizedBox(width: 6),
-                              Text('Scan QR hanya bisa dilakukan pada hari H',
-                                  style: TextStyle(
-                                    color: Color(0xFF64748B),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  )),
-                            ],
-                          ),
-                        ),
-                      if (isToday) ...[
+                if (!isToday)
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF64748B).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFF64748B).withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.event_rounded,
+                            size: 14, color: Color(0xFF64748B)),
+                        const SizedBox(width: 6),
+                        Text(AppLocalization.isIndonesian ? 'Scan QR hanya bisa dilakukan pada hari H' : 'QR scan can only be performed on the day of the exam',
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            )),
+                      ],
+                    ),
+                  ),
+                if (isToday)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Row(
+                      children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () async {
-                              if (!isActive) {
-                                // Aktifkan secara otomatis di background
-                                try {
-                                  await _service.activateSessionQr(
-                                      schoolId: schoolId, sessionId: session.id);
-                                } catch (_) {}
-                              }
-                              if (context.mounted) {
-                                _scanStudentQrForSession(context, session.copyWith(isQrActive: true));
-                              }
-                            },
+                            onPressed: () => _activateQr(schoolId, session),
                             icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
-                            label: const Text('Scan QR Murid'),
+                            label: Text(AppLocalization.isIndonesian ? 'Scan QR Murid' : 'Scan Student QR'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF8B5CF6),
                               foregroundColor: Colors.white,
@@ -585,14 +590,13 @@ class _TeacherProctorDashboardPageState
                                   const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                               foregroundColor: const Color(0xFFEF4444),
                             ),
-                            child: const Text('Selesaikan',
-                                style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+                            child: Text(AppLocalization.isIndonesian ? 'Selesaikan' : 'Finish',
+                                style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ],
-                    ],
+                    ),
                   ),
-                ],
               ],
             ),
           ),
@@ -632,33 +636,33 @@ class _TeacherProctorDashboardPageState
           final diffSec = diff.inSeconds;
 
           if (diffMin > 0) {
-            label = '$diffMin menit lagi';
+            label = AppLocalization.isIndonesian ? '$diffMin menit lagi' : '$diffMin mins left';
           } else if (diffSec > 0) {
-            label = '1 menit lagi';
+            label = AppLocalization.isIndonesian ? '1 menit lagi' : '1 min left';
           } else {
-            label = 'Sedang Berlangsung';
+            label = AppLocalization.isIndonesian ? 'Sedang Berlangsung' : 'Ongoing';
           }
           color = const Color(0xFFF59E0B);
           icon = Icons.timer_outlined;
         } else {
           color = const Color(0xFF10B981);
-          label = 'Sedang Berlangsung';
+          label = AppLocalization.isIndonesian ? 'Sedang Berlangsung' : 'Ongoing';
           icon = Icons.play_circle_rounded;
         }
         break;
       case 'Finished':
         color = const Color(0xFF64748B);
-        label = 'Selesai';
+        label = AppLocalization.isIndonesian ? 'Selesai' : 'Finished';
         icon = Icons.check_circle_rounded;
         break;
       default:
         if (isToday) {
           color = const Color(0xFF8B5CF6);
-          label = 'Hari Ini';
+          label = AppLocalization.isIndonesian ? 'Hari Ini' : 'Today';
           icon = Icons.today_rounded;
         } else {
           color = const Color(0xFFF59E0B);
-          label = 'Terjadwal';
+          label = AppLocalization.isIndonesian ? 'Terjadwal' : 'Scheduled';
           icon = Icons.schedule_rounded;
         }
     }
@@ -715,8 +719,10 @@ class _TeacherProctorDashboardPageState
             titleColor,
             subtitleColor,
             Icons.edit_document,
-            'Tidak Ada Penugasan Soal',
-            'Anda belum ditugaskan sebagai pembuat soal untuk event ujian apapun.',
+            AppLocalization.isIndonesian ? 'Tidak Ada Penugasan Soal' : 'No Question Assignments',
+            AppLocalization.isIndonesian
+                ? 'Anda belum ditugaskan sebagai pembuat soal untuk event ujian apapun.'
+                : 'You have not been assigned as a question author for any exam events.',
           );
         }
 
@@ -739,7 +745,9 @@ class _TeacherProctorDashboardPageState
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Anda adalah pembuat soal untuk mata pelajaran berikut. Siapkan dan upload bank soal sebelum pelaksanaan ujian.',
+                      AppLocalization.isIndonesian
+                          ? 'Anda adalah pembuat soal untuk mata pelajaran berikut. Siapkan dan upload bank soal sebelum pelaksanaan ujian.'
+                          : 'You are the question author for the following subjects. Prepare and upload the question bank before the exam.',
                       style: TextStyle(
                         color: const Color(0xFFF59E0B).withValues(alpha: 0.9),
                         fontSize: 12,
@@ -821,7 +829,10 @@ class _TeacherProctorDashboardPageState
                           fontWeight: FontWeight.bold,
                           fontSize: 14)),
                   const SizedBox(height: 4),
-                  Text('$sessionCount kelas menggunakan soal ini',
+                  Text(
+                      AppLocalization.isIndonesian
+                          ? '$sessionCount kelas menggunakan soal ini'
+                          : '$sessionCount classes use these questions',
                       style: TextStyle(color: subtitleColor, fontSize: 12)),
                 ],
               ),
@@ -834,8 +845,8 @@ class _TeacherProctorDashboardPageState
                 border: Border.all(
                     color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
               ),
-              child: const Text('Author',
-                  style: TextStyle(
+              child: Text(AppLocalization.isIndonesian ? 'Penulis' : 'Author',
+                  style: const TextStyle(
                       color: Color(0xFFF59E0B),
                       fontSize: 11,
                       fontWeight: FontWeight.bold)),
@@ -852,7 +863,11 @@ class _TeacherProctorDashboardPageState
       await _service.activateSessionQr(
           schoolId: schoolId, sessionId: session.id);
       if (mounted) {
-        Get.snackbar('Berhasil', 'QR Presensi Ujian berhasil diaktifkan.',
+        Get.snackbar(
+            AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+            AppLocalization.isIndonesian
+                ? 'QR Presensi Ujian berhasil diaktifkan.'
+                : 'Exam presence QR successfully activated.',
             backgroundColor: const Color(0xFF10B981),
             colorText: Colors.white,
             snackPosition: SnackPosition.TOP,
@@ -860,7 +875,9 @@ class _TeacherProctorDashboardPageState
         _scanStudentQrForSession(context, session.copyWith(isQrActive: true));
       }
     } catch (e) {
-      Get.snackbar('Gagal', 'Tidak dapat mengaktifkan QR: $e',
+      Get.snackbar(
+          AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+          AppLocalization.isIndonesian ? 'Tidak dapat mengaktifkan QR: $e' : 'Cannot activate QR: $e',
           backgroundColor: const Color(0xFFEF4444),
           colorText: Colors.white,
           snackPosition: SnackPosition.TOP,
@@ -903,7 +920,7 @@ class _TeacherProctorDashboardPageState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Hasil Ujian Murid',
+                              AppLocalization.isIndonesian ? 'Hasil Ujian Murid' : 'Student Exam Results',
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                             ),
                             Text(
@@ -1034,7 +1051,7 @@ class _TeacherProctorDashboardPageState
                                                 const SizedBox(width: 6),
                                               ],
                                               Text(
-                                                ang == 'Semua' ? 'Semua Angkatan' : 'Angkatan $ang',
+                                                ang == 'Semua' ? (AppLocalization.isIndonesian ? 'Semua Angkatan' : 'All Cohorts') : (AppLocalization.isIndonesian ? 'Angkatan $ang' : 'Cohort $ang'),
                                                 style: TextStyle(
                                                   color: isSelected
                                                       ? const Color(0xFF8B5CF6)
@@ -1060,13 +1077,13 @@ class _TeacherProctorDashboardPageState
                                   tabs: [
                                     Tab(
                                       child: Text(
-                                        'Sudah (${filteredSubmissions.length})',
+                                        '${AppLocalization.isIndonesian ? 'Sudah' : 'Submitted'} (${filteredSubmissions.length})',
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                       ),
                                     ),
                                     Tab(
                                       child: Text(
-                                        'Belum (${filteredNotSubmitted.length})',
+                                        '${AppLocalization.isIndonesian ? 'Belum' : 'Unsubmitted'} (${filteredNotSubmitted.length})',
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                       ),
                                     ),
@@ -1080,7 +1097,9 @@ class _TeacherProctorDashboardPageState
                                       filteredSubmissions.isEmpty
                                           ? Center(
                                               child: Text(
-                                                'Belum ada murid yang mengumpulkan ujian.',
+                                                AppLocalization.isIndonesian
+                                                    ? 'Belum ada murid yang mengumpulkan ujian.'
+                                                    : 'No students have submitted the exam yet.',
                                                 style: TextStyle(color: titleColor.withValues(alpha: 0.5), fontSize: 13),
                                                 textAlign: TextAlign.center,
                                               ),
@@ -1127,7 +1146,7 @@ class _TeacherProctorDashboardPageState
                                                                   ),
                                                                   const SizedBox(height: 4),
                                                                   Text(
-                                                                    'Angkatan: $studentAngkatan\nDikumpulkan: $dateStr${exam.questions.any((q) => q.type == "multiple_choice") ? "\nBenar PG: ${sub.correctCount} | Salah PG: ${sub.incorrectCount}" : ""}',
+                                                                    '${AppLocalization.isIndonesian ? 'Angkatan' : 'Cohort'}: $studentAngkatan\n${AppLocalization.isIndonesian ? 'Dikumpulkan' : 'Submitted'}: $dateStr${exam.questions.any((q) => q.type == "multiple_choice") ? "\n${AppLocalization.isIndonesian ? 'Benar PG' : 'MC Correct'}: ${sub.correctCount} | ${AppLocalization.isIndonesian ? 'Salah PG' : 'MC Incorrect'}: ${sub.incorrectCount}" : ""}',
                                                                     style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6), height: 1.4),
                                                                   ),
                                                                 ],
@@ -1141,9 +1160,9 @@ class _TeacherProctorDashboardPageState
                                                                   color: Colors.amber.withValues(alpha: 0.15),
                                                                   borderRadius: BorderRadius.circular(10),
                                                                 ),
-                                                                child: const Text(
-                                                                  'Perlu Koreksi',
-                                                                  style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12),
+                                                                child: Text(
+                                                                  AppLocalization.isIndonesian ? 'Perlu Koreksi' : 'Needs Grading',
+                                                                  style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12),
                                                                 ),
                                                               )
                                                             else
@@ -1175,7 +1194,9 @@ class _TeacherProctorDashboardPageState
                                       filteredNotSubmitted.isEmpty
                                           ? Center(
                                               child: Text(
-                                                'Semua murid sudah mengumpulkan ujian.',
+                                                AppLocalization.isIndonesian
+                                                    ? 'Semua murid sudah mengumpulkan ujian.'
+                                                    : 'All students have submitted the exam.',
                                                 style: TextStyle(color: titleColor.withValues(alpha: 0.5), fontSize: 13),
                                                 textAlign: TextAlign.center,
                                               ),
@@ -1213,7 +1234,7 @@ class _TeacherProctorDashboardPageState
                                                               ),
                                                               const SizedBox(height: 4),
                                                               Text(
-                                                                'Angkatan: $studentAngkatan | NIS: $nis',
+                                                                '${AppLocalization.isIndonesian ? 'Angkatan' : 'Cohort'}: $studentAngkatan | NIS: $nis',
                                                                 style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6)),
                                                               ),
                                                             ],
@@ -1227,9 +1248,9 @@ class _TeacherProctorDashboardPageState
                                                               color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
                                                               borderRadius: BorderRadius.circular(8),
                                                             ),
-                                                            child: const Text(
-                                                              'Susulan',
-                                                              style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold, fontSize: 10),
+                                                            child: Text(
+                                                              AppLocalization.isIndonesian ? 'Susulan' : 'Makeup',
+                                                              style: const TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold, fontSize: 10),
                                                             ),
                                                           )
                                                         else
@@ -1239,9 +1260,9 @@ class _TeacherProctorDashboardPageState
                                                               color: Colors.redAccent.withValues(alpha: 0.15),
                                                               borderRadius: BorderRadius.circular(8),
                                                             ),
-                                                            child: const Text(
-                                                              'Belum',
-                                                              style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 10),
+                                                            child: Text(
+                                                              AppLocalization.isIndonesian ? 'Belum' : 'Not yet',
+                                                              style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 10),
                                                             ),
                                                           ),
                                                       ],
@@ -1278,7 +1299,9 @@ class _TeacherProctorDashboardPageState
         ? Colors.white.withValues(alpha: 0.65)
         : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
     final roomName = session.roomName.isNotEmpty ? session.roomName : 'Ujian';
-    final expectedPhrase = 'selesaikan ruangan $roomName'.toLowerCase();
+    final expectedPhrase = AppLocalization.isIndonesian
+        ? 'selesaikan ruangan $roomName'.toLowerCase()
+        : 'finish room $roomName'.toLowerCase();
     final inputController = TextEditingController();
     bool isValid = false;
 
@@ -1289,7 +1312,7 @@ class _TeacherProctorDashboardPageState
           backgroundColor: dialogBg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            'Selesaikan Sesi?',
+            AppLocalization.isIndonesian ? 'Selesaikan Sesi?' : 'Finish Session?',
             style: TextStyle(fontWeight: FontWeight.bold, color: titleColor),
           ),
           content: Column(
@@ -1297,12 +1320,16 @@ class _TeacherProctorDashboardPageState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'QR akan dinonaktifkan dan sesi "${session.subjectName}" di ruangan $roomName ditandai selesai. Siswa tidak dapat scan lagi.',
+                AppLocalization.isIndonesian
+                    ? 'QR akan dinonaktifkan dan sesi "${session.subjectName}" di ruangan $roomName ditandai selesai. Siswa tidak dapat scan lagi.'
+                    : 'QR will be disabled and session "${session.subjectName}" in room $roomName will be marked as finished. Students cannot scan anymore.',
                 style: TextStyle(color: subtitleColor, height: 1.5, fontSize: 13),
               ),
               const SizedBox(height: 16),
               SelectableText(
-                'Ketik "selesaikan ruangan $roomName" untuk konfirmasi:',
+                AppLocalization.isIndonesian
+                    ? 'Ketik "selesaikan ruangan $roomName" untuk konfirmasi:'
+                    : 'Type "finish room $roomName" to confirm:',
                 style: TextStyle(color: subtitleColor, fontSize: 12, fontStyle: FontStyle.italic),
               ),
               const SizedBox(height: 8),
@@ -1310,7 +1337,7 @@ class _TeacherProctorDashboardPageState
                 controller: inputController,
                 style: TextStyle(color: titleColor, fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'selesaikan ruangan $roomName',
+                  hintText: AppLocalization.isIndonesian ? 'selesaikan ruangan $roomName' : 'finish room $roomName',
                   hintStyle: TextStyle(color: subtitleColor.withValues(alpha: 0.5), fontSize: 12),
                   filled: true,
                   fillColor: isDark
@@ -1337,7 +1364,7 @@ class _TeacherProctorDashboardPageState
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Batal',
+              child: Text(AppLocalization.cancel,
                   style: TextStyle(
                       color: titleColor.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w500)),
@@ -1352,8 +1379,8 @@ class _TeacherProctorDashboardPageState
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Selesaikan',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(AppLocalization.isIndonesian ? 'Selesaikan' : 'Finish',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -1367,9 +1394,11 @@ class _TeacherProctorDashboardPageState
     }
   }
   Future<void> _scanStudentQrForSession(BuildContext context, ExamSession session) async {
-    final result = await Get.to<String>(() => const StudentQrScannerPage(
-          title: 'Scan QR Murid',
-          subtitle: 'Arahkan kamera ke QR di kartu ujian murid',
+    final result = await Get.to<String>(() => StudentQrScannerPage(
+          title: AppLocalization.isIndonesian ? 'Scan QR Murid' : 'Scan Student QR',
+          subtitle: AppLocalization.isIndonesian
+              ? 'Arahkan kamera ke QR di kartu ujian murid'
+              : 'Point camera at the QR code on the student\'s exam card',
         ));
 
     if (result == null || result.isEmpty) return;
@@ -1377,7 +1406,9 @@ class _TeacherProctorDashboardPageState
     try {
       final decoded = jsonDecode(result);
       if (decoded['type'] != 'exam_attendance') {
-        _showErrorDialogGlobal('Format QR tidak valid untuk presensi ujian!');
+        _showErrorDialogGlobal(AppLocalization.isIndonesian
+            ? 'Format QR tidak valid untuk presensi ujian!'
+            : 'Invalid QR code format for exam attendance!');
         return;
       }
 
@@ -1385,7 +1416,9 @@ class _TeacherProctorDashboardPageState
       final studentName = decoded['studentName']?.toString() ?? 'Murid';
 
       if (studentId.isEmpty) {
-        _showErrorDialogGlobal('ID Murid tidak ditemukan dalam QR!');
+        _showErrorDialogGlobal(AppLocalization.isIndonesian
+            ? 'ID Murid tidak ditemukan dalam QR!'
+            : 'Student ID not found in the QR code!');
         return;
       }
 
@@ -1407,8 +1440,10 @@ class _TeacherProctorDashboardPageState
 
       // Show success
       Get.snackbar(
-        'Berhasil',
-        'Presensi berhasil dicatat untuk $studentName.',
+        AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+        AppLocalization.isIndonesian
+            ? 'Presensi berhasil dicatat untuk $studentName.'
+            : 'Attendance successfully recorded for $studentName.',
         backgroundColor: const Color(0xFF10B981),
         colorText: Colors.white,
         snackPosition: SnackPosition.TOP,
@@ -1443,7 +1478,7 @@ class _TeacherProctorDashboardPageState
           children: [
             const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444)),
             const SizedBox(width: 8),
-            Text('Presensi Gagal',
+            Text(AppLocalization.isIndonesian ? 'Presensi Gagal' : 'Attendance Failed',
                 style: TextStyle(
                     fontWeight: FontWeight.bold, color: titleColor)),
           ],
@@ -1505,8 +1540,8 @@ class _TeacherProctorDashboardPageState
             titleColor,
             subtitleColor,
             Icons.grading_rounded,
-            'Tidak Ada Ujian yang Perlu Dikoreksi',
-            'Belum ada lembar pengerjaan atau data ujian semester aktif untuk Anda koreksi.',
+            AppLocalization.isIndonesian ? 'Tidak Ada Ujian yang Perlu Dikoreksi' : 'No Exams Need Grading',
+            AppLocalization.isIndonesian ? 'Belum ada lembar pengerjaan atau data ujian semester aktif untuk Anda koreksi.' : 'There are no exam submissions or active semester exam data for you to grade.',
           );
         }
 
@@ -1573,16 +1608,19 @@ class _TeacherProctorDashboardPageState
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Mata Pelajaran: ${exam.subjectName}',
+                      '${AppLocalization.isIndonesian ? 'Mata Pelajaran' : 'Subject'}: ${exam.subjectName}',
                       style: TextStyle(color: subtitleColor, fontSize: 12),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Batas Pengerjaan: $dateStr',
+                      '${AppLocalization.isIndonesian ? 'Batas Pengerjaan' : 'Deadline'}: $dateStr',
                       style: TextStyle(color: subtitleColor, fontSize: 11),
                     ),
                     const SizedBox(height: 12),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1599,7 +1637,6 @@ class _TeacherProctorDashboardPageState
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
@@ -1607,7 +1644,7 @@ class _TeacherProctorDashboardPageState
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            '${exam.questions.length} Soal',
+                            '${exam.questions.length} ${AppLocalization.isIndonesian ? 'Soal' : 'Questions'}',
                             style: const TextStyle(
                               color: Color(0xFF10B981),
                               fontWeight: FontWeight.bold,
@@ -1615,7 +1652,6 @@ class _TeacherProctorDashboardPageState
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
                         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                           stream: FirebaseFirestore.instance
                               .collection('schools')
@@ -1645,7 +1681,7 @@ class _TeacherProctorDashboardPageState
                                     const Icon(Icons.info_outline_rounded, size: 10, color: Colors.amber),
                                     const SizedBox(width: 4),
                                     Text(
-                                      '$ungradedCount Belum Dikoreksi',
+                                      '$ungradedCount ${AppLocalization.isIndonesian ? 'Belum Dikoreksi' : 'Ungraded'}',
                                       style: const TextStyle(
                                         color: Colors.amber,
                                         fontWeight: FontWeight.bold,
@@ -1659,26 +1695,28 @@ class _TeacherProctorDashboardPageState
                             return const SizedBox.shrink();
                           },
                         ),
-                        const Spacer(),
-                        ElevatedButton.icon(
-                          onPressed: () => _showSubmissionsSheet(exam),
-                          icon: const Icon(Icons.grading_rounded, size: 14),
-                          label: const Text('Koreksi'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            minimumSize: const Size(0, 32),
-                            textStyle: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showSubmissionsSheet(exam),
+                        icon: const Icon(Icons.grading_rounded, size: 14),
+                        label: Text(AppLocalization.isIndonesian ? 'Koreksi' : 'Grade'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          textStyle: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
@@ -1769,9 +1807,12 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, _, __) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subtitleColor = isDark
             ? Colors.white.withValues(alpha: 0.6)
@@ -1798,11 +1839,11 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Denah & Monitor Ruang',
+                      AppLocalization.isIndonesian ? 'Denah & Monitor Ruang' : 'Seating Plan & Monitor',
                       style: TextStyle(color: titleColor, fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      widget.session.roomName.isNotEmpty ? widget.session.roomName : 'Ruang Ujian',
+                      widget.session.roomName.isNotEmpty ? widget.session.roomName : (AppLocalization.isIndonesian ? 'Ruang Ujian' : 'Exam Room'),
                       style: TextStyle(color: subtitleColor, fontSize: 11),
                     ),
                   ],
@@ -1832,10 +1873,10 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                           value: _pairsPerRow,
                           dropdownColor: isDark ? const Color(0xFF15122F) : Colors.white,
                           style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.bold),
-                          items: const [
-                            DropdownMenuItem(value: 3, child: Text('3 Pasang Meja')),
-                            DropdownMenuItem(value: 4, child: Text('4 Pasang Meja')),
-                            DropdownMenuItem(value: 5, child: Text('5 Pasang Meja')),
+                          items: [
+                            DropdownMenuItem(value: 3, child: Text(AppLocalization.isIndonesian ? '3 Pasang Meja' : '3 Desk Pairs')),
+                            DropdownMenuItem(value: 4, child: Text(AppLocalization.isIndonesian ? '4 Pasang Meja' : '4 Desk Pairs')),
+                            DropdownMenuItem(value: 5, child: Text(AppLocalization.isIndonesian ? '5 Pasang Meja' : '5 Desk Pairs')),
                           ],
                           onChanged: (val) {
                             if (val != null) setState(() => _pairsPerRow = val);
@@ -1858,7 +1899,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                     final participations = snap.data ?? [];
                     if (participations.isEmpty) {
                       return Center(
-                        child: Text('Belum ada alokasi kursi untuk sesi ini.',
+                        child: Text(AppLocalization.isIndonesian ? 'Belum ada alokasi kursi untuk sesi ini.' : 'No seat allocation for this session yet.',
                             style: TextStyle(color: subtitleColor)),
                       );
                     }
@@ -1925,7 +1966,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                                 ),
                               ),
                               child: Center(
-                                child: Text('PAPAN TULIS / MEJA PENGAWAS',
+                                child: Text(AppLocalization.isIndonesian ? 'PAPAN TULIS / MEJA PENGAWAS' : 'WHITEBOARD / PROCTOR DESK',
                                   style: TextStyle(color: subtitleColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
                               ),
                             ),
@@ -1934,11 +1975,11 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                               child: Wrap(spacing: 10, runSpacing: 4, children: [
-                                ...angkatans.map((a) => _legendItem(cohortColor(a), 'Angkatan $a', subtitleColor)),
+                                ...angkatans.map((a) => _legendItem(cohortColor(a), AppLocalization.isIndonesian ? 'Angkatan $a' : 'Cohort $a', subtitleColor)),
                                 _legendItem(Colors.green, 'Standby', subtitleColor),
-                                _legendItem(Colors.redAccent, 'Keluar', subtitleColor),
+                                _legendItem(Colors.redAccent, AppLocalization.isIndonesian ? 'Keluar' : 'Exit', subtitleColor),
                                 _legendItem(Colors.orange, 'Screen Off', subtitleColor),
-                                _legendItem(Colors.cyan, 'Selesai', subtitleColor),
+                                _legendItem(Colors.cyan, AppLocalization.isIndonesian ? 'Selesai' : 'Finished', subtitleColor),
                               ]),
                             ),
 
@@ -2022,11 +2063,13 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                       backgroundColor: const Color(0xFF8B5CF6),
                       foregroundColor: Colors.white,
                       icon: const Icon(Icons.qr_code_scanner_rounded),
-                      label: const Text('Scan QR Murid', style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: Text(AppLocalization.isIndonesian ? 'Scan QR Murid' : 'Scan Student QR', style: const TextStyle(fontWeight: FontWeight.bold)),
                     ),
             );
           },
         );
+      },
+    );
       },
     );
   }
@@ -2048,12 +2091,12 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
         runSpacing: 8,
         alignment: WrapAlignment.spaceAround,
         children: [
-          _statChip('Total', total, Colors.blueAccent),
-          _statChip('Standby', standby, Colors.green),
-          _statChip('Keluar', keluar, Colors.redAccent),
-          _statChip('Screen Off', screenOff, Colors.orange),
-          _statChip('Selesai', selesai, Colors.cyan),
-          _statChip('Belum', belum, Colors.grey),
+          _statChip(AppLocalization.isIndonesian ? 'Total' : 'Total', total, Colors.blueAccent),
+          _statChip(AppLocalization.isIndonesian ? 'Standby' : 'Standby', standby, Colors.green),
+          _statChip(AppLocalization.isIndonesian ? 'Keluar' : 'Exit', keluar, Colors.redAccent),
+          _statChip(AppLocalization.isIndonesian ? 'Screen Off' : 'Screen Off', screenOff, Colors.orange),
+          _statChip(AppLocalization.isIndonesian ? 'Selesai' : 'Finished', selesai, Colors.cyan),
+          _statChip(AppLocalization.isIndonesian ? 'Belum' : 'Not yet', belum, Colors.grey),
         ],
       ),
     );
@@ -2097,7 +2140,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04)),
         ),
-        child: Center(child: Text('#$seatNum\n(Kosong)',
+        child: Center(child: Text('#$seatNum\n${AppLocalization.isIndonesian ? '(Kosong)' : '(Empty)'}',
           textAlign: TextAlign.center,
           style: TextStyle(color: subtitleColor.withValues(alpha: 0.25), fontSize: 7.5))),
       );
@@ -2113,21 +2156,21 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
 
     if (isSubmitted) {
       statusColor = Colors.cyan;
-      statusLabel = 'Selesai';
+      statusLabel = AppLocalization.isIndonesian ? 'Selesai' : 'Finished';
       statusIcon  = Icons.task_alt_rounded;
     } else if (behavior != null) {
       final t = (behavior['type']?.toString() ?? '').toLowerCase();
       if (t.contains('keluar')) {
-        statusColor = Colors.redAccent; statusLabel = 'Keluar'; statusIcon = Icons.exit_to_app_rounded;
+        statusColor = Colors.redAccent; statusLabel = AppLocalization.isIndonesian ? 'Keluar' : 'Exit'; statusIcon = Icons.exit_to_app_rounded;
       } else if (t.contains('off') || t.contains('kunci') || t.contains('mati')) {
-        statusColor = Colors.orange; statusLabel = 'Screen Off'; statusIcon = Icons.screen_lock_portrait_rounded;
+        statusColor = Colors.orange; statusLabel = AppLocalization.isIndonesian ? 'Screen Off' : 'Screen Off'; statusIcon = Icons.screen_lock_portrait_rounded;
       } else {
-        statusColor = Colors.green; statusLabel = 'Standby'; statusIcon = Icons.play_arrow_rounded;
+        statusColor = Colors.green; statusLabel = AppLocalization.isIndonesian ? 'Standby' : 'Standby'; statusIcon = Icons.play_arrow_rounded;
       }
     } else if (isScanned) {
-      statusColor = cohortColor; statusLabel = 'Hadir'; statusIcon = Icons.check_circle_rounded;
+      statusColor = cohortColor; statusLabel = AppLocalization.isIndonesian ? 'Hadir' : 'Present'; statusIcon = Icons.check_circle_rounded;
     } else {
-      statusColor = cohortColor; statusLabel = 'Belum'; statusIcon = Icons.radio_button_unchecked_rounded;
+      statusColor = cohortColor; statusLabel = AppLocalization.isIndonesian ? 'Belum' : 'Not yet'; statusIcon = Icons.radio_button_unchecked_rounded;
     }
 
     final isBelum = !isScanned && !isSubmitted && behavior == null;
@@ -2239,7 +2282,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(student.studentName, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: titleColor)),
-                    Text('Bangku #${student.seatNumber} • NIS: ${student.nis}', style: TextStyle(fontSize: 11, color: subTextColor)),
+                    Text('${AppLocalization.isIndonesian ? 'Bangku' : 'Desk'} #${student.seatNumber} • NIS: ${student.nis}', style: TextStyle(fontSize: 11, color: subTextColor)),
                   ])),
                   if (student.submittedAt != null)
                     Container(
@@ -2249,7 +2292,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
                       ),
-                      child: const Text('✓ Selesai', style: TextStyle(color: Colors.cyan, fontSize: 10, fontWeight: FontWeight.bold)),
+                      child: Text('✓ ${AppLocalization.isIndonesian ? 'Selesai' : 'Finished'}', style: const TextStyle(color: Colors.cyan, fontSize: 10, fontWeight: FontWeight.bold)),
                     ),
                 ]),
                 if (student.submittedAt == null && !isFinished) ...[
@@ -2270,11 +2313,15 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                                             studentId: student.studentId,
                                           );
                                           Get.back();
-                                          Get.snackbar('Sukses', 'Kehadiran manual dibatalkan.',
+                                          Get.snackbar(
+                                            AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                                            AppLocalization.isIndonesian ? 'Kehadiran manual dibatalkan.' : 'Manual presence cancelled.',
                                             backgroundColor: Colors.amber, colorText: Colors.white);
                                         } catch (e) {
                                           setSheetState(() => isCancelling = false);
-                                          Get.snackbar('Error', e.toString(),
+                                          Get.snackbar(
+                                            AppLocalization.isIndonesian ? 'Error' : 'Error',
+                                            e.toString(),
                                             backgroundColor: Colors.redAccent, colorText: Colors.white);
                                         }
                                       },
@@ -2282,7 +2329,10 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                                     ? const SizedBox(width: 14, height: 14,
                                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange))
                                     : const Icon(Icons.close_rounded, size: 16, color: Colors.orange),
-                                label: Text(isCancelling ? 'Memproses...' : 'Batalkan Kehadiran',
+                                label: Text(
+                                  isCancelling
+                                      ? (AppLocalization.isIndonesian ? 'Memproses...' : 'Processing...')
+                                      : (AppLocalization.isIndonesian ? 'Batalkan Kehadiran' : 'Cancel Attendance'),
                                   style: const TextStyle(color: Colors.orange)),
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(color: Colors.orange),
@@ -2302,11 +2352,15 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                                             studentId: student.studentId,
                                           );
                                           Get.back();
-                                          Get.snackbar('Sukses', 'Murid berhasil diabsen manual.',
+                                          Get.snackbar(
+                                            AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                                            AppLocalization.isIndonesian ? 'Murid berhasil diabsen manual.' : 'Student successfully marked present manually.',
                                             backgroundColor: Colors.green, colorText: Colors.white);
                                         } catch (e) {
                                           setSheetState(() => isAbsenting = false);
-                                          Get.snackbar('Error', e.toString(),
+                                          Get.snackbar(
+                                            AppLocalization.isIndonesian ? 'Error' : 'Error',
+                                            e.toString(),
                                             backgroundColor: Colors.redAccent, colorText: Colors.white);
                                         }
                                       },
@@ -2314,7 +2368,10 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                                     ? const SizedBox(width: 14, height: 14,
                                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                     : const Icon(Icons.check_circle_outline_rounded, size: 16),
-                                label: Text(isAbsenting ? 'Memproses...' : 'Absen Manual (Tandai Hadir)'),
+                                label: Text(
+                                  isAbsenting
+                                      ? (AppLocalization.isIndonesian ? 'Memproses...' : 'Processing...')
+                                      : (AppLocalization.isIndonesian ? 'Absen Manual (Tandai Hadir)' : 'Manual Presence (Mark Present)')),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF8B5CF6),
                                   foregroundColor: Colors.white,
@@ -2328,15 +2385,15 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                   ),
                 ],
                 const SizedBox(height: 20),
-                Text('Riwayat Log Aktivitas', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: titleColor)),
+                Text(AppLocalization.isIndonesian ? 'Riwayat Log Aktivitas' : 'Activity Log History', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: titleColor)),
                 const Divider(height: 16),
                 if (activityLog.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     child: Center(child: Text(
                       student.submittedAt != null
-                          ? 'Murid telah menyelesaikan dan mengumpulkan ujian.'
-                          : 'Belum ada aktivitas (murid belum mulai mengerjakan ujian).',
+                          ? (AppLocalization.isIndonesian ? 'Murid telah menyelesaikan dan mengumpulkan ujian.' : 'Student has completed and submitted the exam.')
+                          : (AppLocalization.isIndonesian ? 'Belum ada aktivitas (murid belum mulai mengerjakan ujian).' : 'No activity yet (student has not started the exam).'),
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: subTextColor))),
                   )
@@ -2385,7 +2442,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: Text(AppLocalization.isIndonesian ? 'Tutup' : 'Close', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
               ],
             ),

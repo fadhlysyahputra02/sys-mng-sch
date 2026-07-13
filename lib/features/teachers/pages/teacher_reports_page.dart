@@ -8,6 +8,7 @@ import '../../schools/services/school_service.dart';
 import '../services/grade_service.dart';
 import 'teacher_grade_recap_page.dart';
 import 'teacher_rapor_page.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherReportsPage extends StatefulWidget {
   final String schoolId;
@@ -97,15 +98,17 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.lock_rounded, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+              const Icon(Icons.lock_rounded, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked', style: const TextStyle(color: Colors.amber)),
             ],
           ),
           content: Text(
-            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            AppLocalization.isIndonesian
+                ? 'Sekolah belum berlangganan untuk mengaktifkan fitur ini.'
+                : 'School has not subscribed to activate this feature.',
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -116,7 +119,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                   Get.offAllNamed('/teacher'); // Exit to Dashboard
                 }
               },
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+              child: Text(AppLocalization.isIndonesian ? 'Tutup' : 'Close', style: const TextStyle(color: Color(0xFF6366F1))),
             ),
           ],
         );
@@ -229,9 +232,12 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -277,7 +283,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                             ),
                           ),
                     title: Text(
-                      'Laporan & Rapor',
+                      AppLocalization.isIndonesian ? 'Laporan & Rapor' : 'Reports & Report Cards',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                     ),
                   ),
@@ -306,7 +312,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                'Tidak Ada Akses Menu',
+                                AppLocalization.isIndonesian ? 'Tidak Ada Akses Menu' : 'No Menu Access',
                                 style: TextStyle(
                                   color: titleColor,
                                   fontSize: 18,
@@ -316,7 +322,9 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                'Anda tidak terdaftar sebagai Wali Kelas maupun Guru Pengampu Mata Pelajaran di kelas manapun.\n\nSilakan hubungi Admin Sekolah untuk penugasan kelas atau mata pelajaran.',
+                                AppLocalization.isIndonesian
+                                    ? 'Anda tidak terdaftar sebagai Wali Kelas maupun Guru Pengampu Mata Pelajaran di kelas manapun.\n\nSilakan hubungi Admin Sekolah untuk penugasan kelas atau mata pelajaran.'
+                                    : 'You are not registered as a Homeroom Teacher or Subject Teacher in any class.\n\nPlease contact School Admin for class or subject assignment.',
                                 style: TextStyle(
                                   color: subTextColor,
                                   fontSize: 14,
@@ -365,7 +373,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                             ),
                           ),
                     title: Text(
-                      'Laporan & Rapor',
+                      AppLocalization.isIndonesian ? 'Laporan & Rapor' : 'Reports & Report Cards',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                     ),
                   ),
@@ -377,7 +385,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                         // 1. SECTION WALI KELAS (jika ada)
                         if (_homeroomClasses.isNotEmpty) ...[
                           Text(
-                            'Menu Wali Kelas',
+                            AppLocalization.isIndonesian ? 'Menu Wali Kelas' : 'Homeroom Teacher Menu',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -386,7 +394,9 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Kelola dan pantau rekapitulasi penilaian hasil belajar murid di bawah asuhan Anda.',
+                            AppLocalization.isIndonesian
+                                ? 'Kelola dan pantau rekapitulasi penilaian hasil belajar murid di bawah asuhan Anda.'
+                                : 'Manage and monitor the recapitulation of learning evaluations for students under your care.',
                             style: TextStyle(
                               fontSize: 13,
                               color: subTextColor,
@@ -449,7 +459,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
-                                                    'Rekap Nilai - $className',
+                                                    '${AppLocalization.isIndonesian ? 'Rekap Nilai' : 'Grade Recap'} - $className',
                                                     style: TextStyle(
                                                       color: titleColor,
                                                       fontSize: 16,
@@ -458,7 +468,9 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                                                   ),
                                                   const SizedBox(height: 4),
                                                   Text(
-                                                    'Melihat rangkuman nilai seluruh mata pelajaran kelas Anda.',
+                                                    AppLocalization.isIndonesian
+                                                        ? 'Melihat rangkuman nilai seluruh mata pelajaran kelas Anda.'
+                                                        : 'View grade recap for all subjects in your class.',
                                                     style: TextStyle(
                                                       color: subTextColor,
                                                       fontSize: 12,
@@ -528,7 +540,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
-                                                    'E-Rapor & Cetak Rapor - $className',
+                                                    '${AppLocalization.isIndonesian ? 'E-Rapor & Cetak Rapor' : 'E-Report Card & Print'} - $className',
                                                     style: TextStyle(
                                                       color: titleColor,
                                                       fontSize: 16,
@@ -537,7 +549,9 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                                                   ),
                                                   const SizedBox(height: 4),
                                                   Text(
-                                                    'Kelola nilai sikap, catatan wali kelas, dan cetak rapor resmi.',
+                                                    AppLocalization.isIndonesian
+                                                        ? 'Kelola nilai sikap, catatan wali kelas, dan cetak rapor resmi.'
+                                                        : 'Manage attitude grades, homeroom teacher notes, and print official report cards.',
                                                     style: TextStyle(
                                                       color: subTextColor,
                                                       fontSize: 12,
@@ -566,7 +580,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                         if (_teachingPairs.isNotEmpty) ...[
                           if (_homeroomClasses.isNotEmpty) const SizedBox(height: 16),
                           Text(
-                            'Menu Guru Mata Pelajaran',
+                            AppLocalization.isIndonesian ? 'Menu Guru Mata Pelajaran' : 'Subject Teacher Menu',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -575,7 +589,9 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Tulis dan kelola deskripsi pencapaian rapor siswa berdasarkan kelas dan mapel yang Anda ampu.',
+                            AppLocalization.isIndonesian
+                                ? 'Tulis dan kelola deskripsi pencapaian rapor siswa berdasarkan kelas dan mapel yang Anda ampu.'
+                                : 'Write and manage description of student report card achievements based on class and subject you teach.',
                             style: TextStyle(
                               fontSize: 13,
                               color: subTextColor,
@@ -604,7 +620,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                                     const Icon(Icons.filter_alt_rounded, color: Color(0xFF10B981), size: 20),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Pilih Kelas & Mata Pelajaran',
+                                      AppLocalization.isIndonesian ? 'Pilih Kelas & Mata Pelajaran' : 'Select Class & Subject',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
@@ -620,7 +636,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                                   value: _selectedFilterClassId,
                                   dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                   decoration: InputDecoration(
-                                    labelText: 'Kelas',
+                                    labelText: AppLocalization.isIndonesian ? 'Kelas' : 'Class',
                                     labelStyle: TextStyle(color: subTextColor, fontSize: 12),
                                     fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
                                     filled: true,
@@ -633,9 +649,9 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                                   ),
                                   style: TextStyle(color: titleColor, fontSize: 14),
                                   items: [
-                                    const DropdownMenuItem<String>(
+                                    DropdownMenuItem<String>(
                                       value: null,
-                                      child: Text('Pilih Kelas'),
+                                      child: Text(AppLocalization.isIndonesian ? 'Pilih Kelas' : 'Select Class'),
                                     ),
                                     ..._teachingClasses.keys.map((classId) {
                                       return DropdownMenuItem<String>(
@@ -658,7 +674,7 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                                   value: _selectedFilterSubjectId,
                                   dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                   decoration: InputDecoration(
-                                    labelText: 'Mata Pelajaran',
+                                    labelText: AppLocalization.isIndonesian ? 'Mata Pelajaran' : 'Subject',
                                     labelStyle: TextStyle(color: subTextColor, fontSize: 12),
                                     fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
                                     filled: true,
@@ -676,9 +692,9 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                                       subjectsList = _getSubjectsForClass(_selectedFilterClassId!);
                                     }
                                     return [
-                                      const DropdownMenuItem<String>(
+                                      DropdownMenuItem<String>(
                                         value: null,
-                                        child: Text('Pilih Mata Pelajaran'),
+                                        child: Text(AppLocalization.isIndonesian ? 'Pilih Mata Pelajaran' : 'Select Subject'),
                                       ),
                                       ...subjectsList.keys.map((subjectId) {
                                         return DropdownMenuItem<String>(
@@ -723,9 +739,9 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
                                       elevation: 0,
                                     ),
                                     icon: const Icon(Icons.edit_note_rounded, size: 22),
-                                    label: const Text(
-                                      'Kelola Deskripsi Rapor',
-                                      style: TextStyle(
+                                    label: Text(
+                                      AppLocalization.isIndonesian ? 'Kelola Deskripsi Rapor' : 'Manage Report Card Description',
+                                      style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -743,6 +759,8 @@ class _TeacherReportsPageState extends State<TeacherReportsPage> {
               ),
             ),
           ),
+            );
+          },
         );
       },
     );
@@ -892,7 +910,9 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Deskripsi berhasil disimpan untuk ${studentName(studentId)}'),
+            content: Text(AppLocalization.isIndonesian
+                ? 'Deskripsi berhasil disimpan untuk ${studentName(studentId)}'
+                : 'Description successfully saved for ${studentName(studentId)}'),
             backgroundColor: const Color(0xFF10B981),
             duration: const Duration(seconds: 1),
           ),
@@ -902,7 +922,7 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal menyimpan deskripsi: $e'),
+            content: Text(AppLocalization.isIndonesian ? 'Gagal menyimpan deskripsi: $e' : 'Failed to save description: $e'),
             backgroundColor: const Color(0xFFEF4444),
           ),
         );
@@ -967,7 +987,7 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Deskripsi Rapor Siswa',
+                            AppLocalization.isIndonesian ? 'Deskripsi Rapor Siswa' : 'Student Report Card Description',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                           ),
                           const SizedBox(height: 2),
@@ -998,7 +1018,7 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
                     : _students.isEmpty
                         ? Center(
                             child: Text(
-                              'Tidak ada siswa di kelas ini.',
+                              AppLocalization.isIndonesian ? 'Tidak ada siswa di kelas ini.' : 'No students in this class.',
                               style: TextStyle(color: subTextColor),
                             ),
                           )
@@ -1081,7 +1101,9 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
                                       maxLength: 200,
                                       style: TextStyle(color: titleColor, fontSize: 13),
                                       decoration: InputDecoration(
-                                        hintText: 'Tulis deskripsi pencapaian siswa untuk mapel ini...',
+                                        hintText: AppLocalization.isIndonesian
+                                            ? 'Tulis deskripsi pencapaian siswa untuk mapel ini...'
+                                            : 'Write student achievement description for this subject...',
                                         hintStyle: TextStyle(color: subTextColor.withValues(alpha: 0.6), fontSize: 12),
                                         fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
                                         filled: true,
@@ -1146,10 +1168,10 @@ class _ManageDescriptionsBottomSheetState extends State<_ManageDescriptionsBotto
                                               : Icon(shouldShowActive ? Icons.save_rounded : Icons.check_circle_outline_rounded, size: 16),
                                           label: Text(
                                             isSaving
-                                                ? 'Menyimpan...'
+                                                ? (AppLocalization.isIndonesian ? 'Menyimpan...' : 'Saving...')
                                                 : shouldShowActive
-                                                    ? 'Simpan'
-                                                    : 'Tersimpan',
+                                                    ? (AppLocalization.isIndonesian ? 'Simpan' : 'Save')
+                                                    : (AppLocalization.isIndonesian ? 'Tersimpan' : 'Saved'),
                                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                                           ),
                                         );

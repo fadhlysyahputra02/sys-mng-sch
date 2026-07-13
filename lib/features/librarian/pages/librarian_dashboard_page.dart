@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../authentication/widgets/auth_background.dart';
@@ -47,7 +48,7 @@ class _LibrarianDashboardPageState extends State<LibrarianDashboardPage> with Si
             const Icon(Icons.logout_rounded, color: Colors.red),
             const SizedBox(width: 10),
             Text(
-              'Konfirmasi Keluar',
+              AppLocalization.logoutConfirmTitle,
               style: TextStyle(
                 color: isDark ? Colors.white : const Color(0xFF1E1B4B),
                 fontWeight: FontWeight.bold,
@@ -57,7 +58,7 @@ class _LibrarianDashboardPageState extends State<LibrarianDashboardPage> with Si
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin keluar dari akun perpustakaan?',
+          AppLocalization.logoutConfirmLibrarian,
           style: TextStyle(
             color: isDark ? Colors.white70 : const Color(0xFF1E1B4B).withOpacity(0.8),
             fontSize: 14,
@@ -67,7 +68,7 @@ class _LibrarianDashboardPageState extends State<LibrarianDashboardPage> with Si
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Batal',
+              AppLocalization.cancel,
               style: TextStyle(
                 color: isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF1E1B4B).withOpacity(0.5),
                 fontWeight: FontWeight.w600,
@@ -81,7 +82,7 @@ class _LibrarianDashboardPageState extends State<LibrarianDashboardPage> with Si
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Keluar', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppLocalization.logout, style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -101,117 +102,122 @@ class _LibrarianDashboardPageState extends State<LibrarianDashboardPage> with Si
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {
-        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withOpacity(0.7);
-        final tabIndicatorColor = const Color(0xFF6366F1);
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
+            final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withOpacity(0.7);
+            final tabIndicatorColor = const Color(0xFF6366F1);
 
-        return Scaffold(
-          backgroundColor: isDark ? const Color(0xFF0F0C20) : const Color(0xFFF8FAFC),
-          body: Column(
-            children: [
-              AuthBackground(
-                fullScreen: false,
-                child: Column(
-                  children: [
-                    // Dashboard Header
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                    child: Row(
+            return Scaffold(
+              backgroundColor: isDark ? const Color(0xFF0F0C20) : const Color(0xFFF8FAFC),
+              body: Column(
+                children: [
+                  AuthBackground(
+                    fullScreen: false,
+                    child: Column(
                       children: [
-                        if (canGoBack) ...[
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.menu_book_rounded,
-                            color: Color(0xFF6366F1),
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        // Dashboard Header
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                          child: Row(
                             children: [
-                              Text(
-                                'Dashboard Perpustakaan',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor,
+                              if (canGoBack) ...[
+                                IconButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1).withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.menu_book_rounded,
+                                  color: Color(0xFF6366F1),
+                                  size: 24,
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Halo, ${user?.nama ?? 'Petugas'}',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: subtitleColor,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      AppLocalization.menuLibraryDashboard,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Halo, ${user?.nama ?? AppLocalization.officerLabel}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: subtitleColor,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                              // Only show logout button if they are not a teacher-librarian accessing via sub-widget
+                              if (!isTeacherLibrarian)
+                                IconButton(
+                                  onPressed: () => _confirmLogout(context),
+                                  icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+                                  tooltip: AppLocalization.logout,
+                                ),
                             ],
                           ),
                         ),
-                        // Only show logout button if they are not a teacher-librarian accessing via sub-widget
-                        if (!isTeacherLibrarian)
-                          IconButton(
-                            onPressed: () => _confirmLogout(context),
-                            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
-                            tooltip: 'Keluar',
-                          ),
+
+                        // Navigation Tabs
+                        TabBar(
+                          controller: _tabController,
+                          isScrollable: MediaQuery.of(context).size.width < 500,
+                          indicatorColor: tabIndicatorColor,
+                          labelColor: tabIndicatorColor,
+                          unselectedLabelColor: isDark ? Colors.white54 : Colors.black54,
+                          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          tabs: [
+                            Tab(text: AppLocalization.menuHome, icon: const Icon(Icons.dashboard_rounded, size: 20)),
+                            Tab(text: AppLocalization.menuBooks, icon: const Icon(Icons.menu_book_rounded, size: 20)),
+                            Tab(text: AppLocalization.menuLoans, icon: const Icon(Icons.swap_horiz_rounded, size: 20)),
+                            Tab(text: AppLocalization.menuGuestBook, icon: const Icon(Icons.people_rounded, size: 20)),
+                          ],
+                        ),
                       ],
                     ),
                   ),
 
-                  // Navigation Tabs
-                  TabBar(
-                    controller: _tabController,
-                    isScrollable: MediaQuery.of(context).size.width < 500,
-                    indicatorColor: tabIndicatorColor,
-                    labelColor: tabIndicatorColor,
-                    unselectedLabelColor: isDark ? Colors.white54 : Colors.black54,
-                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    tabs: const [
-                      Tab(text: 'Beranda', icon: Icon(Icons.dashboard_rounded, size: 20)),
-                      Tab(text: 'Buku', icon: Icon(Icons.menu_book_rounded, size: 20)),
-                      Tab(text: 'Peminjaman', icon: Icon(Icons.swap_horiz_rounded, size: 20)),
-                      Tab(text: 'Buku Tamu', icon: Icon(Icons.people_rounded, size: 20)),
-                    ],
+                  // Tab Contents
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        DashboardHomeTab(
+                          isDark: isDark,
+                          onTabChange: (index) {
+                            _tabController.animateTo(index);
+                          },
+                        ),
+                        BookListTab(isDark: isDark),
+                        LoanListTab(isDark: isDark),
+                        VisitorLogTab(isDark: isDark),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-
-              // Tab Contents
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    DashboardHomeTab(
-                      isDark: isDark,
-                      onTabChange: (index) {
-                        _tabController.animateTo(index);
-                      },
-                    ),
-                    BookListTab(isDark: isDark),
-                    LoanListTab(isDark: isDark),
-                    VisitorLogTab(isDark: isDark),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );

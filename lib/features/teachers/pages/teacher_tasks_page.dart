@@ -9,6 +9,7 @@ import '../../tasks/models/task_model.dart';
 import '../../tasks/services/task_service.dart';
 import 'teacher_create_task_page.dart';
 import 'teacher_task_detail_page.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherTasksPage extends StatefulWidget {
   final String teacherId;
@@ -91,15 +92,27 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
     }
   }
 
-  String _getFormattedIndonesianDate(DateTime dateTime) {
-    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    final months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    final dayName = days[dateTime.weekday % 7];
-    final monthName = months[dateTime.month - 1];
-    return '$dayName, ${dateTime.day} $monthName ${dateTime.year} - ${DateFormat('HH:mm').format(dateTime.toLocal())} WIB';
+  String _getFormattedDate(DateTime dateTime) {
+    final isIndo = AppLocalization.isIndonesian;
+    if (isIndo) {
+      final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      final months = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      final dayName = days[dateTime.weekday % 7];
+      final monthName = months[dateTime.month - 1];
+      return '$dayName, ${dateTime.day} $monthName ${dateTime.year} - ${DateFormat('HH:mm').format(dateTime.toLocal())} WIB';
+    } else {
+      final days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      final months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      final dayName = days[dateTime.weekday % 7];
+      final monthName = months[dateTime.month - 1];
+      return '$dayName, $monthName ${dateTime.day}, ${dateTime.year} - ${DateFormat('hh:mm a').format(dateTime.toLocal())}';
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context, String schoolId, Task task) async {
@@ -118,7 +131,9 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
         if (context.mounted) {
           Get.snackbar(
             'Info',
-            'Pengajuan hapus tugas sedang menunggu persetujuan Admin/TU.',
+            AppLocalization.isIndonesian
+                ? 'Pengajuan hapus tugas sedang menunggu persetujuan Admin/TU.'
+                : 'Task deletion request is pending Admin approval.',
             snackPosition: SnackPosition.TOP,
             backgroundColor: const Color(0xFFF59E0B),
             colorText: Colors.white,
@@ -147,7 +162,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
             const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B)),
             const SizedBox(width: 10),
             Text(
-              'Ajukan Hapus Tugas',
+              AppLocalization.isIndonesian ? 'Ajukan Hapus Tugas' : 'Request Task Deletion',
               style: TextStyle(
                 color: isDark ? Colors.white : const Color(0xFF1E1B4B),
                 fontWeight: FontWeight.bold,
@@ -157,7 +172,9 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin mengajukan penghapusan tugas "${task.title}" ke Admin/TU? Penghapusan akan menghapus seluruh file jawaban murid.',
+          AppLocalization.isIndonesian
+              ? 'Apakah Anda yakin ingin mengajukan penghapusan tugas "${task.title}" ke Admin/TU? Penghapusan akan menghapus seluruh file jawaban murid.'
+              : 'Are you sure you want to request the deletion of task "${task.title}" to Admin? Deletion will delete all student submission files.',
           style: TextStyle(
             color: isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
             fontSize: 14,
@@ -167,7 +184,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Batal',
+              AppLocalization.cancel,
               style: TextStyle(
                 color: isDark
                     ? Colors.white.withValues(alpha: 0.5)
@@ -183,7 +200,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Ajukan', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppLocalization.isIndonesian ? 'Ajukan' : 'Submit', style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -208,8 +225,10 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
         
         if (context.mounted) {
           Get.snackbar(
-            'Sukses',
-            'Pengajuan penghapusan tugas berhasil dikirim.',
+            AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+            AppLocalization.isIndonesian
+                ? 'Pengajuan penghapusan tugas berhasil dikirim.'
+                : 'Task deletion request successfully submitted.',
             snackPosition: SnackPosition.TOP,
             backgroundColor: const Color(0xFF10B981),
             colorText: Colors.white,
@@ -220,8 +239,8 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
       } catch (e) {
         if (context.mounted) {
           Get.snackbar(
-            'Gagal',
-            'Gagal mengirim pengajuan: $e',
+            AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+            AppLocalization.isIndonesian ? 'Gagal mengirim pengajuan: $e' : 'Failed to submit request: $e',
             snackPosition: SnackPosition.TOP,
             backgroundColor: const Color(0xFFEF4444),
             colorText: Colors.white,
@@ -239,7 +258,9 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
     if (!isPending && !isRejected) return const SizedBox.shrink();
 
     final color = isPending ? const Color(0xFFF59E0B) : const Color(0xFFEF4444);
-    final text = isPending ? 'Menunggu Persetujuan' : 'Hapus Ditolak';
+    final text = isPending
+        ? (AppLocalization.isIndonesian ? 'Menunggu Persetujuan' : 'Pending Approval')
+        : (AppLocalization.isIndonesian ? 'Hapus Ditolak' : 'Deletion Rejected');
     final icon = isPending ? Icons.hourglass_empty_rounded : Icons.cancel_outlined;
 
     return Container(
@@ -309,7 +330,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                           ),
                         ),
                   title: Text(
-                    'Manajemen Tugas',
+                    AppLocalization.isIndonesian ? 'Manajemen Tugas' : 'Task Management',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                   ),
                 ),
@@ -349,7 +370,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                 const Icon(Icons.filter_alt_rounded, color: Color(0xFF3B82F6), size: 18),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Filter Tugas',
+                                  AppLocalization.isIndonesian ? 'Filter Tugas' : 'Filter Tasks',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
@@ -365,9 +386,9 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                         _selectedFilterSubjectId = null;
                                       });
                                     },
-                                    child: const Text(
-                                      'Reset',
-                                      style: TextStyle(
+                                    child: Text(
+                                      AppLocalization.isIndonesian ? 'Reset' : 'Reset',
+                                      style: const TextStyle(
                                         color: Color(0xFFEF4444),
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
@@ -386,7 +407,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                     value: _selectedFilterClassId,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Kelas',
+                                      labelText: AppLocalization.classLabel,
                                       labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                       fillColor: inputFillColor,
                                       filled: true,
@@ -399,9 +420,9 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                     ),
                                     style: TextStyle(color: titleColor, fontSize: 13),
                                     items: [
-                                      const DropdownMenuItem<String>(
+                                      DropdownMenuItem<String>(
                                         value: null,
-                                        child: Text('Semua Kelas'),
+                                        child: Text(AppLocalization.isIndonesian ? 'Semua Kelas' : 'All Classes'),
                                       ),
                                       ..._classMap.keys.map((classId) {
                                         return DropdownMenuItem<String>(
@@ -426,7 +447,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                     value: _selectedFilterSubjectId,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Mata Pelajaran',
+                                      labelText: AppLocalization.subjectLabel,
                                       labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                       fillColor: inputFillColor,
                                       filled: true,
@@ -454,9 +475,9 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                         }
                                       }
                                       return [
-                                        const DropdownMenuItem<String>(
+                                        DropdownMenuItem<String>(
                                           value: null,
-                                          child: Text('Semua Mapel'),
+                                          child: Text(AppLocalization.isIndonesian ? 'Semua Mapel' : 'All Subjects'),
                                         ),
                                         ...subjectsList.keys.map((subjectId) {
                                           return DropdownMenuItem<String>(
@@ -528,7 +549,9 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                         return SliverFillRemaining(
                           child: Center(
                             child: Text(
-                              'Gagal memuat data tugas: ${snapshot.error}',
+                              AppLocalization.isIndonesian
+                                  ? 'Gagal memuat data tugas: ${snapshot.error}'
+                                  : 'Failed to load task data: ${snapshot.error}',
                               style: const TextStyle(color: Colors.redAccent),
                             ),
                           ),
@@ -561,7 +584,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Belum ada tugas yang dibuat',
+                                  AppLocalization.isIndonesian ? 'Belum ada tugas yang dibuat' : 'No tasks created yet',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -570,7 +593,9 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Tekan tombol "+" di bawah untuk membuat tugas baru.',
+                                  AppLocalization.isIndonesian
+                                      ? 'Tekan tombol "+" di bawah untuk membuat tugas baru.'
+                                      : 'Tap the "+" button below to create a new task.',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: subTextColor,
@@ -667,7 +692,7 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
-                                              'Kelas: ${task.className}',
+                                              AppLocalization.isIndonesian ? 'Kelas: ${task.className}' : 'Class: ${task.className}',
                                               style: const TextStyle(
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w600,
@@ -686,11 +711,11 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                                     crossAxisAlignment: CrossAxisAlignment.start,
                                                     children: [
                                                       Text(
-                                                        'Tenggat Waktu',
+                                                        AppLocalization.isIndonesian ? 'Tenggat Waktu' : 'Due Date',
                                                         style: TextStyle(fontSize: 10, color: subTextColor),
                                                       ),
                                                       Text(
-                                                        _getFormattedIndonesianDate(task.dueDate),
+                                                        _getFormattedDate(task.dueDate),
                                                         style: TextStyle(
                                                           fontSize: 12,
                                                           fontWeight: FontWeight.w600,
@@ -715,11 +740,13 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
                                                       crossAxisAlignment: CrossAxisAlignment.end,
                                                       children: [
                                                         Text(
-                                                          'Mengumpulkan',
+                                                          AppLocalization.isIndonesian ? 'Mengumpulkan' : 'Submitted',
                                                           style: TextStyle(fontSize: 10, color: subTextColor),
                                                         ),
                                                         Text(
-                                                          '$count Pengumpulan',
+                                                          AppLocalization.isIndonesian
+                                                              ? '$count Pengumpulan'
+                                                              : '$count Submissions',
                                                           style: TextStyle(
                                                             fontSize: 12,
                                                             fontWeight: FontWeight.bold,
@@ -759,7 +786,9 @@ class _TeacherTasksPageState extends State<TeacherTasksPage> {
               if (_classMap.isEmpty) {
                 Get.snackbar(
                   'Info',
-                  'Anda tidak memiliki jadwal mengajar terdaftar.',
+                  AppLocalization.isIndonesian
+                      ? 'Anda tidak memiliki jadwal mengajar terdaftar.'
+                      : 'You do not have a registered teaching schedule.',
                   snackPosition: SnackPosition.TOP,
                   backgroundColor: Colors.amber,
                   colorText: Colors.black,

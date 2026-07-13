@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../core/localization/app_localization.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/app_auth_service.dart';
@@ -215,9 +216,12 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
 
     final user = SessionService.currentUser!;
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark
             ? Colors.white.withValues(alpha: 0.5)
@@ -470,6 +474,8 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                     ),
             ),
           ),
+        );
+      },
         );
       },
     );

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/localization/app_localization.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
@@ -95,20 +96,20 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     final selected = DateTime(date.year, date.month, date.day);
 
     if (selected.isBefore(today)) {
-      return 'Selesai';
+      return AppLocalization.classStatusDone;
     } else if (selected.isAfter(today)) {
-      return 'Mendatang';
+      return AppLocalization.classStatusUpcoming;
     } else {
       final nowMinutes = now.hour * 60 + now.minute;
       final startMinutes = _timeToMinutes(jamMulai);
       final endMinutes = _timeToMinutes(jamSelesai);
 
       if (nowMinutes < startMinutes) {
-        return 'Mendatang';
+        return AppLocalization.classStatusUpcoming;
       } else if (nowMinutes > endMinutes) {
-        return 'Selesai';
+        return AppLocalization.classStatusDone;
       } else {
-        return 'Berlangsung';
+        return AppLocalization.classStatusOngoing;
       }
     }
   }
@@ -174,7 +175,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
 
     DateTime selectedMonth = monthOptions.first;
 
-    final List<String> classOptions = ['Semua Kelas'];
+    final List<String> classOptions = [AppLocalization.isIndonesian ? 'Semua Kelas' : 'All Classes'];
     final uniqueClasses = allSchedules
         .map((s) => s['className']?.toString() ?? '')
         .where((name) => name.isNotEmpty)
@@ -214,7 +215,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'Unduh Rekap Absen',
+                          AppLocalization.downloadRecap,
                           style: TextStyle(
                             color: dialogTextColor,
                             fontSize: 18,
@@ -224,7 +225,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Pilih bulan dan kelas untuk rekapitulasi',
+                          AppLocalization.selectMonthClassForRecap,
                           style: TextStyle(color: dialogSubTextColor, fontSize: 12),
                           textAlign: TextAlign.center,
                         ),
@@ -232,7 +233,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
 
                         // Label Bulan
                         Text(
-                          'Bulan',
+                          AppLocalization.monthLabel,
                           style: TextStyle(color: dialogTextColor.withValues(alpha: 0.75), fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 6),
@@ -251,7 +252,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                               isExpanded: true,
                               style: TextStyle(color: dialogTextColor, fontSize: 14, fontWeight: FontWeight.bold),
                               items: monthOptions.map((date) {
-                                final monthName = _getMonthNameIndonesian(date.month);
+                                final monthName = AppLocalization.monthNames[date.month - 1];
                                 final year = date.year;
                                 return DropdownMenuItem<DateTime>(
                                   value: date,
@@ -272,7 +273,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
 
                         // Label Kelas
                         Text(
-                          'Kelas',
+                          AppLocalization.classLabel,
                           style: TextStyle(color: dialogTextColor.withValues(alpha: 0.75), fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 6),
@@ -327,9 +328,9 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                                   ),
                                   elevation: 0,
                                 ),
-                                child: const Text(
-                                  'Lihat Rekapan',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+                                child: Text(
+                                  AppLocalization.previewRecap,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
                                 ),
                               ),
                             ),
@@ -351,9 +352,9 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                                   ),
                                   elevation: 0,
                                 ),
-                                child: const Text(
-                                  'Download',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+                                child: Text(
+                                  AppLocalization.download,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
                                 ),
                               ),
                             ),
@@ -366,7 +367,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                             foregroundColor: dialogSubTextColor,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold)),
+                          child: Text(AppLocalization.cancel, style: const TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -446,7 +447,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
           .toSet();
 
       // Filter berdasarkan kelas yang dipilih
-      final Set<String> targetClasses = selectedClass == 'Semua Kelas'
+      final Set<String> targetClasses = (selectedClass == 'Semua Kelas' || selectedClass == 'All Classes')
           ? teacherClassNames
           : {selectedClass};
 
@@ -618,8 +619,8 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
   Future<void> _exportAllRecapPdf(BuildContext context, List<Map<String, dynamic>> allSchedules) async {
     if (allSchedules.isEmpty) {
       Get.snackbar(
-        'Informasi',
-        'Tidak ada jadwal mengajar untuk mengunduh rekap.',
+        AppLocalization.isIndonesian ? 'Informasi' : 'Information',
+        AppLocalization.noScheduleForRecap,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.amber,
         colorText: Colors.black,
@@ -640,9 +641,12 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     final recapHari = _getHariIndonesianFor(_selectedDate);
     final recapDateStr = _getDateStrFor(_selectedDate);
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final backButtonBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
         final backButtonIconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
@@ -701,7 +705,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                             ),
                           ),
                     title: Text(
-                      'Absensi Murid',
+                      AppLocalization.studentAttendanceTitle,
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                     ),
                     actions: [
@@ -724,11 +728,11 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                                           children: [
                                             const Icon(Icons.lock_rounded, color: Colors.amber),
                                             const SizedBox(width: 8),
-                                            Text('Fitur Terkunci', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                                            Text(AppLocalization.featureLocked, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
                                           ],
                                         ),
                                         content: Text(
-                                          'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+                                          AppLocalization.featureLockedDesc,
                                           style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
                                         ),
                                         actions: [
@@ -761,9 +765,9 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                                         padding: EdgeInsets.only(right: 4),
                                         child: Icon(Icons.lock_rounded, size: 14, color: Colors.white70),
                                       ),
-                                    const Text(
-                                      'unduh rekapan absen',
-                                      style: TextStyle(
+                                    Text(
+                                      AppLocalization.downloadRecap,
+                                      style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
@@ -802,7 +806,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                                     const SizedBox(height: 24),
 
                                     // Active Subject Section
-                                    _buildSectionHeader('MATA PELAJARAN AKTIF SEKARANG', Icons.sensors_rounded, isDark),
+                                    _buildSectionHeader(AppLocalization.activeSubjectNow, Icons.sensors_rounded, isDark),
                                     const SizedBox(height: 12),
                                     _buildActiveScheduleSection(activeSchedules, isDark),
                                     const SizedBox(height: 28),
@@ -820,6 +824,8 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
               },
             ),
           ),
+        );
+          },
         );
       },
     );
@@ -869,7 +875,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Waktu Server: ${_getFormattedTime()} WIB',
+                  '${AppLocalization.serverTimeLabel}: ${_getFormattedTime()} WIB',
                   style: TextStyle(color: subTextColor, fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ],
@@ -913,7 +919,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
         Icon(Icons.summarize_rounded, color: iconColor, size: 18),
         const SizedBox(width: 8),
         Text(
-          isToday ? 'REKAP ABSENSI HARI INI' : 'REKAP ABSENSI TANGGAL',
+          isToday ? AppLocalization.todayAttendanceRecap : AppLocalization.attendanceRecapDate,
           style: TextStyle(
             color: headerColor,
             fontWeight: FontWeight.bold,
@@ -926,7 +932,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
           onPressed: () => _selectDate(context),
           icon: const Icon(Icons.calendar_month_rounded, size: 16, color: Color(0xFF8B5CF6)),
           label: Text(
-            isToday ? 'Pilih Tanggal' : _getFormattedDateFor(_selectedDate),
+            isToday ? AppLocalization.chooseDate : _getFormattedDateFor(_selectedDate),
             style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 12, fontWeight: FontWeight.bold),
           ),
           style: TextButton.styleFrom(
@@ -968,7 +974,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
               Icon(Icons.query_builder_rounded, color: isDark ? Colors.white30 : const Color(0xFF1E1B4B).withValues(alpha: 0.3), size: 36),
               const SizedBox(height: 10),
               Text(
-                'Tidak ada mata pelajaran aktif di jam sekarang.',
+                AppLocalization.noActiveSubjectNow,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: emptyTextColor, fontSize: 13, fontStyle: FontStyle.italic),
               ),
@@ -983,8 +989,8 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
 
     return Column(
       children: activeSchedules.map((s) {
-        final subjectName = s['subjectName'] ?? 'Pelajaran';
-        final className = s['className'] ?? 'Kelas';
+        final subjectName = s['subjectName'] ?? AppLocalization.subjectLabel;
+        final className = s['className'] ?? AppLocalization.classLabel;
         final jamMulai = s['jamMulai'] ?? '00:00';
         final jamSelesai = s['jamSelesai'] ?? '00:00';
 
@@ -1036,9 +1042,9 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                     ),
-                    child: const Text(
-                      'Sedang Berlangsung',
-                      style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
+                    child: Text(
+                      AppLocalization.classStatusOngoing,
+                      style: const TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -1050,7 +1056,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
               ),
               const SizedBox(height: 4),
               Text(
-                'Kelas: $className',
+                '${AppLocalization.classLabel}: $className',
                 style: TextStyle(color: subTextColor, fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -1068,7 +1074,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
               ElevatedButton.icon(
                 onPressed: () => Get.to(() => TeacherQrAttendancePage(scheduleData: s)),
                 icon: const Icon(Icons.qr_code_2_rounded, size: 20),
-                label: const Text('BUKA PRESENSI QR & SCAN', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                label: Text(AppLocalization.openQrAttendance, style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF8B5CF6),
                   foregroundColor: Colors.white,
@@ -1110,7 +1116,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
         ),
         child: Center(
           child: Text(
-            'Tidak ada jadwal mengajar untuk hari/tanggal ini.',
+            AppLocalization.noTeachingScheduleDate,
             textAlign: TextAlign.center,
             style: TextStyle(color: emptyTextColor, fontSize: 13, fontStyle: FontStyle.italic),
           ),
@@ -1124,8 +1130,8 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
     return Column(
       children: todaySchedules.map((s) {
         final scheduleId = s['scheduleId'] ?? '';
-        final subjectName = s['subjectName'] ?? 'Pelajaran';
-        final className = s['className'] ?? 'Kelas';
+        final subjectName = s['subjectName'] ?? AppLocalization.subjectLabel;
+        final className = s['className'] ?? AppLocalization.classLabel;
         final jamMulai = s['jamMulai'] ?? '00:00';
         final jamSelesai = s['jamSelesai'] ?? '00:00';
 
@@ -1133,10 +1139,10 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
 
         Color accentColor;
         Color statusColor;
-        if (status == 'Berlangsung') {
+        if (status == AppLocalization.classStatusOngoing) {
           accentColor = const Color(0xFF10B981);
           statusColor = const Color(0xFF10B981);
-        } else if (status == 'Mendatang') {
+        } else if (status == AppLocalization.classStatusUpcoming) {
           accentColor = const Color(0xFFF59E0B);
           statusColor = const Color(0xFFF59E0B);
         } else {
@@ -1146,10 +1152,10 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
 
         final tileBg = isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white;
         final tileBorder = isDark
-            ? (status == 'Berlangsung'
+            ? (status == AppLocalization.classStatusOngoing
                 ? const Color(0xFF8B5CF6).withValues(alpha: 0.3)
                 : Colors.white.withValues(alpha: 0.08))
-            : (status == 'Berlangsung'
+            : (status == AppLocalization.classStatusOngoing
                 ? const Color(0xFF8B5CF6).withValues(alpha: 0.4)
                 : Colors.black.withValues(alpha: 0.06));
 
@@ -1216,7 +1222,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Kelas: $className',
+                                '${AppLocalization.classLabel}: $className',
                                 style: TextStyle(color: subTextColor, fontSize: 12, fontWeight: FontWeight.w500),
                               ),
                               const SizedBox(height: 8),
@@ -1248,7 +1254,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
-                                              '$count Murid Hadir',
+                                              '$count ${AppLocalization.studentsPresent}',
                                               style: TextStyle(
                                                 color: count > 0 ? const Color(0xFF10B981) : (isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4)),
                                                 fontSize: 11,

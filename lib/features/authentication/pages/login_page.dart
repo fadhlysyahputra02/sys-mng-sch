@@ -451,6 +451,13 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 24),
                     TextField(
                       controller: resetEmailController,
+                      onTap: () {
+                        if (resetEmailController.selection.baseOffset != resetEmailController.selection.extentOffset) {
+                          resetEmailController.selection = TextSelection.collapsed(
+                            offset: resetEmailController.selection.extentOffset,
+                          );
+                        }
+                      },
                       style: TextStyle(color: titleColor),
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(

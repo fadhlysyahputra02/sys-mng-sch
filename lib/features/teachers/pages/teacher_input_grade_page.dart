@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/semester_state_service.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
 import '../services/grade_service.dart';
@@ -72,6 +73,23 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  String _getLocalizedCategory(String cat) {
+    switch (cat) {
+      case 'Tugas':
+        return AppLocalization.isIndonesian ? 'Tugas' : 'Assignment';
+      case 'Kuis':
+        return AppLocalization.isIndonesian ? 'Kuis' : 'Quiz';
+      case 'Ulangan Harian':
+        return AppLocalization.isIndonesian ? 'Ulangan Harian' : 'Daily Test';
+      case 'UTS':
+        return AppLocalization.isIndonesian ? 'UTS' : 'Midterm Exam';
+      case 'UAS':
+        return AppLocalization.isIndonesian ? 'UAS' : 'Final Exam';
+      default:
+        return cat;
+    }
   }
 
   Future<void> _populateExistingData() async {
@@ -262,15 +280,15 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
 
     if (!_formKey.currentState!.validate()) return;
     if (_selectedClassId == null) {
-      _showErrorSnackBar('Pilih kelas terlebih dahulu');
+      _showErrorSnackBar(AppLocalization.isIndonesian ? 'Pilih kelas terlebih dahulu' : 'Please select a class first');
       return;
     }
     if (_selectedSubjectId == null) {
-      _showErrorSnackBar('Pilih mata pelajaran terlebih dahulu');
+      _showErrorSnackBar(AppLocalization.isIndonesian ? 'Pilih mata pelajaran terlebih dahulu' : 'Please select a subject first');
       return;
     }
     if (_selectedCategory == null) {
-      _showErrorSnackBar('Pilih kategori penilaian terlebih dahulu');
+      _showErrorSnackBar(AppLocalization.selectCategoryFirst);
       return;
     }
 
@@ -314,14 +332,14 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEditing ? 'Penilaian berhasil diperbarui' : 'Penilaian berhasil disimpan'),
+            content: Text(_isEditing ? AppLocalization.gradeUpdatedSuccess : AppLocalization.gradeSavedSuccess),
             backgroundColor: const Color(0xFF10B981),
           ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      _showErrorSnackBar('Gagal menyimpan penilaian: $e');
+      _showErrorSnackBar('${AppLocalization.gradeSaveFailed}: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -344,17 +362,20 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
   Widget build(BuildContext context) {
     final user = SessionService.currentUser!;
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
-        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-        final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-        final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
-        final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
-        final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
-        final shadowColor = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
+            final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+            final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+            final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+            final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+            final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+            final shadowColor = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
 
         // Filter subject dropdown items
         Map<String, String> subjectsList = {};
@@ -396,7 +417,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                             ),
                           ),
                           title: Text(
-                            _isEditing ? 'Ubah Penilaian' : 'Input Nilai Baru',
+                            _isEditing ? AppLocalization.editGradeTitle : AppLocalization.inputNewGradeTitle,
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                           ),
                         ),
@@ -429,7 +450,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                     value: _selectedClassId,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Pilih Kelas',
+                                      labelText: AppLocalization.isIndonesian ? 'Pilih Kelas' : 'Select Class',
                                       labelStyle: TextStyle(color: subTextColor),
                                       fillColor: inputFillColor,
                                       filled: true,
@@ -477,7 +498,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                     value: _selectedSubjectId,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Pilih Mata Pelajaran',
+                                      labelText: AppLocalization.isIndonesian ? 'Pilih Mata Pelajaran' : 'Select Subject',
                                       labelStyle: TextStyle(color: subTextColor),
                                       fillColor: inputFillColor,
                                       filled: true,
@@ -518,7 +539,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                     value: _selectedCategory,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Kategori Penilaian',
+                                      labelText: AppLocalization.categoryLabel,
                                       labelStyle: TextStyle(color: subTextColor),
                                       fillColor: inputFillColor,
                                       filled: true,
@@ -530,9 +551,9 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                     ),
                                     style: TextStyle(color: titleColor),
                                     items: _categories.map((cat) {
-                                      return DropdownMenuItem(
+                                      return DropdownMenuItem<String>(
                                         value: cat,
-                                        child: Text(cat),
+                                        child: Text(_getLocalizedCategory(cat)),
                                       );
                                     }).toList(),
                                     onChanged: (val) {
@@ -548,7 +569,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                     controller: _titleController,
                                     style: TextStyle(color: titleColor, fontSize: 14),
                                     decoration: InputDecoration(
-                                      labelText: 'Judul Penilaian (contoh: Tugas 1)',
+                                      labelText: AppLocalization.gradeTitlePlaceholder,
                                       labelStyle: TextStyle(color: subTextColor),
                                       fillColor: inputFillColor,
                                       filled: true,
@@ -564,7 +585,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                     ),
                                     validator: (val) {
                                       if (val == null || val.trim().isEmpty) {
-                                        return 'Masukkan judul penilaian';
+                                        return AppLocalization.enterGradeTitle;
                                       }
                                       return null;
                                     },
@@ -577,7 +598,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                     keyboardType: TextInputType.number,
                                     style: TextStyle(color: titleColor, fontSize: 14),
                                     decoration: InputDecoration(
-                                      labelText: 'Nilai Maksimum',
+                                      labelText: AppLocalization.maxScoreLabel,
                                       labelStyle: TextStyle(color: subTextColor),
                                       fillColor: inputFillColor,
                                       filled: true,
@@ -590,7 +611,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                     validator: (val) {
                                       final d = double.tryParse(val ?? '');
                                       if (d == null || d <= 0) {
-                                        return 'Nilai tidak valid';
+                                        return AppLocalization.invalidScore;
                                       }
                                       return null;
                                     },
@@ -612,7 +633,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            'Tanggal Penilaian:',
+                                            AppLocalization.isIndonesian ? 'Tanggal Penilaian:' : 'Grade Date:',
                                             style: TextStyle(color: subTextColor, fontSize: 13),
                                           ),
                                           Text(
@@ -639,7 +660,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                   Icon(Icons.people_alt_rounded, color: iconColor, size: 20),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Daftar Nilai Siswa',
+                                    AppLocalization.studentGradeListLabel,
                                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                                   ),
                                 ],
@@ -787,7 +808,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                                         final d = double.tryParse(val);
                                                         final double max = double.tryParse(_maxScoreController.text) ?? 100.0;
                                                         if (d == null || d < 0 || d > max) {
-                                                          return 'Salah';
+                                                          return AppLocalization.wrongScoreRange;
                                                         }
                                                       }
                                                       return null;
@@ -802,7 +823,7 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                               controller: _noteControllers[studentId],
                                               style: TextStyle(color: titleColor, fontSize: 12),
                                               decoration: InputDecoration(
-                                                hintText: 'Tulis catatan pencapaian siswa... (opsional)',
+                                                hintText: AppLocalization.studentNotePlaceholder,
                                                 hintStyle: TextStyle(color: subTextColor.withValues(alpha: 0.5), fontSize: 12),
                                                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                                 fillColor: inputFillColor,
@@ -857,11 +878,13 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                           )
                         : Text(
-                            _isEditing ? 'Simpan Perubahan' : 'Simpan Penilaian',
+                            _isEditing ? AppLocalization.saveChanges : AppLocalization.saveGrade,
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                   ),
                 ),
+        );
+          },
         );
       },
     );

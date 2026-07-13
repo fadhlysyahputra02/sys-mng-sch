@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../authentication/widgets/auth_background.dart';
 
 class TeacherAttendancePreviewPage extends StatefulWidget {
@@ -206,15 +207,18 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
   }
 
   String _formatMonthYear(DateTime date) {
-    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    final months = AppLocalization.monthNames;
     return '${months[date.month - 1]} ${date.year}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final backButtonBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
         final backButtonIconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
@@ -236,14 +240,14 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
               ),
             ),
             title: Text(
-              'Preview Rekapan',
+              AppLocalization.previewRecapTitle,
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
             ),
             centerTitle: true,
           ),
           body: AuthBackground(
             child: _groups.isEmpty
-                ? const Center(child: Text('Tidak ada data absensi untuk ditampilkan.'))
+                ? Center(child: Text(AppLocalization.noAttendanceData))
                 : ListView.builder(
                     padding: const EdgeInsets.all(24),
                     itemCount: _groups.length,
@@ -255,6 +259,8 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
         );
       },
     );
+  },
+);
   }
 
   Widget _buildGroupCard(_AttendanceGroup group, bool isDark) {
@@ -306,7 +312,7 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Kelas ${group.className}',
+                        '${AppLocalization.classLabel} ${group.className}',
                         style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
                       ),
                       const SizedBox(height: 4),
@@ -316,7 +322,7 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Periode: ${_formatMonthYear(widget.startDate)}',
+                        '${AppLocalization.periodLabel}: ${_formatMonthYear(widget.startDate)}',
                         style: TextStyle(color: subTextColor, fontSize: 12),
                       ),
                     ],
@@ -335,7 +341,7 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Detail Kehadiran Harian',
+                  AppLocalization.dailyAttendanceDetail,
                   style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 const SizedBox(height: 12),
@@ -356,7 +362,7 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
     final List<DataColumn> columns = [
-      DataColumn(label: Text('Nama Siswa', style: TextStyle(fontWeight: FontWeight.bold, color: textColor))),
+      DataColumn(label: Text(AppLocalization.studentNameLabel, style: TextStyle(fontWeight: FontWeight.bold, color: textColor))),
     ];
 
     for (int d = 1; d <= 31; d++) {
@@ -387,7 +393,7 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
       ));
     }
 
-    columns.add(DataColumn(label: Text('Total Hadir', style: TextStyle(fontWeight: FontWeight.bold, color: textColor))));
+    columns.add(DataColumn(label: Text(AppLocalization.totalPresentLabel, style: TextStyle(fontWeight: FontWeight.bold, color: textColor))));
 
     return Container(
       decoration: BoxDecoration(

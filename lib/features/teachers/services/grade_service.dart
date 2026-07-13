@@ -47,6 +47,8 @@ class GradeService {
       };
     });
 
+    final bool isNew = gradeId == null || gradeId.isEmpty;
+
     await docRef.set({
       'gradeId': finalGradeId,
       'schoolId': schoolId,
@@ -69,6 +71,28 @@ class GradeService {
         DateTime.now().add(const Duration(days: 365 * 5)),
       ),
     }, SetOptions(merge: true));
+
+    // Kirim notifikasi otomatis ke kelas
+    try {
+      await _firestore
+          .collection('schools')
+          .doc(schoolId)
+          .collection('notifications')
+          .add({
+        'title': isNew ? 'Nilai Baru Diinput' : 'Nilai Diperbarui',
+        'content': 'Nilai $subjectName ($category - $title) telah diupdate oleh $teacherName.',
+        'targetType': 'kelas',
+        'targetId': classId,
+        'targetName': className,
+        'senderId': teacherId,
+        'senderName': teacherName,
+        'senderRole': 'teacher',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      // Jangan gagalkan penyimpanan nilai utama jika hanya pengiriman notifikasi error
+      print('Gagal mengirim notifikasi otomatis untuk nilai: $e');
+    }
   }
 
   /// Menyimpan konfigurasi bobot kategori global per kelas & mata pelajaran

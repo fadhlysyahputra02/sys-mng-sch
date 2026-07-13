@@ -140,17 +140,19 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
           children: [
             const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B), size: 22),
             const SizedBox(width: 8),
-            Text('Buang Perubahan?', style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(AppLocalization.isIndonesian ? 'Buang Perubahan?' : 'Discard Changes?', style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
         content: Text(
-          'Anda memiliki perubahan soal yang belum disimpan untuk Angkatan $_selectedGrade. Apakah Anda yakin ingin membuang perubahan tersebut?',
+          AppLocalization.isIndonesian
+              ? 'Anda memiliki perubahan soal yang belum disimpan untuk Angkatan $_selectedGrade. Apakah Anda yakin ingin membuang perubahan tersebut?'
+              : 'You have unsaved question changes for Cohort $_selectedGrade. Are you sure you want to discard these changes?',
           style: TextStyle(color: titleColor.withValues(alpha: 0.8), height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            child: Text(AppLocalization.cancel, style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () => Get.back(result: true),
@@ -159,7 +161,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Buang', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppLocalization.isIndonesian ? 'Buang' : 'Discard', style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -190,8 +192,9 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
         if (eventStatus == 'Active' || eventStatus == 'Finished') {
           setState(() {
             _isExamLocked = true;
-            _lockedSessionInfo =
-                'Event ujian sudah diaktifkan. Soal tidak dapat diubah selama event berlangsung.';
+            _lockedSessionInfo = AppLocalization.isIndonesian
+                ? 'Event ujian sudah diaktifkan. Soal tidak dapat diubah selama event berlangsung.'
+                : 'Exam event is already active. Questions cannot be modified during the event.';
           });
           return;
         }
@@ -240,8 +243,9 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
             final classInfo = data['className']?.toString() ?? 'Kelas Tidak Diketahui';
             setState(() {
               _isExamLocked = true;
-              _lockedSessionInfo =
-                  'Ujian $classInfo di $roomName dimulai pukul $startTimeStr. Soal tidak dapat diubah.';
+              _lockedSessionInfo = AppLocalization.isIndonesian
+                  ? 'Ujian $classInfo di $roomName dimulai pukul $startTimeStr. Soal tidak dapat diubah.'
+                  : 'Exam $classInfo in $roomName starts at $startTimeStr. Questions cannot be modified.';
             });
             return; // Cukup satu sesi yang sudah mulai
           }
@@ -281,7 +285,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      Get.snackbar('Error', 'Gagal memuat soal: $e',
+      Get.snackbar(AppLocalization.isIndonesian ? 'Error' : 'Error', AppLocalization.isIndonesian ? 'Gagal memuat soal: $e' : 'Failed to load questions: $e',
           backgroundColor: Colors.redAccent, colorText: Colors.white);
     }
   }
@@ -323,12 +327,12 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
       );
 
       Get.back(); // Close loading dialog
-      Get.snackbar('Sukses', 'Bank soal berhasil disimpan!',
+      Get.snackbar(AppLocalization.isIndonesian ? 'Sukses' : 'Success', AppLocalization.isIndonesian ? 'Bank soal berhasil disimpan!' : 'Question bank successfully saved!',
           backgroundColor: const Color(0xFF10B981), colorText: Colors.white);
       setState(() => _hasUnsavedChanges = false);
     } catch (e) {
       Get.back(); // Close loading dialog
-      Get.snackbar('Error', 'Gagal menyimpan soal: $e',
+      Get.snackbar(AppLocalization.isIndonesian ? 'Error' : 'Error', AppLocalization.isIndonesian ? 'Gagal menyimpan soal: $e' : 'Failed to save questions: $e',
           backgroundColor: Colors.redAccent, colorText: Colors.white);
     }
   }
@@ -372,7 +376,10 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
               child: ListView(
                 controller: scrollController,
                 children: [
-                  Text(isEdit ? 'Edit Pertanyaan' : 'Tambah Pertanyaan',
+                  Text(
+                      isEdit
+                          ? (AppLocalization.isIndonesian ? 'Edit Pertanyaan' : 'Edit Question')
+                          : (AppLocalization.isIndonesian ? 'Tambah Pertanyaan' : 'Add Question'),
                       style: TextStyle(
                           color: titleColor,
                           fontSize: 18,
@@ -380,7 +387,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                   const SizedBox(height: 20),
 
                   // Tipe Pertanyaan
-                  Text('Tipe Pertanyaan',
+                  Text(AppLocalization.isIndonesian ? 'Tipe Pertanyaan' : 'Question Type',
                       style: TextStyle(
                           color: titleColor.withValues(alpha: 0.6),
                           fontSize: 12,
@@ -398,9 +405,9 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                           focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: const Color(0xFF8B5CF6))),
                         ),
                         style: TextStyle(color: titleColor, fontSize: 13),
-                        items: const [
-                          DropdownMenuItem(value: 'multiple_choice', child: Text('Pilihan Ganda')),
-                          DropdownMenuItem(value: 'essay', child: Text('Essay')),
+                        items: [
+                          DropdownMenuItem(value: 'multiple_choice', child: Text(AppLocalization.isIndonesian ? 'Pilihan Ganda' : 'Multiple Choice')),
+                          DropdownMenuItem(value: 'essay', child: Text(AppLocalization.isIndonesian ? 'Essay' : 'Essay')),
                         ],
                         onChanged: (val) {
                           if (val != null) {
@@ -411,7 +418,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                   const SizedBox(height: 16),
 
                   // Teks Pertanyaan
-                  Text('Pertanyaan',
+                  Text(AppLocalization.isIndonesian ? 'Pertanyaan' : 'Question',
                       style: TextStyle(
                           color: titleColor.withOpacity(0.6),
                           fontSize: 12,
@@ -422,7 +429,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                     maxLines: 3,
                     style: TextStyle(color: titleColor),
                     decoration: InputDecoration(
-                      hintText: 'Tulis teks pertanyaan di sini...',
+                      hintText: AppLocalization.isIndonesian ? 'Tulis teks pertanyaan di sini...' : 'Write question text here...',
                       hintStyle: TextStyle(color: titleColor.withOpacity(0.4)),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -440,7 +447,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Pilihan Jawaban',
+                            Text(AppLocalization.isIndonesian ? 'Pilihan Jawaban' : 'Answer Options',
                                 style: TextStyle(
                                     color: titleColor.withOpacity(0.6),
                                     fontSize: 12,
@@ -450,12 +457,14 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                 if (optionsCtrls.length < 10) {
                                   optionsCtrls.add(TextEditingController());
                                 } else {
-                                  Get.snackbar('Batas Maksimal', 'Maksimal 10 pilihan jawaban');
+                                  Get.snackbar(
+                                      AppLocalization.isIndonesian ? 'Batas Maksimal' : 'Max Limit',
+                                      AppLocalization.isIndonesian ? 'Maksimal 10 pilihan jawaban' : 'Maximum 10 answer options');
                                 }
                               },
                               icon: const Icon(Icons.add, size: 16, color: Color(0xFF8B5CF6)),
-                              label: const Text('Tambah Opsi',
-                                  style: TextStyle(color: Color(0xFF8B5CF6), fontSize: 12)),
+                              label: Text(AppLocalization.isIndonesian ? 'Tambah Opsi' : 'Add Option',
+                                  style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 12)),
                             ),
                           ],
                         ),
@@ -478,7 +487,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                     controller: optionsCtrls[optIdx],
                                     style: TextStyle(color: titleColor),
                                     decoration: InputDecoration(
-                                      hintText: 'Opsi $char',
+                                      hintText: '${AppLocalization.isIndonesian ? 'Opsi' : 'Option'} $char',
                                       hintStyle: TextStyle(color: titleColor.withOpacity(0.4)),
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -510,7 +519,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                     children: [
                       Obx(() {
                         final isEssay = typeObs.value == 'essay';
-                        return Text(isEssay ? 'Skor Maksimal (Max Score)' : 'Bobot Nilai (Poin)',
+                        return Text(isEssay ? (AppLocalization.isIndonesian ? 'Skor Maksimal' : 'Maximum Score') : (AppLocalization.isIndonesian ? 'Bobot Nilai (Poin)' : 'Question Points'),
                             style: TextStyle(
                                 color: titleColor.withValues(alpha: 0.6),
                                 fontSize: 12,
@@ -533,7 +542,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                   ElevatedButton(
                     onPressed: () {
                       if (textCtrl.text.trim().isEmpty) {
-                        Get.snackbar('Error', 'Teks pertanyaan tidak boleh kosong');
+                        Get.snackbar(AppLocalization.isIndonesian ? 'Error' : 'Error', AppLocalization.isIndonesian ? 'Teks pertanyaan tidak boleh kosong' : 'Question text cannot be empty');
                         return;
                       }
 
@@ -544,7 +553,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                       if (type == 'multiple_choice') {
                         for (final c in optionsCtrls) {
                           if (c.text.trim().isEmpty) {
-                            Get.snackbar('Error', 'Semua opsi pilihan harus diisi');
+                            Get.snackbar(AppLocalization.isIndonesian ? 'Error' : 'Error', AppLocalization.isIndonesian ? 'Semua opsi pilihan harus diisi' : 'All answer options must be filled');
                             return;
                           }
                           options.add(c.text.trim());
@@ -582,7 +591,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                       minimumSize: const Size(double.infinity, 50),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: Text(isEdit ? 'Perbarui Pertanyaan' : 'Tambahkan Pertanyaan'),
+                    child: Text(isEdit ? (AppLocalization.isIndonesian ? 'Perbarui Pertanyaan' : 'Update Question') : (AppLocalization.isIndonesian ? 'Tambahkan Pertanyaan' : 'Add Question')),
                   ),
                 ],
               ),
@@ -609,7 +618,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
             const Icon(Icons.warning_amber_rounded,
                 color: Color(0xFFF59E0B), size: 22),
             const SizedBox(width: 8),
-            Text('Soal Belum Tersimpan',
+            Text(AppLocalization.isIndonesian ? 'Soal Belum Tersimpan' : 'Unsaved Questions',
                 style: TextStyle(
                     color: titleColor,
                     fontWeight: FontWeight.bold,
@@ -617,15 +626,17 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
           ],
         ),
         content: Text(
-          'Anda memiliki perubahan soal yang belum disimpan. Apakah Anda yakin ingin kembali?\n\nPerubahan akan hilang jika Anda keluar sekarang.',
+          AppLocalization.isIndonesian
+              ? 'Anda memiliki perubahan soal yang belum disimpan. Apakah Anda yakin ingin kembali?\n\nPerubahan akan hilang jika Anda keluar sekarang.'
+              : 'You have unsaved question changes. Are you sure you want to go back?\n\nChanges will be lost if you leave now.',
           style: TextStyle(
               color: titleColor.withValues(alpha: 0.8), height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
-            child: const Text('Tetap di Sini',
-                style: TextStyle(color: Colors.grey)),
+            child: Text(AppLocalization.isIndonesian ? 'Tetap di Sini' : 'Stay Here',
+                style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () => Get.back(result: true),
@@ -635,8 +646,8 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Keluar Tanpa Simpan',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppLocalization.isIndonesian ? 'Keluar Tanpa Simpan' : 'Leave Without Saving',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -675,7 +686,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                 onPressed: _handleBack,
               ),
               title: Text(
-                'Bank Soal: ${widget.subjectName}',
+                '${AppLocalization.isIndonesian ? 'Bank Soal' : 'Question Bank'}: ${widget.subjectName}',
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -701,7 +712,9 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                         ? Colors.redAccent.withValues(alpha: 0.7)
                         : const Color(0xFF10B981),
                   ),
-                  tooltip: _isExamLocked ? 'Soal Terkunci (Ujian Sedang Berlangsung)' : 'Simpan Soal',
+                  tooltip: _isExamLocked
+                      ? (AppLocalization.isIndonesian ? 'Soal Terkunci (Ujian Sedang Berlangsung)' : 'Questions Locked (Exam Active)')
+                      : (AppLocalization.isIndonesian ? 'Simpan Soal' : 'Save Questions'),
                   onPressed: _isExamLocked ? null : _saveData,
                 ),
               ],
@@ -736,7 +749,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    'Angkatan $grade',
+                                    '${AppLocalization.isIndonesian ? 'Angkatan' : 'Cohort'} $grade',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
@@ -775,9 +788,9 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      'Soal Terkunci — Ujian Sedang Berlangsung',
-                                      style: TextStyle(
+                                    Text(
+                                      AppLocalization.isIndonesian ? 'Soal Terkunci — Ujian Sedang Berlangsung' : 'Questions Locked — Exam Ongoing',
+                                      style: const TextStyle(
                                         color: Colors.redAccent,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
@@ -809,13 +822,15 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Pertanyaan (${_questions.length})',
+                              Text(
+                                  '${AppLocalization.isIndonesian ? 'Pertanyaan' : 'Questions'} (${_questions.length})',
                                   style: TextStyle(
                                       color: titleColor,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16)),
                               const SizedBox(height: 2),
-                              Text('Total Skor Soal: $_totalPoints Poin',
+                              Text(
+                                  '${AppLocalization.isIndonesian ? 'Total Skor Soal' : 'Total Score'}: $_totalPoints ${AppLocalization.isIndonesian ? 'Poin' : 'Points'}',
                                   style: const TextStyle(
                                       color: Color(0xFF10B981),
                                       fontWeight: FontWeight.w600,
@@ -826,7 +841,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                             ElevatedButton.icon(
                               onPressed: () => _addOrEditQuestion(),
                               icon: const Icon(Icons.add, size: 16),
-                              label: const Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold)),
+                              label: Text(AppLocalization.isIndonesian ? 'Tambah' : 'Add', style: const TextStyle(fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF8B5CF6),
                                 foregroundColor: Colors.white,
@@ -843,7 +858,10 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                       Expanded(
                         child: _questions.isEmpty
                             ? Center(
-                                child: Text('Belum ada pertanyaan. Ketuk "Tambah" untuk membuat soal.',
+                                child: Text(
+                                    AppLocalization.isIndonesian
+                                        ? 'Belum ada pertanyaan. Ketuk "Tambah" untuk membuat soal.'
+                                        : 'No questions yet. Tap "Add" to create questions.',
                                     style: TextStyle(color: subTextColor, fontSize: 12),
                                     textAlign: TextAlign.center),
                               )
@@ -949,8 +967,12 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                           padding: const EdgeInsets.only(left: 34),
                                           child: Text(
                                               isMc
-                                                  ? 'Tipe: Pilihan Ganda • Poin: ${q.points}'
-                                                  : 'Tipe: Essay • Poin: ${q.points}',
+                                                  ? (AppLocalization.isIndonesian
+                                                      ? 'Tipe: Pilihan Ganda • Poin: ${q.points}'
+                                                      : 'Type: Multiple Choice • Points: ${q.points}')
+                                                  : (AppLocalization.isIndonesian
+                                                      ? 'Tipe: Essay • Poin: ${q.points}'
+                                                      : 'Type: Essay • Points: ${q.points}'),
                                               style: TextStyle(color: subTextColor, fontSize: 11)),
                                         ),
                                         if (q.createdByTeacherName != null || q.updatedByTeacherName != null) ...[

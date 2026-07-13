@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../authentication/widgets/theme_toggle_button.dart';
+import '../../authentication/widgets/language_toggle_button.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherSettingsPage extends StatefulWidget {
   final bool hideBackButton;
@@ -209,12 +211,27 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
     }
 
     if (newPassword.length < 6) {
-      _showNotification(title: 'Gagal', message: 'Password baru minimal 6 karakter', isSuccess: false);
+      _showNotification(title: AppLocalization.error, message: AppLocalization.passwordMinLength, isSuccess: false);
+      return;
+    }
+
+    final hasUppercase = RegExp(r'[A-Z]').hasMatch(newPassword);
+    final hasLowercase = RegExp(r'[a-z]').hasMatch(newPassword);
+    final hasNumber = RegExp(r'[0-9]').hasMatch(newPassword);
+    final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(newPassword);
+    if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+      _showNotification(
+        title: 'Gagal',
+        message: AppLocalization.isIndonesian
+            ? 'Password baru harus mengandung huruf besar, huruf kecil, angka, dan karakter spesial'
+            : 'New password must contain uppercase, lowercase, number, and special character',
+        isSuccess: false,
+      );
       return;
     }
 
     if (newPassword == currentPassword) {
-      _showNotification(title: 'Gagal', message: 'Password baru tidak boleh sama dengan password saat ini', isSuccess: false);
+      _showNotification(title: AppLocalization.error, message: AppLocalization.passwordSameAsCurrent, isSuccess: false);
       return;
     }
 
@@ -277,332 +294,340 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
   Widget build(BuildContext context) {
     final user = SessionService.currentUser!;
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
-        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final backButtonBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
-        final backButtonIconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
+            final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final backButtonBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+            final backButtonIconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
-        final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
-        final cardBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
-        final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+            final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+            final cardBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+            final cardShadow = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
 
-        final textPrimaryColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final textSecondaryColor = isDark ? Colors.white.withValues(alpha: 0.45) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+            final textPrimaryColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final textSecondaryColor = isDark ? Colors.white.withValues(alpha: 0.45) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
-        return Scaffold(
-          body: AuthBackground(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                // AppBar
-                SliverAppBar(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  pinned: true,
-                  automaticallyImplyLeading: !widget.hideBackButton,
-                  leading: widget.hideBackButton
-                      ? null
-                      : Container(
-                          margin: const EdgeInsets.only(left: 16),
-                          decoration: BoxDecoration(
-                            color: backButtonBgColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonIconColor, size: 18),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ),
-                  title: Text(
-                    'Pengaturan',
-                    style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 20),
-                  ),
-                  actions: const [
-                    ThemeToggleButton(),
-                  ],
-                ),
-
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ── Foto Profil ──────────────────────────────────────
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: cardBg,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: cardBorder),
-                            boxShadow: isDark
-                                ? []
-                                : [
-                                    BoxShadow(
-                                      color: cardShadow,
-                                      blurRadius: 16,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ],
-                          ),
-                          child: Column(
-                            children: [
-                              // Header section title
-                              Row(
-                                children: [
-                                  Icon(Icons.account_circle_rounded, color: const Color(0xFF8B5CF6), size: 20),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Foto Profil',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: textPrimaryColor,
-                                    ),
-                                  ),
-                                ],
+            return Scaffold(
+              body: AuthBackground(
+                child: CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    // AppBar
+                    SliverAppBar(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      pinned: true,
+                      automaticallyImplyLeading: !widget.hideBackButton,
+                      leading: widget.hideBackButton
+                          ? null
+                          : Container(
+                              margin: const EdgeInsets.only(left: 16),
+                              decoration: BoxDecoration(
+                                color: backButtonBgColor,
+                                shape: BoxShape.circle,
                               ),
-                              const SizedBox(height: 20),
-                              // Avatar + camera button
-                              Stack(
-                                alignment: Alignment.bottomRight,
-                                children: [
-                                  Container(
-                                    width: 96,
-                                    height: 96,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: _fotoBase64 == null
-                                          ? const LinearGradient(
-                                              colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                            )
-                                          : null,
-                                      border: Border.all(
-                                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.5),
-                                        width: 2.5,
-                                      ),
-                                    ),
-                                    child: ClipOval(
-                                      child: _fotoBase64 != null
-                                          ? Image.memory(
-                                              base64Decode(_fotoBase64!),
-                                              fit: BoxFit.cover,
-                                            )
-                                          : const Icon(
-                                              Icons.person_rounded,
-                                              color: Colors.white,
-                                              size: 48,
-                                            ),
-                                    ),
-                                  ),
-                                  // Camera overlay button
-                                  GestureDetector(
-                                    onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
-                                    child: Container(
-                                      width: 32,
-                                      height: 32,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        gradient: const LinearGradient(
-                                          colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
-                                        ),
-                                        border: Border.all(color: isDark ? const Color(0xFF0F0C20) : Colors.white, width: 2),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: _isUploadingFoto
-                                          ? const Padding(
-                                              padding: EdgeInsets.all(6),
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              ),
-                                            )
-                                          : const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
-                                    ),
-                                  ),
-                                ],
+                              child: IconButton(
+                                icon: Icon(Icons.arrow_back_ios_new_rounded, color: backButtonIconColor, size: 18),
+                                onPressed: () => Navigator.pop(context),
                               ),
-                              const SizedBox(height: 14),
-                              Text(
-                                user.nama,
-                                style: TextStyle(
-                                  color: textPrimaryColor,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                user.email,
-                                style: TextStyle(color: textSecondaryColor, fontSize: 13),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 28),
-
-                        // Section Ubah Password
-                        Row(
-                          children: [
-                            Icon(Icons.lock_rounded, color: textPrimaryColor.withValues(alpha: 0.8), size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Ubah Password',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimaryColor, letterSpacing: 0.5),
                             ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                          decoration: BoxDecoration(
-                            color: cardBg,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: cardBorder),
-                            boxShadow: isDark
-                                ? []
-                                : [
-                                    BoxShadow(
-                                      color: cardShadow,
-                                      blurRadius: 16,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ],
-                          ),
-                          child: Column(
-                            children: [
-                              // Password Saat Ini
-                              _buildPasswordField(
-                                controller: _currentPasswordController,
-                                label: 'Password Saat Ini',
-                                icon: Icons.lock_outline_rounded,
-                                obscure: _obscureCurrent,
-                                onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent),
-                                isDark: isDark,
-                              ),
-
-                              const SizedBox(height: 18),
-
-                              // Password Baru
-                              _buildPasswordField(
-                                controller: _newPasswordController,
-                                label: 'Password Baru',
-                                icon: Icons.lock_reset_rounded,
-                                obscure: _obscureNew,
-                                onToggle: () => setState(() => _obscureNew = !_obscureNew),
-                                isDark: isDark,
-                                onChanged: (_) => setState(() {}),
-                              ),
-
-                              _buildPasswordRequirements(_newPasswordController.text, isDark),
-
-                              const SizedBox(height: 18),
-
-                              // Konfirmasi Password Baru
-                              _buildPasswordField(
-                                controller: _confirmPasswordController,
-                                label: 'Konfirmasi Password Baru',
-                                icon: Icons.lock_rounded,
-                                obscure: _obscureConfirm,
-                                onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                                isDark: isDark,
-                                onChanged: (_) => setState(() {}),
-                              ),
-
-                              const SizedBox(height: 28),
-
-                              // Tombol Simpan
-                              Builder(
-                                builder: (context) {
-                                  final currentPass = _currentPasswordController.text;
-                                  final newPass = _newPasswordController.text;
-                                  final confirmPass = _confirmPasswordController.text;
-
-                                  final hasUppercase = RegExp(r'[A-Z]').hasMatch(newPass);
-                                  final hasLowercase = RegExp(r'[a-z]').hasMatch(newPass);
-                                  final hasNumber = RegExp(r'[0-9]').hasMatch(newPass);
-                                  final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(newPass);
-                                  final isNewPasswordValid = newPass.length >= 6 && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
-
-                                  final canSubmit = currentPass.isNotEmpty && isNewPasswordValid && confirmPass == newPass;
-
-                                  return Container(
-                                    height: 52,
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      gradient: LinearGradient(
-                                        colors: canSubmit
-                                            ? [const Color(0xFF8B5CF6), const Color(0xFFD946EF)]
-                                            : [Colors.grey.shade400, Colors.grey.shade400],
-                                      ),
-                                      boxShadow: canSubmit
-                                          ? [
-                                              BoxShadow(
-                                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
-                                                blurRadius: 12,
-                                                offset: const Offset(0, 4),
-                                              ),
-                                            ]
-                                          : [],
-                                    ),
-                                    child: ElevatedButton(
-                                      onPressed: (_isLoading || !canSubmit) ? null : _changePassword,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        shadowColor: Colors.transparent,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                      ),
-                                      child: _isLoading
-                                          ? const SizedBox(
-                                              height: 24,
-                                              width: 24,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              ),
-                                            )
-                                          : const Text(
-                                              'SIMPAN PASSWORD',
-                                              style: TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                                letterSpacing: 1.2,
-                                              ),
-                                            ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 40),
+                      title: Text(
+                        AppLocalization.isIndonesian ? 'Pengaturan' : 'Settings',
+                        style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 20),
+                      ),
+                      actions: const [
+                        LanguageToggleButton(),
+                        SizedBox(width: 8),
+                        ThemeToggleButton(),
+                        SizedBox(width: 16),
                       ],
                     ),
-                  ),
+
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // ── Foto Profil ──────────────────────────────────────
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: cardBg,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: cardBorder),
+                                boxShadow: isDark
+                                    ? []
+                                    : [
+                                        BoxShadow(
+                                          color: cardShadow,
+                                          blurRadius: 16,
+                                          offset: const Offset(0, 6),
+                                        ),
+                                      ],
+                              ),
+                              child: Column(
+                                children: [
+                                  // Header section title
+                                  Row(
+                                    children: [
+                                      Icon(Icons.account_circle_rounded, color: const Color(0xFF8B5CF6), size: 20),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        AppLocalization.isIndonesian ? 'Foto Profil' : 'Profile Picture',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: textPrimaryColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  // Avatar + camera button
+                                  Stack(
+                                    alignment: Alignment.bottomRight,
+                                    children: [
+                                      Container(
+                                        width: 96,
+                                        height: 96,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: _fotoBase64 == null
+                                              ? const LinearGradient(
+                                                  colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                )
+                                              : null,
+                                          border: Border.all(
+                                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.5),
+                                            width: 2.5,
+                                          ),
+                                        ),
+                                        child: ClipOval(
+                                          child: _fotoBase64 != null
+                                              ? Image.memory(
+                                                  base64Decode(_fotoBase64!),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : const Icon(
+                                                  Icons.person_rounded,
+                                                  color: Colors.white,
+                                                  size: 48,
+                                                ),
+                                        ),
+                                      ),
+                                      // Camera overlay button
+                                      GestureDetector(
+                                        onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
+                                        child: Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+                                            ),
+                                            border: Border.all(color: isDark ? const Color(0xFF0F0C20) : Colors.white, width: 2),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: _isUploadingFoto
+                                              ? const Padding(
+                                                  padding: EdgeInsets.all(6),
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                                  ),
+                                                )
+                                              : const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    user.nama,
+                                    style: TextStyle(
+                                      color: textPrimaryColor,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    user.email,
+                                    style: TextStyle(color: textSecondaryColor, fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 28),
+
+                            // Section Ubah Password
+                            Row(
+                              children: [
+                                Icon(Icons.lock_rounded, color: textPrimaryColor.withValues(alpha: 0.8), size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  AppLocalization.isIndonesian ? 'Ubah Password' : 'Change Password',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimaryColor, letterSpacing: 0.5),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                              decoration: BoxDecoration(
+                                color: cardBg,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: cardBorder),
+                                boxShadow: isDark
+                                    ? []
+                                    : [
+                                        BoxShadow(
+                                          color: cardShadow,
+                                          blurRadius: 16,
+                                          offset: const Offset(0, 6),
+                                        ),
+                                      ],
+                              ),
+                              child: Column(
+                                children: [
+                                  // Password Saat Ini
+                                  _buildPasswordField(
+                                    controller: _currentPasswordController,
+                                    label: AppLocalization.isIndonesian ? 'Password Saat Ini' : 'Current Password',
+                                    icon: Icons.lock_outline_rounded,
+                                    obscure: _obscureCurrent,
+                                    onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent),
+                                    isDark: isDark,
+                                  ),
+
+                                  const SizedBox(height: 18),
+
+                                  // Password Baru
+                                  _buildPasswordField(
+                                    controller: _newPasswordController,
+                                    label: AppLocalization.isIndonesian ? 'Password Baru' : 'New Password',
+                                    icon: Icons.lock_reset_rounded,
+                                    obscure: _obscureNew,
+                                    onToggle: () => setState(() => _obscureNew = !_obscureNew),
+                                    isDark: isDark,
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+
+                                  _buildPasswordRequirements(_newPasswordController.text, isDark),
+
+                                  const SizedBox(height: 18),
+
+                                  // Konfirmasi Password Baru
+                                  _buildPasswordField(
+                                    controller: _confirmPasswordController,
+                                    label: AppLocalization.isIndonesian ? 'Konfirmasi Password Baru' : 'Confirm New Password',
+                                    icon: Icons.lock_rounded,
+                                    obscure: _obscureConfirm,
+                                    onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                                    isDark: isDark,
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+
+                                  const SizedBox(height: 28),
+
+                                  // Tombol Simpan
+                                  Builder(
+                                    builder: (context) {
+                                      final currentPass = _currentPasswordController.text;
+                                      final newPass = _newPasswordController.text;
+                                      final confirmPass = _confirmPasswordController.text;
+
+                                      final hasUppercase = RegExp(r'[A-Z]').hasMatch(newPass);
+                                      final hasLowercase = RegExp(r'[a-z]').hasMatch(newPass);
+                                      final hasNumber = RegExp(r'[0-9]').hasMatch(newPass);
+                                      final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(newPass);
+                                      final isNewPasswordValid = newPass.length >= 6 && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
+
+                                      final canSubmit = currentPass.isNotEmpty && isNewPasswordValid && confirmPass == newPass;
+
+                                      return Container(
+                                        height: 52,
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(16),
+                                          gradient: LinearGradient(
+                                            colors: canSubmit
+                                                ? [const Color(0xFF8B5CF6), const Color(0xFFD946EF)]
+                                                : [Colors.grey.shade400, Colors.grey.shade400],
+                                          ),
+                                          boxShadow: canSubmit
+                                              ? [
+                                                  BoxShadow(
+                                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                                                    blurRadius: 12,
+                                                    offset: const Offset(0, 4),
+                                                  ),
+                                                ]
+                                              : [],
+                                        ),
+                                        child: ElevatedButton(
+                                          onPressed: (_isLoading || !canSubmit) ? null : _changePassword,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.transparent,
+                                            shadowColor: Colors.transparent,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                          ),
+                                          child: _isLoading
+                                              ? const SizedBox(
+                                                  height: 24,
+                                                  width: 24,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2.5,
+                                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                                  ),
+                                                )
+                                              : Text(
+                                                  AppLocalization.isIndonesian ? 'SIMPAN PASSWORD' : 'SAVE PASSWORD',
+                                                  style: const TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                    letterSpacing: 1.2,
+                                                  ),
+                                                ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 40),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -690,11 +715,11 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildItem('Minimal 6 karakter', password.length >= 6),
-          buildItem('Memiliki huruf besar (A-Z)', hasUppercase),
-          buildItem('Memiliki huruf kecil (a-z)', hasLowercase),
-          buildItem('Memiliki angka (0-9)', hasNumber),
-          buildItem('Memiliki karakter khusus (!@#\$%^&* dll)', hasSpecialChar),
+          buildItem(AppLocalization.passwordValidationMinLength, password.length >= 6),
+          buildItem(AppLocalization.passwordValidationUppercase, hasUppercase),
+          buildItem(AppLocalization.passwordValidationLowercase, hasLowercase),
+          buildItem(AppLocalization.passwordValidationNumber, hasNumber),
+          buildItem(AppLocalization.passwordValidationSpecialChar, hasSpecialChar),
         ],
       ),
     );

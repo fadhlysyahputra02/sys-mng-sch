@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 
@@ -29,10 +30,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
   int _selectedYear = DateTime.now().year;
   DateTime? _teacherCreatedAt;
 
-  final List<String> _monthNames = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-  ];
+  List<String> get _monthNames => AppLocalization.monthNames;
 
   @override
   void initState() {
@@ -64,12 +62,9 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
 
   String _getFormattedDate() {
     final now = DateTime.now();
-    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    final months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return '${days[now.weekday % 7]}, ${now.day} ${months[now.month - 1]} ${now.year}';
+    final dayName = AppLocalization.dayNames[now.weekday - 1];
+    final monthName = AppLocalization.monthNames[now.month - 1];
+    return '$dayName, ${now.day} $monthName ${now.year}';
   }
 
   String _formatTime(Timestamp? timestamp) {
@@ -78,25 +73,11 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
     return '${DateFormat('HH:mm').format(date)} WIB';
   }
 
-  String _getDayNameIndonesian(int weekday) {
-    switch (weekday) {
-      case DateTime.monday:
-        return 'Senin';
-      case DateTime.tuesday:
-        return 'Selasa';
-      case DateTime.wednesday:
-        return 'Rabu';
-      case DateTime.thursday:
-        return 'Kamis';
-      case DateTime.friday:
-        return 'Jumat';
-      case DateTime.saturday:
-        return 'Sabtu';
-      case DateTime.sunday:
-        return 'Minggu';
-      default:
-        return '';
+  String _getDayName(int weekday) {
+    if (weekday >= 1 && weekday <= 7) {
+      return AppLocalization.dayNames[weekday - 1];
     }
+    return '';
   }
 
   int _getDaysInMonth(int year, int month) {
@@ -116,27 +97,27 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
     switch (status.toLowerCase()) {
       case 'hadir':
         color = const Color(0xFF10B981);
-        label = 'Hadir';
+        label = AppLocalization.statusPresent;
         break;
       case 'terlambat':
         color = const Color(0xFFF59E0B);
-        label = 'Terlambat';
+        label = AppLocalization.statusLate;
         break;
       case 'sakit':
         color = const Color(0xFF3B82F6);
-        label = 'Sakit';
+        label = AppLocalization.statusSick;
         break;
       case 'izin':
         color = const Color(0xFF8B5CF6);
-        label = 'Izin';
+        label = AppLocalization.statusPermit;
         break;
       case 'alfa':
         color = const Color(0xFFEF4444);
-        label = 'Alfa';
+        label = AppLocalization.statusAbsent;
         break;
       case 'tanpa keterangan':
         color = const Color(0xFFEF4444);
-        label = 'Alfa';
+        label = AppLocalization.statusAbsent;
         break;
       default:
         color = Colors.grey;
@@ -162,9 +143,12 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
     final user = SessionService.currentUser!;
     final schoolId = user.schoolId;
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, child) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, child) {
         final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -185,8 +169,8 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                   ),
             title: Text(
               SessionService.currentUser?.role == 'teacher'
-                  ? 'Absensi Harian Anda'
-                  : 'Riwayat Absensi: ${widget.teacherName}',
+                  ? AppLocalization.myDailyAttendanceTitle
+                  : '${AppLocalization.attendanceHistoryTitle}: ${widget.teacherName}',
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
             ),
             centerTitle: true,
@@ -249,7 +233,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Presensi Hari Ini',
+                                            AppLocalization.todayPresenceLabel,
                                             style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 15),
                                           ),
                                           const SizedBox(height: 2),
@@ -282,7 +266,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                 const Icon(Icons.login_rounded, color: Color(0xFF10B981), size: 16),
                                                 const SizedBox(width: 6),
                                                 Text(
-                                                  'Jam Masuk',
+                                                  AppLocalization.checkInLabel,
                                                   style: TextStyle(color: subTextColor, fontSize: 11, fontWeight: FontWeight.w600),
                                                 ),
                                               ],
@@ -313,7 +297,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                 const Icon(Icons.logout_rounded, color: Colors.orange, size: 16),
                                                 const SizedBox(width: 6),
                                                 Text(
-                                                  'Jam Pulang',
+                                                  AppLocalization.checkOutLabel,
                                                   style: TextStyle(color: subTextColor, fontSize: 11, fontWeight: FontWeight.w600),
                                                 ),
                                               ],
@@ -360,7 +344,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                 const Icon(Icons.calendar_month_rounded, color: Color(0xFF8B5CF6), size: 18),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Pilih Bulan & Tahun',
+                                  AppLocalization.selectMonthYear,
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor),
                                 ),
                               ],
@@ -374,7 +358,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                     initialValue: _selectedMonth,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Bulan',
+                                      labelText: AppLocalization.monthLabel,
                                       labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                       fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.03),
                                       filled: true,
@@ -417,7 +401,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                     initialValue: _selectedYear,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Tahun',
+                                      labelText: AppLocalization.yearLabel,
                                       labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                       fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.03),
                                       filled: true,
@@ -470,7 +454,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                           Icon(Icons.history_rounded, color: textColor.withValues(alpha: 0.8), size: 18),
                           const SizedBox(width: 8),
                           Text(
-                            'Riwayat Kehadiran Bulanan',
+                            AppLocalization.monthlyAttendanceHistory,
                             style: TextStyle(
                               color: textColor,
                               fontWeight: FontWeight.bold,
@@ -542,7 +526,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                     Icon(Icons.calendar_today_outlined, color: subTextColor, size: 48),
                                     const SizedBox(height: 12),
                                     Text(
-                                      'Tidak ada riwayat absensi untuk periode mendatang.',
+                                      AppLocalization.noFutureHistory,
                                       style: TextStyle(color: subTextColor, fontSize: 14),
                                       textAlign: TextAlign.center,
                                     ),
@@ -566,7 +550,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                     final day = maxDayToShow - index;
                                     final dateKey = '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
                                     final dateObj = DateTime(_selectedYear, _selectedMonth, day);
-                                    final weekdayStr = _getDayNameIndonesian(dateObj.weekday);
+                                    final weekdayStr = _getDayName(dateObj.weekday);
                                     final hasAttendance = attendanceMap.containsKey(dateKey);
                                     final dateText = '$day ${_monthNames[_selectedMonth - 1]} $_selectedYear';
 
@@ -607,7 +591,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                       Icon(Icons.logout_rounded, color: Colors.orange.withValues(alpha: 0.8), size: 12),
                                                       const SizedBox(width: 4),
                                                       Text(
-                                                        checkOut != null ? _formatTime(checkOut) : 'Belum Pulang',
+                                                        checkOut != null ? _formatTime(checkOut) : AppLocalization.notYetCheckedOut,
                                                         style: TextStyle(color: subTextColor, fontSize: 12),
                                                       ),
                                                     ],
@@ -621,7 +605,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                 _buildStatusBadge(status),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  method == 'manual' ? 'Oleh Admin' : 'Scan QR',
+                                                  method == 'manual' ? AppLocalization.byAdmin : 'Scan QR',
                                                   style: TextStyle(color: subTextColor.withValues(alpha: 0.8), fontSize: 10),
                                                 ),
                                               ],
@@ -654,9 +638,9 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                     style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                                                   ),
                                                   const SizedBox(height: 6),
-                                                  const Text(
-                                                    'Tidak Hadir (Tanpa Keterangan)',
-                                                    style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                                                  Text(
+                                                    AppLocalization.absentNoRecord,
+                                                    style: const TextStyle(color: Colors.redAccent, fontSize: 12),
                                                   ),
                                                 ],
                                               ),
@@ -687,9 +671,9 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                       style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                                                     ),
                                                     const SizedBox(height: 6),
-                                                    const Text(
-                                                      'Tidak Hadir (Batas Absen Lewat)',
-                                                      style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                                                    Text(
+                                                      AppLocalization.absentDeadlinePassed,
+                                                      style: const TextStyle(color: Colors.redAccent, fontSize: 12),
                                                     ),
                                                   ],
                                                 ),
@@ -718,7 +702,9 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                     ),
                                                     const SizedBox(height: 6),
                                                     Text(
-                                                      'Hari ini - Belum mencatat absensi (Batas 18:11)',
+                                                      AppLocalization.isIndonesian
+                                                          ? 'Hari ini - Belum mencatat absensi (Batas 18:11)'
+                                                          : 'Today - No attendance recorded yet (Deadline 18:11)',
                                                       style: TextStyle(color: subTextColor, fontSize: 12),
                                                     ),
                                                   ],
@@ -731,9 +717,9 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                   borderRadius: BorderRadius.circular(8),
                                                   border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
                                                 ),
-                                                child: const Text(
-                                                  'Belum Absen',
-                                                  style: TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold),
+                                                child: Text(
+                                                   AppLocalization.notYetCheckedIn,
+                                                   style: const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold),
                                                 ),
                                               ),
                                             ],
@@ -761,7 +747,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                   ),
                                                   const SizedBox(height: 6),
                                                   Text(
-                                                    'Jadwal Mengajar Mendatang',
+                                                    AppLocalization.upcomingSchedule,
                                                     style: TextStyle(color: subTextColor.withValues(alpha: 0.6), fontSize: 12),
                                                   ),
                                                 ],
@@ -775,7 +761,7 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                                                 border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
                                               ),
                                               child: Text(
-                                                'Mendatang',
+                                                AppLocalization.upcomingLabel,
                                                 style: TextStyle(color: Colors.blue.withValues(alpha: 0.6), fontSize: 11, fontWeight: FontWeight.bold),
                                               ),
                                             ),
@@ -794,6 +780,8 @@ class _TeacherDailyAttendancePageState extends State<TeacherDailyAttendancePage>
                     ],
                   ),
                 ),
+            );
+          },
         );
       },
     );

@@ -7,6 +7,7 @@ import 'package:sys_mng_school/features/schools/pages/teachers/data/teacher_serv
 import 'package:sys_mng_school/features/students/data/student_service.dart';
 import 'package:sys_mng_school/features/authentication/widgets/auth_background.dart';
 import 'create_notification_page.dart';
+import '../../../../core/localization/app_localization.dart';
 
 class NotificationsPage extends StatefulWidget {
   final bool hideBackButton;
@@ -138,14 +139,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
   String _formatRole(String role) {
     switch (role) {
       case 'super_admin':
-        return 'Super Admin';
+        return AppLocalization.isIndonesian ? 'Super Admin' : 'Super Admin';
       case 'school_admin':
       case 'tu':
-        return 'Admin Sekolah';
+        return AppLocalization.isIndonesian ? 'Admin Sekolah' : 'School Admin';
       case 'teacher':
-        return 'Guru';
+        return AppLocalization.isIndonesian ? 'Guru' : 'Teacher';
       case 'student':
-        return 'Siswa';
+        return AppLocalization.isIndonesian ? 'Siswa' : 'Student';
       default:
         return role;
     }
@@ -158,16 +159,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final difference = now.difference(dateTime);
 
     if (difference.inMinutes < 1) {
-      return 'Baru saja';
+      return AppLocalization.isIndonesian ? 'Baru saja' : 'Just now';
     } else if (difference.inHours < 1) {
-      return '${difference.inMinutes} menit yang lalu';
+      return AppLocalization.isIndonesian ? '${difference.inMinutes} menit yang lalu' : '${difference.inMinutes} minutes ago';
     } else if (difference.inDays < 1) {
-      return '${difference.inHours} jam yang lalu';
+      return AppLocalization.isIndonesian ? '${difference.inHours} jam yang lalu' : '${difference.inHours} hours ago';
     } else {
-      final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-        'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'
-      ];
+      final months = AppLocalization.isIndonesian
+          ? ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des']
+          : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return '${dateTime.day} ${months[dateTime.month - 1]} ${dateTime.year}, ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
     }
   }
@@ -193,9 +193,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final isStudent = role == 'student';
     final tabLength = 4;
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final indicatorColor = isDark ? const Color(0xFF8B5CF6) : const Color(0xFF8B5CF6);
@@ -225,7 +228,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       const Icon(Icons.error_outline, color: Colors.red, size: 48),
                       const SizedBox(height: 16),
                       Text(
-                        'Gagal memuat info guru:\n$_errorMessage',
+                        AppLocalization.isIndonesian ? 'Gagal memuat info guru:\n$_errorMessage' : 'Failed to load teacher info:\n$_errorMessage',
                         style: TextStyle(color: titleColor, fontSize: 14),
                         textAlign: TextAlign.center,
                       ),
@@ -243,7 +246,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           });
                           _loadTeacherInfo();
                         },
-                        child: const Text('Coba Lagi', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: Text(AppLocalization.isIndonesian ? 'Coba Lagi' : 'Try Again', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -265,7 +268,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   automaticallyImplyLeading: !widget.hideBackButton,
                   iconTheme: IconThemeData(color: backButtonColor),
                   title: Text(
-                    'Notifikasi',
+                    AppLocalization.isIndonesian ? 'Notifikasi' : 'Notifications',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                   ),
                   bottom: TabBar(
@@ -276,11 +279,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     unselectedLabelColor: unselectedLabelColor,
                     labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                     unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
-                    tabs: const [
-                      Tab(text: 'Semua (Umum)', icon: Icon(Icons.campaign_outlined, size: 20)),
-                      Tab(text: 'Kelas', icon: Icon(Icons.class_outlined, size: 20)),
-                      Tab(text: 'Guru', icon: Icon(Icons.person_outline, size: 20)),
-                      Tab(text: 'Murid', icon: Icon(Icons.school_outlined, size: 20)),
+                    tabs: [
+                      Tab(text: AppLocalization.isIndonesian ? 'Semua (Umum)' : 'All (General)', icon: const Icon(Icons.campaign_outlined, size: 20)),
+                      Tab(text: AppLocalization.isIndonesian ? 'Kelas' : 'Class', icon: const Icon(Icons.class_outlined, size: 20)),
+                      Tab(text: AppLocalization.isIndonesian ? 'Guru' : 'Teacher', icon: const Icon(Icons.person_outline, size: 20)),
+                      Tab(text: AppLocalization.isIndonesian ? 'Murid' : 'Student', icon: const Icon(Icons.school_outlined, size: 20)),
                     ],
                   ),
                 ),
@@ -295,7 +298,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         backgroundColor: const Color(0xFF8B5CF6),
                         foregroundColor: Colors.white,
                         icon: const Icon(Icons.add_comment_rounded),
-                        label: const Text('Buat Notifikasi', style: TextStyle(fontWeight: FontWeight.bold)),
+                        label: Text(AppLocalization.isIndonesian ? 'Buat Notifikasi' : 'Create Notification', style: const TextStyle(fontWeight: FontWeight.bold)),
                       )
                     : null,
                 body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -314,7 +317,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             const Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
                             const SizedBox(height: 12),
                             Text(
-                              'Terjadi kesalahan',
+                              AppLocalization.isIndonesian ? 'Terjadi kesalahan' : 'An error occurred',
                               style: TextStyle(
                                 color: titleColor,
                                 fontWeight: FontWeight.bold,
@@ -409,6 +412,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ),
             ),
           ),
+            );
+          },
         );
       },
     );
@@ -436,16 +441,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final chipTextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
 
     if (docs.isEmpty) {
-      String message = 'Belum ada notifikasi umum';
+      String message = AppLocalization.isIndonesian ? 'Belum ada notifikasi umum' : 'No general notifications yet';
       IconData icon = Icons.campaign_outlined;
       if (type == 'kelas') {
-        message = 'Belum ada notifikasi kelas';
+        message = AppLocalization.isIndonesian ? 'Belum ada notifikasi kelas' : 'No class notifications yet';
         icon = Icons.class_outlined;
       } else if (type == 'guru') {
-        message = 'Belum ada notifikasi guru';
+        message = AppLocalization.isIndonesian ? 'Belum ada notifikasi guru' : 'No teacher notifications yet';
         icon = Icons.person_outline;
       } else if (type == 'murid') {
-        message = 'Belum ada notifikasi murid';
+        message = AppLocalization.isIndonesian ? 'Belum ada notifikasi murid' : 'No student notifications yet';
         icon = Icons.school_outlined;
       }
 
@@ -604,7 +609,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Pengirim: $senderName (${_formatRole(senderRole)})',
+                            '${AppLocalization.isIndonesian ? 'Pengirim' : 'Sender'}: $senderName (${_formatRole(senderRole)})',
                             style: TextStyle(
                               color: chipTextColor,
                               fontWeight: FontWeight.w500,
@@ -636,7 +641,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Penerima: $targetName',
+                              '${AppLocalization.isIndonesian ? 'Penerima' : 'Recipient'}: $targetName',
                               style: TextStyle(
                                 color: iconColor,
                                 fontWeight: FontWeight.bold,
@@ -677,12 +682,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
             borderRadius: BorderRadius.circular(24),
             side: BorderSide(color: dialogBorderColor, width: 1.5),
           ),
-          title: Text('Hapus Notifikasi', style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor)),
-          content: Text('Apakah Anda yakin ingin menghapus notifikasi ini? Tindakan ini tidak dapat dibatalkan.', style: TextStyle(color: bodyTextColor)),
+          title: Text(AppLocalization.isIndonesian ? 'Hapus Notifikasi' : 'Delete Notification', style: TextStyle(fontWeight: FontWeight.bold, color: titleTextColor)),
+          content: Text(AppLocalization.isIndonesian ? 'Apakah Anda yakin ingin menghapus notifikasi ini? Tindakan ini tidak dapat dibatalkan.' : 'Are you sure you want to delete this notification? This action cannot be undone.', style: TextStyle(color: bodyTextColor)),
           actions: [
             TextButton(
               onPressed: () => Get.back(result: false),
-              child: Text('Batal', style: TextStyle(color: cancelBtnColor, fontWeight: FontWeight.bold)),
+              child: Text(AppLocalization.isIndonesian ? 'Batal' : 'Cancel', style: TextStyle(color: cancelBtnColor, fontWeight: FontWeight.bold)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -691,7 +696,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () => Get.back(result: true),
-              child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(AppLocalization.isIndonesian ? 'Hapus' : 'Delete', style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -702,16 +707,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
       try {
         await ref.delete();
         Get.snackbar(
-          'Sukses',
-          'Notifikasi berhasil dihapus',
+          AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+          AppLocalization.isIndonesian ? 'Notifikasi berhasil dihapus' : 'Notification deleted successfully',
           backgroundColor: Colors.green,
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,
         );
       } catch (e) {
         Get.snackbar(
-          'Error',
-          'Gagal menghapus notifikasi: $e',
+          AppLocalization.isIndonesian ? 'Error' : 'Error',
+          AppLocalization.isIndonesian ? 'Gagal menghapus notifikasi: $e' : 'Failed to delete notification: $e',
           backgroundColor: Colors.red,
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,

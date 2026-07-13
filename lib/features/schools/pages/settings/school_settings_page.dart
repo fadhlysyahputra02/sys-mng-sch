@@ -173,6 +173,16 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
         _snack(AppLocalization.passwordMinLength);
         return;
       }
+      final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+      final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+      final hasNumber = RegExp(r'[0-9]').hasMatch(password);
+      final hasSpecialChar = RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(password);
+      if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+        _snack(AppLocalization.isIndonesian
+            ? 'Password baru harus mengandung huruf besar, huruf kecil, angka, dan karakter spesial'
+            : 'New password must contain uppercase, lowercase, number, and special character');
+        return;
+      }
       if (password == currentPassword) {
         _snack(AppLocalization.isIndonesian
             ? 'Password baru tidak boleh sama dengan password saat ini'
@@ -1004,10 +1014,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
                   isDark: isDark,
                   onChanged: (_) => setState(() {}),
                 ),
-                if (_passwordController.text.isNotEmpty) ...[
-                  _buildPasswordRequirements(_passwordController.text, isDark),
-                  const SizedBox(height: 14),
-                ],
+                _buildPasswordRequirements(_passwordController.text, isDark),
                 const SizedBox(height: 14),
                 _buildPasswordField(
                   controller: _confirmPasswordController,
@@ -1047,7 +1054,8 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
                 label: AppLocalization.saveAccountProfile,
                 icon: Icons.person_rounded,
                 isSaving: _isSavingAkun,
-                onPressed: canSubmit ? _saveAkun : () {},
+                onPressed: _saveAkun,
+                enabled: canSubmit,
               );
             },
           ),
@@ -1805,22 +1813,27 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
     required IconData icon,
     required bool isSaving,
     required VoidCallback onPressed,
+    bool enabled = true,
   }) {
     return Container(
       width: double.infinity,
       height: 54,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        gradient: LinearGradient(
+          colors: enabled
+              ? const [Color(0xFF6366F1), Color(0xFF8B5CF6)]
+              : [Colors.grey.shade400, Colors.grey.shade400],
         ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.35),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        boxShadow: enabled
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ]
+            : [],
       ),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
@@ -1829,7 +1842,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
-        onPressed: isSaving ? null : onPressed,
+        onPressed: (isSaving || !enabled) ? null : onPressed,
         child: isSaving
             ? const SizedBox(
                 height: 24,
@@ -1948,11 +1961,11 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildItem('Minimal 6 karakter', password.length >= 6),
-          buildItem('Memiliki huruf besar (A-Z)', hasUppercase),
-          buildItem('Memiliki huruf kecil (a-z)', hasLowercase),
-          buildItem('Memiliki angka (0-9)', hasNumber),
-          buildItem('Memiliki karakter khusus (!@#\$%^&* dll)', hasSpecialChar),
+          buildItem(AppLocalization.passwordValidationMinLength, password.length >= 6),
+          buildItem(AppLocalization.passwordValidationUppercase, hasUppercase),
+          buildItem(AppLocalization.passwordValidationLowercase, hasLowercase),
+          buildItem(AppLocalization.passwordValidationNumber, hasNumber),
+          buildItem(AppLocalization.passwordValidationSpecialChar, hasSpecialChar),
         ],
       ),
     );

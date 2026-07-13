@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../../../authentication/widgets/auth_background.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 
 class AddTeacherPage extends StatefulWidget {
   final String schoolId;
@@ -70,7 +71,13 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
       if (existingTeacher.docs.isNotEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Gagal menambah guru: NIP sudah terdaftar!')),
+            SnackBar(
+              content: Text(
+                AppLocalization.isIndonesian
+                    ? 'Gagal menambah guru: NIP sudah terdaftar!'
+                    : 'Failed to add teacher: NIP is already registered!',
+              ),
+            ),
           );
         }
         return;
@@ -103,7 +110,13 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
       debugPrint(e.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Terjadi kesalahan: $e')),
+          SnackBar(
+            content: Text(
+              AppLocalization.isIndonesian
+                  ? 'Terjadi kesalahan: $e'
+                  : 'An error occurred: $e',
+            ),
+          ),
         );
       }
     } finally {
@@ -150,7 +163,7 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            'Tambah Guru',
+                            AppLocalization.isIndonesian ? 'Tambah Guru' : 'Add Teacher',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                           ),
                         ),
@@ -196,12 +209,14 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Registrasi Guru Baru',
+                                        AppLocalization.isIndonesian ? 'Registrasi Guru Baru' : 'New Teacher Registration',
                                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Guru terdaftar dapat login menggunakan NIP ini.',
+                                        AppLocalization.isIndonesian
+                                            ? 'Guru terdaftar dapat login menggunakan NIP ini.'
+                                            : 'Registered teachers can log in using this NIP.',
                                         style: TextStyle(fontSize: 12, color: subTextColor),
                                       ),
                                     ],
@@ -216,26 +231,30 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                           // Form fields
                           _buildField(
                             controller: namaController,
-                            label: 'Nama Lengkap',
+                            label: AppLocalization.isIndonesian ? 'Nama Lengkap' : 'Full Name',
                             icon: Icons.person_outline_rounded,
                             isDark: isDark,
                             textColor: textColor,
                             subTextColor: subTextColor,
                             cardBgColor: cardBgColor,
                             borderColor: borderColor,
-                            validator: (v) => (v == null || v.isEmpty) ? 'Nama wajib diisi' : null,
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? (AppLocalization.isIndonesian ? 'Nama wajib diisi' : 'Name is required')
+                                : null,
                           ),
                           const SizedBox(height: 14),
                           _buildField(
                             controller: nipController,
-                            label: 'NIP (Nomor Induk Pegawai)',
+                            label: AppLocalization.isIndonesian ? 'NIP (Nomor Induk Pegawai)' : 'NIP (Employee ID Number)',
                             icon: Icons.badge_outlined,
                             isDark: isDark,
                             textColor: textColor,
                             subTextColor: subTextColor,
                             cardBgColor: cardBgColor,
                             borderColor: borderColor,
-                            validator: (v) => (v == null || v.isEmpty) ? 'NIP wajib diisi' : null,
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? (AppLocalization.isIndonesian ? 'NIP wajib diisi' : 'NIP is required')
+                                : null,
                           ),
                           const SizedBox(height: 14),
                           Container(
@@ -248,7 +267,7 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                             child: DropdownButtonFormField<String>(
                               value: _selectedGender,
                               decoration: InputDecoration(
-                                labelText: 'Jenis Kelamin',
+                                labelText: AppLocalization.isIndonesian ? 'Jenis Kelamin' : 'Gender',
                                 labelStyle: TextStyle(color: subTextColor, fontSize: 14),
                                 prefixIcon: const Icon(Icons.wc_rounded, color: Color(0xFF6366F1), size: 20),
                                 border: InputBorder.none,
@@ -256,24 +275,30 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                               ),
                               dropdownColor: isDark ? const Color(0xFF1E1B4B) : Colors.white,
                               style: TextStyle(color: textColor, fontSize: 15),
-                              items: ['Laki-laki', 'Perempuan'].map((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(value),
-                                );
-                              }).toList(),
+                              items: [
+                                DropdownMenuItem<String>(
+                                  value: 'Laki-laki',
+                                  child: Text(AppLocalization.isIndonesian ? 'Laki-laki' : 'Male'),
+                                ),
+                                DropdownMenuItem<String>(
+                                  value: 'Perempuan',
+                                  child: Text(AppLocalization.isIndonesian ? 'Perempuan' : 'Female'),
+                                ),
+                              ],
                               onChanged: (newValue) {
                                 setState(() {
                                   _selectedGender = newValue;
                                 });
                               },
-                              validator: (v) => (v == null || v.isEmpty) ? 'Pilih jenis kelamin' : null,
+                              validator: (v) => (v == null || v.isEmpty)
+                                  ? (AppLocalization.isIndonesian ? 'Pilih jenis kelamin' : 'Select gender')
+                                  : null,
                             ),
                           ),
                           const SizedBox(height: 14),
                           _buildField(
                             controller: addressController,
-                            label: 'Alamat',
+                            label: AppLocalization.isIndonesian ? 'Alamat' : 'Address',
                             icon: Icons.home_outlined,
                             isDark: isDark,
                             textColor: textColor,
@@ -314,9 +339,9 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                                       width: 24,
                                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                                     )
-                                  : const Text(
-                                      'Simpan Data',
-                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                  : Text(
+                                      AppLocalization.isIndonesian ? 'Simpan Data' : 'Save Data',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                                     ),
                             ),
                           ),
@@ -346,6 +371,9 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
         final subTextColor = isDark
             ? Colors.white70
             : const Color(0xFF1E1B4B).withOpacity(0.65);
+        final translatedUserType = AppLocalization.isIndonesian
+            ? userType
+            : (userType == 'Guru' ? 'Teacher' : userType);
 
         return Dialog(
           shape: RoundedRectangleBorder(
@@ -374,7 +402,9 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
 
                 // Title
                 Text(
-                  'Batas Kuota $userType Tercapai',
+                  AppLocalization.isIndonesian
+                      ? 'Batas Kuota $translatedUserType Tercapai'
+                      : '$translatedUserType Quota Limit Reached',
                   style: TextStyle(
                     color: textColor,
                     fontSize: 18,
@@ -395,7 +425,9 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                     ),
                   ),
                   child: Text(
-                    'Kapasitas: $quota $userType',
+                    AppLocalization.isIndonesian
+                        ? 'Kapasitas: $quota $translatedUserType'
+                        : 'Capacity: $quota $translatedUserType',
                     style: const TextStyle(
                       color: Color(0xFFEF4444),
                       fontWeight: FontWeight.w600,
@@ -407,7 +439,9 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
 
                 // Description
                 Text(
-                  'Sekolah Anda telah mencapai batas maksimal pengguna $userType yang ditetapkan oleh Super Admin. Pendaftaran $userType baru tidak dapat dilakukan saat ini.',
+                  AppLocalization.isIndonesian
+                      ? 'Sekolah Anda telah mencapai batas maksimal pengguna $translatedUserType yang ditetapkan oleh Super Admin. Pendaftaran $translatedUserType baru tidak dapat dilakukan saat ini.'
+                      : 'Your school has reached the maximum user limit for $translatedUserType set by the Super Admin. New $translatedUserType registration cannot be completed at this time.',
                   style: TextStyle(
                     color: subTextColor,
                     fontSize: 13,
@@ -435,9 +469,9 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'Mengerti',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalization.isIndonesian ? 'Mengerti' : 'Understood',
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),

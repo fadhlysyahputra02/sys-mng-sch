@@ -44,7 +44,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
   String get email => SessionService.currentUser?.email ?? '';
 
   String? _schoolName;
-  String _plan = 'FREE';
+
   String? _schoolLogoBase64;
   bool _isLoadingSchool = true;
   int _selectedMenuIndex = 0;
@@ -61,7 +61,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
       if (schoolData != null && mounted) {
         setState(() {
           _schoolName = schoolData['namaSekolah'];
-          _plan = (schoolData['plan'] ?? 'FREE').toString().toUpperCase();
+
           _schoolLogoBase64 = schoolData['logoBase64'];
           _isLoadingSchool = false;
         });
@@ -75,26 +75,138 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
 
   String _getFormattedDate() {
     final now = DateTime.now();
-    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    final months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    final dayName = days[now.weekday % 7];
-    final monthName = months[now.month - 1];
-    return '$dayName, ${now.day} $monthName ${now.year}';
+    if (AppLocalization.isIndonesian) {
+      final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      final months = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      final dayName = days[now.weekday % 7];
+      final monthName = months[now.month - 1];
+      return '$dayName, ${now.day} $monthName ${now.year}';
+    } else {
+      final days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      final months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      final dayName = days[now.weekday % 7];
+      final monthName = months[now.month - 1];
+      return '$dayName, $monthName ${now.day}, ${now.year}';
+    }
   }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour >= 0 && hour <= 10) return 'Selamat Pagi';
-    if (hour <= 14) return 'Selamat Siang';
-    if (hour <= 18) return 'Selamat Sore';
-    return 'Selamat Malam';
+    if (hour >= 0 && hour <= 10) return AppLocalization.isIndonesian ? 'Selamat Pagi' : 'Good Morning';
+    if (hour <= 14) return AppLocalization.isIndonesian ? 'Selamat Siang' : 'Good Afternoon';
+    if (hour <= 18) return AppLocalization.isIndonesian ? 'Selamat Sore' : 'Good Evening';
+    return AppLocalization.isIndonesian ? 'Selamat Malam' : 'Good Night';
   }
 
-  void _logout() async {
-    await AppAuthService.logout();
+  Future<void> _logout() async {
+    final isDark = AuthBackground.isDarkMode.value;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(
+              color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08), 
+              width: 1.5
+            ),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: Colors.red,
+                  size: 36,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                AppLocalization.isIndonesian ? 'Konfirmasi Logout' : 'Confirm Logout',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                AppLocalization.isIndonesian
+                    ? 'Apakah Anda yakin ingin keluar dari aplikasi?'
+                    : 'Are you sure you want to exit the application?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF1E1B4B).withValues(alpha: 0.6),
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Get.back(result: false),
+                    child: Text(AppLocalization.cancelButton, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E1B4B))),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Get.back(result: true),
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: Text(AppLocalization.isIndonesian ? 'Keluar' : 'Logout', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      try {
+        await AppAuthService.logout();
+      } catch (e) {
+        Get.snackbar('Error', 'Gagal logout: $e');
+      }
+    }
   }
 
   void _showAbsensiSelectionDialog() {
@@ -123,7 +235,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Rekap Absensi',
+                AppLocalization.isIndonesian ? 'Rekap Absensi' : 'Attendance Recap',
                 style: TextStyle(
                   color: textColor,
                   fontSize: 20,
@@ -132,7 +244,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Pilih skala rekapan absensi yang ingin Anda lihat:',
+                AppLocalization.isIndonesian ? 'Pilih skala rekapan absensi yang ingin Anda lihat:' : 'Select the attendance recap scale you want to view:',
                 style: TextStyle(
                   color: textColor.withValues(alpha: 0.6),
                   fontSize: 14,
@@ -143,8 +255,8 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildSelectionCard(
-                    title: 'Rekap Absensi Siswa',
-                    description: 'Laporan & statistik kehadiran harian dan bulanan siswa',
+                    title: AppLocalization.isIndonesian ? 'Rekap Absensi Siswa' : 'Student Attendance Recap',
+                    description: AppLocalization.isIndonesian ? 'Laporan & statistik kehadiran harian dan bulanan siswa' : 'Daily and monthly student attendance reports & statistics',
                     icon: Icons.calendar_month_rounded,
                     color: const Color(0xFF8B5CF6),
                     onTap: () {
@@ -157,8 +269,8 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                   ),
                   const SizedBox(height: 12),
                   _buildSelectionCard(
-                    title: 'Rekap Absensi Guru',
-                    description: 'Laporan & statistik kehadiran harian dan bulanan guru',
+                    title: AppLocalization.isIndonesian ? 'Rekap Absensi Guru' : 'Teacher Attendance Recap',
+                    description: AppLocalization.isIndonesian ? 'Laporan & statistik kehadiran harian dan bulanan guru' : 'Daily and monthly teacher attendance reports & statistics',
                     icon: Icons.co_present_rounded,
                     color: const Color(0xFF6366F1),
                     onTap: () {
@@ -239,60 +351,60 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
 
   List<Map<String, dynamic>> get _menuItems => [
     {
-      'title': 'Dashboard',
+      'title': AppLocalization.menuDashboard,
       'icon': Icons.dashboard_rounded,
       'color': const Color(0xFF8B5CF6),
     },
     {
-      'title': 'Manajemen Guru',
+      'title': AppLocalization.menuTeacherManagement,
       'icon': Icons.school_rounded,
       'color': const Color(0xFFF59E0B),
       'onTap': () => Get.to(() => TeacherListPage(schoolId: schoolId)),
     },
     {
-      'title': 'Manajemen Siswa',
+      'title': AppLocalization.menuStudentManagement,
       'icon': Icons.people_rounded,
       'color': const Color(0xFF3B82F6),
       'onTap': () => Get.to(() => StudentListPage(schoolId: schoolId)),
     },
     {
-      'title': 'Mata Pelajaran',
+      'title': AppLocalization.menuSubjects,
       'icon': Icons.menu_book_rounded,
       'color': const Color(0xFF10B981),
       'onTap': () => Get.to(() => SubjectListPage()),
     },
     {
-      'title': 'Kelas',
+      'title': AppLocalization.menuClass,
       'icon': Icons.class_rounded,
       'color': const Color(0xFFF59E0B),
       'onTap': () => Get.to(() => ClassListPage()),
     },
     {
-      'title': 'Jadwal',
+      'title': AppLocalization.menuSchedule,
       'icon': Icons.calendar_today_rounded,
       'color': const Color(0xFFEC4899),
       'onTap': () => Get.to(() => ClassScheduleOverviewPage()),
     },
     {
-      'title': 'Rekap Absensi',
+      'title': AppLocalization.menuAttendanceSummary,
       'icon': Icons.calendar_month_rounded,
       'color': const Color(0xFF8B5CF6),
       'onTap': _showAbsensiSelectionDialog,
     },
     {
-      'title': 'Rekap Nilai',
+      'title': AppLocalization.menuGradesSummary,
       'icon': Icons.grade_rounded,
       'color': const Color(0xFFEF4444),
       'onTap': () => Get.to(() => const SchoolAdminGradesPage()),
     },
     {
-      'title': 'Notifikasi',
+      'title': AppLocalization.menuNotifications,
       'icon': Icons.notifications_rounded,
       'color': const Color(0xFFEF4444),
       'onTap': () => Get.to(() => NotificationsPage()),
     },
     {
-      'title': 'Pengaturan',
+      'title': AppLocalization.menuSettings,
       'icon': Icons.settings_rounded,
       'color': const Color(0xFF64748B),
       'onTap': () async {
@@ -303,31 +415,31 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
       },
     },
     {
-      'title': 'Petugas (Kepegawaian)',
+      'title': AppLocalization.isIndonesian ? 'Petugas (Kepegawaian)' : 'Officers',
       'icon': Icons.security_rounded,
       'color': const Color(0xFF8B5CF6),
       'onTap': () => Get.to(() => const OfficerManagementPage()),
     },
     {
-      'title': 'Pembayaran',
+      'title': AppLocalization.menuPayment,
       'icon': Icons.payments_rounded,
       'color': const Color(0xFF10B981),
       'onTap': () => Get.to(() => TUPaymentDashboard(schoolId: schoolId)),
     },
     {
-      'title': 'E-Rapor',
+      'title': AppLocalization.menuERapor,
       'icon': Icons.description_rounded,
       'color': const Color(0xFF8B5CF6),
       'onTap': () => Get.to(() => const SchoolAdminRaporPage()),
     },
     {
-      'title': 'Pelanggaran Murid',
+      'title': AppLocalization.menuStudentViolations,
       'icon': Icons.warning_amber_rounded,
       'color': const Color(0xFFEF4444),
       'onTap': () => Get.to(() => const AdminViolationsHistoryPage()),
     },
     {
-      'title': 'Persetujuan',
+      'title': AppLocalization.menuApprovals,
       'icon': Icons.edit_note_rounded,
       'color': const Color(0xFF10B981),
       'onTap': () => Get.to(() => const ApprovalDashboardPage()),
@@ -461,37 +573,37 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               children: [
-                _buildSidebarItem('Dashboard', Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuDashboard, Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Manajemen Guru', Icons.school_rounded, 1, const Color(0xFFF59E0B), isDark),
+                _buildSidebarItem(AppLocalization.menuTeacherManagement, Icons.school_rounded, 1, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Manajemen Siswa', Icons.people_rounded, 2, const Color(0xFF3B82F6), isDark),
+                _buildSidebarItem(AppLocalization.menuStudentManagement, Icons.people_rounded, 2, const Color(0xFF3B82F6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Mata Pelajaran', Icons.menu_book_rounded, 3, const Color(0xFF10B981), isDark),
+                _buildSidebarItem(AppLocalization.menuSubjects, Icons.menu_book_rounded, 3, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Kelas', Icons.class_rounded, 4, const Color(0xFFF59E0B), isDark),
+                _buildSidebarItem(AppLocalization.menuClass, Icons.class_rounded, 4, const Color(0xFFF59E0B), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Jadwal', Icons.calendar_today_rounded, 5, const Color(0xFFEC4899), isDark),
+                _buildSidebarItem(AppLocalization.menuSchedule, Icons.calendar_today_rounded, 5, const Color(0xFFEC4899), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Rekap Absensi', Icons.calendar_month_rounded, 6, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuAttendanceSummary, Icons.calendar_month_rounded, 6, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Notifikasi', Icons.notifications_rounded, 7, const Color(0xFFEF4444), isDark),
+                _buildSidebarItem(AppLocalization.menuNotifications, Icons.notifications_rounded, 7, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Petugas', Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuOfficers, Icons.security_rounded, 9, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Rekap Nilai', Icons.grade_rounded, 10, const Color(0xFFEF4444), isDark),
+                _buildSidebarItem(AppLocalization.menuGradesSummary, Icons.grade_rounded, 10, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Pembayaran', Icons.payments_rounded, 12, const Color(0xFF10B981), isDark),
+                _buildSidebarItem(AppLocalization.menuPayment, Icons.payments_rounded, 12, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('E-Rapor', Icons.description_rounded, 11, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuERapor, Icons.description_rounded, 11, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Pelanggaran Murid', Icons.warning_amber_rounded, 13, const Color(0xFFEF4444), isDark),
+                _buildSidebarItem(AppLocalization.menuStudentViolations, Icons.warning_amber_rounded, 13, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Persetujuan', Icons.edit_note_rounded, 14, const Color(0xFF10B981), isDark),
+                _buildSidebarItem(AppLocalization.menuApprovals, Icons.edit_note_rounded, 14, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Ujian Semester', Icons.assignment_rounded, 15, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuSemesterExam, Icons.assignment_rounded, 15, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Pengaturan', Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
+                _buildSidebarItem(AppLocalization.menuSettings, Icons.settings_rounded, 8, const Color(0xFF64748B), isDark),
               ],
             ),
           ),
@@ -623,7 +735,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  'Rekap Absensi',
+                  AppLocalization.isIndonesian ? 'Rekap Absensi' : 'Attendance Recap',
                   style: TextStyle(
                     color: textColor,
                     fontSize: 28,
@@ -633,7 +745,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Pilih jenis rekap absensi yang ingin Anda tinjau atau cetak laporan.',
+                  AppLocalization.isIndonesian ? 'Pilih jenis rekap absensi yang ingin Anda tinjau atau cetak laporan.' : 'Select the type of attendance recap you want to review or print.',
                   style: TextStyle(color: subTextColor, fontSize: 15),
                   textAlign: TextAlign.center,
                 ),
@@ -646,8 +758,8 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                     SizedBox(
                       width: 280,
                       child: _buildSelectionCard(
-                        title: 'Rekap Absensi Siswa',
-                        description: 'Laporan & statistik kehadiran harian dan bulanan siswa',
+                        title: AppLocalization.isIndonesian ? 'Rekap Absensi Siswa' : 'Student Attendance Recap',
+                        description: AppLocalization.isIndonesian ? 'Laporan & statistik kehadiran harian dan bulanan siswa' : 'Daily and monthly student attendance reports & statistics',
                         icon: Icons.calendar_month_rounded,
                         color: const Color(0xFF8B5CF6),
                         onTap: () => Get.to(() => const DailyRecapPage()),
@@ -659,8 +771,8 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                     SizedBox(
                       width: 280,
                       child: _buildSelectionCard(
-                        title: 'Rekap Absensi Guru',
-                        description: 'Laporan & statistik kehadiran harian dan bulanan guru',
+                        title: AppLocalization.isIndonesian ? 'Rekap Absensi Guru' : 'Teacher Attendance Recap',
+                        description: AppLocalization.isIndonesian ? 'Laporan & statistik kehadiran harian dan bulanan guru' : 'Daily and monthly teacher attendance reports & statistics',
                         icon: Icons.co_present_rounded,
                         color: const Color(0xFF6366F1),
                         onTap: () => Get.to(() => const AdminTeacherAttendancePage(isMonthly: false)),
@@ -710,7 +822,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Statistik Sekolah',
+                    AppLocalization.isIndonesian ? 'Statistik Sekolah' : 'School Statistics',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -728,7 +840,13 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                       stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('teachers').snapshots(),
                       builder: (context, snapshot) {
                         final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                        return _buildStatCard('Total Guru', '$count', Icons.person_rounded, const Color(0xFF6366F1), isDark);
+                        return _buildStatCard(
+                          AppLocalization.isIndonesian ? 'Total Guru' : 'Total Teachers',
+                          '$count',
+                          Icons.person_rounded,
+                          const Color(0xFF6366F1),
+                          isDark,
+                        );
                       },
                     ),
                   ),
@@ -738,7 +856,13 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                       stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('students').snapshots(),
                       builder: (context, snapshot) {
                         final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                        return _buildStatCard('Total Murid', '$count', Icons.groups_rounded, const Color(0xFF0EA5E9), isDark);
+                        return _buildStatCard(
+                          AppLocalization.isIndonesian ? 'Total Murid' : 'Total Students',
+                          '$count',
+                          Icons.groups_rounded,
+                          const Color(0xFF0EA5E9),
+                          isDark,
+                        );
                       },
                     ),
                   ),
@@ -748,7 +872,13 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                       stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('classes').snapshots(),
                       builder: (context, snapshot) {
                         final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                        return _buildStatCard('Total Kelas', '$count', Icons.class_rounded, const Color(0xFFF59E0B), isDark);
+                        return _buildStatCard(
+                          AppLocalization.isIndonesian ? 'Total Kelas' : 'Total Classes',
+                          '$count',
+                          Icons.class_rounded,
+                          const Color(0xFFF59E0B),
+                          isDark,
+                        );
                       },
                     ),
                   ),
@@ -758,7 +888,13 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                       stream: FirebaseFirestore.instance.collection('schools').doc(schoolId).collection('subjects').snapshots(),
                       builder: (context, snapshot) {
                         final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                        return _buildStatCard('Mata Pelajaran', '$count', Icons.menu_book_rounded, const Color(0xFF10B981), isDark);
+                        return _buildStatCard(
+                          AppLocalization.menuSubjects,
+                          '$count',
+                          Icons.menu_book_rounded,
+                          const Color(0xFF10B981),
+                          isDark,
+                        );
                       },
                     ),
                   ),
@@ -779,7 +915,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Info Cepat',
+                    AppLocalization.isIndonesian ? 'Info Cepat' : 'Quick Info',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -797,7 +933,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                   children: [
                     Expanded(
                       child: _buildLiveDataPanel(
-                        title: 'Hadir Harian Guru',
+                        title: AppLocalization.isIndonesian ? 'Hadir Harian Guru' : 'Daily Teacher Attendance',
                         icon: Icons.co_present_rounded,
                         color: const Color(0xFF6366F1),
                         isDark: isDark,
@@ -832,13 +968,13 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                             isDark: isDark,
                           );
                         },
-                        emptyText: 'Belum ada absensi guru hari ini',
+                        emptyText: AppLocalization.isIndonesian ? 'Belum ada absensi guru hari ini' : 'No teacher attendance today',
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: _buildLiveDataPanel(
-                        title: 'Pelanggaran Siswa',
+                        title: AppLocalization.isIndonesian ? 'Pelanggaran Siswa' : 'Student Violations',
                         icon: Icons.report_problem_rounded,
                         color: const Color(0xFFEF4444),
                         isDark: isDark,
@@ -864,13 +1000,13 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                             isDark: isDark,
                           );
                         },
-                        emptyText: 'Tidak ada catatan pelanggaran',
+                        emptyText: AppLocalization.isIndonesian ? 'Tidak ada catatan pelanggaran' : 'No violation records',
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: _buildLiveDataPanel(
-                        title: 'Murid Terlambat',
+                        title: AppLocalization.isIndonesian ? 'Murid Terlambat' : 'Late Students',
                         icon: Icons.timer_off_rounded,
                         color: const Color(0xFFF59E0B),
                         isDark: isDark,
@@ -902,7 +1038,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                             isDark: isDark,
                           );
                         },
-                        emptyText: 'Tidak ada murid terlambat hari ini',
+                        emptyText: AppLocalization.isIndonesian ? 'Tidak ada murid terlambat hari ini' : 'No late students today',
                       ),
                     ),
                   ],
@@ -913,7 +1049,7 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
 
               // Menu Tata Usaha
               Text(
-                'Menu Tata Usaha',
+                AppLocalization.isIndonesian ? 'Menu Tata Usaha' : 'Administration Menu',
                 style: TextStyle(
                   color: greetingColor,
                   fontSize: 18,
@@ -1017,19 +1153,33 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Dashboard Tata Usaha',
-          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+          AppLocalization.isIndonesian ? 'Dashboard Tata Usaha' : 'Administration Dashboard',
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.settings_rounded, color: textColor),
-            onPressed: () => Get.to(() => SchoolSettingsPage(schoolId: schoolId)),
-            tooltip: 'Pengaturan',
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: Icon(Icons.settings_rounded, color: textColor, size: 20),
+              onPressed: () => Get.to(() => SchoolSettingsPage(schoolId: schoolId)),
+              tooltip: AppLocalization.isIndonesian ? 'Pengaturan' : 'Settings',
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.red),
-            onPressed: _logout,
-            tooltip: 'Logout',
+          const SizedBox(width: 8),
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: Icon(Icons.logout_rounded, color: Colors.red.shade400, size: 20),
+              onPressed: _logout,
+              tooltip: AppLocalization.isIndonesian ? 'Keluar' : 'Logout',
+            ),
           )
         ],
       ),
@@ -1259,26 +1409,6 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Row for Badges
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.5)),
-                ),
-                child: const Text(
-                  'Tata Usaha',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6)),
-                ),
-              ),
-              const SizedBox(width: 8),
-              _buildPlanBadge(),
             ],
           ),
           const SizedBox(height: 16),
@@ -1576,69 +1706,5 @@ class _TuDashboardPageState extends State<TuDashboardPage> {
     );
   }
 
-  Widget _buildPlanBadge() {
 
-
-    Color badgeColor;
-    Gradient badgeGradient;
-    IconData icon;
-    String label = _plan;
-
-    if (label == 'PRO') {
-      badgeColor = const Color(0xFFD97706);
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      icon = Icons.workspace_premium_rounded;
-    } else if (label == 'BASIC') {
-      badgeColor = const Color(0xFF2563EB);
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      icon = Icons.star_rounded;
-    } else {
-      badgeColor = const Color(0xFF4B5563);
-      badgeGradient = const LinearGradient(
-        colors: [Color(0xFF9CA3AF), Color(0xFF6B7280)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-      icon = Icons.shield_outlined;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: badgeGradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: badgeColor.withValues(alpha: 0.3),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 12),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 10,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

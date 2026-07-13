@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../authentication/widgets/auth_background.dart';
+import '../../core/localization/app_localization.dart';
 import 'chat_room_page.dart';
 import 'chat_service.dart';
 
@@ -66,15 +67,15 @@ class _TeacherChatListPageState extends State<TeacherChatListPage> {
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.lock_rounded, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+              const Icon(Icons.lock_rounded, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked', style: const TextStyle(color: Colors.amber)),
             ],
           ),
           content: Text(
-            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            AppLocalization.isIndonesian ? 'Sekolah belum berlangganan untuk mengaktifkan fitur ini.' : 'The school has not subscribed to enable this feature.',
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -85,7 +86,7 @@ class _TeacherChatListPageState extends State<TeacherChatListPage> {
                   Get.offAllNamed('/teacher'); // Exit to Dashboard
                 }
               },
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+              child: Text(AppLocalization.isIndonesian ? 'Tutup' : 'Close', style: const TextStyle(color: Color(0xFF6366F1))),
             ),
           ],
         );
@@ -201,7 +202,7 @@ class _TeacherChatListPageState extends State<TeacherChatListPage> {
                     ),
                   ),
                   title: Text(
-                    'Chat Murid',
+                    AppLocalization.isIndonesian ? 'Chat Murid' : 'Student Chat',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -221,7 +222,7 @@ class _TeacherChatListPageState extends State<TeacherChatListPage> {
                         setState(() => _searchQuery = val.trim());
                       },
                       decoration: InputDecoration(
-                        hintText: 'Cari nama murid untuk chat...',
+                        hintText: AppLocalization.isIndonesian ? 'Cari nama murid untuk chat...' : 'Search student name to chat...',
                         hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                         prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
                         filled: true,
@@ -292,7 +293,7 @@ class _TeacherChatListPageState extends State<TeacherChatListPage> {
         hasScrollBody: false,
         child: Center(
           child: Text(
-            'Tidak ada murid yang ditemukan',
+            AppLocalization.isIndonesian ? 'Tidak ada murid yang ditemukan' : 'No student found',
             style: TextStyle(color: subTextColor),
           ),
         ),
@@ -351,7 +352,7 @@ class _TeacherChatListPageState extends State<TeacherChatListPage> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Kelas: ${student['className'] ?? '-'}',
+                              AppLocalization.isIndonesian ? 'Kelas: ${student['className'] ?? '-'}' : 'Class: ${student['className'] ?? '-'}',
                               style: TextStyle(
                                 color: subTextColor,
                                 fontSize: 12,
@@ -418,7 +419,7 @@ class _TeacherChatListPageState extends State<TeacherChatListPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Belum ada chat.\nCari murid untuk memulai chat.',
+                    AppLocalization.isIndonesian ? 'Belum ada chat.\nCari murid untuk memulai chat.' : 'No chat yet.\nSearch for a student to start chatting.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: subTextColor,

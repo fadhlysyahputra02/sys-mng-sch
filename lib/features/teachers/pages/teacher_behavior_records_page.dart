@@ -7,6 +7,7 @@ import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../students/data/student_service.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherBehaviorRecordsPage extends StatefulWidget {
   final String teacherId;
@@ -259,7 +260,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
             const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
             const SizedBox(width: 10),
             Text(
-              'Hapus Semua Catatan',
+              AppLocalization.isIndonesian ? 'Hapus Semua Catatan' : 'Clear All Records',
               style: TextStyle(
                 color: isDark ? Colors.white : const Color(0xFF1E1B4B),
                 fontWeight: FontWeight.bold,
@@ -269,7 +270,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin menghapus semua catatan perilaku murid? Tindakan ini tidak dapat dibatalkan.',
+          AppLocalization.isIndonesian ? 'Apakah Anda yakin ingin menghapus semua catatan perilaku murid? Tindakan ini tidak dapat dibatalkan.' : 'Are you sure you want to clear all student behavior records? This action cannot be undone.',
           style: TextStyle(
             color: isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
             fontSize: 14,
@@ -279,7 +280,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Batal',
+              AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
               style: TextStyle(
                 color: isDark
                     ? Colors.white.withValues(alpha: 0.5)
@@ -295,7 +296,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Hapus Semua', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppLocalization.isIndonesian ? 'Hapus Semua' : 'Clear All', style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -307,9 +308,9 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
       await _studentService.clearAllBehaviorRecords(schoolId);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Semua catatan perilaku berhasil dihapus.'),
-            backgroundColor: Color(0xFF10B981),
+          SnackBar(
+            content: Text(AppLocalization.isIndonesian ? 'Semua catatan perilaku berhasil dihapus.' : 'All behavior records successfully cleared.'),
+            backgroundColor: const Color(0xFF10B981),
           ),
         );
       }
@@ -396,7 +397,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                               ),
                             ),
                       title: Text(
-                        'Realtime Control',
+                        AppLocalization.isIndonesian ? 'Kontrol Aktifitas' : 'Realtime Control',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
                       ),
                       actions: [
@@ -408,7 +409,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                           ),
                           child: IconButton(
                             icon: Icon(Icons.delete_sweep_rounded, color: iconColor, size: 20),
-                            tooltip: 'Bersihkan Semua',
+                            tooltip: AppLocalization.isIndonesian ? 'Bersihkan Semua' : 'Clear All',
                             onPressed: () => _confirmClearAll(context, user.schoolId),
                           ),
                         ),
@@ -445,7 +446,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                                     const Icon(Icons.menu_book_rounded, color: Colors.white, size: 18),
                                     const SizedBox(width: 8),
                                     Text(
-                                      activeSchedules.length > 1 ? 'Mata Pelajaran Aktif' : 'Mata Pelajaran Aktif Saat Ini',
+                                      AppLocalization.isIndonesian ? (activeSchedules.length > 1 ? 'Mata Pelajaran Aktif' : 'Mata Pelajaran Aktif Saat Ini') : (activeSchedules.length > 1 ? 'Active Subjects' : 'Currently Active Subject'),
                                       style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                                     ),
                                   ],
@@ -493,7 +494,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Tidak ada mata pelajaran yang sedang aktif saat ini.',
+                                    AppLocalization.isIndonesian ? 'Tidak ada mata pelajaran yang sedang aktif saat ini.' : 'No active subject at the moment.',
                                     style: TextStyle(color: subTextColor, fontSize: 12, fontWeight: FontWeight.w500),
                                   ),
                                 ),
@@ -516,7 +517,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                           },
                           style: TextStyle(color: textColor, fontSize: 14),
                           decoration: InputDecoration(
-                            hintText: 'Cari nama murid...',
+                            hintText: AppLocalization.isIndonesian ? 'Cari nama murid...' : 'Search student name...',
                             hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                             prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
                             suffixIcon: _searchQuery.isNotEmpty
@@ -634,8 +635,8 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                                       const SizedBox(height: 16),
                                       Text(
                                         activeScheduleIds.isNotEmpty
-                                            ? 'Belum ada murid yang absen pada pelajaran yang berlangsung'
-                                            : 'Tidak ada pelajaran yang sedang aktif sekarang',
+                                            ? (AppLocalization.isIndonesian ? 'Belum ada murid yang absen pada pelajaran yang berlangsung' : 'No students are marked present in the ongoing subject')
+                                            : (AppLocalization.isIndonesian ? 'Tidak ada pelajaran yang sedang aktif sekarang' : 'No active subject right now'),
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           fontSize: 14,
@@ -805,7 +806,7 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                                                                   Icon(Icons.history_rounded, size: 10, color: subTextColor),
                                                                   const SizedBox(width: 3),
                                                                   Text(
-                                                                    '$logCount log  •  🔴$keluarCount keluar  •  🟢$standbyCount standby',
+                                                                    AppLocalization.isIndonesian ? '$logCount log  •  🔴$keluarCount keluar  •  🟢$standbyCount standby' : '$logCount logs  •  🔴$keluarCount exit  •  🟢$standbyCount standby',
                                                                     style: TextStyle(color: subTextColor, fontSize: 9.5),
                                                                   ),
                                                                 ],
@@ -840,15 +841,15 @@ class _TeacherBehaviorRecordsPageState extends State<TeacherBehaviorRecordsPage>
                                                                 if (isStandby) ...[
                                                                   const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 16),
                                                                   const SizedBox(width: 4),
-                                                                  const Text('Standby', style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold)),
+                                                                  Text(AppLocalization.isIndonesian ? 'Standby' : 'Standby', style: const TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold)),
                                                                 ] else if (isKeluar) ...[
-                                                                  const Icon(Icons.cancel_rounded, color: Color(0xFFEF4444), size: 16),
+                                                                  const Icon(Icons.exit_to_app_rounded, color: Color(0xFFEF4444), size: 14),
                                                                   const SizedBox(width: 4),
-                                                                  const Text('Keluar', style: TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.bold)),
+                                                                  Text(AppLocalization.isIndonesian ? 'Keluar' : 'Exit', style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.bold)),
                                                                 ] else if (isScreenOff) ...[
-                                                                  const Icon(Icons.phone_locked_rounded, color: Color(0xFFF59E0B), size: 16),
+                                                                  const Icon(Icons.screen_lock_portrait_rounded, color: Color(0xFFF59E0B), size: 13),
                                                                   const SizedBox(width: 4),
-                                                                  const Text('Screen Off', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold)),
+                                                                  Text(AppLocalization.isIndonesian ? 'Layar Mati' : 'Screen Off', style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold)),
                                                                 ],
                                                               ],
                                                             ),

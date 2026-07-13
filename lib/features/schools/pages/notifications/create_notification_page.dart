@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../../core/services/session_service.dart';
 import 'package:sys_mng_school/features/schools/pages/teachers/data/teacher_service.dart';
 import 'package:sys_mng_school/features/authentication/widgets/auth_background.dart';
+import '../../../../core/localization/app_localization.dart';
 
 class CreateNotificationPage extends StatefulWidget {
   final String? teacherDocId;
@@ -116,24 +117,24 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
     if (_targetType != 'umum') {
       if (_targetType == 'murid' && _selectedStudentIds.isEmpty) {
         Get.snackbar(
-          'Peringatan',
-          'Silakan pilih minimal satu murid penerima',
+          AppLocalization.isIndonesian ? 'Peringatan' : 'Warning',
+          AppLocalization.isIndonesian ? 'Silakan pilih minimal satu murid penerima' : 'Please select at least one recipient student',
           backgroundColor: Colors.amber.shade700,
           colorText: Colors.white,
         );
         return;
       } else if (_targetType == 'guru' && _selectedTeacherIds.isEmpty) {
         Get.snackbar(
-          'Peringatan',
-          'Silakan pilih minimal satu guru penerima',
+          AppLocalization.isIndonesian ? 'Peringatan' : 'Warning',
+          AppLocalization.isIndonesian ? 'Silakan pilih minimal satu guru penerima' : 'Please select at least one recipient teacher',
           backgroundColor: Colors.amber.shade700,
           colorText: Colors.white,
         );
         return;
       } else if (_targetType != 'murid' && _targetType != 'guru' && _selectedTargetId == null) {
         Get.snackbar(
-          'Peringatan',
-          'Silakan pilih penerima spesifik terlebih dahulu',
+          AppLocalization.isIndonesian ? 'Peringatan' : 'Warning',
+          AppLocalization.isIndonesian ? 'Silakan pilih penerima spesifik terlebih dahulu' : 'Please select a specific recipient first',
           backgroundColor: Colors.amber.shade700,
           colorText: Colors.white,
         );
@@ -213,8 +214,8 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
 
       Get.back();
       Get.snackbar(
-        'Sukses',
-        'Notifikasi berhasil dipublikasikan',
+        AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+        AppLocalization.isIndonesian ? 'Notifikasi berhasil dipublikasikan' : 'Notification published successfully',
         backgroundColor: Colors.green,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
@@ -224,8 +225,8 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
         _isSaving = false;
       });
       Get.snackbar(
-        'Error',
-        'Gagal mempublikasikan notifikasi: $e',
+        AppLocalization.isIndonesian ? 'Error' : 'Error',
+        AppLocalization.isIndonesian ? 'Gagal mempublikasikan notifikasi: $e' : 'Failed to publish notification: $e',
         backgroundColor: Colors.red,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
@@ -239,9 +240,12 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
     final role = SessionService.currentUser!.role;
     const primaryIndigo = Color(0xFF8B5CF6);
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final backButtonColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
@@ -280,7 +284,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                 elevation: 0,
                 iconTheme: IconThemeData(color: backButtonColor),
                 title: Text(
-                  'Buat Notifikasi Baru',
+                  AppLocalization.isIndonesian ? 'Buat Notifikasi Baru' : 'Create New Notification',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                 ),
               ),
@@ -307,7 +311,9 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Notifikasi yang Anda buat akan langsung dipublikasikan kepada penerima terpilih secara real-time.',
+                                  AppLocalization.isIndonesian
+                                    ? 'Notifikasi yang Anda buat akan langsung dipublikasikan kepada penerima terpilih secara real-time.'
+                                    : 'Notifications you create will be immediately published to selected recipients in real-time.',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: textSecondaryColor,
@@ -323,7 +329,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
 
                         // Form Judul
                         Text(
-                          'Judul Notifikasi',
+                          AppLocalization.isIndonesian ? 'Judul Notifikasi' : 'Notification Title',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -334,9 +340,9 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                         TextFormField(
                           controller: _titleController,
                           style: TextStyle(color: textPrimaryColor),
-                          validator: (val) => (val == null || val.trim().isEmpty) ? 'Judul wajib diisi' : null,
+                          validator: (val) => (val == null || val.trim().isEmpty) ? (AppLocalization.isIndonesian ? 'Judul wajib diisi' : 'Title is required') : null,
                           decoration: InputDecoration(
-                            hintText: 'Masukkan judul pengumuman...',
+                            hintText: AppLocalization.isIndonesian ? 'Masukkan judul pengumuman...' : 'Enter announcement title...',
                             hintStyle: TextStyle(color: hintColor),
                             prefixIcon: Icon(Icons.title_rounded, color: iconColor),
                             filled: true,
@@ -360,7 +366,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
 
                         // Form Isi
                         Text(
-                          'Isi Notifikasi',
+                          AppLocalization.isIndonesian ? 'Isi Notifikasi' : 'Notification Content',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -371,10 +377,10 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                         TextFormField(
                           controller: _contentController,
                           style: TextStyle(color: textPrimaryColor),
-                          validator: (val) => (val == null || val.trim().isEmpty) ? 'Isi notifikasi wajib diisi' : null,
+                          validator: (val) => (val == null || val.trim().isEmpty) ? (AppLocalization.isIndonesian ? 'Isi notifikasi wajib diisi' : 'Notification content is required') : null,
                           maxLines: 5,
                           decoration: InputDecoration(
-                            hintText: 'Tuliskan pesan atau pengumuman secara detail di sini...',
+                            hintText: AppLocalization.isIndonesian ? 'Tuliskan pesan atau pengumuman secara detail di sini...' : 'Write the message or announcement in detail here...',
                             hintStyle: TextStyle(color: hintColor),
                             filled: true,
                             fillColor: fieldBg,
@@ -397,7 +403,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
 
                         // Form Tipe Penerima (Dropdown)
                         Text(
-                          'Target Penerima',
+                          AppLocalization.isIndonesian ? 'Target Penerima' : 'Target Recipient',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -430,14 +436,14 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                           ),
                           items: role == 'teacher'
                               ? [
-                                  DropdownMenuItem(value: 'kelas', child: Text('Kelas', style: TextStyle(color: textPrimaryColor))),
-                                  DropdownMenuItem(value: 'murid', child: Text('Murid', style: TextStyle(color: textPrimaryColor))),
+                                  DropdownMenuItem(value: 'kelas', child: Text(AppLocalization.isIndonesian ? 'Kelas' : 'Class', style: TextStyle(color: textPrimaryColor))),
+                                  DropdownMenuItem(value: 'murid', child: Text(AppLocalization.isIndonesian ? 'Murid' : 'Student', style: TextStyle(color: textPrimaryColor))),
                                 ]
                               : [
-                                  DropdownMenuItem(value: 'umum', child: Text('Semua (Umum)', style: TextStyle(color: textPrimaryColor))),
-                                  DropdownMenuItem(value: 'kelas', child: Text('Kelas', style: TextStyle(color: textPrimaryColor))),
-                                  DropdownMenuItem(value: 'guru', child: Text('Guru', style: TextStyle(color: textPrimaryColor))),
-                                  DropdownMenuItem(value: 'murid', child: Text('Murid', style: TextStyle(color: textPrimaryColor))),
+                                  DropdownMenuItem(value: 'umum', child: Text(AppLocalization.isIndonesian ? 'Semua (Umum)' : 'All (General)', style: TextStyle(color: textPrimaryColor))),
+                                  DropdownMenuItem(value: 'kelas', child: Text(AppLocalization.isIndonesian ? 'Kelas' : 'Class', style: TextStyle(color: textPrimaryColor))),
+                                  DropdownMenuItem(value: 'guru', child: Text(AppLocalization.isIndonesian ? 'Guru' : 'Teacher', style: TextStyle(color: textPrimaryColor))),
+                                  DropdownMenuItem(value: 'murid', child: Text(AppLocalization.isIndonesian ? 'Murid' : 'Student', style: TextStyle(color: textPrimaryColor))),
                                 ],
                         ),
                         const SizedBox(height: 20),
@@ -446,10 +452,10 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                         if (_targetType != 'umum') ...[
                           Text(
                             _targetType == 'kelas'
-                                ? 'Pilih Kelas Penerima'
+                                ? (AppLocalization.isIndonesian ? 'Pilih Kelas Penerima' : 'Select Recipient Class')
                                 : _targetType == 'guru'
-                                    ? 'Pilih Guru Penerima'
-                                    : 'Pilih Murid Penerima',
+                                    ? (AppLocalization.isIndonesian ? 'Pilih Guru Penerima' : 'Select Recipient Teacher')
+                                    : (AppLocalization.isIndonesian ? 'Pilih Murid Penerima' : 'Select Recipient Student'),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -484,9 +490,9 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                                       strokeWidth: 2.5,
                                     ),
                                   )
-                                : const Text(
-                                    'Publikasikan Notifikasi',
-                                    style: TextStyle(
+                                : Text(
+                                    AppLocalization.isIndonesian ? 'Publikasikan Notifikasi' : 'Publish Notification',
+                                    style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -500,6 +506,8 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
               ),
             ),
           ),
+            );
+          },
         );
       },
     );
@@ -542,7 +550,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Pilih Murid (${_selectedStudentIds.length} Terpilih)',
+                      '${AppLocalization.isIndonesian ? 'Pilih Murid' : 'Select Students'} (${_selectedStudentIds.length} ${AppLocalization.isIndonesian ? 'Terpilih' : 'Selected'})',
                       style: TextStyle(color: textPrimaryColor, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -600,7 +608,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Pilih Guru (${_selectedTeacherIds.length} Terpilih)',
+                      '${AppLocalization.isIndonesian ? 'Pilih Guru' : 'Select Teachers'} (${_selectedTeacherIds.length} ${AppLocalization.isIndonesian ? 'Terpilih' : 'Selected'})',
                       style: TextStyle(color: textPrimaryColor, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -654,7 +662,8 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
               color: Colors.red.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Text('Gagal memuat data penerima', style: TextStyle(color: Colors.red)),
+            child: Text(
+              AppLocalization.isIndonesian ? 'Gagal memuat data penerima' : 'Failed to load recipient data', style: const TextStyle(color: Colors.red)),
           );
         }
 
@@ -685,7 +694,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
               border: Border.all(color: cardBorder),
             ),
             child: Text(
-              'Belum ada kelas yang Anda ajar',
+              AppLocalization.isIndonesian ? 'Belum ada kelas yang Anda ajar' : 'You have no classes to teach',
               style: TextStyle(color: textSecondaryColor),
             ),
           );
@@ -697,7 +706,7 @@ class _CreateNotificationPageState extends State<CreateNotificationPage> {
           dropdownColor: dropdownBg,
           style: TextStyle(color: textPrimaryColor),
           hint: Text(
-            'Pilih Kelas',
+            AppLocalization.isIndonesian ? 'Pilih Kelas' : 'Select Class',
             style: TextStyle(color: hintColor),
           ),
           onChanged: (val) {
@@ -915,7 +924,7 @@ class _StudentSelectionSheetState extends State<_StudentSelectionSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Pilih Murid',
+                  AppLocalization.isIndonesian ? 'Pilih Murid' : 'Select Students',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -935,7 +944,7 @@ class _StudentSelectionSheetState extends State<_StudentSelectionSheet> {
                           });
                         },
                   child: Text(
-                    _selectedIds.isEmpty && _allStudents.isNotEmpty ? 'Pilih Semua' : 'Batal Semua',
+                    _selectedIds.isEmpty && _allStudents.isNotEmpty ? (AppLocalization.isIndonesian ? 'Pilih Semua' : 'Select All') : (AppLocalization.isIndonesian ? 'Batal Semua' : 'Deselect All'),
                     style: TextStyle(color: primaryIndigo, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -951,7 +960,7 @@ class _StudentSelectionSheetState extends State<_StudentSelectionSheet> {
               onChanged: (val) => setState(() => _searchQuery = val),
               style: TextStyle(color: textColor),
               decoration: InputDecoration(
-                hintText: 'Cari nama atau NIS murid...',
+                hintText: AppLocalization.isIndonesian ? 'Cari nama atau NIS murid...' : 'Search student name or ID...',
                 hintStyle: TextStyle(color: subTextColor.withValues(alpha: 0.7)),
                 prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
                 filled: true,
@@ -972,7 +981,7 @@ class _StudentSelectionSheetState extends State<_StudentSelectionSheet> {
                 : filteredStudents.isEmpty
                     ? Center(
                         child: Text(
-                          'Tidak ada murid ditemukan',
+                          AppLocalization.isIndonesian ? 'Tidak ada murid ditemukan' : 'No students found',
                           style: TextStyle(color: subTextColor),
                         ),
                       )
@@ -1036,7 +1045,7 @@ class _StudentSelectionSheetState extends State<_StudentSelectionSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${_selectedIds.length} Terpilih',
+                      '${_selectedIds.length} ${AppLocalization.isIndonesian ? 'Terpilih' : 'Selected'}',
                       style: TextStyle(
                         color: textColor,
                         fontWeight: FontWeight.bold,
@@ -1054,8 +1063,8 @@ class _StudentSelectionSheetState extends State<_StudentSelectionSheet> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text(
-                      'Selesai',
+                    child: Text(
+                      AppLocalization.isIndonesian ? 'Selesai' : 'Done',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -1192,7 +1201,7 @@ class _TeacherSelectionSheetState extends State<_TeacherSelectionSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Pilih Guru',
+                  AppLocalization.isIndonesian ? 'Pilih Guru' : 'Select Teachers',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1212,7 +1221,7 @@ class _TeacherSelectionSheetState extends State<_TeacherSelectionSheet> {
                           });
                         },
                   child: Text(
-                    _selectedIds.isEmpty && _allTeachers.isNotEmpty ? 'Pilih Semua' : 'Batal Semua',
+                    _selectedIds.isEmpty && _allTeachers.isNotEmpty ? (AppLocalization.isIndonesian ? 'Pilih Semua' : 'Select All') : (AppLocalization.isIndonesian ? 'Batal Semua' : 'Deselect All'),
                     style: const TextStyle(color: primaryIndigo, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -1228,7 +1237,7 @@ class _TeacherSelectionSheetState extends State<_TeacherSelectionSheet> {
               onChanged: (val) => setState(() => _searchQuery = val),
               style: TextStyle(color: textColor),
               decoration: InputDecoration(
-                hintText: 'Cari nama, NIP, atau mata pelajaran guru...',
+                hintText: AppLocalization.isIndonesian ? 'Cari nama, NIP, atau mata pelajaran guru...' : 'Search teacher name, NIP, or subject...',
                 hintStyle: TextStyle(color: subTextColor.withValues(alpha: 0.7)),
                 prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
                 filled: true,
@@ -1249,7 +1258,7 @@ class _TeacherSelectionSheetState extends State<_TeacherSelectionSheet> {
                 : filteredTeachers.isEmpty
                     ? Center(
                         child: Text(
-                          'Tidak ada guru ditemukan',
+                          AppLocalization.isIndonesian ? 'Tidak ada guru ditemukan' : 'No teachers found',
                           style: TextStyle(color: subTextColor),
                         ),
                       )
@@ -1313,7 +1322,7 @@ class _TeacherSelectionSheetState extends State<_TeacherSelectionSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${_selectedIds.length} Terpilih',
+                      '${_selectedIds.length} ${AppLocalization.isIndonesian ? 'Terpilih' : 'Selected'}',
                       style: TextStyle(
                         color: textColor,
                         fontWeight: FontWeight.bold,
@@ -1331,8 +1340,8 @@ class _TeacherSelectionSheetState extends State<_TeacherSelectionSheet> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text(
-                      'Selesai',
+                    child: Text(
+                      AppLocalization.isIndonesian ? 'Selesai' : 'Done',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),

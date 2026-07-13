@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
@@ -40,141 +41,147 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
     final user = SessionService.currentUser!;
     const primaryIndigo = Color(0xFF8B5CF6);
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
-        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final backButtonBgColor = isDark
-            ? Colors.white.withValues(alpha: 0.1)
-            : Colors.black.withValues(alpha: 0.05);
-        final backButtonIconColor = isDark
-            ? Colors.white
-            : const Color(0xFF1E1B4B);
-        final tabLabelColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final tabUnselectedLabelColor = isDark
-            ? Colors.white38
-            : const Color(0xFF1E1B4B).withValues(alpha: 0.45);
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
+            final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final backButtonBgColor = isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.05);
+            final backButtonIconColor = isDark
+                ? Colors.white
+                : const Color(0xFF1E1B4B);
+            final tabLabelColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final tabUnselectedLabelColor = isDark
+                ? Colors.white38
+                : const Color(0xFF1E1B4B).withValues(alpha: 0.45);
 
-        return DefaultTabController(
-          length: _days.length,
-          child: Scaffold(
-            body: AuthBackground(
+
+            return DefaultTabController(
+              length: _days.length,
               child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: AppBar(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  automaticallyImplyLeading: !widget.hideBackButton,
-                  iconTheme: IconThemeData(color: backButtonIconColor),
-                  leading: widget.hideBackButton
-                      ? null
-                      : Container(
-                          margin: const EdgeInsets.only(left: 16),
-                          decoration: BoxDecoration(
-                            color: backButtonBgColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: backButtonIconColor,
-                              size: 18,
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ),
-                  title: Text(
-                    'Jadwal Mengajar',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: titleColor,
-                    ),
-                  ),
-                  bottom: TabBar(
-                    isScrollable: true,
-                    indicatorColor: primaryIndigo,
-                    indicatorWeight: 3,
-                    labelColor: tabLabelColor,
-                    unselectedLabelColor: tabUnselectedLabelColor,
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontWeight: FontWeight.normal,
-                      fontSize: 14,
-                    ),
-                    tabs: _days.map((day) => Tab(text: day)).toList(),
-                  ),
-                ),
-                body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _scheduleService.getSchedulesByTeacher(
-                    user.schoolId,
-                    widget.teacherId,
-                  ),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline_rounded,
-                              size: 48,
-                              color: Colors.red,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Terjadi kesalahan memuat jadwal',
-                              style: TextStyle(
-                                color: titleColor,
-                                fontWeight: FontWeight.bold,
+                body: AuthBackground(
+                  child: Scaffold(
+                    backgroundColor: Colors.transparent,
+                    appBar: AppBar(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      automaticallyImplyLeading: !widget.hideBackButton,
+                      iconTheme: IconThemeData(color: backButtonIconColor),
+                      leading: widget.hideBackButton
+                          ? null
+                          : Container(
+                              margin: const EdgeInsets.only(left: 16),
+                              decoration: BoxDecoration(
+                                color: backButtonBgColor,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.arrow_back_ios_new_rounded,
+                                  color: backButtonIconColor,
+                                  size: 18,
+                                ),
+                                onPressed: () => Navigator.pop(context),
                               ),
                             ),
-                          ],
+                      title: Text(
+                        AppLocalization.teachingScheduleTitle,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: titleColor,
                         ),
-                      );
-                    }
-
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            isDark ? Colors.white : primaryIndigo,
-                          ),
+                      ),
+                      bottom: TabBar(
+                        isScrollable: true,
+                        indicatorColor: primaryIndigo,
+                        indicatorWeight: 3,
+                        labelColor: tabLabelColor,
+                        unselectedLabelColor: tabUnselectedLabelColor,
+                        labelStyle: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
-                      );
-                    }
+                        unselectedLabelStyle: const TextStyle(
+                          fontWeight: FontWeight.normal,
+                          fontSize: 14,
+                        ),
+                        tabs: List.generate(_days.length, (idx) => Tab(text: AppLocalization.dayNames[idx])),
+                      ),
+                    ),
+                    body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _scheduleService.getSchedulesByTeacher(
+                        user.schoolId,
+                        widget.teacherId,
+                      ),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline_rounded,
+                                  size: 48,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  AppLocalization.scheduleErrorLabel,
+                                  style: TextStyle(
+                                    color: titleColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
 
-                    final allSchedules =
-                        snapshot.data?.docs.map((e) => e.data()).toList() ?? [];
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                isDark ? Colors.white : primaryIndigo,
+                              ),
+                            ),
+                          );
+                        }
 
-                    return TabBarView(
-                      children: _days.map((day) {
-                        final daySchedules = allSchedules
-                            .where((s) => s['hari'] == day)
-                            .toList();
+                        final allSchedules =
+                            snapshot.data?.docs.map((e) => e.data()).toList() ?? [];
 
-                        // Sort schedules chronologically by start time
-                        daySchedules.sort((a, b) {
-                          return _timeToMinutes(
-                            a['jamMulai'] ?? '',
-                          ).compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
-                        });
+                        return TabBarView(
+                          children: _days.map((day) {
+                            final daySchedules = allSchedules
+                                .where((s) => s['hari'] == day)
+                                .toList();
 
-                        return _buildScheduleListForDay(
-                          daySchedules,
-                          day,
-                          isDark,
+                            // Sort schedules chronologically by start time
+                            daySchedules.sort((a, b) {
+                              return _timeToMinutes(
+                                a['jamMulai'] ?? '',
+                              ).compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
+                            });
+
+                            return _buildScheduleListForDay(
+                              daySchedules,
+                              AppLocalization.dayNames[_days.indexOf(day)],
+                              isDark,
+                            );
+                          }).toList(),
                         );
-                      }).toList(),
-                    );
-                  },
+                      },
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -216,7 +223,7 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
             Icon(Icons.calendar_today_rounded, size: 64, color: emptyIconColor),
             const SizedBox(height: 16),
             Text(
-              'Tidak ada jadwal mengajar pada hari $day',
+              '${AppLocalization.noScheduleForDay} $day',
               style: TextStyle(
                 fontSize: 14,
                 color: emptyTextColor,
@@ -233,8 +240,8 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
       itemCount: schedules.length,
       itemBuilder: (context, index) {
         final s = schedules[index];
-        final subjectName = s['subjectName'] ?? 'Pelajaran';
-        final className = s['className'] ?? 'Kelas';
+        final subjectName = s['subjectName'] ?? AppLocalization.subjectLabel;
+        final className = s['className'] ?? AppLocalization.classLabel;
         final jamMulai = s['jamMulai'] ?? '00:00';
         final jamSelesai = s['jamSelesai'] ?? '00:00';
         final jenisJadwal = s['jenisJadwal'] ?? 'pelajaran';
@@ -343,7 +350,7 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
                                     ),
                                   ),
                                   child: Text(
-                                    'Istirahat',
+                                    AppLocalization.restLabel,
                                     style: TextStyle(
                                       color: accentColor,
                                       fontSize: 10,
@@ -379,7 +386,7 @@ class _TeacherSchedulePageState extends State<TeacherSchedulePage> {
                             )
                           else
                             Text(
-                              'Waktunya Istirahat & Santai',
+                              AppLocalization.restTimeLabel,
                               style: TextStyle(
                                 color: subTextColor,
                                 fontSize: 12,

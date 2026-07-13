@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../authentication/widgets/auth_background.dart';
 import '../../../../core/services/semester_state_service.dart';
+import '../../../../core/localization/app_localization.dart';
 
 
 class TeacherPermitsPage extends StatefulWidget {
@@ -94,11 +95,11 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
             children: [
               const Icon(Icons.lock_rounded, color: Colors.amber),
               const SizedBox(width: 8),
-              Text('Fitur Terkunci', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+              Text(AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
             ],
           ),
           content: Text(
-            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            AppLocalization.isIndonesian ? 'Sekolah belum berlangganan untuk mengaktifkan fitur ini.' : 'School has not subscribed to activate this feature.',
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -109,7 +110,7 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
                   Get.offAllNamed('/teacher'); // Exit to Dashboard
                 }
               },
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+              child: Text(AppLocalization.isIndonesian ? 'Tutup' : 'Close', style: const TextStyle(color: Color(0xFF6366F1))),
             ),
           ],
         );
@@ -181,7 +182,7 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
   }) async {
     final semesterError = SemesterStateService.validateInput();
     if (semesterError != null) {
-      Get.snackbar('Akses Ditolak', semesterError,
+      Get.snackbar(AppLocalization.isIndonesian ? 'Akses Ditolak' : 'Access Denied', semesterError,
           backgroundColor: Colors.redAccent, colorText: Colors.white);
       return;
     }
@@ -328,14 +329,14 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
         Navigator.pop(context); // Tutup loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Surat izin berhasil ${targetStatus.toLowerCase()}.'),
+            content: Text('Surat izin berhasil ${targetStatus == 'Disetujui' ? (AppLocalization.isIndonesian ? 'disetujui' : 'approved') : (AppLocalization.isIndonesian ? 'ditolak' : 'rejected')}.'),
             backgroundColor: targetStatus == 'Disetujui' ? Colors.green : Colors.redAccent,
           ),
         );
       }
     } catch (e) {
       if (mounted) Navigator.pop(context); // Tutup loading dialog
-      Get.snackbar('Error', 'Gagal memproses surat izin: $e',
+      Get.snackbar(AppLocalization.isIndonesian ? 'Error' : 'Error', AppLocalization.isIndonesian ? 'Gagal memproses surat izin: $e' : 'Failed to process permit letter: $e',
           backgroundColor: Colors.redAccent, colorText: Colors.white);
     }
   }
@@ -350,19 +351,23 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
           backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            isApprove ? 'Setujui Surat Izin' : 'Tolak Surat Izin',
+            isApprove ? (AppLocalization.isIndonesian ? 'Setujui Surat Izin' : 'Approve Permit Letter') : (AppLocalization.isIndonesian ? 'Tolak Surat Izin' : 'Reject Permit Letter'),
             style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E1B4B)),
           ),
           content: Text(
             isApprove
-                ? 'Apakah Anda yakin ingin menyetujui surat izin dari "${permit['studentName']}"?\n\nAbsensi siswa untuk tanggal tersebut otomatis akan tercatat sebagai "${permit['jenis']}".'
-                : 'Apakah Anda yakin ingin menolak surat izin dari "${permit['studentName']}"?',
+                ? (AppLocalization.isIndonesian
+                    ? 'Apakah Anda yakin ingin menyetujui surat izin dari "${permit['studentName']}"?\n\nAbsensi siswa untuk tanggal tersebut otomatis akan tercatat sebagai "${permit['jenis']}".'
+                    : 'Are you sure you want to approve the permit letter from "${permit['studentName']}"?\n\nThe student\'s attendance for that date will automatically be recorded as "${permit['jenis']}".')
+                : (AppLocalization.isIndonesian
+                    ? 'Apakah Anda yakin ingin menolak surat izin dari "${permit['studentName']}"?'
+                    : 'Are you sure you want to reject the permit letter from "${permit['studentName']}"?'),
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+              child: Text(AppLocalization.isIndonesian ? 'Batal' : 'Cancel', style: const TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -374,7 +379,9 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
                 Navigator.pop(context);
                 _processPermit(permitId: permitId, permitData: permit, targetStatus: status);
               },
-              child: Text(isApprove ? 'Setujui' : 'Tolak'),
+              child: Text(isApprove
+                  ? (AppLocalization.isIndonesian ? 'Setujui' : 'Approve')
+                  : (AppLocalization.isIndonesian ? 'Tolak' : 'Reject')),
             ),
           ],
         );
@@ -401,7 +408,7 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Detail Surat Izin',
+                AppLocalization.isIndonesian ? 'Detail Surat Izin' : 'Permit Letter Detail',
                 style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
               ),
               Container(
@@ -422,14 +429,14 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildInfoRow('Nama Siswa', permit['studentName'] ?? '-', textColor),
-                _buildInfoRow('Kelas', permit['className'] ?? '-', textColor),
-                _buildInfoRow('Pengirim', '${permit['parentName']} (Orang Tua)', textColor),
-                _buildInfoRow('Jenis Izin', permit['jenis'] ?? '-', textColor),
-                _buildInfoRow('Tanggal', '${permit['tanggalMulai']} s.d ${permit['tanggalSelesai']}', textColor),
+                _buildInfoRow(AppLocalization.isIndonesian ? 'Nama Siswa' : 'Student Name', permit['studentName'] ?? '-', textColor),
+                _buildInfoRow(AppLocalization.isIndonesian ? 'Kelas' : 'Class', permit['className'] ?? '-', textColor),
+                _buildInfoRow(AppLocalization.isIndonesian ? 'Pengirim' : 'Sender', '${permit['parentName']} (${AppLocalization.isIndonesian ? 'Orang Tua' : 'Parent'})', textColor),
+                _buildInfoRow(AppLocalization.isIndonesian ? 'Jenis Izin' : 'Permit Type', permit['jenis'] ?? '-', textColor),
+                _buildInfoRow(AppLocalization.isIndonesian ? 'Tanggal' : 'Date', '${permit['tanggalMulai']} s.d ${permit['tanggalSelesai']}', textColor),
                 const Divider(height: 24),
                 Text(
-                  'Alasan / Keterangan:',
+                  AppLocalization.isIndonesian ? 'Alasan / Keterangan:' : 'Reason / Notes:',
                   style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 11, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
@@ -440,7 +447,7 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
                 if (permit['buktiBase64'] != null) ...[
                   const SizedBox(height: 16),
                   Text(
-                    'Lampiran Bukti:',
+                    AppLocalization.isIndonesian ? 'Lampiran Bukti:' : 'Proof Attachment:',
                     style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
@@ -466,7 +473,7 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold)),
+              child: Text(AppLocalization.isIndonesian ? 'Tutup' : 'Close', style: const TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -501,7 +508,7 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
             Icon(Icons.mail_outline_rounded, size: 48, color: textColor.withValues(alpha: 0.3)),
             const SizedBox(height: 12),
             Text(
-              'Tidak ada surat izin.',
+              AppLocalization.isIndonesian ? 'Tidak ada surat izin.' : 'No permit letters.',
               style: TextStyle(color: subTextColor, fontSize: 13),
             ),
           ],
@@ -577,17 +584,17 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
                   children: [
                     const SizedBox(height: 6),
                     Text(
-                      'Jenis: $type • Kelas: ${permit['className']}',
+                      '${AppLocalization.isIndonesian ? 'Jenis' : 'Type'}: $type • ${AppLocalization.isIndonesian ? 'Kelas' : 'Class'}: ${permit['className']}',
                       style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Tanggal: $dateRange',
+                      '${AppLocalization.isIndonesian ? 'Tanggal' : 'Date'}: $dateRange',
                       style: TextStyle(color: subTextColor, fontSize: 12),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Alasan: ${permit['alasan']}',
+                      '${AppLocalization.isIndonesian ? 'Alasan' : 'Reason'}: ${permit['alasan']}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
@@ -613,7 +620,7 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                           ),
-                          child: const Text('Tolak', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: Text(AppLocalization.isIndonesian ? 'Tolak' : 'Reject', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton(
@@ -625,7 +632,7 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             elevation: 0,
                           ),
-                          child: const Text('Setujui', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: Text(AppLocalization.isIndonesian ? 'Setujui' : 'Approve', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -640,7 +647,9 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            'Hanya Wali Kelas (${permit['teacherName'] ?? '-'}) yang dapat memproses.',
+                            AppLocalization.isIndonesian
+                                ? 'Hanya Wali Kelas (${permit['teacherName'] ?? '-'}) yang dapat memproses.'
+                                : 'Only the Homeroom Teacher (${permit['teacherName'] ?? '-'}) can process this.',
                             style: TextStyle(
                               fontSize: 11,
                               color: textColor.withValues(alpha: 0.6),
@@ -662,102 +671,130 @@ class _TeacherPermitsPageState extends State<TeacherPermitsPage> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
-        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-        final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-        final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
+            final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+            final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+            final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08);
 
-        return Scaffold(
-          body: AuthBackground(
-            child: SafeArea(
-              child: Column(
-                children: [
-                  _buildSemesterStateBanner(),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      children: [
-                        if (!widget.hideBackButton) ...[
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
+            return Scaffold(
+              body: AuthBackground(
+                child: SafeArea(
+                  child: Column(
+                    children: [
+                      _buildSemesterStateBanner(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Row(
+                          children: [
+                            if (!widget.hideBackButton) ...[
+                              IconButton(
+                                onPressed: () => Navigator.pop(context),
+                                icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AppLocalization.isIndonesian ? 'Daftar Surat Izin Siswa' : 'Student Permit Letters',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                                  ),
+                                  Text(
+                                    AppLocalization.isIndonesian ? 'Kelola permohonan izin dari Wali Murid' : 'Manage permit requests from Parents',
+                                    style: TextStyle(fontSize: 12, color: subTextColor),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // TabBar custom
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Container(
+                          height: 48,
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: cardBgColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: cardBorderColor),
                           ),
-                          const SizedBox(width: 4),
-                        ],
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Daftar Surat Izin Siswa',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-                              ),
-                              Text(
-                                'Kelola permohonan izin dari Wali Murid',
-                                style: TextStyle(fontSize: 12, color: subTextColor),
-                              ),
+                          child: TabBar(
+                            controller: _tabController,
+                            indicator: BoxDecoration(
+                              color: isDark ? const Color(0xFF8B5CF6).withValues(alpha: 0.25) : const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            labelColor: const Color(0xFF8B5CF6),
+                            unselectedLabelColor: subTextColor,
+                            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
+                            tabs: [
+                              Tab(text: AppLocalization.isIndonesian ? 'Perlu Diproses' : 'Needs Processing'),
+                              Tab(text: AppLocalization.isIndonesian ? 'Riwayat' : 'History'),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                      const SizedBox(height: 8),
+                      // TabBarView
+                      Expanded(
+                        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: FirebaseFirestore.instance
+                              .collection('schools')
+                              .doc(widget.schoolId)
+                              .collection('student_permits')
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+                            if (snapshot.hasError) {
+                              return Center(
+                                child: Text(AppLocalization.isIndonesian ? 'Gagal memuat data' : 'Failed to load data', style: TextStyle(color: textColor)),
+                              );
+                            }
 
-                  // Tab Bar
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: const Color(0xFF6366F1),
-                    unselectedLabelColor: subTextColor,
-                    indicatorColor: const Color(0xFF6366F1),
-                    indicatorWeight: 3,
-                    tabs: const [
-                      Tab(text: 'Perlu Diproses'),
-                      Tab(text: 'Riwayat'),
+                            final rawDocs = snapshot.data?.docs ?? [];
+
+                            // Filter berdasarkan status penugasan guru (kelas / mapel)
+                            final filteredDocs = rawDocs.where((d) {
+                              final data = d.data();
+                              final permitClassId = data['classId']?.toString() ?? '';
+                              final permitTeacherId = data['teacherId']?.toString() ?? '';
+                              return permitTeacherId == _teacherDocId || _teacherClassIds.contains(permitClassId);
+                            }).toList();
+
+                            final pendingDocs = filteredDocs.where((d) => d.data()['status'] == 'Pending').toList();
+                            final historyDocs = filteredDocs.where((d) => d.data()['status'] != 'Pending').toList();
+
+                            return TabBarView(
+                              controller: _tabController,
+                              children: [
+                                _buildPermitList(pendingDocs, textColor, subTextColor, cardBgColor, cardBorderColor, isDark),
+                                _buildPermitList(historyDocs, textColor, subTextColor, cardBgColor, cardBorderColor, isDark),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
                     ],
                   ),
-
-                  // Tab View
-                  Expanded(
-                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance
-                          .collection('schools')
-                          .doc(_schoolId)
-                          .collection('permits')
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting || _isLoadingInfo) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-
-                        final docs = snapshot.data?.docs ?? [];
-
-                        final filteredDocs = docs.where((doc) {
-                          final data = doc.data();
-                          final permitTeacherId = data['teacherId']?.toString() ?? '';
-                          final permitClassId = data['classId']?.toString() ?? '';
-                          return permitTeacherId == _teacherDocId || _teacherClassIds.contains(permitClassId);
-                        }).toList();
-
-                        final pendingDocs = filteredDocs.where((d) => d.data()['status'] == 'Pending').toList();
-                        final historyDocs = filteredDocs.where((d) => d.data()['status'] != 'Pending').toList();
-
-                        return TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _buildPermitList(pendingDocs, textColor, subTextColor, cardBgColor, cardBorderColor, isDark),
-                            _buildPermitList(historyDocs, textColor, subTextColor, cardBgColor, cardBorderColor, isDark),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );

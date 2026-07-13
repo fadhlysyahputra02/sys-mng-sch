@@ -6,6 +6,7 @@ import '../../../../core/services/session_service.dart';
 import '../../../authentication/widgets/auth_background.dart';
 import '../../../teachers/pages/teacher_rapor_detail_page.dart';
 import '../classes/data/class_service.dart';
+import '../../../../core/localization/app_localization.dart';
 
 class SchoolAdminRaporPage extends StatefulWidget {
   final bool hideBackButton;
@@ -81,16 +82,18 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
             builder: (context) => AlertDialog(
               backgroundColor: const Color(0xFF151026),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.lock_rounded, color: Colors.amber),
-                  SizedBox(width: 8),
-                  Text('Fitur Terkunci', style: TextStyle(color: Colors.white)),
+                  const Icon(Icons.lock_rounded, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Text(AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked', style: const TextStyle(color: Colors.white)),
                 ],
               ),
-              content: const Text(
-                'Fitur E-Rapor dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.',
-                style: TextStyle(color: Colors.white70),
+              content: Text(
+                AppLocalization.isIndonesian
+                    ? 'Fitur E-Rapor dinonaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk mengaktifkan akses.'
+                    : 'E-Report Card feature is disabled by Super Admin. Please contact Super Admin to enable access.',
+                style: const TextStyle(color: Colors.white70),
               ),
               actions: [
                 TextButton(
@@ -208,9 +211,12 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
     final user = SessionService.currentUser!;
     final schoolId = user.schoolId;
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -247,7 +253,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                                 ),
                               ),
                         title: Text(
-                          'E-Rapor Siswa (Admin)',
+                          AppLocalization.isIndonesian ? 'E-Rapor Siswa (Admin)' : 'Student E-Report Card (Admin)',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                         ),
                       ),
@@ -281,7 +287,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                                         const Icon(Icons.filter_alt_rounded, color: Color(0xFF8B5CF6), size: 18),
                                         const SizedBox(width: 8),
                                         Text(
-                                          'Filter Kelas & Rapor',
+                                          AppLocalization.isIndonesian ? 'Filter Kelas & Rapor' : 'Class & Report Card Filter',
                                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: titleColor),
                                         ),
                                       ],
@@ -295,7 +301,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                                             value: _selectedClassId.isEmpty ? null : _selectedClassId,
                                             dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                             decoration: InputDecoration(
-                                              labelText: 'Pilih Kelas',
+                                              labelText: AppLocalization.isIndonesian ? 'Pilih Kelas' : 'Select Class',
                                               labelStyle: TextStyle(color: subTextColor, fontSize: 12),
                                               fillColor: inputFillColor,
                                               filled: true,
@@ -332,7 +338,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                                             value: _tahunAjaran,
                                             dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                             decoration: InputDecoration(
-                                              labelText: 'Tahun Ajaran',
+                                              labelText: AppLocalization.isIndonesian ? 'Tahun Ajaran' : 'Academic Year',
                                               labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                               fillColor: inputFillColor,
                                               filled: true,
@@ -364,7 +370,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                                             value: _activeSemester,
                                             dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                             decoration: InputDecoration(
-                                              labelText: 'Semester',
+                                              labelText: AppLocalization.isIndonesian ? 'Semester' : 'Semester',
                                               labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                               fillColor: inputFillColor,
                                               filled: true,
@@ -399,7 +405,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                                   });
                                 },
                                 decoration: InputDecoration(
-                                  hintText: 'Cari nama atau NIS murid...',
+                                  hintText: AppLocalization.isIndonesian ? 'Cari nama atau NIS murid...' : 'Search student name or ID...',
                                   hintStyle: TextStyle(color: subTextColor, fontSize: 13),
                                   prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
                                   filled: true,
@@ -426,7 +432,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                           hasScrollBody: false,
                           child: Center(
                             child: Text(
-                              'Silakan buat kelas terlebih dahulu di menu manajemen kelas.',
+                              AppLocalization.isIndonesian ? 'Silakan buat kelas terlebih dahulu di menu manajemen kelas.' : 'Please create a class first in the class management menu.',
                               style: TextStyle(color: subTextColor, fontSize: 14),
                               textAlign: TextAlign.center,
                             ),
@@ -474,9 +480,13 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                                       Icon(Icons.people_outline_rounded, size: 48, color: subTextColor),
                                       const SizedBox(height: 12),
                                       Text(
-                                        _searchQuery.isEmpty
-                                            ? 'Belum ada murid terdaftar di kelas ini.'
-                                            : 'Murid tidak ditemukan.',
+                                        AppLocalization.isIndonesian
+                                            ? (_searchQuery.isEmpty
+                                                ? 'Belum ada murid terdaftar di kelas ini.'
+                                                : 'Murid tidak ditemukan.')
+                                            : (_searchQuery.isEmpty
+                                                ? 'No students registered in this class yet.'
+                                                : 'Student not found.'),
                                         style: TextStyle(color: subTextColor, fontSize: 13),
                                       ),
                                     ],
@@ -511,7 +521,9 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                                       builder: (context, reportSnap) {
                                         final hasReport = reportSnap.hasData && reportSnap.data!.exists;
                                         final statusColor = hasReport ? const Color(0xFF10B981) : Colors.amber;
-                                        final statusText = hasReport ? 'Sudah Diisi' : 'Belum Lengkap';
+                                        final statusText = hasReport 
+                                            ? (AppLocalization.isIndonesian ? 'Sudah Diisi' : 'Filled') 
+                                            : (AppLocalization.isIndonesian ? 'Belum Lengkap' : 'Incomplete');
 
                                         return Container(
                                           margin: const EdgeInsets.only(bottom: 12),
@@ -614,6 +626,8 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                     ],
                   ),
           ),
+            );
+          },
         );
       },
     );

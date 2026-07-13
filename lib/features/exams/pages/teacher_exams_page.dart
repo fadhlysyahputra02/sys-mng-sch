@@ -11,6 +11,7 @@ import '../services/exam_service.dart';
 import 'teacher_create_exam_page.dart';
 import 'teacher_grade_exam_page.dart';
 import '../../students/data/student_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherExamsPage extends StatefulWidget {
   final String teacherId;
@@ -71,15 +72,20 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.lock_rounded, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+              const Icon(Icons.lock_rounded, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked',
+                style: const TextStyle(color: Colors.amber),
+              ),
             ],
           ),
           content: Text(
-            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            AppLocalization.isIndonesian
+                ? 'Sekolah belum berlangganan untuk mengaktifkan fitur ini.'
+                : 'School has not subscribed to enable this feature.',
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -90,7 +96,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                   Get.offAllNamed('/teacher'); // Exit to Dashboard
                 }
               },
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+              child: Text(AppLocalization.isIndonesian ? 'Tutup' : 'Close', style: const TextStyle(color: Color(0xFF6366F1))),
             ),
           ],
         );
@@ -187,7 +193,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Atur Ujian Susulan',
+                        AppLocalization.isIndonesian ? 'Atur Ujian Susulan' : 'Set Makeup Exam',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: titleColor),
                       ),
                       IconButton(
@@ -198,7 +204,9 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Pilih murid yang diizinkan mengikuti ujian susulan ini setelah batas waktu berakhir.',
+                    AppLocalization.isIndonesian
+                        ? 'Pilih murid yang diizinkan mengikuti ujian susulan ini setelah batas waktu berakhir.'
+                        : 'Select students allowed to take this makeup exam after the deadline.',
                     style: TextStyle(fontSize: 12, color: titleColor.withValues(alpha: 0.6)),
                   ),
                   const SizedBox(height: 16),
@@ -217,7 +225,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                         if (docs.isEmpty) {
                           return Center(
                             child: Text(
-                              'Tidak ada murid di kelas ini.',
+                              AppLocalization.isIndonesian ? 'Tidak ada murid di kelas ini.' : 'No students in this class.',
                               style: TextStyle(color: titleColor.withValues(alpha: 0.5)),
                             ),
                           );
@@ -264,15 +272,17 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                           );
                           Get.back();
                           Get.snackbar(
-                            'Sukses',
-                            'Pengaturan ujian susulan berhasil disimpan.',
+                            AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                            AppLocalization.isIndonesian
+                                ? 'Pengaturan ujian susulan berhasil disimpan.'
+                                : 'Makeup exam configurations successfully saved.',
                             backgroundColor: const Color(0xFF10B981),
                             colorText: Colors.white,
                           );
                         } catch (e) {
                           Get.snackbar(
-                            'Gagal',
-                            'Gagal menyimpan: $e',
+                            AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+                            AppLocalization.isIndonesian ? 'Gagal menyimpan: $e' : 'Failed to save: $e',
                             backgroundColor: Colors.redAccent,
                             colorText: Colors.white,
                           );
@@ -284,7 +294,10 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Simpan Pengaturan', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: Text(
+                        AppLocalization.isIndonesian ? 'Simpan Pengaturan' : 'Save Settings',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ],
@@ -305,29 +318,45 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-          title: Text('Hapus Ujian', style: TextStyle(color: titleColor, fontWeight: FontWeight.bold)),
+          title: Text(
+            AppLocalization.isIndonesian ? 'Hapus Ujian' : 'Delete Exam',
+            style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
+          ),
           content: Text(
-            'Apakah Anda yakin ingin menghapus ujian "${exam.title}"? Nilai terkait pada Buku Nilai kelas juga akan ikut terhapus.',
+            AppLocalization.isIndonesian
+                ? 'Apakah Anda yakin ingin menghapus ujian "${exam.title}"? Nilai terkait pada Buku Nilai kelas juga akan ikut terhapus.'
+                : 'Are you sure you want to delete exam "${exam.title}"? Associated grades in the class Gradebook will also be deleted.',
             style: TextStyle(color: titleColor.withValues(alpha: 0.8)),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+              child: Text(AppLocalization.cancel, style: const TextStyle(color: Colors.grey)),
             ),
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
                 try {
                   await _examService.deleteExam(SessionService.currentUser!.schoolId, exam.id);
-                  Get.snackbar('Sukses', 'Ujian berhasil diarsipkan.',
-                      backgroundColor: const Color(0xFF10B981), colorText: Colors.white);
+                  Get.snackbar(
+                    AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                    AppLocalization.isIndonesian ? 'Ujian berhasil diarsipkan.' : 'Exam successfully archived.',
+                    backgroundColor: const Color(0xFF10B981),
+                    colorText: Colors.white,
+                  );
                 } catch (e) {
-                  Get.snackbar('Gagal', 'Gagal menghapus: $e',
-                      backgroundColor: const Color(0xFFEF4444), colorText: Colors.white);
+                  Get.snackbar(
+                    AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+                    AppLocalization.isIndonesian ? 'Gagal menghapus: $e' : 'Failed to delete: $e',
+                    backgroundColor: const Color(0xFFEF4444),
+                    colorText: Colors.white,
+                  );
                 }
               },
-              child: const Text('Hapus', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+              child: Text(
+                AppLocalization.isIndonesian ? 'Hapus' : 'Delete',
+                style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );
@@ -366,7 +395,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hasil Ujian Murid',
+                          AppLocalization.isIndonesian ? 'Hasil Ujian Murid' : 'Student Exam Results',
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                         ),
                         Text(
@@ -424,13 +453,13 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                               tabs: [
                                 Tab(
                                   child: Text(
-                                    'Sudah (${submissions.length})',
+                                    '${AppLocalization.isIndonesian ? 'Sudah' : 'Submitted'} (${submissions.length})',
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                 ),
                                 Tab(
                                   child: Text(
-                                    'Belum (${notSubmittedStudents.length})',
+                                    '${AppLocalization.isIndonesian ? 'Belum' : 'Unsubmitted'} (${notSubmittedStudents.length})',
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                 ),
@@ -444,7 +473,9 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                   submissions.isEmpty
                                       ? Center(
                                           child: Text(
-                                            'Belum ada murid yang mengumpulkan ujian.',
+                                            AppLocalization.isIndonesian
+                                                ? 'Belum ada murid yang mengumpulkan ujian.'
+                                                : 'No students have submitted the exam yet.',
                                             style: TextStyle(color: titleColor.withValues(alpha: 0.5), fontSize: 13),
                                             textAlign: TextAlign.center,
                                           ),
@@ -490,7 +521,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                                               ),
                                                               const SizedBox(height: 4),
                                                               Text(
-                                                                'Dikumpulkan: $dateStr${exam.questions.any((q) => q.type == 'multiple_choice') ? '\nBenar PG: ${sub.correctCount} | Salah PG: ${sub.incorrectCount}' : ''}',
+                                                                '${AppLocalization.isIndonesian ? 'Dikumpulkan' : 'Submitted'}: $dateStr${exam.questions.any((q) => q.type == 'multiple_choice') ? '\n${AppLocalization.isIndonesian ? 'Benar PG' : 'MC Correct'}: ${sub.correctCount} | ${AppLocalization.isIndonesian ? 'Salah PG' : 'MC Incorrect'}: ${sub.incorrectCount}' : ''}',
                                                                 style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6), height: 1.4),
                                                               ),
                                                             ],
@@ -504,9 +535,9 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                                               color: Colors.amber.withValues(alpha: 0.15),
                                                               borderRadius: BorderRadius.circular(10),
                                                             ),
-                                                            child: const Text(
-                                                              'Perlu Koreksi',
-                                                              style: TextStyle(
+                                                            child: Text(
+                                                              AppLocalization.isIndonesian ? 'Perlu Koreksi' : 'Needs Grading',
+                                                              style: const TextStyle(
                                                                 color: Colors.amber,
                                                                 fontWeight: FontWeight.bold,
                                                                 fontSize: 12,
@@ -542,7 +573,9 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                   notSubmittedStudents.isEmpty
                                       ? Center(
                                           child: Text(
-                                            'Semua murid sudah mengumpulkan ujian.',
+                                            AppLocalization.isIndonesian
+                                                ? 'Semua murid sudah mengumpulkan ujian.'
+                                                : 'All students have submitted the exam.',
                                             style: TextStyle(color: titleColor.withValues(alpha: 0.5), fontSize: 13),
                                             textAlign: TextAlign.center,
                                           ),
@@ -579,7 +612,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                                           ),
                                                           const SizedBox(height: 4),
                                                           Text(
-                                                            'NIS: $nis',
+                                                            AppLocalization.isIndonesian ? 'NIS: $nis' : 'Student ID: $nis',
                                                             style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.6)),
                                                           ),
                                                         ],
@@ -676,7 +709,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                         ),
                       ),
                 title: Text(
-                  'Manajemen Ujian Online',
+                  AppLocalization.isIndonesian ? 'Manajemen Ujian Online' : 'Online Exam Management',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                 ),
               ),
@@ -687,8 +720,14 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                       child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
                       onPressed: () {
                         if (_classMap.isEmpty) {
-                          Get.snackbar('Info', 'Anda tidak memiliki kelas mengajar aktif.',
-                              backgroundColor: Colors.amber, colorText: Colors.black);
+                          Get.snackbar(
+                            'Info',
+                            AppLocalization.isIndonesian
+                                ? 'Anda tidak memiliki kelas mengajar aktif.'
+                                : 'You do not have active teaching classes.',
+                            backgroundColor: Colors.amber,
+                            colorText: Colors.black,
+                          );
                           return;
                         }
                         Get.to(() => TeacherCreateExamPage(
@@ -726,12 +765,14 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Belum Ada Ujian Online',
+                                    AppLocalization.isIndonesian ? 'Belum Ada Ujian Online' : 'No Online Exams Yet',
                                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Ketuk tombol + di kanan bawah untuk membuat dan menerbitkan ujian online pertama Anda.',
+                                    AppLocalization.isIndonesian
+                                        ? 'Ketuk tombol + di kanan bawah untuk membuat dan menerbitkan ujian online pertama Anda.'
+                                        : 'Tap the + button at bottom-right to create and publish your first online exam.',
                                     style: TextStyle(fontSize: 12, color: subTextColor),
                                     textAlign: TextAlign.center,
                                   ),
@@ -795,7 +836,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'Petunjuk: ${exam.description}',
+                                          '${AppLocalization.isIndonesian ? 'Petunjuk' : 'Instructions'}: ${exam.description}',
                                           style: TextStyle(fontSize: 12, color: subTextColor),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -829,7 +870,9 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                                     borderRadius: BorderRadius.circular(10),
                                                   ),
                                                   child: Text(
-                                                    '${exam.questions.length} Soal',
+                                                    AppLocalization.isIndonesian
+                                                        ? '${exam.questions.length} Soal'
+                                                        : '${exam.questions.length} Questions',
                                                     style: const TextStyle(
                                                       color: Color(0xFF10B981),
                                                       fontWeight: FontWeight.bold,
@@ -873,7 +916,9 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                                               const Icon(Icons.info_outline_rounded, size: 10, color: Colors.amber),
                                                               const SizedBox(width: 4),
                                                               Text(
-                                                                '$ungradedCount Belum Dikoreksi',
+                                                                AppLocalization.isIndonesian
+                                                                    ? '$ungradedCount Belum Dikoreksi'
+                                                                    : '$ungradedCount Ungraded',
                                                                 style: const TextStyle(
                                                                   color: Colors.amber,
                                                                   fontWeight: FontWeight.bold,
@@ -889,7 +934,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                                   },
                                                 ),
                                                 Text(
-                                                  'Batas: $dateStr',
+                                                  '${AppLocalization.isIndonesian ? 'Batas' : 'Deadline'}: $dateStr',
                                                   style: TextStyle(fontSize: 11, color: subTextColor, fontWeight: FontWeight.w600),
                                                 ),
                                               ],

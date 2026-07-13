@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../authentication/widgets/auth_background.dart';
+import '../../core/localization/app_localization.dart';
 import 'chat_service.dart';
 
 class ChatRoomPage extends StatefulWidget {
@@ -224,7 +225,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                'Belum ada pesan.\nMulai percakapan!',
+                                AppLocalization.isIndonesian ? 'Belum ada pesan.\nMulai percakapan!' : 'No messages yet.\nStart a conversation!',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: subTextColor,
@@ -412,7 +413,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                           minLines: 1,
                           textCapitalization: TextCapitalization.sentences,
                           decoration: InputDecoration(
-                            hintText: 'Tulis pesan...',
+                            hintText: AppLocalization.isIndonesian ? 'Tulis pesan...' : 'Write a message...',
                             hintStyle: TextStyle(
                               color: subTextColor,
                               fontSize: 14,

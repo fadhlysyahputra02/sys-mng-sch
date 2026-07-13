@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
+import '../../../core/localization/app_localization.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../app/routes/app_routes.dart';
@@ -682,9 +683,12 @@ class _StudentDashboardState extends State<StudentDashboard>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         if (_isLoadingStudent || _isLoadingSchool) {
           return Scaffold(
             body: AuthBackground(
@@ -907,7 +911,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                               studentNis: nis,
                             ),
                           _buildSectionTitle(
-                            'Menu Utama',
+                            AppLocalization.menuStudentMain,
                             Icons.dashboard_rounded,
                             isDark,
                           ),
@@ -922,6 +926,8 @@ class _StudentDashboardState extends State<StudentDashboard>
               ),
             ),
           ),
+        );
+      },
         );
       },
     );
@@ -1144,36 +1150,6 @@ class _StudentDashboardState extends State<StudentDashboard>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF6366F1,
-                            ).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(
-                                0xFF6366F1,
-                              ).withValues(alpha: 0.5),
-                            ),
-                          ),
-                          child: Text(
-                            _studentData?['lulus'] == true ? 'Alumni' : 'Murid',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF6366F1),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -1375,7 +1351,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Jadwal Ujian Semester',
+                            AppLocalization.menuSemesterExamSchedule,
                             style: TextStyle(
                               color: titleColor,
                               fontWeight: FontWeight.bold,
@@ -1432,49 +1408,58 @@ class _StudentDashboardState extends State<StudentDashboard>
     final baseMenus = isLulus
         ? [
             {
-              'title': 'Absensi',
+              'id': 'Absensi',
+              'title': AppLocalization.menuAttendance,
               'icon': Icons.qr_code_scanner_rounded,
               'color': const Color(0xFF8B5CF6),
             },
             {
-              'title': 'Nilai',
+              'id': 'Nilai',
+              'title': AppLocalization.menuGrades,
               'icon': Icons.grade_rounded,
               'color': const Color(0xFF10B981),
             },
           ]
         : [
             {
-              'title': 'Absensi',
+              'id': 'Absensi',
+              'title': AppLocalization.menuAttendance,
               'icon': Icons.qr_code_scanner_rounded,
               'color': const Color(0xFF8B5CF6),
             },
             {
-              'title': 'Jadwal Saya',
+              'id': 'Jadwal Saya',
+              'title': AppLocalization.menuMySchedule,
               'icon': Icons.calendar_month_rounded,
               'color': const Color(0xFFF59E0B),
             },
             {
-              'title': 'Nilai',
+              'id': 'Nilai',
+              'title': AppLocalization.menuGrades,
               'icon': Icons.grade_rounded,
               'color': const Color(0xFF10B981),
             },
             {
-              'title': 'Chat Guru',
+              'id': 'Chat Guru',
+              'title': AppLocalization.menuTeacherChat,
               'icon': Icons.chat_rounded,
               'color': const Color(0xFFF97316),
             },
             {
-              'title': 'Tugas Saya',
+              'id': 'Tugas Saya',
+              'title': AppLocalization.menuMyTasks,
               'icon': Icons.assignment_rounded,
               'color': const Color(0xFF6366F1),
             },
             {
-              'title': 'Ujian Online',
+              'id': 'Ujian Online',
+              'title': AppLocalization.menuOnlineExam,
               'icon': Icons.quiz_rounded,
               'color': const Color(0xFF8B5CF6),
             },
             {
-              'title': 'Pelanggaran',
+              'id': 'Pelanggaran',
+              'title': AppLocalization.menuViolations,
               'icon': Icons.warning_amber_rounded,
               'color': const Color(0xFFEF4444),
             },
@@ -1488,7 +1473,8 @@ class _StudentDashboardState extends State<StudentDashboard>
                   : const Color(0xFF6366F1),
             },
             {
-              'title': 'Keuangan & SPP',
+              'id': 'Keuangan & SPP',
+              'title': AppLocalization.menuFinanceAndSPP,
               'icon': Icons.payments_rounded,
               'color': const Color(0xFF10B981),
             },
@@ -1533,7 +1519,7 @@ class _StudentDashboardState extends State<StudentDashboard>
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () => _handleMenuTap(menu['title'] as String),
+                onTap: () => _handleMenuTap(menu['id'] as String),
                 borderRadius: BorderRadius.circular(20),
                 child: Stack(
                   clipBehavior: Clip.none,
@@ -1557,7 +1543,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                                 ),
                               );
 
-                              if (menu['title'] == 'Chat Guru' && _studentDocId != null) {
+                              if (menu['id'] == 'Chat Guru' && _studentDocId != null) {
                                 return ChatUnreadBadge(
                                   schoolId: SessionService.currentUser!.schoolId,
                                   userId: _studentDocId!,
@@ -1568,7 +1554,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                                 );
                               }
 
-                              if (menu['title'] == 'Keuangan & SPP' && _studentDocId != null) {
+                              if (menu['id'] == 'Keuangan & SPP' && _studentDocId != null) {
                                 return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                                   stream: FirebaseFirestore.instance
                                       .collection('schools')
@@ -1620,7 +1606,7 @@ class _StudentDashboardState extends State<StudentDashboard>
                                 );
                               }
 
-                              if (menu['title'] == 'Tugas Saya' &&
+                              if (menu['id'] == 'Tugas Saya' &&
                                   _studentDocId != null &&
                                   _studentData?['classId'] != null) {
                                 final studentClassId = _studentData!['classId'] as String;
@@ -2182,8 +2168,6 @@ class _StudentDashboardState extends State<StudentDashboard>
     try {
       await _reportLogoutBehavior();
       await AppAuthService.logout();
-      SessionService.logout();
-      Get.offAllNamed('/login');
     } catch (e) {
       // ignore errors
     }

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../services/grade_service.dart';
 import 'teacher_rapor_detail_page.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherRaporPage extends StatefulWidget {
   final String schoolId;
@@ -75,9 +76,12 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -115,7 +119,7 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                     ),
                   ),
                   title: Text(
-                    'E-Rapor - ${widget.className}',
+                    '${AppLocalization.isIndonesian ? 'E-Rapor' : 'E-Report Card'} - ${widget.className}',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                   ),
                 ),
@@ -128,12 +132,14 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Daftar Murid Kelas',
+                          AppLocalization.isIndonesian ? 'Daftar Murid Kelas' : 'Class Student List',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Pilih siswa di bawah untuk mengisi penilaian sikap, catatan wali kelas, dan mengunduh E-Rapor.',
+                          AppLocalization.isIndonesian
+                              ? 'Pilih siswa di bawah untuk mengisi penilaian sikap, catatan wali kelas, dan mengunduh E-Rapor.'
+                              : 'Select a student below to fill attitude assessment, homeroom teacher notes, and download E-Report Card.',
                           style: TextStyle(fontSize: 12, color: subTextColor),
                         ),
                         const SizedBox(height: 16),
@@ -146,7 +152,7 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                             });
                           },
                           decoration: InputDecoration(
-                            hintText: 'Cari nama atau NIS murid...',
+                            hintText: AppLocalization.isIndonesian ? 'Cari nama atau NIS murid...' : 'Search student name or ID...',
                             hintStyle: TextStyle(color: subTextColor),
                             prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
                             filled: true,
@@ -191,7 +197,9 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                     if (snapshot.hasError) {
                       return SliverFillRemaining(
                         child: Center(
-                          child: Text('Terjadi kesalahan memuat data murid', style: TextStyle(color: titleColor)),
+                          child: Text(
+                              AppLocalization.isIndonesian ? 'Terjadi kesalahan memuat data murid' : 'An error occurred loading student data',
+                              style: TextStyle(color: titleColor)),
                         ),
                       );
                     }
@@ -222,7 +230,9 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                               Icon(Icons.people_outline_rounded, size: 64, color: subTextColor),
                               const SizedBox(height: 16),
                               Text(
-                                _searchQuery.isEmpty ? 'Belum ada murid di kelas ini' : 'Murid tidak ditemukan',
+                                _searchQuery.isEmpty
+                                    ? (AppLocalization.isIndonesian ? 'Belum ada murid di kelas ini' : 'No students in this class yet')
+                                    : (AppLocalization.isIndonesian ? 'Murid tidak ditemukan' : 'Student not found'),
                                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                               ),
                             ],
@@ -257,7 +267,9 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                               builder: (context, reportSnap) {
                                 final hasReport = reportSnap.hasData && reportSnap.data!.exists;
                                 final statusColor = hasReport ? const Color(0xFF10B981) : Colors.amber;
-                                final statusText = hasReport ? 'Sudah Diisi' : 'Belum Lengkap';
+                                final statusText = hasReport
+                                    ? (AppLocalization.isIndonesian ? 'Sudah Diisi' : 'Filled')
+                                    : (AppLocalization.isIndonesian ? 'Belum Lengkap' : 'Incomplete');
 
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 16),
@@ -374,6 +386,8 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
               ],
             ),
           ),
+            );
+          },
         );
       },
     );

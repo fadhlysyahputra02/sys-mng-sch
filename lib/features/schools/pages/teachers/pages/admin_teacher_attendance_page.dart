@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:excel/excel.dart' hide Border;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -265,6 +266,23 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
     );
   }
 
+  pw.Widget _pdfChip(String label, String value, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: color, width: 1),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(label, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+          pw.Text(value, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: color)),
+        ],
+      ),
+    );
+  }
+
   Future<void> _exportDailyPdf() async {
     showDialog(
       context: context,
@@ -327,53 +345,235 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
           'attendance': attendance,
         });
       }
+      // PDF: pure A-Z sort
+      processedList.sort((a, b) => (a['teacherName'] as String).toLowerCase().compareTo((b['teacherName'] as String).toLowerCase()));
 
-      processedList.sort((a, b) => (a['teacherName'] as String).compareTo(b['teacherName'] as String));
+      String schoolName = 'Sekolah';
+      try {
+        final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(schoolId).get();
+        if (schoolDoc.exists) {
+          schoolName = schoolDoc.data()?['schoolName'] ?? 'Sekolah';
+        }
+      } catch (_) {}
 
-      final pdf = pw.Document();
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text('Laporan Kehadiran Harian Guru', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 8),
-                pw.Text('Tanggal: ${_getFormattedIndonesianDate(_selectedDate)}'),
-                pw.SizedBox(height: 20),
-                pw.Table.fromTextArray(
-                  headers: ['No', 'Nama Guru', 'NIP', 'Status', 'Masuk', 'Pulang'],
-                  data: List<List<String>>.generate(processedList.length, (index) {
-                    final item = processedList[index];
-                    final att = item['attendance'] as Map<String, dynamic>?;
-                    final checkInTime = att != null ? att['checkInTime'] as Timestamp? : null;
-                    final checkOutTime = att != null ? att['checkOutTime'] as Timestamp? : null;
-                    
-                    return [
-                      (index + 1).toString(),
-                      item['teacherName'] ?? '-',
-                      item['nip'] ?? '-',
-                      (item['status'] ?? '-').toString().toUpperCase(),
-                      checkInTime != null ? _formatTime(checkInTime) : '--:--',
-                      checkOutTime != null ? _formatTime(checkOutTime) : '--:--',
-                    ];
-                  }),
-                ),
-              ],
-            );
-          },
-        ),
-      );
+      // Calculate statistics
+      int countHadir = 0;
+      int countTerlambat = 0;
+      int countIzinSakit = 0;
+      int countAlfa = 0;
+
+      for (var item in processedList) {
+        final status = (item['status'] as String).toLowerCase();
+        if (status == 'hadir') countHadir++;
+        else if (status == 'terlambat') countTerlambat++;
+        else if (status == 'sakit' || status == 'izin') countIzinSakit++;
+        else countAlfa++;
+      }
+
+      final dateLabel = _getFormattedIndonesianDate(_selectedDate);
+      final pdfName = 'Rekap_Harian_Guru_${DateFormat('yyyyMMdd').format(_selectedDate)}.pdf';
+      final ctx = context;
 
       if (mounted) Navigator.pop(context); // Pop spinner
 
-      await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save(),
-        name: 'Rekap_Harian_Guru_${DateFormat('yyyyMMdd').format(_selectedDate)}.pdf',
-      );
+      Future<Uint8List> buildPdf(PdfPageFormat format) async {
+        final pdf = pw.Document();
+        pdf.addPage(
+          pw.MultiPage(
+            pageFormat: format,
+            margin: const pw.EdgeInsets.all(32),
+            build: (pw.Context context) => [
+              // ── Header banner ──────────────────────────────────────
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                        schoolName,
+                        style: pw.TextStyle(
+                          fontSize: 13,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.grey800,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        AppLocalization.isIndonesian
+                            ? 'Laporan Kehadiran Harian Guru'
+                            : 'Teacher Daily Attendance Report',
+                        style: pw.TextStyle(
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.black,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        '${AppLocalization.isIndonesian ? "Tanggal" : "Date"}: $dateLabel',
+                        style: const pw.TextStyle(
+                          fontSize: 11,
+                          color: PdfColors.grey600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 20),
+                  // ── Summary chips ──────────────────────────────────────
+                  pw.Row(
+                    children: [
+                      _pdfChip(
+                        AppLocalization.isIndonesian ? 'Total Guru' : 'Total Teachers',
+                        processedList.length.toString(),
+                        PdfColors.indigo700,
+                      ),
+                      pw.SizedBox(width: 8),
+                      _pdfChip(
+                        AppLocalization.isIndonesian ? 'Hadir' : 'Present',
+                        countHadir.toString(),
+                        PdfColors.green700,
+                      ),
+                      pw.SizedBox(width: 8),
+                      _pdfChip(
+                        AppLocalization.isIndonesian ? 'Terlambat' : 'Late',
+                        countTerlambat.toString(),
+                        PdfColors.orange700,
+                      ),
+                      pw.SizedBox(width: 8),
+                      _pdfChip(
+                        AppLocalization.isIndonesian ? 'Izin/Sakit' : 'Permitted/Sick',
+                        countIzinSakit.toString(),
+                        PdfColors.blue700,
+                      ),
+                      pw.SizedBox(width: 8),
+                      _pdfChip(
+                        AppLocalization.isIndonesian ? 'Belum Absen' : 'Absent',
+                        countAlfa.toString(),
+                        PdfColors.red700,
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 16),
+                  // ── Table ──────────────────────────────────────────────
+                  pw.TableHelper.fromTextArray(
+                    headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                    headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.black, fontSize: 10),
+                    cellStyle: const pw.TextStyle(fontSize: 9),
+                    cellAlignment: pw.Alignment.centerLeft,
+                    oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                    border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                    columnWidths: {
+                      0: const pw.FixedColumnWidth(28),
+                      1: const pw.FlexColumnWidth(3),
+                      2: const pw.FlexColumnWidth(2),
+                      3: const pw.FixedColumnWidth(40),
+                      4: const pw.FixedColumnWidth(40),
+                      5: const pw.FixedColumnWidth(55),
+                    },
+                    headers: [
+                      'No', 
+                      AppLocalization.isIndonesian ? 'Nama Guru' : 'Teacher Name', 
+                      'NIP', 
+                      AppLocalization.isIndonesian ? 'Masuk' : 'In', 
+                      AppLocalization.isIndonesian ? 'Pulang' : 'Out',
+                      'Status'
+                    ],
+                    data: List<List<String>>.generate(processedList.length, (index) {
+                      final item = processedList[index];
+                      final att = item['attendance'] as Map<String, dynamic>?;
+                      final checkInTime = att != null ? att['checkInTime'] as Timestamp? : null;
+                      final checkOutTime = att != null ? att['checkOutTime'] as Timestamp? : null;
+                      
+                      return [
+                        (index + 1).toString(),
+                        item['teacherName'] ?? '-',
+                        item['nip'] ?? '-',
+                        checkInTime != null ? _formatTime(checkInTime) : '--:--',
+                        checkOutTime != null ? _formatTime(checkOutTime) : '--:--',
+                        (item['status'] ?? '-').toString().toUpperCase(),
+                      ];
+                    }),
+                  ),
+            ],
+            footer: (pw.Context context) {
+              return pw.Column(
+                children: [
+                  pw.Divider(color: PdfColors.grey300),
+                  pw.SizedBox(height: 4),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        '${AppLocalization.isIndonesian ? "Dicetak" : "Printed"}: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                        style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                      ),
+                      pw.Text(
+                        '${AppLocalization.isIndonesian ? "Halaman" : "Page"} ${context.pageNumber} / ${context.pagesCount}',
+                        style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+        return pdf.save();
+      }
+
+      if (kIsWeb) {
+        await Printing.layoutPdf(onLayout: buildPdf, name: pdfName);
+      } else {
+        await showDialog(
+          context: ctx,
+          builder: (dialogCtx) => Dialog(
+            insetPadding: const EdgeInsets.all(12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: SizedBox(
+              width: double.maxFinite,
+              height: MediaQuery.of(dialogCtx).size.height * 0.85,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFF8B5CF6)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            AppLocalization.isIndonesian ? 'Preview PDF' : 'PDF Preview',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(dialogCtx),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: PdfPreview(
+                      build: buildPdf,
+                      pdfFileName: pdfName,
+                      allowPrinting: true,
+                      allowSharing: true,
+                      canChangeOrientation: false,
+                      canChangePageFormat: false,
+                      canDebug: false,
+                      loadingWidget: const Center(
+                        child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
     } catch (e) {
-      if (mounted) Navigator.pop(context); // Pop spinner
+      if (mounted && Navigator.canPop(context)) Navigator.pop(context); // Pop spinner if still showing
       Get.snackbar('Error', 'Gagal export PDF: $e', backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
@@ -448,11 +648,11 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
       
       sheetObject.appendRow([
         TextCellValue('No'),
-        TextCellValue('Nama Guru'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Nama Guru' : 'Teacher Name'),
         TextCellValue('NIP'),
         TextCellValue('Status'),
-        TextCellValue('Jam Masuk'),
-        TextCellValue('Jam Pulang'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Jam Masuk' : 'Clock In'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Jam Pulang' : 'Clock Out'),
       ]);
 
       for (int i = 0; i < processedList.length; i++) {
@@ -473,7 +673,9 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
 
       final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(schoolId).get();
       final schoolName = schoolDoc.data()?['namaSekolah'] ?? 'Sekolah';
-      final fileName = 'rekap absensi harian guru ($schoolName) tanggal ${DateFormat('yyyyMMdd').format(_selectedDate)}.xlsx';
+      final fileName = AppLocalization.isIndonesian 
+          ? 'rekap absensi harian guru ($schoolName) tanggal ${DateFormat('yyyyMMdd').format(_selectedDate)}.xlsx'
+          : 'teacher daily attendance ($schoolName) date ${DateFormat('yyyyMMdd').format(_selectedDate)}.xlsx';
 
       if (kIsWeb) {
         excelFile.save(fileName: fileName);
@@ -573,12 +775,33 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
           pageFormat: PdfPageFormat.a4,
           build: (pw.Context context) {
             return [
-              pw.Text('Laporan Kehadiran Bulanan Guru', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                AppLocalization.isIndonesian ? 'Laporan Kehadiran Bulanan Guru' : 'Teacher Monthly Attendance Report', 
+                style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.black)
+              ),
               pw.SizedBox(height: 8),
-              pw.Text('Periode: ${_monthNames[_selectedMonth - 1]} $_selectedYear'),
+              pw.Text(
+                '${AppLocalization.isIndonesian ? 'Periode' : 'Period'}: ${_monthNames[_selectedMonth - 1]} $_selectedYear',
+                style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)
+              ),
               pw.SizedBox(height: 20),
-              pw.Table.fromTextArray(
-                headers: ['No', 'Nama Guru', 'NIP', 'Hadir', 'Telat', 'Pulang', 'Sakit', 'Izin', 'Alfa'],
+              pw.TableHelper.fromTextArray(
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.black),
+                cellAlignment: pw.Alignment.centerLeft,
+                oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                headers: [
+                  'No', 
+                  AppLocalization.isIndonesian ? 'Nama Guru' : 'Teacher Name', 
+                  'NIP', 
+                  AppLocalization.isIndonesian ? 'Hadir' : 'Present', 
+                  AppLocalization.isIndonesian ? 'Telat' : 'Late', 
+                  AppLocalization.isIndonesian ? 'Pulang' : 'Left', 
+                  AppLocalization.isIndonesian ? 'Sakit' : 'Sick', 
+                  AppLocalization.isIndonesian ? 'Izin' : 'Permit', 
+                  'Alfa'
+                ],
                 data: List<List<String>>.generate(sortedTeachers.length, (index) {
                   final doc = sortedTeachers[index];
                   final tData = doc.data();
@@ -691,13 +914,13 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
       
       sheetObject.appendRow([
         TextCellValue('No'),
-        TextCellValue('Nama Guru'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Nama Guru' : 'Teacher Name'),
         TextCellValue('NIP'),
-        TextCellValue('Hadir'),
-        TextCellValue('Telat'),
-        TextCellValue('Pulang'),
-        TextCellValue('Sakit'),
-        TextCellValue('Izin'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Hadir' : 'Present'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Telat' : 'Late'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Pulang' : 'Left'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Sakit' : 'Sick'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Izin' : 'Permit'),
         TextCellValue('Alfa'),
       ]);
 
@@ -734,7 +957,9 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
       final schoolName = schoolDoc.data()?['namaSekolah'] ?? 'Sekolah';
       final monthName = _monthNames[_selectedMonth - 1];
 
-      final fileName = 'rekap absensi bulanan guru ($schoolName) bulan ($monthName).xlsx';
+      final fileName = AppLocalization.isIndonesian 
+          ? 'rekap absensi bulanan guru ($schoolName) bulan ($monthName).xlsx'
+          : 'teacher monthly attendance ($schoolName) month ($monthName).xlsx';
 
       if (kIsWeb) {
         excelFile.save(fileName: fileName);
@@ -1237,30 +1462,27 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
 
                     if (!_isMonthlyRecap) ...[
                       // Selected Date Card Header
-                      GestureDetector(
-                        onTap: _showDatePicker,
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.calendar_today_rounded, color: Color(0xFF8B5CF6), size: 18),
-                              const SizedBox(width: 10),
-                              Text(
-                                _getFormattedIndonesianDate(_selectedDate),
-                                style: const TextStyle(
-                                  color: Color(0xFF8B5CF6),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.calendar_today_rounded, color: Color(0xFF8B5CF6), size: 18),
+                            const SizedBox(width: 10),
+                            Text(
+                              _getFormattedIndonesianDate(_selectedDate),
+                              style: const TextStyle(
+                                color: Color(0xFF8B5CF6),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1496,8 +1718,21 @@ class _AdminTeacherAttendancePageState extends State<AdminTeacherAttendancePage>
                               });
                             }
 
-                            // Urutkan nama guru secara alfabetis
-                            processedList.sort((a, b) => (a['teacherName'] as String).compareTo(b['teacherName'] as String));
+                            // UI: attended first, then alfa A-Z. Attended are also sorted A-Z.
+                            final attendedTeachers = processedList
+                                .where((e) => (e['status'] as String).toLowerCase() != 'alfa')
+                                .toList()
+                              ..sort((a, b) => (a['teacherName'] as String)
+                                  .toLowerCase()
+                                  .compareTo((b['teacherName'] as String).toLowerCase()));
+                            final alfaTeachers = processedList
+                                .where((e) => (e['status'] as String).toLowerCase() == 'alfa')
+                                .toList()
+                              ..sort((a, b) => (a['teacherName'] as String).toLowerCase().compareTo((b['teacherName'] as String).toLowerCase()));
+                            final sortedList = [...attendedTeachers, ...alfaTeachers];
+                            processedList
+                              ..clear()
+                              ..addAll(sortedList);
 
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,

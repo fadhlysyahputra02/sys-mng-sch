@@ -585,6 +585,8 @@ class _TeacherListPageState extends State<TeacherListPage> {
               _buildGuideItem(AppLocalization.excelGuideHeader, subtitleColor),
               _buildGuideItem(AppLocalization.excelGuideColName, subtitleColor),
               _buildGuideItem(AppLocalization.excelGuideTeacherNip, subtitleColor),
+              _buildGuideItem(AppLocalization.excelGuideGender, subtitleColor),
+              _buildGuideItem(AppLocalization.excelGuideAddress, subtitleColor),
               _buildGuideItem(AppLocalization.excelGuideTeacherNipUnique, subtitleColor),
             ],
           ),

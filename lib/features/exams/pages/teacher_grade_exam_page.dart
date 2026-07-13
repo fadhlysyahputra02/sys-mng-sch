@@ -6,6 +6,7 @@ import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
 import '../models/exam_submission_model.dart';
 import '../services/exam_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherGradeExamPage extends StatefulWidget {
   final Exam exam;
@@ -226,8 +227,10 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
 
       Get.back();
       Get.snackbar(
-        'Sukses',
-        'Penilaian untuk "${widget.submission.studentName}" berhasil disimpan.',
+        AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+        AppLocalization.isIndonesian
+            ? 'Penilaian untuk "${widget.submission.studentName}" berhasil disimpan.'
+            : 'Grading for "${widget.submission.studentName}" has been successfully saved.',
         backgroundColor: const Color(0xFF10B981),
         colorText: Colors.white,
         borderRadius: 12,
@@ -235,8 +238,8 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
       );
     } catch (e) {
       Get.snackbar(
-        'Gagal',
-        'Gagal menyimpan nilai: $e',
+        AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+        AppLocalization.isIndonesian ? 'Gagal menyimpan nilai: $e' : 'Failed to save grades: $e',
         backgroundColor: const Color(0xFFEF4444),
         colorText: Colors.white,
       );
@@ -286,7 +289,7 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                   ),
                 ),
                 title: Text(
-                  'Koreksi Jawaban Ujian',
+                  AppLocalization.isIndonesian ? 'Koreksi Jawaban Ujian' : 'Grade Exam Answers',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                 ),
               ),
@@ -336,7 +339,7 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                   child: Column(
                                     children: [
                                       Text(
-                                        'Skor Akhir',
+                                        AppLocalization.isIndonesian ? 'Skor Akhir' : 'Final Score',
                                         style: TextStyle(fontSize: 10, color: subTextColor, fontWeight: FontWeight.w600),
                                       ),
                                       const SizedBox(height: 2),
@@ -351,7 +354,7 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                         ),
                                       ),
                                       Text(
-                                        'Poin',
+                                        AppLocalization.isIndonesian ? 'Poin' : 'Points',
                                         style: TextStyle(fontSize: 10, color: subTextColor),
                                       ),
                                     ],
@@ -389,11 +392,11 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Soal ${index + 1} (Essay)',
+                                        AppLocalization.isIndonesian ? 'Soal ${index + 1} (Essay)' : 'Question ${index + 1} (Essay)',
                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                                       ),
                                       Text(
-                                        'Maks ${q.points} Poin',
+                                        '${AppLocalization.isIndonesian ? 'Maks' : 'Max'} ${q.points} ${AppLocalization.isIndonesian ? 'Poin' : 'Points'}',
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF8B5CF6)),
                                       ),
                                     ],
@@ -405,7 +408,7 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Jawaban Murid:',
+                                    AppLocalization.isIndonesian ? 'Jawaban Murid:' : 'Student Answer:',
                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: subTextColor),
                                   ),
                                   const SizedBox(height: 6),
@@ -418,7 +421,9 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                       border: Border.all(color: cardBorderColor),
                                     ),
                                     child: Text(
-                                      studentAnswer.isEmpty ? '(Murid tidak menjawab)' : studentAnswer,
+                                      studentAnswer.isEmpty
+                                          ? (AppLocalization.isIndonesian ? '(Murid tidak menjawab)' : '(Student did not answer)')
+                                          : studentAnswer,
                                       style: TextStyle(
                                         fontSize: 13,
                                         color: titleColor,
@@ -431,7 +436,7 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                   Row(
                                     children: [
                                       Text(
-                                        'Input Poin Ujian (maks: ${q.points}):',
+                                        '${AppLocalization.isIndonesian ? 'Input Poin Ujian (maks: ${q.points}):' : 'Input Exam Points (max: ${q.points}):'}',
                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                                       ),
                                       const SizedBox(width: 12),
@@ -454,7 +459,7 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                           ),
                                           validator: (val) {
                                             final points = int.tryParse(val ?? '');
-                                            if (points == null) return 'Angka tidak valid';
+                                            if (points == null) return AppLocalization.isIndonesian ? 'Angka tidak valid' : 'Invalid number';
                                             final maxAllowed = q.points > 0 ? q.points : 10;
                                             if (points < 0 || points > maxAllowed) return '0-$maxAllowed';
                                             return null;
@@ -486,11 +491,13 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Soal ${index + 1} (Pilihan Ganda)',
+                                        AppLocalization.isIndonesian ? 'Soal ${index + 1} (Pilihan Ganda)' : 'Question ${index + 1} (Multiple Choice)',
                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                                       ),
                                       Text(
-                                        isCorrect ? '${q.points} / ${q.points} Poin' : '0 / ${q.points} Poin',
+                                        isCorrect
+                                            ? (AppLocalization.isIndonesian ? '${q.points} / ${q.points} Poin' : '${q.points} / ${q.points} Points')
+                                            : (AppLocalization.isIndonesian ? '0 / ${q.points} Poin' : '0 / ${q.points} Points'),
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 12,
@@ -587,9 +594,9 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                 width: 20,
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                               )
-                            : const Text(
-                                'Simpan & Selesaikan Penilaian',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            : Text(
+                                AppLocalization.isIndonesian ? 'Simpan & Selesaikan Penilaian' : 'Save & Finalize Grading',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                       ),
                     ),

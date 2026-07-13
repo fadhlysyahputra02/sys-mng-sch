@@ -53,6 +53,229 @@ class AppLocalization {
   static String get loginButton =>
       isIndonesian ? 'MASUK' : 'SIGN IN';
 
+  // ─── Dashboard & Sidebar Translations ──────────────────────────────────────
+  static String get menuDashboard => isIndonesian ? 'Dashboard' : 'Dashboard';
+  static String get menuERapor => isIndonesian ? 'E-Rapor' : 'E-Report Card';
+  static String get menuSchedule => isIndonesian ? 'Jadwal' : 'Schedule';
+  static String get menuClass => isIndonesian ? 'Kelas' : 'Class';
+  static String get menuTeachingReport => isIndonesian ? 'Laporan Mengajar' : 'Teaching Report';
+  static String get menuTeacherManagement => isIndonesian ? 'Manajemen Guru' : 'Teacher Management';
+  static String get menuStudentManagement => isIndonesian ? 'Manajemen Siswa' : 'Student Management';
+  static String get menuSubjects => isIndonesian ? 'Mata Pelajaran' : 'Subjects';
+  static String get menuNotifications => isIndonesian ? 'Notifikasi' : 'Notifications';
+  static String get menuStudentViolations => isIndonesian ? 'Pelanggaran Murid' : 'Student Violations';
+  static String get menuSettings => isIndonesian ? 'Pengaturan' : 'Settings';
+  static String get menuApprovals => isIndonesian ? 'Persetujuan' : 'Approvals';
+  static String get menuOfficers => isIndonesian ? 'Petugas' : 'Officers';
+  static String get menuAttendanceSummary => isIndonesian ? 'Rekap Absensi' : 'Attendance Recap';
+  static String get menuGradesSummary => isIndonesian ? 'Rekap Nilai' : 'Grades Summary';
+  static String get menuSemesterExam => isIndonesian ? 'Ujian Semester' : 'Semester Exam';
+  static String get menuDailyAttendance => isIndonesian ? 'Absensi Harian' : 'Daily Attendance';
+  static String get menuStudentAttendance => isIndonesian ? 'Absensi Murid' : 'Student Attendance';
+  static String get menuChat => isIndonesian ? 'Chat' : 'Chat';
+  static String get menuInputGrades => isIndonesian ? 'Input Nilai' : 'Input Grades';
+  static String get menuInputViolation => isIndonesian ? 'Input Pelanggaran' : 'Input Violation';
+  static String get menuTeachingSchedule => isIndonesian ? 'Jadwal Mengajar' : 'Teaching Schedule';
+  static String get menuReportsAndCards => isIndonesian ? 'Laporan & Rapor' : 'Reports & Report Cards';
+  static String get menuTaskManagement => isIndonesian ? 'Manajemen Tugas' : 'Task Management';
+  static String get menuProfileSettings => isIndonesian ? 'Pengaturan Profil' : 'Profile Settings';
+  static String get menuLibrary => isIndonesian ? 'Perpustakaan' : 'Library';
+  static String get menuRealtimeControl => isIndonesian ? 'Kontrol Aktifitas' : 'Realtime Control';
+  static String get menuScanDailyAttendance => isIndonesian ? 'Scan Absensi Harian' : 'Scan Daily Attendance';
+  static String get menuStudentPermit => isIndonesian ? 'Surat Izin Siswa' : 'Student Permit';
+  static String get menuOnlineExam => isIndonesian ? 'Ujian Online' : 'Online Exam';
+  static String get menuPayment => isIndonesian ? 'Pembayaran' : 'Payment';
+
+  // ─── Student Dashboard Translations ──────────────────────────────────────
+  static String get menuStudentMain => isIndonesian ? 'Menu Utama' : 'Main Menu';
+  static String get menuMySchedule => isIndonesian ? 'Jadwal Saya' : 'My Schedule';
+  static String get menuMyQRCard => isIndonesian ? 'Kartu QR Saya' : 'My QR Card';
+  static String get menuFinanceAndSPP => isIndonesian ? 'Keuangan & SPP' : 'Finance & Tuition';
+  static String get menuMyTasks => isIndonesian ? 'Tugas Saya' : 'My Tasks';
+  static String get menuGrades => isIndonesian ? 'Nilai' : 'Grades';
+  static String get menuAttendance => isIndonesian ? 'Absensi' : 'Attendance';
+  static String get menuTeacherChat => isIndonesian ? 'Chat Guru' : 'Teacher Chat';
+  static String get menuViolations => isIndonesian ? 'Pelanggaran' : 'Violations';
+  static String get menuDigitalPermit => isIndonesian ? 'Surat Izin Digital' : 'Digital Permit';
+  static String get menuSemesterExamSchedule => isIndonesian ? 'Jadwal Ujian Semester' : 'Semester Exam Schedule';
+  // ─── Parent Dashboard Translations ──────────────────────────────────────
+  static String get menuAttendanceList => isIndonesian ? 'Daftar Hadir' : 'Attendance List';
+  static String get menuClassSchedule => isIndonesian ? 'Jadwal Kelas' : 'Class Schedule';
+  static String get menuChildGrades => isIndonesian ? 'Nilai Anak' : 'Child\'s Grades';
+  static String get menuChildTasks => isIndonesian ? 'Tugas Anak' : 'Child\'s Tasks';
+  static String get menuChildOnlineExam => isIndonesian ? 'Ujian Online Anak' : 'Child\'s Online Exam';
+  static String get menuInformation => isIndonesian ? 'Informasi' : 'Information';
+  static String get menuTuitionBills => isIndonesian ? 'Tagihan SPP & Keuangan' : 'Tuition Bills & Finance';
+  // ─── Librarian Dashboard Translations ──────────────────────────────────────
+  static String get menuLibraryDashboard => isIndonesian ? 'Dashboard Perpustakaan' : 'Library Dashboard';
+  static String get menuHome => isIndonesian ? 'Beranda' : 'Home';
+  static String get menuBooks => isIndonesian ? 'Buku' : 'Books';
+  static String get menuLoans => isIndonesian ? 'Peminjaman' : 'Loans';
+  static String get menuGuestBook => isIndonesian ? 'Buku Tamu' : 'Guest Book';
+  static String get logoutConfirmLibrarian => isIndonesian ? 'Apakah Anda yakin ingin keluar dari akun perpustakaan?' : 'Are you sure you want to log out of the library account?';
+  static String get logoutConfirmTitle => isIndonesian ? 'Konfirmasi Keluar' : 'Confirm Logout';
+  static String get logout => isIndonesian ? 'Keluar' : 'Logout';
+  static String get officerLabel => isIndonesian ? 'Petugas' : 'Officer';
+  // ─── Officer Dashboard Translations ──────────────────────────────────────
+  static String get menuQuickMenu => isIndonesian ? 'Menu Cepat' : 'Quick Menu';
+  static String get menuScanStudentIn => isIndonesian ? 'Scan Murid\n(Masuk)' : 'Scan Student\n(In)';
+  static String get menuScanStudentOut => isIndonesian ? 'Scan Murid\n(Pulang)' : 'Scan Student\n(Out)';
+  static String get menuManualStudentIn => isIndonesian ? 'Absen Manual\nMurid (Masuk)' : 'Manual Attend\nStudent (In)';
+  static String get menuManualStudentOut => isIndonesian ? 'Absen Manual\nMurid (Pulang)' : 'Manual Attend\nStudent (Out)';
+  static String get menuTeacherAttendance => isIndonesian ? 'Absensi Guru' : 'Teacher Attendance';
+  static String get menuScanTeacherIn => isIndonesian ? 'Scan Guru\n(Masuk)' : 'Scan Teacher\n(In)';
+  static String get menuScanTeacherOut => isIndonesian ? 'Scan Guru\n(Pulang)' : 'Scan Teacher\n(Out)';
+  static String get menuManualTeacherIn => isIndonesian ? 'Absen Manual\nGuru (Masuk)' : 'Manual Attend\nTeacher (In)';
+  static String get menuManualTeacherOut => isIndonesian ? 'Absen Manual\nGuru (Pulang)' : 'Manual Attend\nTeacher (Out)';
+  static String get menuStudentSummary => isIndonesian ? 'Rekap Murid' : 'Student Summary';
+  static String get menuTeacherSummary => isIndonesian ? 'Rekap Guru' : 'Teacher Summary';
+
+  // ─── Teacher Dashboard Translations ────────────────────────────────────────
+  static String get greetingMorning => isIndonesian ? 'Selamat Pagi' : 'Good Morning';
+  static String get greetingAfternoon => isIndonesian ? 'Selamat Siang' : 'Good Afternoon';
+  static String get greetingEvening => isIndonesian ? 'Selamat Sore' : 'Good Evening';
+  static String get greetingNight => isIndonesian ? 'Selamat Malam' : 'Good Night';
+
+  static String get classesTaught => isIndonesian ? 'Kelas Mengajar' : 'Classes Taught';
+  static String get todaySchedule => isIndonesian ? 'Jadwal Hari Ini' : 'Today\'s Schedule';
+  static String get mySubjects => isIndonesian ? 'Mata Pelajaran Saya' : 'My Subjects';
+  static String get noScheduleToday => isIndonesian ? 'Tidak ada jadwal hari ini' : 'No schedule today';
+  static String get noSubjectsYet => isIndonesian ? 'Belum ada mata pelajaran' : 'No subjects yet';
+  static String get menuStudentList => isIndonesian ? 'Daftar Siswa' : 'Student List';
+  static String get homeroomLabel => isIndonesian ? 'Wali Kelas' : 'Homeroom';
+  static String get academicYearLabel => isIndonesian ? 'Tahun Ajaran' : 'Academic Year';
+
+  // ─── Teacher Schedule Page ───────────────────────────────────────────────────
+  static String get teachingScheduleTitle => isIndonesian ? 'Jadwal Mengajar' : 'Teaching Schedule';
+  static String get noScheduleForDay => isIndonesian ? 'Tidak ada jadwal mengajar pada hari' : 'No teaching schedule on';
+  static String get restLabel => isIndonesian ? 'Istirahat' : 'Break';
+  static String get restTimeLabel => isIndonesian ? 'Waktunya Istirahat & Santai' : 'Break & Relax Time';
+  static String get scheduleErrorLabel => isIndonesian ? 'Terjadi kesalahan memuat jadwal' : 'Error loading schedule';
+  static List<String> get dayNames => isIndonesian
+      ? ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+      : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  static List<String> get monthNames => isIndonesian
+      ? ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+      : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  // ─── Teacher Daily Attendance Page ───────────────────────────────────────────
+  static String get myDailyAttendanceTitle => isIndonesian ? 'Absensi Harian Anda' : 'Your Daily Attendance';
+  static String get attendanceHistoryTitle => isIndonesian ? 'Riwayat Absensi' : 'Attendance History';
+  static String get todayPresenceLabel => isIndonesian ? 'Presensi Hari Ini' : 'Today\'s Presence';
+  static String get checkInLabel => isIndonesian ? 'Jam Masuk' : 'Check-In';
+  static String get checkOutLabel => isIndonesian ? 'Jam Pulang' : 'Check-Out';
+  static String get monthlyAttendanceHistory => isIndonesian ? 'Riwayat Kehadiran Bulanan' : 'Monthly Attendance History';
+  static String get selectMonthYear => isIndonesian ? 'Pilih Bulan & Tahun' : 'Select Month & Year';
+  static String get monthLabel => isIndonesian ? 'Bulan' : 'Month';
+  static String get yearLabel => isIndonesian ? 'Tahun' : 'Year';
+  static String get notYetCheckedOut => isIndonesian ? 'Belum Pulang' : 'Not Yet Checked Out';
+  static String get notYetCheckedIn => isIndonesian ? 'Belum Absen' : 'Not Checked In';
+  static String get absentNoRecord => isIndonesian ? 'Tidak Hadir (Tanpa Keterangan)' : 'Absent (No Record)';
+  static String get absentDeadlinePassed => isIndonesian ? 'Tidak Hadir (Batas Absen Lewat)' : 'Absent (Deadline Passed)';
+  static String get upcomingSchedule => isIndonesian ? 'Jadwal Mengajar Mendatang' : 'Upcoming Schedule';
+  static String get upcomingLabel => isIndonesian ? 'Mendatang' : 'Upcoming';
+  static String get byAdmin => isIndonesian ? 'Oleh Admin' : 'By Admin';
+  static String get noFutureHistory => isIndonesian ? 'Tidak ada riwayat absensi untuk periode mendatang.' : 'No attendance history for future periods.';
+
+  // Attendance Status labels
+  static String get statusPresent => isIndonesian ? 'Hadir' : 'Present';
+  static String get statusLate => isIndonesian ? 'Terlambat' : 'Late';
+  static String get statusSick => isIndonesian ? 'Sakit' : 'Sick';
+  static String get statusPermit => isIndonesian ? 'Izin' : 'Permit';
+  static String get statusAbsent => isIndonesian ? 'Alfa' : 'Absent';
+
+  // ─── Teacher Attendance Schedule Page (Absensi Murid) ────────────────────────
+  static String get studentAttendanceTitle => isIndonesian ? 'Absensi Murid' : 'Student Attendance';
+  static String get chooseDate => isIndonesian ? 'Pilih Tanggal' : 'Choose Date';
+  static String get allClasses => isIndonesian ? 'Semua Kelas' : 'All Classes';
+  static String get classStatusDone => isIndonesian ? 'Selesai' : 'Done';
+  static String get classStatusUpcoming => isIndonesian ? 'Mendatang' : 'Upcoming';
+  static String get classStatusOngoing => isIndonesian ? 'Berlangsung' : 'Ongoing';
+  static String get subjectLabel => isIndonesian ? 'Pelajaran' : 'Subject';
+  static String get classLabel => isIndonesian ? 'Kelas' : 'Class';
+  static String get activeSubjectNow => isIndonesian ? 'MATA PELAJARAN AKTIF SEKARANG' : 'ACTIVE SUBJECT NOW';
+  static String get todayAttendanceRecap => isIndonesian ? 'REKAP ABSENSI HARI INI' : 'TODAY\'S ATTENDANCE RECAP';
+  static String get attendanceRecapDate => isIndonesian ? 'REKAP ABSENSI TANGGAL' : 'ATTENDANCE RECAP BY DATE';
+  static String get noActiveSubjectNow => isIndonesian ? 'Tidak ada mata pelajaran aktif di jam sekarang.' : 'No active subjects at the current time.';
+  static String get openQrAttendance => isIndonesian ? 'BUKA PRESENSI QR & SCAN' : 'OPEN QR ATTENDANCE & SCAN';
+  static String get noTeachingScheduleDate => isIndonesian ? 'Tidak ada jadwal mengajar untuk hari/tanggal ini.' : 'No teaching schedule for this day/date.';
+  static String get studentsPresent => isIndonesian ? 'Murid Hadir' : 'Students Present';
+  static String get serverTimeLabel => isIndonesian ? 'Waktu Server' : 'Server Time';
+  static String get noScheduleForRecap => isIndonesian ? 'Tidak ada jadwal mengajar untuk mengunduh rekap.' : 'No teaching schedule to download recap.';
+  static String get featureLocked => isIndonesian ? 'Fitur Terkunci' : 'Feature Locked';
+  static String get featureLockedDesc => isIndonesian ? 'Sekolah belum berlangganan untuk mengaktifkan fitur ini.' : 'The school has not subscribed to activate this feature.';
+  static String get previewRecapTitle => isIndonesian ? 'Preview Rekapan' : 'Recap Preview';
+  static String get noAttendanceData => isIndonesian ? 'Tidak ada data absensi untuk ditampilkan.' : 'No attendance data to display.';
+  static String get dailyAttendanceDetail => isIndonesian ? 'Detail Kehadiran Harian' : 'Daily Attendance Detail';
+  static String get studentNameLabel => isIndonesian ? 'Nama Siswa' : 'Student Name';
+  static String get totalPresentLabel => isIndonesian ? 'Total Hadir' : 'Total Present';
+  static String get periodLabel => isIndonesian ? 'Periode' : 'Period';
+  static String get qrCodeAttendanceTitle => isIndonesian ? 'QR Code Absensi' : 'QR Code Attendance';
+  static String get scanQrToAttend => isIndonesian ? 'Scan QR Code di atas untuk absen' : 'Scan the QR Code above to check in';
+  static String get attendancePassed => isIndonesian ? 'Presensi Selesai / Terlewat' : 'Attendance Completed / Overdue';
+  static String get qrDisabledDesc => isIndonesian ? 'Pembuatan QR Code dinonaktifkan karena jam pelajaran telah selesai atau tanggal pelaksanaan telah berlalu.' : 'QR Code generation is disabled because the class time has ended or the date has passed.';
+  static String get studentsPresentRealtime => isIndonesian ? 'Murid Hadir (Real-time)' : 'Students Present (Real-time)';
+  static String get studentsPresentHistory => isIndonesian ? 'Murid Hadir (Riwayat)' : 'Students Present (History)';
+  static String get editModeActive => isIndonesian ? 'Mode Edit Aktif' : 'Edit Mode Active';
+  static String get waitingApproval => isIndonesian ? 'Menunggu Persetujuan' : 'Waiting for Approval';
+  static String get editAttendance => isIndonesian ? 'Edit Absensi' : 'Edit Attendance';
+  static String get noStudentsInClass => isIndonesian ? 'Belum ada murid di kelas ini' : 'No students in this class yet';
+  static String get editRequestNeeded => isIndonesian ? 'Harap ajukan izin "Edit Absensi" dan disetujui Admin/TU terlebih dahulu.' : 'Please request "Edit Attendance" and obtain Admin/TU approval first.';
+  static String get editRequestNeededPast => isIndonesian ? 'Harap ajukan izin "Edit Absensi" dan disetujui Admin/TU terlebih dahulu untuk tanggal lampau.' : 'Please request "Edit Attendance" and obtain Admin/TU approval first for past dates.';
+  static String get noPresenceRecordedYet => isIndonesian ? 'Belum melakukan presensi (Klik untuk atur)' : 'No attendance recorded yet (Click to set)';
+  static String get reportCompleted => isIndonesian ? 'Laporan Selesai Diisi' : 'Report Completed';
+  static String get fillReport => isIndonesian ? 'Isi Laporan' : 'Fill Report';
+  static String get cannotSaveIncomplete => isIndonesian ? 'Tidak dapat menyimpan: data jadwal atau tanggal tidak lengkap.' : 'Cannot save: schedule data or date is incomplete.';
+  static String get setDetail => isIndonesian ? 'Beri Keterangan' : 'Set Details';
+  static String get setPresenceFor => isIndonesian ? 'Atur kehadiran untuk' : 'Set attendance for';
+  static String get cancel => isIndonesian ? 'Batal' : 'Cancel';
+  static String get requestEditTitle => isIndonesian ? 'Ajukan Izin Edit Absensi' : 'Request Attendance Edit Permission';
+  static String get editReasonLabel => isIndonesian ? 'Alasan Koreksi / Edit' : 'Correction / Edit Reason';
+  static String get reasonNotEmpty => isIndonesian ? 'Alasan tidak boleh kosong' : 'Reason cannot be empty';
+  static String get editRequestSuccess => isIndonesian ? 'Pengajuan izin edit berhasil dikirim ke Admin/TU' : 'Edit request successfully sent to Admin/TU';
+  static String get submitRequest => isIndonesian ? 'Kirim Pengajuan' : 'Submit Request';
+  static String get teachingReportTitle => isIndonesian ? 'Laporan Mengajar' : 'Teaching Report';
+  static String get topicTaughtLabel => isIndonesian ? 'Materi yang diajarkan' : 'Topic Taught';
+  static String get optionalNotesLabel => isIndonesian ? 'Catatan tambahan (Opsional)' : 'Additional notes (Optional)';
+  static String get topicNotEmpty => isIndonesian ? 'Materi tidak boleh kosong' : 'Topic cannot be empty';
+  static String get reportSaveSuccess => isIndonesian ? 'Laporan berhasil disimpan' : 'Report saved successfully';
+  static String get save => isIndonesian ? 'Simpan' : 'Save';
+  static String get downloadRecap => isIndonesian ? 'Unduh Rekap Absen' : 'Download Attendance Recap';
+  static String get selectMonthClassForRecap => isIndonesian ? 'Pilih bulan dan kelas untuk rekapitulasi' : 'Select month and class for recap';
+  static String get previewRecap => isIndonesian ? 'Lihat Rekapan' : 'Preview Recap';
+  static String get download => isIndonesian ? 'Unduh' : 'Download';
+
+  // Grades Section
+  static String get gradesBookTitle => isIndonesian ? 'Buku Nilai' : 'Gradebook';
+  static String get filterGrades => isIndonesian ? 'Filter Penilaian' : 'Filter Grades';
+  static String get noGradesYet => isIndonesian ? 'Belum ada penilaian yang dibuat' : 'No grades created yet';
+  static String get tapPlusToInsert => isIndonesian ? 'Tekan tombol "+" di bawah untuk memasukkan nilai baru.' : 'Tap the "+" button below to insert new grades.';
+  static String get editGrade => isIndonesian ? 'Edit Nilai' : 'Edit Grade';
+  static String get deleteGrade => isIndonesian ? 'Hapus Penilaian' : 'Delete Grade';
+  static String get deleteGradeConfirm => isIndonesian ? 'Apakah Anda yakin ingin menghapus penilaian ini beserta seluruh nilai siswa di dalamnya? Tindakan ini tidak dapat dibatalkan.' : 'Are you sure you want to delete this grade along with all student scores in it? This action cannot be undone.';
+  static String get gradeDeleted => isIndonesian ? 'Penilaian berhasil dihapus' : 'Grade successfully deleted';
+  static String get gradeDeleteFailed => isIndonesian ? 'Gagal menghapus penilaian' : 'Failed to delete grade';
+  static String get inputNewGradeTitle => isIndonesian ? 'Input Nilai Baru' : 'Input New Grade';
+  static String get editGradeTitle => isIndonesian ? 'Ubah Penilaian' : 'Edit Grade';
+  static String get selectCategoryFirst => isIndonesian ? 'Pilih kategori penilaian terlebih dahulu' : 'Please select a grade category first';
+  static String get gradeSavedSuccess => isIndonesian ? 'Penilaian berhasil disimpan' : 'Grade successfully saved';
+  static String get gradeUpdatedSuccess => isIndonesian ? 'Penilaian berhasil diperbarui' : 'Grade successfully updated';
+  static String get gradeSaveFailed => isIndonesian ? 'Gagal menyimpan penilaian' : 'Failed to save grade';
+  static String get categoryLabel => isIndonesian ? 'Kategori Penilaian' : 'Grade Category';
+  static String get gradeTitlePlaceholder => isIndonesian ? 'Judul Penilaian (contoh: Tugas 1)' : 'Grade Title (e.g. Assignment 1)';
+  static String get enterGradeTitle => isIndonesian ? 'Masukkan judul penilaian' : 'Please enter a grade title';
+  static String get maxScoreLabel => isIndonesian ? 'Nilai Maksimum' : 'Maximum Score';
+  static String get invalidScore => isIndonesian ? 'Nilai tidak valid' : 'Invalid score';
+  static String get gradeDateLabel => isIndonesian ? 'Tanggal Penilaian' : 'Grade Date';
+  static String get studentGradeListLabel => isIndonesian ? 'Daftar Nilai Siswa' : 'Student Grade List';
+  static String get wrongScoreRange => isIndonesian ? 'Salah' : 'Invalid';
+  static String get studentNotePlaceholder => isIndonesian ? 'Tulis catatan pencapaian siswa... (opsional)' : 'Write student achievement notes... (optional)';
+  static String get saveChanges => isIndonesian ? 'Simpan Perubahan' : 'Save Changes';
+  static String get saveGrade => isIndonesian ? 'Simpan Penilaian' : 'Save Grade';
+  static String get setWeights => isIndonesian ? 'Atur Bobot' : 'Set Weights';
+  static String get reset => isIndonesian ? 'Reset' : 'Reset';
+
+
   static String get emailLabel => isIndonesian ? 'Email' : 'Email';
 
   static String get passwordLabel =>
@@ -351,6 +574,27 @@ class AppLocalization {
   static String get passwordMinLength =>
       isIndonesian ? 'Password baru minimal 6 karakter' : 'New password must be at least 6 characters';
 
+  static String get error =>
+      isIndonesian ? 'Gagal' : 'Error';
+
+  static String get passwordValidationMinLength =>
+      isIndonesian ? 'Minimal 6 karakter' : 'At least 6 characters';
+
+  static String get passwordValidationUppercase =>
+      isIndonesian ? 'Memiliki huruf besar (A-Z)' : 'Has uppercase letter (A-Z)';
+
+  static String get passwordValidationLowercase =>
+      isIndonesian ? 'Memiliki huruf kecil (a-z)' : 'Has lowercase letter (a-z)';
+
+  static String get passwordValidationNumber =>
+      isIndonesian ? 'Memiliki angka (0-9)' : 'Has number (0-9)';
+
+  static String get passwordValidationSpecialChar =>
+      isIndonesian ? 'Memiliki karakter khusus (!@#\$%^&* dll)' : 'Has special character (!@#\$%^&* etc)';
+
+  static String get passwordSameAsCurrent =>
+      isIndonesian ? 'Password baru tidak boleh sama dengan password saat ini' : 'New password cannot be the same as current password';
+
   static String get schoolNameRequired =>
       isIndonesian ? 'Nama sekolah tidak boleh kosong' : 'School name cannot be empty';
 
@@ -440,13 +684,25 @@ class AppLocalization {
       isIndonesian ? 'Baris pertama (index 0) adalah header kolom (akan diabaikan)' : 'The first row (index 0) is the column header (will be ignored)';
 
   static String get excelGuideColName =>
-      isIndonesian ? 'Kolom A: Nama Lengkap' : 'Column A: Full Name';
+      isIndonesian ? 'Kolom A: Nama Lengkap (Wajib)' : 'Column A: Full Name (Required)';
 
   static String get excelGuideTeacherNip =>
-      isIndonesian ? 'Kolom B: NIP (Nomor Induk Pegawai)' : 'Column B: NIP (Employee ID Number)';
+      isIndonesian ? 'Kolom B: NIP / Nomor Induk Pegawai (Wajib)' : 'Column B: NIP / Employee ID (Required)';
 
   static String get excelGuideStudentNis =>
-      isIndonesian ? 'Kolom B: NIS (Nomor Induk Siswa)' : 'Column B: NIS (Student ID Number)';
+      isIndonesian ? 'Kolom B: NIS / Nomor Induk Siswa (Wajib)' : 'Column B: NIS / Student ID (Required)';
+
+  static String get excelGuideGender =>
+      isIndonesian ? 'Kolom C: Jenis Kelamin (Opsional, isi L atau P)' : 'Column C: Gender (Optional, fill L or P)';
+
+  static String get excelGuideAddress =>
+      isIndonesian ? 'Kolom D: Alamat (Opsional)' : 'Column D: Address (Optional)';
+
+  static String get excelGuideStudentDob =>
+      isIndonesian ? 'Kolom E: Tanggal Lahir (Opsional)' : 'Column E: Date of Birth (Optional)';
+
+  static String get excelGuideStudentBatch =>
+      isIndonesian ? 'Kolom F: Tahun Angkatan (Opsional)' : 'Column F: Batch Year (Optional)';
 
   static String get excelGuideTeacherNipUnique =>
       isIndonesian ? 'Pastikan NIP belum terdaftar di sistem' : 'Ensure NIP is not already registered in the system';
@@ -457,8 +713,6 @@ class AppLocalization {
   static String get downloadExcelTemplate =>
       isIndonesian ? 'Unduh Template Excel' : 'Download Excel Template';
 
-  static String get cancel =>
-      isIndonesian ? 'Batal' : 'Cancel';
 
   static String get chooseFile =>
       isIndonesian ? 'Pilih File' : 'Select File';

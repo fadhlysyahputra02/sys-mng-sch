@@ -17,8 +17,6 @@ class _LogoutTransitionPageState extends State<LogoutTransitionPage>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  bool _isSecured = false;
-
   @override
   void initState() {
     super.initState();
@@ -36,15 +34,6 @@ class _LogoutTransitionPageState extends State<LogoutTransitionPage>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.10).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-
-    // Dynamic state transitions
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _isSecured = true;
-        });
-      }
-    });
 
     // Exit transition to login
     Future.delayed(const Duration(milliseconds: 1900), () {
@@ -64,7 +53,7 @@ class _LogoutTransitionPageState extends State<LogoutTransitionPage>
   @override
   Widget build(BuildContext context) {
     final isIndo = AppLocalization.isIndonesian;
-    final Color activeColor = _isSecured ? const Color(0xFF10B981) : const Color(0xFFF43F5E); // Emerald vs Rose
+    final Color activeColor = const Color(0xFFF43F5E); // Rose
 
     return Scaffold(
       body: Stack(
@@ -157,8 +146,7 @@ class _LogoutTransitionPageState extends State<LogoutTransitionPage>
                             ),
                           ),
                           // Center Core Shield/Lock Circle
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 400),
+                          Container(
                             width: 88,
                             height: 88,
                             decoration: BoxDecoration(
@@ -183,22 +171,11 @@ class _LogoutTransitionPageState extends State<LogoutTransitionPage>
                               child: Container(
                                 padding: const EdgeInsets.all(3),
                                 color: const Color(0xFF0A0716),
-                                child: Center(
-                                  child: AnimatedCrossFade(
-                                    firstChild: const Icon(
-                                      Icons.lock_open_rounded,
-                                      size: 40,
-                                      color: Color(0xFFF43F5E),
-                                    ),
-                                    secondChild: const Icon(
-                                      Icons.lock_rounded,
-                                      size: 40,
-                                      color: Color(0xFF10B981),
-                                    ),
-                                    crossFadeState: _isSecured
-                                        ? CrossFadeState.showSecond
-                                        : CrossFadeState.showFirst,
-                                    duration: const Duration(milliseconds: 300),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.power_settings_new_rounded,
+                                    size: 40,
+                                    color: Color(0xFFF43F5E),
                                   ),
                                 ),
                               ),
@@ -211,42 +188,14 @@ class _LogoutTransitionPageState extends State<LogoutTransitionPage>
                 ),
                 const SizedBox(height: 48),
 
-                // 4. Secure Status Text with Animated Switcher
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0.0, 0.25),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: Text(
-                    _isSecured
-                        ? (isIndo ? 'Sesi Aman. Sampai Jumpa!' : 'Session Secured. Goodbye!')
-                        : (isIndo ? 'Mengamankan Sesi...' : 'Securing Session...'),
-                    key: ValueKey<bool>(_isSecured),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
+                // 4. Secure Status Text
                 Text(
-                  isIndo ? 'Menghapus session data secara aman' : 'Clearing session credentials securely',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.4),
-                    fontSize: 12,
+                  isIndo ? 'Keluar...' : 'Logging out...',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
                   ),
                 ),

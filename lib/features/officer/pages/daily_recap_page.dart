@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:flutter/services.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -139,13 +140,26 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
       final data = await _repo.getDailyRecap(user.schoolId, _selectedDate);
       setState(() {
         _recapData = data;
-        // Sort by time
-        _recapData.sort((a, b) {
-          final ta = a['timestamp'] as dynamic;
-          final tb = b['timestamp'] as dynamic;
-          if (ta == null || tb == null) return 0;
-          return tb.compareTo(ta); // Descending
-        });
+        // Sort: attended (hadir/terlambat/izin/sakit) first by check-in time desc,
+        // then absent (alfa) sorted A-Z by name
+        final attended = _recapData
+            .where((e) => (e['status'] ?? 'alfa') != 'alfa')
+            .toList()
+          ..sort((a, b) {
+            final ta = a['checkInTime'] ?? a['timestamp'];
+            final tb = b['checkInTime'] ?? b['timestamp'];
+            if (ta == null && tb == null) return 0;
+            if (ta == null) return 1;
+            if (tb == null) return -1;
+            return (tb as Timestamp).compareTo(ta as Timestamp);
+          });
+        final absent = _recapData
+            .where((e) => (e['status'] ?? 'alfa') == 'alfa')
+            .toList()
+          ..sort((a, b) =>
+              (a['studentName']?.toString().toLowerCase() ?? '')
+                  .compareTo(b['studentName']?.toString().toLowerCase() ?? ''));
+        _recapData = [...attended, ...absent];
       });
     } catch (e) {
       Get.snackbar('Error', e.toString(), backgroundColor: Colors.red, colorText: Colors.white);
@@ -168,50 +182,235 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
   }
 
   Future<void> _exportPdf() async {
-    final pdf = pw.Document();
-    
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text('Laporan Kehadiran Harian', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 8),
-              pw.Text('Tanggal: ${DateFormat('dd MMMM yyyy').format(_selectedDate)}'),
-              pw.SizedBox(height: 24),
-              pw.Table.fromTextArray(
-                headers: ['No', 'Nama Siswa', 'Kelas', 'Masuk', 'Pulang', 'Status', 'Metode'],
-                data: List<List<String>>.generate(_recapData.length, (index) {
-                  final item = _recapData[index];
-                  final checkInTimestamp = item['checkInTime'] ?? item['timestamp'];
-                  final checkInTime = (checkInTimestamp as Timestamp?)?.toDate();
-                  final checkInStr = checkInTime != null ? DateFormat('HH:mm').format(checkInTime) : '-';
+    if (!mounted) return;
+    final ctx = context;
+    final user = SessionService.currentUser!;
+    final schoolDoc = await FirebaseFirestore.instance
+        .collection('schools')
+        .doc(user.schoolId)
+        .get();
+    final schoolName = schoolDoc.data()?['namaSekolah'] ?? 'Sekolah';
+    final dateLabel = DateFormat(
+      AppLocalization.isIndonesian ? 'dd MMMM yyyy' : 'MMMM dd, yyyy',
+    ).format(_selectedDate);
+    final recapSnapshot = List<Map<String, dynamic>>.from(_recapData)
+      ..sort((a, b) => (a['studentName']?.toString().toLowerCase() ?? '')
+          .compareTo(b['studentName']?.toString().toLowerCase() ?? ''));
+    if (!mounted) return;
 
-                  final checkOutTimestamp = item['checkOutTime'];
-                  final checkOutTime = (checkOutTimestamp as Timestamp?)?.toDate();
-                  final checkOutStr = checkOutTime != null ? DateFormat('HH:mm').format(checkOutTime) : '-';
-                  return [
-                    (index + 1).toString(),
-                    item['studentName'] ?? '-',
-                    item['className'] ?? '-',
-                    checkInStr,
-                    checkOutStr,
-                    (item['status'] ?? '-').toString().toUpperCase(),
-                    item['method'] == 'qr_scan' ? 'QR Code' : 'Manual',
-                  ];
-                }),
-              ),
+      Future<Uint8List> buildPdf(PdfPageFormat format) async {
+        final pdf = pw.Document();
+        pdf.addPage(
+          pw.MultiPage(
+            pageFormat: format,
+            margin: const pw.EdgeInsets.all(32),
+            build: (pw.Context ctx) => [
+              // ── Header banner ──────────────────────────────────────
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                      schoolName,
+                      style: pw.TextStyle(
+                        fontSize: 13,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.grey800,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      AppLocalization.isIndonesian
+                          ? 'Laporan Kehadiran Harian Siswa'
+                          : 'Student Daily Attendance Report',
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.black,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      '${AppLocalization.isIndonesian ? "Tanggal" : "Date"}: $dateLabel',
+                      style: const pw.TextStyle(
+                        fontSize: 11,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 20),
+                // ── Summary chips ──────────────────────────────────────
+                pw.Row(
+                  children: [
+                    _pdfChip(
+                      AppLocalization.isIndonesian ? 'Total Siswa' : 'Total Students',
+                      recapSnapshot.length.toString(),
+                      PdfColors.indigo700,
+                    ),
+                    pw.SizedBox(width: 8),
+                    _pdfChip(
+                      AppLocalization.isIndonesian ? 'Hadir' : 'Present',
+                      recapSnapshot.where((e) => (e['status'] ?? '') == 'hadir').length.toString(),
+                      PdfColors.green700,
+                    ),
+                    pw.SizedBox(width: 8),
+                    _pdfChip(
+                      AppLocalization.isIndonesian ? 'Tidak Hadir' : 'Absent',
+                      recapSnapshot.where((e) => (e['status'] ?? '') != 'hadir').length.toString(),
+                      PdfColors.red700,
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 16),
+                // ── Table ──────────────────────────────────────────────
+                pw.TableHelper.fromTextArray(
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                  headerStyle: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black,
+                    fontSize: 10,
+                  ),
+                  cellStyle: const pw.TextStyle(fontSize: 9),
+                  cellAlignment: pw.Alignment.centerLeft,
+                  oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                  border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(28),
+                    1: const pw.FlexColumnWidth(3),
+                    2: const pw.FlexColumnWidth(1.5),
+                    3: const pw.FixedColumnWidth(40),
+                    4: const pw.FixedColumnWidth(40),
+                    5: const pw.FixedColumnWidth(52),
+                    6: const pw.FixedColumnWidth(55),
+                  },
+                  headers: [
+                    'No',
+                    AppLocalization.isIndonesian ? 'Nama Siswa' : 'Student Name',
+                    AppLocalization.isIndonesian ? 'Kelas' : 'Class',
+                    AppLocalization.isIndonesian ? 'Masuk' : 'In',
+                    AppLocalization.isIndonesian ? 'Pulang' : 'Out',
+                    'Status',
+                    AppLocalization.isIndonesian ? 'Metode' : 'Method',
+                  ],
+                  data: List<List<String>>.generate(recapSnapshot.length, (index) {
+                    final item = recapSnapshot[index];
+                    final checkInTimestamp = item['checkInTime'] ?? item['timestamp'];
+                    final checkInTime = (checkInTimestamp as Timestamp?)?.toDate();
+                    final checkInStr = checkInTime != null ? DateFormat('HH:mm').format(checkInTime) : '-';
+                    final checkOutTimestamp = item['checkOutTime'];
+                    final checkOutTime = (checkOutTimestamp as Timestamp?)?.toDate();
+                    final checkOutStr = checkOutTime != null ? DateFormat('HH:mm').format(checkOutTime) : '-';
+                    return [
+                      (index + 1).toString(),
+                      item['studentName'] ?? '-',
+                      item['className'] ?? '-',
+                      checkInStr,
+                      checkOutStr,
+                      (item['status'] ?? '-').toString().toUpperCase(),
+                      item['method'] == 'qr_scan' ? 'QR Code' : 'Manual',
+                    ];
+                  }),
+                ),
             ],
-          );
-        },
-      ),
-    );
+            footer: (pw.Context ctx) {
+              return pw.Column(
+                children: [
+                  pw.Divider(color: PdfColors.grey300),
+                  pw.SizedBox(height: 4),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        '${AppLocalization.isIndonesian ? "Dicetak" : "Printed"}: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                        style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                      ),
+                      pw.Text(
+                        '${AppLocalization.isIndonesian ? "Hal" : "Page"} ${ctx.pageNumber} / ${ctx.pagesCount}',
+                        style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+        return pdf.save();
+      }
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Rekap_Kehadiran_${DateFormat('yyyyMMdd').format(_selectedDate)}.pdf',
+    final pdfName = AppLocalization.isIndonesian
+        ? 'Rekap_Kehadiran_Siswa_${DateFormat('yyyyMMdd').format(_selectedDate)}.pdf'
+        : 'Student_Daily_Attendance_${DateFormat('yyyyMMdd').format(_selectedDate)}.pdf';
+
+    if (kIsWeb) {
+      await Printing.layoutPdf(onLayout: buildPdf, name: pdfName);
+    } else {
+      await showDialog(
+        context: ctx,
+        builder: (dialogCtx) => Dialog(
+          insetPadding: const EdgeInsets.all(12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: SizedBox(
+            width: double.maxFinite,
+            height: MediaQuery.of(dialogCtx).size.height * 0.85,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFF8B5CF6)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          AppLocalization.isIndonesian ? 'Preview PDF' : 'PDF Preview',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(dialogCtx),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: PdfPreview(
+                    build: buildPdf,
+                    pdfFileName: pdfName,
+                    allowPrinting: true,
+                    allowSharing: true,
+                    canChangeOrientation: false,
+                    canChangePageFormat: false,
+                    canDebug: false,
+                    loadingWidget: const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  pw.Widget _pdfChip(String label, String value, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: color, width: 1),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(label, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+          pw.Text(value, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: color)),
+        ],
+      ),
     );
   }
 
@@ -223,12 +422,12 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
       // Header
       sheetObject.appendRow([
         TextCellValue('No'),
-        TextCellValue('Nama Siswa'),
-        TextCellValue('Kelas'),
-        TextCellValue('Masuk'),
-        TextCellValue('Pulang'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Nama Siswa' : 'Student Name'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Kelas' : 'Class'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Masuk' : 'In'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Pulang' : 'Out'),
         TextCellValue('Status'),
-        TextCellValue('Metode'),
+        TextCellValue(AppLocalization.isIndonesian ? 'Metode' : 'Method'),
       ]);
 
       for (int i = 0; i < _recapData.length; i++) {
@@ -255,7 +454,9 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
       final user = SessionService.currentUser!;
       final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(user.schoolId).get();
       final schoolName = schoolDoc.data()?['namaSekolah'] ?? 'Sekolah';
-      final fileName = 'rekap absensi harian siswa ($schoolName) tanggal ${DateFormat('yyyyMMdd').format(_selectedDate)}.xlsx';
+      final fileName = AppLocalization.isIndonesian 
+          ? 'rekap absensi harian siswa ($schoolName) tanggal ${DateFormat('yyyyMMdd').format(_selectedDate)}.xlsx'
+          : 'student daily attendance ($schoolName) date ${DateFormat('yyyyMMdd').format(_selectedDate)}.xlsx';
 
       if (kIsWeb) {
         excelFile.save(fileName: fileName);
@@ -328,13 +529,13 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
                 ),
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.picture_as_pdf_rounded),
-                    onPressed: _recapData.isEmpty ? null : _exportPdf,
+                    icon: Icon(Icons.picture_as_pdf_rounded, color: textColor),
+                    onPressed: _isLoading ? null : _exportPdf,
                     tooltip: AppLocalization.isIndonesian ? 'Ekspor PDF' : 'Export PDF',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.table_view_rounded),
-                    onPressed: _recapData.isEmpty ? null : _exportExcel,
+                    icon: Icon(Icons.table_view_rounded, color: textColor),
+                    onPressed: _isLoading ? null : _exportExcel,
                     tooltip: AppLocalization.isIndonesian ? 'Ekspor Excel' : 'Export Excel',
                   ),
                 ],
@@ -505,7 +706,7 @@ class _DailyRecapPageState extends State<DailyRecapPage> {
                               : _recapData.isEmpty
                                 ? Center(
                                     child: Text(
-                                      AppLocalization.isIndonesian ? 'Tidak ada data kehadiran.' : 'No attendance data.',
+                                      AppLocalization.isIndonesian ? 'Belum ada data siswa.' : 'No student data.',
                                       style: TextStyle(color: subTextColor),
                                     ),
                                   )

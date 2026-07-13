@@ -5,6 +5,7 @@ import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
 import '../services/exam_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 
 class TeacherCreateExamPage extends StatefulWidget {
@@ -70,7 +71,11 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     final q = _questionsData[qIndex];
     final opts = q['options'] as List<TextEditingController>;
     if (opts.length >= 10) {
-      Get.snackbar('Batas Maksimal', 'Pilihan jawaban maksimal 10 opsi.',
+      Get.snackbar(
+          AppLocalization.isIndonesian ? 'Batas Maksimal' : 'Max Limit',
+          AppLocalization.isIndonesian
+              ? 'Pilihan jawaban maksimal 10 opsi.'
+              : 'Maximum 10 answer options allowed.',
           snackPosition: SnackPosition.TOP,
           backgroundColor: Colors.amber,
           colorText: Colors.black);
@@ -85,7 +90,11 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     final q = _questionsData[qIndex];
     final opts = q['options'] as List<TextEditingController>;
     if (opts.length <= 2) {
-      Get.snackbar('Batas Minimal', 'Pilihan jawaban minimal 2 opsi.',
+      Get.snackbar(
+          AppLocalization.isIndonesian ? 'Batas Minimal' : 'Min Limit',
+          AppLocalization.isIndonesian
+              ? 'Pilihan jawaban minimal 2 opsi.'
+              : 'Minimum 2 answer options required.',
           snackPosition: SnackPosition.TOP,
           backgroundColor: Colors.amber,
           colorText: Colors.black);
@@ -106,7 +115,9 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     if (_questionsData.length <= 1) {
       Get.snackbar(
         'Info',
-        'Ujian minimal harus memiliki 1 pertanyaan.',
+        AppLocalization.isIndonesian
+            ? 'Ujian minimal harus memiliki 1 pertanyaan.'
+            : 'Exams must have at least 1 question.',
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.amber,
         colorText: Colors.black,
@@ -180,13 +191,17 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedClassId == null || _selectedSubjectId == null) {
-        Get.snackbar('Peringatan', 'Pilih kelas dan mata pelajaran target',
+        Get.snackbar(
+            AppLocalization.isIndonesian ? 'Peringatan' : 'Warning',
+            AppLocalization.isIndonesian ? 'Pilih kelas dan mata pelajaran target' : 'Please select a target class and subject',
             backgroundColor: Colors.amber, colorText: Colors.black);
         return;
       }
 
       if (_selectedDueDate == null || _selectedDueTime == null) {
-        Get.snackbar('Peringatan', 'Tentukan tenggat tanggal dan jam ujian',
+        Get.snackbar(
+            AppLocalization.isIndonesian ? 'Peringatan' : 'Warning',
+            AppLocalization.isIndonesian ? 'Tentukan tenggat tanggal dan jam ujian' : 'Please determine exam due date and time',
             backgroundColor: Colors.amber, colorText: Colors.black);
         return;
       }
@@ -258,15 +273,19 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
 
       Get.back();
       Get.snackbar(
-        'Sukses',
-        'Ujian Online "$subjectName" berhasil diterbitkan untuk kelas $className',
+        AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+        AppLocalization.isIndonesian
+            ? 'Ujian Online "$subjectName" berhasil diterbitkan untuk kelas $className'
+            : 'Online Exam "$subjectName" successfully published for class $className',
         backgroundColor: const Color(0xFF10B981),
         colorText: Colors.white,
         borderRadius: 12,
         margin: const EdgeInsets.all(16),
       );
     } catch (e) {
-      Get.snackbar('Gagal', 'Gagal menerbitkan ujian: $e',
+      Get.snackbar(
+          AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+          AppLocalization.isIndonesian ? 'Gagal menerbitkan ujian: $e' : 'Failed to publish exam: $e',
           backgroundColor: const Color(0xFFEF4444), colorText: Colors.white);
     } finally {
       setState(() {
@@ -342,7 +361,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                       ),
                     ),
                     title: Text(
-                      'Terbitkan Ujian Baru',
+                      AppLocalization.isIndonesian ? 'Terbitkan Ujian Baru' : 'Publish New Exam',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                     ),
                   ),
@@ -364,7 +383,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                             children: [
 
                                 // Kelas Dropdown
-                                Text('Kelas Target', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                                Text(AppLocalization.isIndonesian ? 'Kelas Target' : 'Target Class', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
                                   value: _selectedClassId,
@@ -396,7 +415,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                 const SizedBox(height: 20),
 
                                 // Mapel Dropdown
-                                Text('Mata Pelajaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                                Text(AppLocalization.subjectLabel, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
                                   value: _selectedSubjectId,
@@ -427,13 +446,13 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                 const SizedBox(height: 20),
 
                               // Judul Ujian
-                              Text('Judul Ujian', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                              Text(AppLocalization.isIndonesian ? 'Judul Ujian' : 'Exam Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _titleController,
                                 style: TextStyle(color: titleColor, fontSize: 14),
                                 decoration: InputDecoration(
-                                  hintText: 'Masukkan judul ujian...',
+                                  hintText: AppLocalization.isIndonesian ? 'Masukkan judul ujian...' : 'Enter exam title...',
                                   hintStyle: TextStyle(color: subTextColor, fontSize: 13),
                                   fillColor: inputFillColor,
                                   filled: true,
@@ -444,19 +463,21 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     borderSide: BorderSide(color: cardBorderColor),
                                   ),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Judul tidak boleh kosong' : null,
+                                validator: (val) => val == null || val.trim().isEmpty
+                                    ? (AppLocalization.isIndonesian ? 'Judul tidak boleh kosong' : 'Title cannot be empty')
+                                    : null,
                               ),
                               const SizedBox(height: 20),
 
                               // Deskripsi Ujian
-                              Text('Petunjuk / Deskripsi Ujian', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                              Text(AppLocalization.isIndonesian ? 'Petunjuk / Deskripsi Ujian' : 'Exam Instructions / Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _descriptionController,
                                 maxLines: 3,
                                 style: TextStyle(color: titleColor, fontSize: 14),
                                 decoration: InputDecoration(
-                                  hintText: 'Tulis petunjuk pengerjaan ujian...',
+                                  hintText: AppLocalization.isIndonesian ? 'Tulis petunjuk pengerjaan ujian...' : 'Write exam instructions...',
                                   hintStyle: TextStyle(color: subTextColor, fontSize: 13),
                                   fillColor: inputFillColor,
                                   filled: true,
@@ -467,7 +488,9 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     borderSide: BorderSide(color: cardBorderColor),
                                   ),
                                 ),
-                                validator: (val) => val == null || val.trim().isEmpty ? 'Deskripsi tidak boleh kosong' : null,
+                                validator: (val) => val == null || val.trim().isEmpty
+                                    ? (AppLocalization.isIndonesian ? 'Deskripsi tidak boleh kosong' : 'Description cannot be empty')
+                                    : null,
                               ),
                               const SizedBox(height: 20),
 
@@ -478,14 +501,14 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Durasi Ujian', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                                        Text(AppLocalization.isIndonesian ? 'Durasi Ujian' : 'Exam Duration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
                                         const SizedBox(height: 8),
                                         TextFormField(
                                           controller: _durationController,
                                           keyboardType: TextInputType.number,
                                           style: TextStyle(color: titleColor, fontSize: 14),
                                           decoration: InputDecoration(
-                                            suffixText: 'Menit',
+                                            suffixText: AppLocalization.isIndonesian ? 'Menit' : 'Minutes',
                                             fillColor: inputFillColor,
                                             filled: true,
                                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -497,7 +520,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                           ),
                                           validator: (val) {
                                             final d = int.tryParse(val ?? '');
-                                            if (d == null || d <= 0) return 'Input salah';
+                                            if (d == null || d <= 0) return AppLocalization.isIndonesian ? 'Input salah' : 'Invalid input';
                                             return null;
                                           },
                                         ),
@@ -509,7 +532,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Batas Ujian Selesai', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                                        Text(AppLocalization.isIndonesian ? 'Batas Ujian Selesai' : 'Exam Deadline', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
                                         const SizedBox(height: 8),
                                         InkWell(
                                           onTap: _pickDueDate,
@@ -526,7 +549,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                                 Expanded(
                                                   child: Text(
                                                     _selectedDueDate == null
-                                                        ? 'Pilih Tanggal'
+                                                        ? (AppLocalization.isIndonesian ? 'Pilih Tanggal' : 'Select Date')
                                                         : DateFormat('dd MMM yyyy').format(_selectedDueDate!),
                                                     style: TextStyle(
                                                       color: _selectedDueDate == null ? subTextColor : titleColor,
@@ -549,7 +572,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Jam Batas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                                        Text(AppLocalization.isIndonesian ? 'Jam Batas' : 'Time Deadline', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
                                         const SizedBox(height: 8),
                                         InkWell(
                                           onTap: _pickDueTime,
@@ -566,7 +589,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                                 Expanded(
                                                   child: Text(
                                                     _selectedDueTime == null
-                                                        ? 'Pilih Jam'
+                                                        ? (AppLocalization.isIndonesian ? 'Pilih Jam' : 'Select Time')
                                                         : _selectedDueTime!.format(context),
                                                     style: TextStyle(
                                                       color: _selectedDueTime == null ? subTextColor : titleColor,
@@ -595,10 +618,12 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Sinkronisasi ke Buku Nilai', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                                        Text(AppLocalization.isIndonesian ? 'Sinkronisasi ke Buku Nilai' : 'Sync to Gradebook', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'Otomatis masukkan nilai hasil ujian ke Buku Nilai akademik kelas.',
+                                          AppLocalization.isIndonesian
+                                              ? 'Otomatis masukkan nilai hasil ujian ke Buku Nilai akademik kelas.'
+                                              : 'Automatically add exam score to class academic Gradebook.',
                                           style: TextStyle(fontSize: 11, color: subTextColor),
                                         ),
                                       ],
@@ -618,7 +643,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                               ),
                               if (_syncToGrades) ...[
                                 const SizedBox(height: 16),
-                                Text('Kategori Buku Nilai', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
+                                Text(AppLocalization.isIndonesian ? 'Kategori Buku Nilai' : 'Gradebook Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
                                   value: _gradeCategory,
@@ -634,11 +659,11 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     ),
                                   ),
                                   style: TextStyle(color: titleColor, fontSize: 14),
-                                  items: const [
-                                    DropdownMenuItem(value: 'Kuis', child: Text('Kuis')),
-                                    DropdownMenuItem(value: 'Ulangan Harian', child: Text('Ulangan Harian')),
-                                    DropdownMenuItem(value: 'UTS', child: Text('UTS (Ujian Tengah Semester)')),
-                                    DropdownMenuItem(value: 'UAS', child: Text('UAS (Ujian Akhir Semester)')),
+                                  items: [
+                                    DropdownMenuItem(value: 'Kuis', child: Text(AppLocalization.isIndonesian ? 'Kuis' : 'Quiz')),
+                                    DropdownMenuItem(value: 'Ulangan Harian', child: Text(AppLocalization.isIndonesian ? 'Ulangan Harian' : 'Daily Assessment')),
+                                    DropdownMenuItem(value: 'UTS', child: Text(AppLocalization.isIndonesian ? 'UTS (Ujian Tengah Semester)' : 'Midterm Exam')),
+                                    DropdownMenuItem(value: 'UAS', child: Text(AppLocalization.isIndonesian ? 'UAS (Ujian Akhir Semester)' : 'Final Exam')),
                                   ],
                                   onChanged: (val) {
                                     if (val != null) {
@@ -658,7 +683,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    'Daftar Soal Ujian',
+                                    AppLocalization.isIndonesian ? 'Daftar Soal Ujian' : 'Exam Questions List',
                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: titleColor),
                                   ),
                                 ],
@@ -690,7 +715,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(
-                                              'Pertanyaan ${index + 1}',
+                                              AppLocalization.isIndonesian ? 'Pertanyaan ${index + 1}' : 'Question ${index + 1}',
                                               style: TextStyle(fontWeight: FontWeight.bold, color: titleColor, fontSize: 13),
                                             ),
                                             IconButton(
@@ -708,7 +733,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Text('Tipe Soal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: titleColor)),
+                                                  Text(AppLocalization.isIndonesian ? 'Tipe Soal' : 'Question Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: titleColor)),
                                                   const SizedBox(height: 6),
                                                   DropdownButtonFormField<String>(
                                                     value: qType,
@@ -724,9 +749,9 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                                       ),
                                                     ),
                                                     style: TextStyle(color: titleColor, fontSize: 13),
-                                                    items: const [
-                                                      DropdownMenuItem(value: 'multiple_choice', child: Text('Pilihan Ganda')),
-                                                      DropdownMenuItem(value: 'essay', child: Text('Essay')),
+                                                    items: [
+                                                      DropdownMenuItem(value: 'multiple_choice', child: Text(AppLocalization.isIndonesian ? 'Pilihan Ganda' : 'Multiple Choice')),
+                                                      DropdownMenuItem(value: 'essay', child: Text(AppLocalization.isIndonesian ? 'Essay' : 'Essay')),
                                                     ],
                                                     onChanged: (val) {
                                                       if (val != null) {
@@ -745,7 +770,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Text('Poin Soal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: titleColor)),
+                                                  Text(AppLocalization.isIndonesian ? 'Poin Soal' : 'Question Points', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: titleColor)),
                                                   const SizedBox(height: 6),
                                                   TextFormField(
                                                     controller: qMap['pointsController'] as TextEditingController,
@@ -766,7 +791,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                                     },
                                                     validator: (val) {
                                                       final p = int.tryParse(val ?? '');
-                                                      if (p == null || p <= 0) return 'Invalid';
+                                                      if (p == null || p <= 0) return AppLocalization.isIndonesian ? 'Invalid' : 'Invalid';
                                                       return null;
                                                     },
                                                   ),
@@ -777,14 +802,14 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                         ),
                                         const SizedBox(height: 16),
                                         // Input Pertanyaan
-                                        Text('Pertanyaan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: titleColor)),
+                                        Text(AppLocalization.isIndonesian ? 'Pertanyaan' : 'Question', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: titleColor)),
                                         const SizedBox(height: 6),
                                         TextFormField(
                                           controller: qCtrl,
                                           maxLines: 2,
                                           style: TextStyle(color: titleColor, fontSize: 13),
                                           decoration: InputDecoration(
-                                            hintText: 'Tulis pertanyaan...',
+                                            hintText: AppLocalization.isIndonesian ? 'Tulis pertanyaan...' : 'Write question...',
                                             hintStyle: TextStyle(color: subTextColor, fontSize: 12),
                                             fillColor: inputFillColor,
                                             filled: true,
@@ -795,7 +820,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                               borderSide: BorderSide(color: cardBorderColor),
                                             ),
                                           ),
-                                          validator: (val) => val == null || val.trim().isEmpty ? 'Soal tidak boleh kosong' : null,
+                                          validator: (val) => val == null || val.trim().isEmpty ? (AppLocalization.isIndonesian ? 'Soal tidak boleh kosong' : 'Question text cannot be empty') : null,
                                         ),
 
                                         // Input Pilihan Jawaban (Hanya jika Pilihan Ganda)
@@ -805,7 +830,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
-                                                'Pilihan Jawaban (tandai jawaban benar)',
+                                                AppLocalization.isIndonesian ? 'Pilihan Jawaban (tandai jawaban benar)' : 'Answer Options (mark correct answer)',
                                                 style: TextStyle(fontWeight: FontWeight.w600, color: subTextColor, fontSize: 11),
                                               ),
                                               Row(
@@ -875,7 +900,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                                           fontWeight: isCorrect ? FontWeight.bold : FontWeight.normal,
                                                         ),
                                                         decoration: InputDecoration(
-                                                          hintText: 'Pilihan $charLabel',
+                                                          hintText: AppLocalization.isIndonesian ? 'Pilihan $charLabel' : 'Option $charLabel',
                                                           hintStyle: TextStyle(color: subTextColor, fontSize: 12),
                                                           fillColor: isCorrect
                                                               ? const Color(0xFF8B5CF6).withValues(alpha: 0.08)
@@ -890,7 +915,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                                             ),
                                                           ),
                                                         ),
-                                                        validator: (val) => val == null || val.trim().isEmpty ? 'Pilihan tidak boleh kosong' : null,
+                                                        validator: (val) => val == null || val.trim().isEmpty ? (AppLocalization.isIndonesian ? 'Pilihan tidak boleh kosong' : 'Option cannot be empty') : null,
                                                       ),
                                                     ),
                                                     // Tombol hapus opsi individual
@@ -924,7 +949,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                                   ),
                                   icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
-                                  label: const Text('Tambah Pertanyaan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  label: Text(AppLocalization.isIndonesian ? 'Tambah Pertanyaan' : 'Add Question', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                 ),
                               ),
                               const SizedBox(height: 32),
@@ -940,7 +965,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      'Total Poin Ujian:',
+                                      AppLocalization.isIndonesian ? 'Total Poin Ujian:' : 'Total Exam Points:',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
@@ -948,7 +973,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                       ),
                                     ),
                                     Text(
-                                      '$totalExamPoints Poin',
+                                      '$totalExamPoints ${AppLocalization.isIndonesian ? 'Poin' : 'Points'}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
@@ -976,9 +1001,9 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                         width: 20,
                                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                                       )
-                                    : const Text(
-                                        'Terbitkan Ujian Online',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    : Text(
+                                        AppLocalization.isIndonesian ? 'Terbitkan Ujian Online' : 'Publish Online Exam',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                       ),
                               ),
                             ],

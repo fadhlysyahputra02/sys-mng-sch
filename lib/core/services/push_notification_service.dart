@@ -296,6 +296,9 @@ class PushNotificationService {
           }
         }
         
+        // Hapus token FCM agar seluruh sisa langganan topik (topic subscription) di perangkat ini dibersihkan
+        await _firebaseMessaging.deleteToken();
+        
         debugPrint('PushNotificationService: Sukses unregister token & topic.');
       }
     } catch (e) {

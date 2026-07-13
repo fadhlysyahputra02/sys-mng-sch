@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
 import '../services/grade_service.dart';
@@ -96,17 +97,29 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
         final month = int.parse(parts[1]);
         final day = int.parse(parts[2]);
         final date = DateTime(year, month, day);
-        final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-        final months = [
-          'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-          'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-        ];
-        final dayName = days[date.weekday % 7];
-        final monthName = months[date.month - 1];
+        final dayName = AppLocalization.dayNames[date.weekday - 1];
+        final monthName = AppLocalization.monthNames[date.month - 1];
         return '$dayName, $day $monthName $year';
       }
     } catch (_) {}
     return dateStr;
+  }
+
+  String _getLocalizedCategory(String cat) {
+    switch (cat) {
+      case 'Tugas':
+        return AppLocalization.isIndonesian ? 'Tugas' : 'Assignment';
+      case 'Kuis':
+        return AppLocalization.isIndonesian ? 'Kuis' : 'Quiz';
+      case 'Ulangan Harian':
+        return AppLocalization.isIndonesian ? 'Ulangan Harian' : 'Daily Test';
+      case 'UTS':
+        return AppLocalization.isIndonesian ? 'UTS' : 'Midterm Exam';
+      case 'UAS':
+        return AppLocalization.isIndonesian ? 'UAS' : 'Final Exam';
+      default:
+        return cat;
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context, String schoolId, String gradeId, String title) async {
@@ -126,7 +139,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
             const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
             const SizedBox(width: 10),
             Text(
-              'Hapus Penilaian',
+              AppLocalization.deleteGrade,
               style: TextStyle(
                 color: isDark ? Colors.white : const Color(0xFF1E1B4B),
                 fontWeight: FontWeight.bold,
@@ -136,33 +149,27 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin menghapus penilaian "$title" beserta seluruh nilai siswa di dalamnya? Tindakan ini tidak dapat dibatalkan.',
+          AppLocalization.isIndonesian
+              ? 'Apakah Anda yakin ingin menghapus penilaian "$title" beserta seluruh nilai siswa di dalamnya? Tindakan ini tidak dapat dibatalkan.'
+              : 'Are you sure you want to delete the grade "$title" along with all student scores in it? This action cannot be undone.',
           style: TextStyle(
-            color: isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.8),
+            color: isDark ? Colors.white70 : Colors.black87,
             fontSize: 14,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Batal',
-              style: TextStyle(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.5)
-                    : const Color(0xFF1E1B4B).withValues(alpha: 0.5),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: Text(AppLocalization.cancel, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppLocalization.isIndonesian ? 'Hapus' : 'Delete', style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -171,23 +178,25 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
     if (confirm == true) {
       try {
         await _gradeService.deleteGrade(schoolId, gradeId);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Penilaian berhasil dihapus'),
-              backgroundColor: Color(0xFF10B981),
-            ),
-          );
-        }
+        Get.snackbar(
+          AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+          AppLocalization.gradeDeleted,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
+        );
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal menghapus penilaian: $e'),
-              backgroundColor: const Color(0xFFEF4444),
-            ),
-          );
-        }
+        Get.snackbar(
+          'Error',
+          AppLocalization.isIndonesian ? 'Gagal menghapus penilaian: $e' : 'Failed to delete grade: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
+        );
       }
     }
   }
@@ -211,24 +220,26 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
   Widget build(BuildContext context) {
     final user = SessionService.currentUser!;
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
-        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-        final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-        final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
-        final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
-        final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
-        final shadowColor = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
+            final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+            final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+            final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+            final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+            final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+            final shadowColor = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
 
         return Scaffold(
           body: AuthBackground(
             child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
-                // AppBar
                 SliverAppBar(
                   backgroundColor: Colors.transparent,
                   elevation: 0,
@@ -249,7 +260,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                           ),
                         ),
                   title: Text(
-                    'Buku Nilai',
+                    AppLocalization.gradesBookTitle,
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                   ),
                    actions: [
@@ -268,7 +279,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                         onPressed: () => _showWeightsConfigDialog(context),
                         icon: Icon(Icons.scale_rounded, color: iconColor, size: 20),
                         label: Text(
-                          'Atur Bobot',
+                          AppLocalization.setWeights,
                           style: TextStyle(
                             color: titleColor,
                             fontSize: 14,
@@ -315,7 +326,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                 Icon(Icons.filter_alt_rounded, color: const Color(0xFF8B5CF6), size: 18),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Filter Penilaian',
+                                  AppLocalization.filterGrades,
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
@@ -331,9 +342,9 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                         _selectedFilterSubjectId = null;
                                       });
                                     },
-                                    child: const Text(
-                                      'Reset',
-                                      style: TextStyle(
+                                    child: Text(
+                                      AppLocalization.reset,
+                                      style: const TextStyle(
                                         color: Color(0xFFEF4444),
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
@@ -345,14 +356,13 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                             const SizedBox(height: 12),
                             Row(
                               children: [
-                                // Dropdown Kelas
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
                                     isExpanded: true,
                                     value: _selectedFilterClassId,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Kelas',
+                                      labelText: AppLocalization.classLabel,
                                       labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                       fillColor: inputFillColor,
                                       filled: true,
@@ -365,9 +375,9 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                     ),
                                     style: TextStyle(color: titleColor, fontSize: 13),
                                     items: [
-                                      const DropdownMenuItem<String>(
+                                      DropdownMenuItem<String>(
                                         value: null,
-                                        child: Text('Semua Kelas'),
+                                        child: Text(AppLocalization.isIndonesian ? 'Semua Kelas' : 'All Classes'),
                                       ),
                                       ..._classMap.keys.map((classId) {
                                         return DropdownMenuItem<String>(
@@ -379,20 +389,19 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                     onChanged: (val) {
                                       setState(() {
                                         _selectedFilterClassId = val;
-                                        _selectedFilterSubjectId = null; // Reset mapel
+                                        _selectedFilterSubjectId = null; 
                                       });
                                     },
                                   ),
                                 ),
                                 const SizedBox(width: 10),
-                                // Dropdown Mapel
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
                                     isExpanded: true,
                                     value: _selectedFilterSubjectId,
                                     dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                     decoration: InputDecoration(
-                                      labelText: 'Mata Pelajaran',
+                                      labelText: AppLocalization.subjectLabel,
                                       labelStyle: TextStyle(color: subTextColor, fontSize: 11),
                                       fillColor: inputFillColor,
                                       filled: true,
@@ -420,9 +429,9 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                         }
                                       }
                                       return [
-                                        const DropdownMenuItem<String>(
+                                        DropdownMenuItem<String>(
                                           value: null,
-                                          child: Text('Semua Mapel'),
+                                          child: Text(AppLocalization.isIndonesian ? 'Semua Mapel' : 'All Subjects'),
                                         ),
                                         ...subjectsList.keys.map((subjectId) {
                                           return DropdownMenuItem<String>(
@@ -447,7 +456,6 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                     ),
                   ),
 
-                // List Data
                 if (!_isLoadingSchedules)
                   StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: _gradeService.getGradesByTeacher(
@@ -463,7 +471,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                       return SliverFillRemaining(
                         child: Center(
                           child: Text(
-                            'Gagal memuat data nilai: ${snapshot.error}',
+                            '${AppLocalization.isIndonesian ? 'Gagal memuat data nilai' : 'Failed to load grade data'}: ${snapshot.error}',
                             style: const TextStyle(color: Colors.redAccent),
                           ),
                         ),
@@ -496,7 +504,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Belum ada penilaian yang dibuat',
+                                AppLocalization.noGradesYet,
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -505,7 +513,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Tekan tombol "+" di bawah untuk memasukkan nilai baru.',
+                                AppLocalization.tapPlusToInsert,
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: subTextColor,
@@ -526,14 +534,13 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                             final doc = docs[index];
                             final data = doc.data();
                             final gradeId = doc.id;
-                            final title = data['title'] ?? 'Penilaian';
+                            final title = data['title'] ?? (AppLocalization.isIndonesian ? 'Penilaian' : 'Grade');
                             final category = data['category'] ?? 'Tugas';
                             final className = data['className'] ?? 'Kelas';
                             final subjectName = data['subjectName'] ?? 'Pelajaran';
                             final dateStr = data['date'] ?? '-';
                             final maxScore = ((data['maxScore'] ?? 100.0) as num).toDouble();
 
-                            // Hitung rata-rata nilai
                             final scores = data['scores'] as Map<String, dynamic>? ?? {};
                             double sum = 0;
                             int count = 0;
@@ -574,7 +581,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                           border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
                                         ),
                                         child: Text(
-                                          category,
+                                          _getLocalizedCategory(category),
                                           style: const TextStyle(
                                             color: Color(0xFF8B5CF6),
                                             fontSize: 11,
@@ -586,7 +593,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                         children: [
                                           IconButton(
                                             icon: const Icon(Icons.edit_rounded, color: Color(0xFF3B82F6), size: 20),
-                                            tooltip: 'Edit Nilai',
+                                            tooltip: AppLocalization.editGrade,
                                             onPressed: () => Get.to(() => TeacherInputGradePage(
                                                   teacherId: widget.teacherId,
                                                   existingGradeData: data,
@@ -594,7 +601,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.delete_rounded, color: Color(0xFFEF4444), size: 20),
-                                            tooltip: 'Hapus Penilaian',
+                                            tooltip: AppLocalization.deleteGrade,
                                             onPressed: () => _confirmDelete(context, user.schoolId, gradeId, title),
                                           ),
                                         ],
@@ -613,10 +620,10 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                   const SizedBox(height: 4),
                                   Text(
                                     '$subjectName ($className)',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF10B981),
+                                      color: Color(0xFF10B981),
                                     ),
                                   ),
                                   const SizedBox(height: 12),
@@ -629,7 +636,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Tanggal',
+                                            AppLocalization.isIndonesian ? 'Tanggal' : 'Date',
                                             style: TextStyle(fontSize: 11, color: subTextColor),
                                           ),
                                           const SizedBox(height: 2),
@@ -643,7 +650,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                         crossAxisAlignment: CrossAxisAlignment.end,
                                         children: [
                                           Text(
-                                            'Rata-Rata Kelas',
+                                            AppLocalization.isIndonesian ? 'Rata-Rata Kelas' : 'Class Average',
                                             style: TextStyle(fontSize: 11, color: subTextColor),
                                           ),
                                           const SizedBox(height: 2),
@@ -664,7 +671,7 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        '$count Siswa dinilai',
+                                        AppLocalization.isIndonesian ? '$count Siswa dinilai' : '$count Students graded',
                                         style: TextStyle(fontSize: 12, color: subTextColor, fontWeight: FontWeight.w500),
                                       ),
                                     ],
@@ -689,6 +696,8 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
             onPressed: () => Get.to(() => TeacherInputGradePage(teacherId: widget.teacherId)),
             child: const Icon(Icons.add_rounded, size: 28),
           ),
+        );
+          },
         );
       },
     );
@@ -723,6 +732,23 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
   final _ulanganController = TextEditingController(text: '20');
   final _utsController = TextEditingController(text: '20');
   final _uasController = TextEditingController(text: '20');
+
+  String _getLocalizedCategory(String cat) {
+    switch (cat) {
+      case 'Tugas':
+        return AppLocalization.isIndonesian ? 'Tugas' : 'Assignment';
+      case 'Kuis':
+        return AppLocalization.isIndonesian ? 'Kuis' : 'Quiz';
+      case 'Ulangan Harian':
+        return AppLocalization.isIndonesian ? 'Ulangan Harian' : 'Daily Test';
+      case 'UTS':
+        return AppLocalization.isIndonesian ? 'UTS' : 'Midterm Exam';
+      case 'UAS':
+        return AppLocalization.isIndonesian ? 'UAS' : 'Final Exam';
+      default:
+        return cat;
+    }
+  }
 
   double get _totalPercentage {
     final t = double.tryParse(_tugasController.text) ?? 0;
@@ -798,7 +824,10 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedClassIds.isEmpty || _selectedSubjectId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih minimal satu Kelas & Mapel terlebih dahulu'), backgroundColor: Colors.redAccent),
+        SnackBar(
+          content: Text(AppLocalization.isIndonesian ? 'Pilih minimal satu Kelas & Mapel terlebih dahulu' : 'Please select at least one Class & Subject first'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       return;
     }
@@ -806,7 +835,10 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
     final total = _totalPercentage;
     if (total != 100.0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Total bobot harus 100% (saat ini: ${total.toStringAsFixed(0)}%)'), backgroundColor: Colors.redAccent),
+        SnackBar(
+          content: Text(AppLocalization.isIndonesian ? 'Total bobot harus 100% (saat ini: ${total.toStringAsFixed(0)}%)' : 'Total weight must be 100% (currently: ${total.toStringAsFixed(0)}%)'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       return;
     }
@@ -840,7 +872,9 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Bobot kategori berhasil disimpan untuk ${_selectedClassIds.length} kelas'),
+          content: Text(AppLocalization.isIndonesian
+              ? 'Bobot kategori berhasil disimpan untuk ${_selectedClassIds.length} kelas'
+              : 'Category weights successfully saved for ${_selectedClassIds.length} classes'),
           backgroundColor: const Color(0xFF10B981),
         ),
       );
@@ -848,7 +882,10 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menyimpan bobot: $e'), backgroundColor: Colors.redAccent),
+        SnackBar(
+          content: Text('${AppLocalization.isIndonesian ? 'Gagal menyimpan bobot' : 'Failed to save weights'}: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
     } finally {
       setState(() {
@@ -891,7 +928,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
           const Icon(Icons.scale_rounded, color: Color(0xFF8B5CF6)),
           const SizedBox(width: 10),
           Text(
-            'Atur Bobot Kategori',
+            AppLocalization.isIndonesian ? 'Atur Bobot Kategori' : 'Set Category Weights',
             style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 18),
           ),
         ],
@@ -907,7 +944,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                     children: [
                       // Multi-select Kelas (Checkbox)
                       Text(
-                        'Pilih Kelas (bisa lebih dari satu)',
+                        AppLocalization.isIndonesian ? 'Pilih Kelas (bisa lebih dari satu)' : 'Select Class (can select multiple)',
                         style: TextStyle(color: subTextColor, fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 8),
@@ -921,7 +958,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                         child: widget.classMap.isEmpty
                             ? Padding(
                                 padding: const EdgeInsets.all(16),
-                                child: Text('Tidak ada kelas tersedia', style: TextStyle(color: subTextColor, fontSize: 12)),
+                                child: Text(AppLocalization.isIndonesian ? 'Tidak ada kelas tersedia' : 'No classes available', style: TextStyle(color: subTextColor, fontSize: 12)),
                               )
                             : ListView(
                                 shrinkWrap: true,
@@ -991,7 +1028,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                         value: _selectedSubjectId,
                         dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
                         decoration: InputDecoration(
-                          labelText: 'Pilih Mata Pelajaran',
+                          labelText: AppLocalization.isIndonesian ? 'Pilih Mata Pelajaran' : 'Select Subject',
                           labelStyle: TextStyle(color: subTextColor, fontSize: 13),
                           fillColor: inputFillColor,
                           filled: true,
@@ -1029,15 +1066,15 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                         else ...[
                           Divider(color: cardBorderColor),
                           const SizedBox(height: 8),
-                          _buildWeightInput('Tugas', _tugasController, titleColor, subTextColor, inputFillColor, cardBorderColor),
+                          _buildWeightInput(_getLocalizedCategory('Tugas'), _tugasController, titleColor, subTextColor, inputFillColor, cardBorderColor),
                           const SizedBox(height: 10),
-                          _buildWeightInput('Kuis', _kuisController, titleColor, subTextColor, inputFillColor, cardBorderColor),
+                          _buildWeightInput(_getLocalizedCategory('Kuis'), _kuisController, titleColor, subTextColor, inputFillColor, cardBorderColor),
                           const SizedBox(height: 10),
-                          _buildWeightInput('Ulangan Harian', _ulanganController, titleColor, subTextColor, inputFillColor, cardBorderColor),
+                          _buildWeightInput(_getLocalizedCategory('Ulangan Harian'), _ulanganController, titleColor, subTextColor, inputFillColor, cardBorderColor),
                           const SizedBox(height: 10),
-                          _buildWeightInput('UTS', _utsController, titleColor, subTextColor, inputFillColor, cardBorderColor),
+                          _buildWeightInput(_getLocalizedCategory('UTS'), _utsController, titleColor, subTextColor, inputFillColor, cardBorderColor),
                           const SizedBox(height: 10),
-                          _buildWeightInput('UAS', _uasController, titleColor, subTextColor, inputFillColor, cardBorderColor),
+                          _buildWeightInput(_getLocalizedCategory('UAS'), _uasController, titleColor, subTextColor, inputFillColor, cardBorderColor),
                           const SizedBox(height: 16),
                           
                           // Total akumulasi
@@ -1063,7 +1100,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      'Total Akumulasi:',
+                                      AppLocalization.isIndonesian ? 'Total Akumulasi:' : 'Total Accumulation:',
                                       style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 13),
                                     ),
                                     Text(
@@ -1096,7 +1133,9 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Bobot akan diterapkan ke ${_selectedClassIds.length} kelas sekaligus.',
+                                      AppLocalization.isIndonesian
+                                          ? 'Bobot akan diterapkan ke ${_selectedClassIds.length} kelas sekaligus.'
+                                          : 'Weights will be applied to ${_selectedClassIds.length} classes at once.',
                                       style: const TextStyle(fontSize: 11, color: Color(0xFF3B82F6), fontWeight: FontWeight.w500),
                                     ),
                                   ),
@@ -1109,7 +1148,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 24),
                           child: Text(
-                            'Pilih Kelas dan Mapel untuk mengatur bobot.',
+                            AppLocalization.isIndonesian ? 'Pilih Kelas dan Mapel untuk mengatur bobot.' : 'Select Class and Subject to configure weights.',
                             style: TextStyle(color: subTextColor, fontSize: 12),
                             textAlign: TextAlign.center,
                           ),
@@ -1124,7 +1163,7 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(
-            'Batal',
+            AppLocalization.cancel,
             style: TextStyle(color: subTextColor, fontWeight: FontWeight.w600),
           ),
         ),
@@ -1143,7 +1182,9 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                   )
                 : Text(
-                    _selectedClassIds.length > 1 ? 'Simpan (${_selectedClassIds.length} Kelas)' : 'Simpan',
+                    AppLocalization.isIndonesian
+                        ? (_selectedClassIds.length > 1 ? 'Simpan (${_selectedClassIds.length} Kelas)' : 'Simpan')
+                        : (_selectedClassIds.length > 1 ? 'Save (${_selectedClassIds.length} Classes)' : 'Save'),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
           ),

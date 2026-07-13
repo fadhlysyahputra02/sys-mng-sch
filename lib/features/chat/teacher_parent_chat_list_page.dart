@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../authentication/widgets/auth_background.dart';
+import '../../core/localization/app_localization.dart';
 import 'chat_room_page.dart';
 import 'chat_service.dart';
 
@@ -144,7 +145,7 @@ class _TeacherParentChatListPageState extends State<TeacherParentChatListPage> {
                     ),
                   ),
                   title: Text(
-                    'Chat Wali Murid',
+                    AppLocalization.isIndonesian ? 'Chat Wali Murid' : 'Parent Chat',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -164,7 +165,7 @@ class _TeacherParentChatListPageState extends State<TeacherParentChatListPage> {
                         setState(() => _searchQuery = val.trim());
                       },
                       decoration: InputDecoration(
-                        hintText: 'Cari nama siswa dari wali murid...',
+                        hintText: AppLocalization.isIndonesian ? 'Cari nama siswa dari wali murid...' : 'Search student name from parent...',
                         hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                         prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
                         filled: true,
@@ -236,7 +237,7 @@ class _TeacherParentChatListPageState extends State<TeacherParentChatListPage> {
         hasScrollBody: false,
         child: Center(
           child: Text(
-            'Tidak ada wali murid yang ditemukan',
+            AppLocalization.isIndonesian ? 'Tidak ada wali murid yang ditemukan' : 'No parent found',
             style: TextStyle(color: subTextColor),
           ),
         ),
@@ -300,7 +301,7 @@ class _TeacherParentChatListPageState extends State<TeacherParentChatListPage> {
                             const SizedBox(height: 2),
                             if (studentName.isNotEmpty)
                               Text(
-                                'Wali dari: $studentName ($className)',
+                                AppLocalization.isIndonesian ? 'Wali dari: $studentName ($className)' : 'Parent of: $studentName ($className)',
                                 style: TextStyle(
                                   color: subTextColor,
                                   fontSize: 12,
@@ -371,7 +372,7 @@ class _TeacherParentChatListPageState extends State<TeacherParentChatListPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Belum ada wali murid yang mengirim pesan.\nCari wali murid untuk memulai chat.',
+                    AppLocalization.isIndonesian ? 'Belum ada wali murid yang mengirim pesan.\nCari wali murid untuk memulai chat.' : 'No parent has sent a message yet.\nSearch for a parent to start chatting.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: subTextColor,
@@ -479,7 +480,7 @@ class _TeacherParentChatListPageState extends State<TeacherParentChatListPage> {
                                 ),
                                 if (studentName.isNotEmpty)
                                   Text(
-                                    'Wali dari: $studentName',
+                                    AppLocalization.isIndonesian ? 'Wali dari: $studentName' : 'Parent of: $studentName',
                                     style: TextStyle(
                                       color: subTextColor,
                                       fontSize: 11,

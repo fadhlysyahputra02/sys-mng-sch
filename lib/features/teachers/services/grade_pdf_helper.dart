@@ -2,6 +2,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/localization/app_localization.dart';
+
 class GradePdfHelper {
   /// Membuat dokumen PDF untuk Rekapitulasi Nilai Kelas (Buku Nilai)
   static Future<pw.Document> _buildPdfDocument({
@@ -34,12 +36,12 @@ class GradePdfHelper {
       pw.Container(
         padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         alignment: pw.Alignment.center,
-        child: pw.Text('NIS', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8)),
+        child: pw.Text(AppLocalization.isIndonesian ? 'NIS' : 'Student ID', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8)),
       ),
       pw.Container(
         padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         alignment: pw.Alignment.centerLeft,
-        child: pw.Text('Nama Murid', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8)),
+        child: pw.Text(AppLocalization.isIndonesian ? 'Nama Murid' : 'Student Name', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8)),
       ),
     ];
 
@@ -63,7 +65,7 @@ class GradePdfHelper {
       pw.Container(
         padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         alignment: pw.Alignment.center,
-        child: pw.Text('Rerata', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8)),
+        child: pw.Text(AppLocalization.isIndonesian ? 'Rerata' : 'Average', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8)),
       ),
     );
 
@@ -182,7 +184,9 @@ class GradePdfHelper {
             alignment: pw.Alignment.centerRight,
             margin: const pw.EdgeInsets.only(top: 10),
             child: pw.Text(
-              'Halaman ${context.pageNumber} dari ${context.pagesCount}',
+              AppLocalization.isIndonesian
+                  ? 'Halaman ${context.pageNumber} dari ${context.pagesCount}'
+                  : 'Page ${context.pageNumber} of ${context.pagesCount}',
               style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFF94A3B8)),
             ),
           );
@@ -204,7 +208,9 @@ class GradePdfHelper {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'LAPORAN REKAPITULASI HASIL BELAJAR SISWA (BUKU NILAI)',
+                        AppLocalization.isIndonesian
+                            ? 'LAPORAN REKAPITULASI HASIL BELAJAR SISWA (BUKU NILAI)'
+                            : 'STUDENT LEARNING OUTCOMES RECAPITULATION REPORT (GRADEBOOK)',
                         style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E1B4B)),
                       ),
                       pw.SizedBox(height: 2),
@@ -215,7 +221,7 @@ class GradePdfHelper {
                     ],
                   ),
                   pw.Text(
-                    'SISTEM MANAJEMEN SEKOLAH',
+                    AppLocalization.isIndonesian ? 'SISTEM MANAJEMEN SEKOLAH' : 'SCHOOL MANAGEMENT SYSTEM',
                     style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF4F46E5)),
                   ),
                 ],
@@ -237,7 +243,7 @@ class GradePdfHelper {
                   pw.RichText(
                     text: pw.TextSpan(
                       children: [
-                        pw.TextSpan(text: 'Kelas: ', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF64748B))),
+                        pw.TextSpan(text: AppLocalization.isIndonesian ? 'Kelas: ' : 'Class: ', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF64748B))),
                         pw.TextSpan(text: className, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E293B))),
                       ],
                     ),
@@ -245,15 +251,20 @@ class GradePdfHelper {
                   pw.RichText(
                     text: pw.TextSpan(
                       children: [
-                        pw.TextSpan(text: 'Tahun Ajaran: ', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF64748B))),
-                        pw.TextSpan(text: '$tahunAjaran ($semester)', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E293B))),
+                        pw.TextSpan(text: AppLocalization.isIndonesian ? 'Tahun Ajaran: ' : 'Academic Year: ', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF64748B))),
+                        pw.TextSpan(
+                          text: AppLocalization.isIndonesian
+                              ? '$tahunAjaran ($semester)'
+                              : '$tahunAjaran (${semester.replaceAll('Ganjil', 'Odd').replaceAll('Genap', 'Even')})',
+                          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E293B)),
+                        ),
                       ],
                     ),
                   ),
                   pw.RichText(
                     text: pw.TextSpan(
                       children: [
-                        pw.TextSpan(text: 'Wali Kelas: ', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF64748B))),
+                        pw.TextSpan(text: AppLocalization.isIndonesian ? 'Wali Kelas: ' : 'Homeroom Teacher: ', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF64748B))),
                         pw.TextSpan(text: teacherName, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E293B))),
                       ],
                     ),
@@ -261,8 +272,13 @@ class GradePdfHelper {
                   pw.RichText(
                     text: pw.TextSpan(
                       children: [
-                        pw.TextSpan(text: 'Jumlah Murid: ', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF64748B))),
-                        pw.TextSpan(text: '${students.length} Murid', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E293B))),
+                        pw.TextSpan(text: AppLocalization.isIndonesian ? 'Jumlah Murid: ' : 'Total Students: ', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF64748B))),
+                        pw.TextSpan(
+                          text: AppLocalization.isIndonesian
+                              ? '${students.length} Murid'
+                              : '${students.length} Students',
+                          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF1E293B)),
+                        ),
                       ],
                     ),
                   ),
@@ -286,8 +302,8 @@ class GradePdfHelper {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    pw.Text('Mengetahui,', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF4B5563))),
-                    pw.Text('Wali Kelas', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF1E293B), fontWeight: pw.FontWeight.bold)),
+                    pw.Text(AppLocalization.isIndonesian ? 'Mengetahui,' : 'Acknowledged,', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF4B5563))),
+                    pw.Text(AppLocalization.isIndonesian ? 'Wali Kelas' : 'Homeroom Teacher', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFF1E293B), fontWeight: pw.FontWeight.bold)),
                     pw.SizedBox(height: 45),
                     pw.Container(
                       width: 140,

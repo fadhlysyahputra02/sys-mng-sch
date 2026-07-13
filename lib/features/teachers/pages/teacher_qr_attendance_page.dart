@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../students/data/student_service.dart';
@@ -93,11 +94,8 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
         final month = int.parse(parts[1]);
         final day = int.parse(parts[2]);
         final date = DateTime(year, month, day);
-        final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-        final months = [
-          'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-          'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-        ];
+        final days = AppLocalization.dayNames;
+        final months = AppLocalization.monthNames;
         final dayName = days[date.weekday % 7];
         final monthName = months[date.month - 1];
         return '$dayName, $day $monthName $year';
@@ -153,9 +151,12 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
     // Create the unique verification payload
     final qrPayload = 'sys_mng_school_attendance:{"schoolId":"${user.schoolId}","scheduleId":"$scheduleId","date":"$dateStr","className":"$className","subjectName":"$subjectName"}';
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -187,7 +188,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                     ),
                   ),
                   title: Text(
-                    'QR Code Absensi',
+                    AppLocalization.qrCodeAttendanceTitle,
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                   ),
                 ),
@@ -220,7 +221,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Kelas: $className',
+                                '${AppLocalization.classLabel}: $className',
                                 style: const TextStyle(fontSize: 16, color: Color(0xFF10B981), fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 8),
@@ -259,9 +260,9 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                   foregroundColor: const Color(0xFF0F0C20),
                                 ),
                                 const SizedBox(height: 16),
-                                const Text(
-                                  'Scan QR Code di atas untuk absen',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                                Text(
+                                  AppLocalization.scanQrToAttend,
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
                                 ),
                               ],
                             ),
@@ -287,12 +288,12 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                 const Icon(Icons.history_toggle_off_rounded, color: Colors.amber, size: 48),
                                 const SizedBox(height: 12),
                                 Text(
-                                  'Presensi Selesai / Terlewat',
+                                  AppLocalization.attendancePassed,
                                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  'Pembuatan QR Code dinonaktifkan karena jam pelajaran telah selesai atau tanggal pelaksanaan telah berlalu.',
+                                  AppLocalization.qrDisabledDesc,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(fontSize: 12, color: subTextColor),
                                 ),
@@ -312,7 +313,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    isToday ? 'Murid Hadir (Real-time)' : 'Murid Hadir (Riwayat)',
+                                    isToday ? AppLocalization.studentsPresentRealtime : AppLocalization.studentsPresentHistory,
                                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: titleColor),
                                   ),
                                 ),
@@ -343,14 +344,14 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                           borderRadius: BorderRadius.circular(10),
                                           border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                                         ),
-                                        child: const Row(
+                                        child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.check_circle_outline_rounded, size: 12, color: Color(0xFF10B981)),
-                                            SizedBox(width: 4),
+                                            const Icon(Icons.check_circle_outline_rounded, size: 12, color: Color(0xFF10B981)),
+                                            const SizedBox(width: 4),
                                             Text(
-                                              'Mode Edit Aktif',
-                                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                                              AppLocalization.editModeActive,
+                                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF10B981)),
                                             ),
                                           ],
                                         ),
@@ -363,17 +364,17 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                           borderRadius: BorderRadius.circular(10),
                                           border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
                                         ),
-                                        child: const Row(
+                                        child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            SizedBox(
+                                            const SizedBox(
                                               width: 10,
                                               height: 10,
                                               child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.amber),
                                             ),
-                                            SizedBox(width: 6),
+                                            const SizedBox(width: 6),
                                             Text(
-                                              'Menunggu Persetujuan',
+                                              AppLocalization.waitingApproval,
                                               style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.amber),
                                             ),
                                           ],
@@ -390,9 +391,9 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                           dateStr,
                                         ),
                                         icon: const Icon(Icons.edit_note_rounded, size: 14, color: Color(0xFF8B5CF6)),
-                                        label: const Text(
-                                          'Edit Absensi',
-                                          style: TextStyle(color: Color(0xFF8B5CF6), fontSize: 10, fontWeight: FontWeight.bold),
+                                        label: Text(
+                                          AppLocalization.editAttendance,
+                                          style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 10, fontWeight: FontWeight.bold),
                                         ),
                                         style: TextButton.styleFrom(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -431,7 +432,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                             border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                                           ),
                                           child: Text(
-                                            total > 0 ? '$count / $total Murid' : '$count Murid',
+                                            total > 0 ? '$count / $total ${AppLocalization.classLabel == 'Kelas' ? 'Murid' : 'Students'}' : '$count ${AppLocalization.classLabel == 'Kelas' ? 'Murid' : 'Students'}',
                                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
                                           ),
                                         );
@@ -459,7 +460,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                               return Container(
                                 padding: const EdgeInsets.all(16),
                                 child: Text(
-                                  'Gagal memuat daftar murid kelas: ${classSnapshot.error}',
+                                  '${AppLocalization.isIndonesian ? 'Gagal memuat daftar murid kelas' : 'Failed to load class student list'}: ${classSnapshot.error}',
                                   style: const TextStyle(color: Colors.redAccent),
                                 ),
                               );
@@ -500,9 +501,9 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                 if (attendanceSnapshot.hasError) {
                                   return Container(
                                     padding: const EdgeInsets.all(16),
-                                    child: const Text(
-                                      'Gagal memuat daftar kehadiran',
-                                      style: TextStyle(color: Colors.redAccent),
+                                    child: Text(
+                                      AppLocalization.isIndonesian ? 'Gagal memuat daftar kehadiran' : 'Failed to load attendance list',
+                                      style: const TextStyle(color: Colors.redAccent),
                                     ),
                                   );
                                 }
@@ -540,7 +541,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                     
                                     combinedList.add({
                                       'studentId': studentId,
-                                      'nama': studentData['nama'] ?? 'Murid',
+                                      'nama': studentData['nama'] ?? (AppLocalization.isIndonesian ? 'Murid' : 'Student'),
                                       'nis': studentData['nis'] ?? '-',
                                       'hasCheckedIn': hasCheckedIn,
                                       'attendanceData': hasCheckedIn ? attendanceMap[studentId] : null,
@@ -553,7 +554,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                     final studentId = data['studentId'] ?? '';
                                     combinedList.add({
                                       'studentId': studentId,
-                                      'nama': data['studentName'] ?? 'Murid',
+                                      'nama': data['studentName'] ?? (AppLocalization.isIndonesian ? 'Murid' : 'Student'),
                                       'nis': '-',
                                       'hasCheckedIn': true,
                                       'attendanceData': data,
@@ -575,7 +576,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                           Icon(Icons.hourglass_empty_rounded, size: 40, color: subTextColor.withValues(alpha: 0.5)),
                                           const SizedBox(height: 12),
                                           Text(
-                                            'Belum ada murid di kelas ini',
+                                            AppLocalization.noStudentsInClass,
                                             style: TextStyle(color: subTextColor, fontSize: 13),
                                           ),
                                         ],
@@ -640,8 +641,8 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                               );
                                             } else {
                                               ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text('Harap ajukan izin "Edit Absensi" dan disetujui Admin/TU terlebih dahulu.'),
+                                                SnackBar(
+                                                  content: Text(AppLocalization.editRequestNeeded),
                                                   backgroundColor: Colors.orange,
                                                 ),
                                               );
@@ -673,7 +674,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                                       ),
                                                       const SizedBox(height: 2),
                                                       Text(
-                                                        'Status: $status • Metode: $method',
+                                                        'Status: $status • ${AppLocalization.isIndonesian ? 'Metode' : 'Method'}: $method',
                                                         style: TextStyle(fontSize: 11, color: subTextColor),
                                                       ),
                                                     ],
@@ -725,8 +726,8 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                                 );
                                               } else {
                                                 ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text('Harap ajukan izin "Edit Absensi" dan disetujui Admin/TU terlebih dahulu untuk tanggal lampau.'),
+                                                  SnackBar(
+                                                    content: Text(AppLocalization.editRequestNeededPast),
                                                     backgroundColor: Colors.orange,
                                                   ),
                                                 );
@@ -756,7 +757,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                                                         ),
                                                         const SizedBox(height: 2),
                                                         Text(
-                                                          'Belum melakukan presensi (Klik untuk atur)',
+                                                          AppLocalization.noPresenceRecordedYet,
                                                           style: TextStyle(
                                                             fontSize: 11, 
                                                             color: Colors.orangeAccent.withValues(alpha: 0.8),
@@ -826,12 +827,14 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                         color: Colors.white,
                       ),
                       label: Text(
-                        hasReport ? 'Laporan Selesai Diisi' : 'Isi Laporan',
+                        hasReport ? AppLocalization.reportCompleted : AppLocalization.fillReport,
                         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     );
                   },
                 ),
+        );
+          },
         );
       },
     );
@@ -898,12 +901,12 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Beri Keterangan', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: Text(AppLocalization.setDetail, style: const TextStyle(fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Atur kehadiran untuk $studentName:'),
+              Text('${AppLocalization.setPresenceFor} $studentName:'),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -933,7 +936,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+              child: Text(AppLocalization.cancel, style: const TextStyle(color: Colors.grey)),
             ),
             TextButton(
               onPressed: () {
@@ -953,7 +956,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                   status: 'Hadir',
                 );
               },
-              child: const Text('Hadir', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+              child: Text(AppLocalization.statusPresent, style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
             ),
             TextButton(
               onPressed: () {
@@ -973,7 +976,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                   status: 'Izin',
                 );
               },
-              child: const Text('Izin', style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.bold)),
+              child: Text(AppLocalization.statusPermit, style: const TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.bold)),
             ),
             TextButton(
               onPressed: () {
@@ -993,7 +996,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                   status: 'Sakit',
                 );
               },
-              child: const Text('Sakit', style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
+              child: Text(AppLocalization.statusSick, style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -1021,20 +1024,20 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
           builder: (ctx, setDialogState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text('Ajukan Izin Edit Absensi', style: TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(AppLocalization.requestEditTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Kelas: $className • $subjectName', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text('${AppLocalization.classLabel}: $className • $subjectName', style: const TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
-                    Text('Tanggal: ${_getFormattedIndonesianDate(dateStr)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text('${AppLocalization.isIndonesian ? 'Tanggal' : 'Date'}: ${_getFormattedIndonesianDate(dateStr)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     const SizedBox(height: 16),
                     TextField(
                       controller: reasonController,
                       decoration: InputDecoration(
-                        labelText: 'Alasan Koreksi / Edit',
+                        labelText: AppLocalization.editReasonLabel,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
@@ -1046,7 +1049,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
               actions: [
                 TextButton(
                   onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
-                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                  child: Text(AppLocalization.cancel, style: const TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -1102,7 +1105,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                         },
                   child: isSubmitting
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Kirim Pengajuan', style: TextStyle(fontWeight: FontWeight.bold)),
+                      : Text(AppLocalization.submitRequest, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -1134,7 +1137,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
           builder: (context, setDialogState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text('Laporan Mengajar', style: TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(AppLocalization.teachingReportTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1142,7 +1145,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                     TextField(
                       controller: materiController,
                       decoration: InputDecoration(
-                        labelText: 'Materi yang diajarkan',
+                        labelText: AppLocalization.topicTaughtLabel,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       maxLines: 3,
@@ -1151,7 +1154,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                     TextField(
                       controller: catatanController,
                       decoration: InputDecoration(
-                        labelText: 'Catatan tambahan (Opsional)',
+                        labelText: AppLocalization.optionalNotesLabel,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       maxLines: 2,
@@ -1163,7 +1166,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                 if (!isSubmitting)
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                    child: Text(AppLocalization.cancel, style: const TextStyle(color: Colors.grey)),
                   ),
                 ElevatedButton(
                   onPressed: isSubmitting
@@ -1215,7 +1218,7 @@ class _TeacherQrAttendancePageState extends State<TeacherQrAttendancePage> {
                   ),
                   child: isSubmitting
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Simpan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      : Text(AppLocalization.save, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );

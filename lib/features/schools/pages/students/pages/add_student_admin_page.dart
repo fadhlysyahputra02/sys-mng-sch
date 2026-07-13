@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import '../data/student_admin_service.dart';
+import 'package:sys_mng_school/core/localization/app_localization.dart';
 
 class AddStudentPage extends StatefulWidget {
   final String schoolId;
@@ -44,7 +45,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Murid berhasil ditambahkan')),
+        SnackBar(content: Text(AppLocalization.isIndonesian ? 'Murid berhasil ditambahkan' : 'Student successfully added')),
       );
 
       Navigator.pop(context);
@@ -83,6 +84,9 @@ class _AddStudentPageState extends State<AddStudentPage> {
         final subTextColor = isDark
             ? Colors.white70
             : const Color(0xFF1E1B4B).withOpacity(0.65);
+        final translatedUserType = AppLocalization.isIndonesian
+            ? userType
+            : (userType == 'Murid' ? 'Student' : userType);
 
         return Dialog(
           shape: RoundedRectangleBorder(
@@ -111,7 +115,9 @@ class _AddStudentPageState extends State<AddStudentPage> {
 
                 // Title
                 Text(
-                  'Batas Kuota $userType Tercapai',
+                  AppLocalization.isIndonesian
+                      ? 'Batas Kuota $translatedUserType Tercapai'
+                      : '$translatedUserType Quota Limit Reached',
                   style: TextStyle(
                     color: textColor,
                     fontSize: 18,
@@ -132,7 +138,9 @@ class _AddStudentPageState extends State<AddStudentPage> {
                     ),
                   ),
                   child: Text(
-                    'Kapasitas: $quota $userType Aktif',
+                    AppLocalization.isIndonesian
+                        ? 'Kapasitas: $quota $translatedUserType Aktif'
+                        : 'Capacity: $quota Active $translatedUserType',
                     style: const TextStyle(
                       color: Color(0xFFEF4444),
                       fontWeight: FontWeight.w600,
@@ -144,7 +152,9 @@ class _AddStudentPageState extends State<AddStudentPage> {
 
                 // Description
                 Text(
-                  'Sekolah Anda telah mencapai batas maksimal pengguna $userType yang ditetapkan oleh Super Admin. Pendaftaran $userType baru tidak dapat dilakukan saat ini.',
+                  AppLocalization.isIndonesian
+                      ? 'Sekolah Anda telah mencapai batas maksimal pengguna $translatedUserType yang ditetapkan oleh Super Admin. Pendaftaran $translatedUserType baru tidak dapat dilakukan saat ini.'
+                      : 'Your school has reached the maximum user limit for $translatedUserType set by the Super Admin. New $translatedUserType registration cannot be completed at this time.',
                   style: TextStyle(
                     color: subTextColor,
                     fontSize: 13,
@@ -172,9 +182,9 @@ class _AddStudentPageState extends State<AddStudentPage> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'Mengerti',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalization.isIndonesian ? 'Mengerti' : 'Understood',
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -226,7 +236,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            'Tambah Murid',
+                            AppLocalization.isIndonesian ? 'Tambah Murid' : 'Add Student',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                           ),
                         ),
@@ -272,12 +282,12 @@ class _AddStudentPageState extends State<AddStudentPage> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Registrasi Murid Baru',
+                                        AppLocalization.isIndonesian ? 'Registrasi Murid Baru' : 'New Student Registration',
                                         style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Masukkan detail identitas siswa di bawah ini.',
+                                        AppLocalization.isIndonesian ? 'Masukkan detail identitas siswa di bawah ini.' : 'Enter student identity details below.',
                                         style: TextStyle(color: subTextColor, fontSize: 11),
                                       ),
                                     ],
@@ -290,7 +300,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
 
                           _buildField(
                             controller: namaController,
-                            label: 'Nama Lengkap',
+                            label: AppLocalization.isIndonesian ? 'Nama Lengkap' : 'Full Name',
                             icon: Icons.person_rounded,
                             isDark: isDark,
                             textColor: textColor,
@@ -299,7 +309,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
                             borderColor: borderColor,
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'Nama tidak boleh kosong';
+                                return AppLocalization.isIndonesian ? 'Nama tidak boleh kosong' : 'Name cannot be empty';
                               }
                               return null;
                             },
@@ -308,7 +318,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
 
                           _buildField(
                             controller: nisController,
-                            label: 'Nomor Induk Siswa (NIS)',
+                            label: AppLocalization.isIndonesian ? 'Nomor Induk Siswa (NIS)' : 'Student ID Number (NIS)',
                             icon: Icons.badge_rounded,
                             keyboardType: TextInputType.number,
                             isDark: isDark,
@@ -318,7 +328,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
                             borderColor: borderColor,
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'NIS tidak boleh kosong';
+                                return AppLocalization.isIndonesian ? 'NIS tidak boleh kosong' : 'NIS cannot be empty';
                               }
                               return null;
                             },
@@ -338,30 +348,34 @@ class _AddStudentPageState extends State<AddStudentPage> {
                               style: TextStyle(color: textColor, fontSize: 15),
                               dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
                               decoration: InputDecoration(
-                                labelText: 'Jenis Kelamin',
+                                labelText: AppLocalization.isIndonesian ? 'Jenis Kelamin' : 'Gender',
                                 labelStyle: TextStyle(color: subTextColor, fontSize: 14),
                                 prefixIcon: const Icon(Icons.wc_rounded, color: Color(0xFF0EA5E9), size: 20),
                                 border: InputBorder.none,
                               ),
-                              items: ['Laki-laki', 'Perempuan'].map((g) {
-                                return DropdownMenuItem(
-                                  value: g,
-                                  child: Text(g, style: TextStyle(color: textColor)),
-                                );
-                              }).toList(),
+                              items: [
+                                DropdownMenuItem(
+                                  value: 'Laki-laki',
+                                  child: Text(AppLocalization.isIndonesian ? 'Laki-laki' : 'Male', style: TextStyle(color: textColor)),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Perempuan',
+                                  child: Text(AppLocalization.isIndonesian ? 'Perempuan' : 'Female', style: TextStyle(color: textColor)),
+                                ),
+                              ],
                               onChanged: (val) {
                                 setState(() {
                                   _selectedGender = val;
                                 });
                               },
-                              validator: (val) => val == null ? 'Pilih jenis kelamin' : null,
+                              validator: (val) => val == null ? (AppLocalization.isIndonesian ? 'Pilih jenis kelamin' : 'Select gender') : null,
                             ),
                           ),
                           const SizedBox(height: 16),
 
                           _buildField(
                             controller: tanggalLahirController,
-                            label: 'Tanggal Lahir (DD-MM-YYYY)',
+                            label: AppLocalization.isIndonesian ? 'Tanggal Lahir (DD-MM-YYYY)' : 'Date of Birth (DD-MM-YYYY)',
                             icon: Icons.calendar_today_rounded,
                             isDark: isDark,
                             textColor: textColor,
@@ -370,12 +384,12 @@ class _AddStudentPageState extends State<AddStudentPage> {
                             borderColor: borderColor,
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'Tanggal lahir tidak boleh kosong';
+                                return AppLocalization.isIndonesian ? 'Tanggal lahir tidak boleh kosong' : 'Date of birth cannot be empty';
                               }
                               // Simple date regex check (DD-MM-YYYY)
                               final reg = RegExp(r'^\d{2}-\d{2}-\d{4}$');
                               if (!reg.hasMatch(val.trim())) {
-                                return 'Format harus DD-MM-YYYY (contoh: 15-08-2008)';
+                                return AppLocalization.isIndonesian ? 'Format harus DD-MM-YYYY (contoh: 15-08-2008)' : 'Format must be DD-MM-YYYY (e.g. 15-08-2008)';
                               }
                               return null;
                             },
@@ -384,7 +398,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
 
                           _buildField(
                             controller: angkatanController,
-                            label: 'Tahun Angkatan',
+                            label: AppLocalization.isIndonesian ? 'Tahun Angkatan' : 'Batch Year',
                             icon: Icons.school_rounded,
                             keyboardType: TextInputType.number,
                             isDark: isDark,
@@ -394,11 +408,11 @@ class _AddStudentPageState extends State<AddStudentPage> {
                             borderColor: borderColor,
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'Tahun angkatan tidak boleh kosong';
+                                return AppLocalization.isIndonesian ? 'Tahun angkatan tidak boleh kosong' : 'Batch year cannot be empty';
                               }
                               final year = int.tryParse(val.trim());
                               if (year == null || year < 1900 || year > 2100) {
-                                return 'Tahun angkatan tidak valid';
+                                return AppLocalization.isIndonesian ? 'Tahun angkatan tidak valid' : 'Invalid batch year';
                               }
                               return null;
                             },
@@ -407,7 +421,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
 
                           _buildField(
                             controller: addressController,
-                            label: 'Alamat Rumah',
+                            label: AppLocalization.isIndonesian ? 'Alamat Rumah' : 'Home Address',
                             icon: Icons.home_rounded,
                             maxLines: 3,
                             isDark: isDark,
@@ -417,7 +431,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
                             borderColor: borderColor,
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'Alamat tidak boleh kosong';
+                                return AppLocalization.isIndonesian ? 'Alamat tidak boleh kosong' : 'Address cannot be empty';
                               }
                               return null;
                             },
@@ -452,9 +466,9 @@ class _AddStudentPageState extends State<AddStudentPage> {
                                       width: 24,
                                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                                     )
-                                  : const Text(
-                                      'Simpan Data',
-                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                  : Text(
+                                      AppLocalization.isIndonesian ? 'Simpan Data' : 'Save Data',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                                     ),
                             ),
                           ),

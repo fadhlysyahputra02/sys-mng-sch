@@ -6,6 +6,7 @@ import '../../schools/services/school_service.dart';
 import '../services/grade_service.dart';
 import '../services/rapor_service.dart';
 import '../services/rapor_pdf_helper.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherRaporDetailPage extends StatefulWidget {
   final String schoolId;
@@ -241,9 +242,9 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('E-Rapor berhasil disimpan!'),
-            backgroundColor: Color(0xFF10B981),
+          SnackBar(
+            content: Text(AppLocalization.isIndonesian ? 'E-Rapor berhasil disimpan!' : 'E-Report Card saved successfully!'),
+            backgroundColor: const Color(0xFF10B981),
           ),
         );
       }
@@ -251,7 +252,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal menyimpan rapor: $e'),
+            content: Text(AppLocalization.isIndonesian ? 'Gagal menyimpan rapor: $e' : 'Failed to save report: $e'),
             backgroundColor: const Color(0xFFEF4444),
           ),
         );
@@ -412,9 +413,12 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -461,7 +465,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                               ),
                             ),
                             title: Text(
-                              'Pengisian E-Rapor',
+                              AppLocalization.isIndonesian ? 'Pengisian E-Rapor' : 'E-Report Card Filling',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                             ),
                             actions: [
@@ -475,7 +479,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                   child: IconButton(
                                     icon: const Icon(Icons.print_rounded, color: Color(0xFF8B5CF6), size: 20),
                                     onPressed: () => _printRapor(gradeDocs),
-                                    tooltip: 'Cetak PDF Rapor',
+                                    tooltip: AppLocalization.isIndonesian ? 'Cetak PDF Rapor' : 'Print PDF Report Card',
                                   ),
                                 ),
                               ),
@@ -532,7 +536,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _buildSectionHeader('1. Penilaian Sikap', titleColor),
+                                    _buildSectionHeader(AppLocalization.isIndonesian ? '1. Penilaian Sikap' : '1. Attitude Assessment', titleColor),
                                     if (_isEditable)
                                       TextButton.icon(
                                         onPressed: () {
@@ -547,9 +551,9 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                           });
                                         },
                                         icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: Color(0xFF8B5CF6)),
-                                        label: const Text(
-                                          'Tambah Aspek',
-                                          style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold),
+                                        label: Text(
+                                          AppLocalization.isIndonesian ? 'Tambah Aspek' : 'Add Aspect',
+                                          style: const TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold),
                                         ),
                                       ),
                                   ],
@@ -576,9 +580,9 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                                 enabled: _isEditable,
                                                 style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
                                                 decoration: InputDecoration(
-                                                  hintText: 'Nama Aspek Sikap (misal: Spiritual, Sosial, Kedisiplinan)',
+                                                  hintText: AppLocalization.isIndonesian ? 'Nama Aspek Sikap (misal: Spiritual, Sosial, Kedisiplinan)' : 'Attitude Aspect Name (e.g. Spiritual, Social, Discipline)',
                                                   hintStyle: TextStyle(color: subTextColor, fontSize: 13),
-                                                  labelText: 'Nama Aspek #${index + 1}',
+                                                  labelText: '${AppLocalization.isIndonesian ? 'Nama Aspek' : 'Aspect Name'} #${index + 1}',
                                                   labelStyle: TextStyle(color: titleColor.withValues(alpha: 0.6), fontSize: 13),
                                                   filled: true,
                                                   fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01),
@@ -606,7 +610,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                                       _attitudeAspects.removeAt(index);
                                                     });
                                                   },
-                                                  tooltip: 'Hapus Aspek',
+                                                  tooltip: AppLocalization.isIndonesian ? 'Hapus Aspek' : 'Delete Aspect',
                                                 ),
                                               ),
                                             ],
@@ -626,7 +630,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                         _buildDescriptionTextField(
                                           controller: item.descController,
                                           enabled: _isEditable,
-                                          hint: 'Deskripsikan sikap tersebut untuk siswa...',
+                                          hint: AppLocalization.isIndonesian ? 'Deskripsikan sikap tersebut untuk siswa...' : 'Describe the attitude for the student...',
                                           isDark: isDark,
                                           cardBg: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01),
                                           border: cardBorderColor,
@@ -641,10 +645,12 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                 const SizedBox(height: 24),
 
                                 // 3. Ketidakhadiran (Absensi)
-                                _buildSectionHeader('3. Ketidakhadiran (Absensi)', titleColor),
+                                _buildSectionHeader(AppLocalization.isIndonesian ? '3. Ketidakhadiran (Absensi)' : '3. Absence (Attendance)', titleColor),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Dihitung dari absensi harian (kedatangan) sesuai tahun & semester aktif.',
+                                  AppLocalization.isIndonesian
+                                      ? 'Dihitung dari absensi harian (kedatangan) sesuai tahun & semester aktif.'
+                                      : 'Calculated from daily attendance according to active academic year & semester.',
                                   style: TextStyle(fontSize: 11, color: subTextColor, fontStyle: FontStyle.italic),
                                 ),
                                 const SizedBox(height: 12),
@@ -654,7 +660,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                       child: _buildNumberInputField(
                                         controller: _sakitController,
                                         enabled: _isEditable,
-                                        label: 'Sakit (Hari)',
+                                        label: AppLocalization.isIndonesian ? 'Sakit (Hari)' : 'Sick (Days)',
                                         isDark: isDark,
                                         cardBg: cardBgColor,
                                         border: cardBorderColor,
@@ -666,7 +672,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                       child: _buildNumberInputField(
                                         controller: _izinController,
                                         enabled: _isEditable,
-                                        label: 'Izin (Hari)',
+                                        label: AppLocalization.isIndonesian ? 'Izin (Hari)' : 'Permit (Days)',
                                         isDark: isDark,
                                         cardBg: cardBgColor,
                                         border: cardBorderColor,
@@ -678,7 +684,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                       child: _buildNumberInputField(
                                         controller: _alpaController,
                                         enabled: _isEditable,
-                                        label: 'Alpa (Hari)',
+                                        label: AppLocalization.isIndonesian ? 'Alpa (Hari)' : 'Absent (Days)',
                                         isDark: isDark,
                                         cardBg: cardBgColor,
                                         border: cardBorderColor,
@@ -691,12 +697,14 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                 const SizedBox(height: 24),
 
                                 // 4. Catatan Wali Kelas
-                                _buildSectionHeader('4. Catatan Wali Kelas', titleColor),
+                                _buildSectionHeader(AppLocalization.isIndonesian ? '4. Catatan Wali Kelas' : '4. Homeroom Teacher Notes', titleColor),
                                 const SizedBox(height: 12),
                                 _buildDescriptionTextField(
                                   controller: _catatanController,
                                   enabled: _isEditable,
-                                  hint: 'Berikan motivasi atau catatan saran bagi perkembangan siswa ke depan...',
+                                  hint: AppLocalization.isIndonesian
+                                      ? 'Berikan motivasi atau catatan saran bagi perkembangan siswa ke depan...'
+                                      : 'Provide motivation or suggestions for the student\'s future development...',
                                   isDark: isDark,
                                   cardBg: cardBgColor,
                                   border: cardBorderColor,
@@ -724,9 +732,9 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                       ),
                                       child: _isSaving
                                           ? const CircularProgressIndicator(color: Colors.white)
-                                          : const Text(
-                                              'Simpan E-Rapor',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                          : Text(
+                                              AppLocalization.isIndonesian ? 'Simpan E-Rapor' : 'Save E-Report Card',
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                             ),
                                     ),
                                   ),
@@ -742,6 +750,8 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                     },
                   ),
           ),
+            );
+          },
         );
       },
     );
@@ -768,7 +778,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
       style: TextStyle(color: textColor),
       decoration: InputDecoration(
-        labelText: 'Predikat Sikap',
+        labelText: AppLocalization.isIndonesian ? 'Predikat Sikap' : 'Attitude Grade',
         labelStyle: TextStyle(color: textColor.withValues(alpha: 0.6)),
         filled: true,
         fillColor: cardBg,
@@ -778,7 +788,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       items: ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D'].map((p) {
         return DropdownMenuItem<String>(
           value: p,
-          child: Text('Predikat $p'),
+          child: Text(AppLocalization.isIndonesian ? 'Predikat $p' : 'Grade $p'),
         );
       }).toList(),
       onChanged: enabled ? onChanged : null,

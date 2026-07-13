@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/localization/app_localization.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../schools/services/school_service.dart';
 import '../services/grade_service.dart';
@@ -337,7 +338,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                         if (teacherName.isNotEmpty) ...[
                                           const WidgetSpan(child: SizedBox(width: 8)),
                                           TextSpan(
-                                            text: '(Guru: $teacherName)',
+                                            text: AppLocalization.isIndonesian ? '(Guru: $teacherName)' : '(Teacher: $teacherName)',
                                             style: TextStyle(
                                               fontSize: 11,
                                               color: subTextColor,
@@ -381,6 +382,17 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                               runSpacing: 8,
                               children: ['Tugas', 'Kuis', 'Ulangan Harian', 'UTS', 'UAS'].map((cat) {
                                 final avg = categoryAverages[cat];
+                                final displayName = AppLocalization.isIndonesian
+                                    ? cat
+                                    : (cat == 'Tugas'
+                                        ? 'Assignment'
+                                        : cat == 'Kuis'
+                                            ? 'Quiz'
+                                            : cat == 'Ulangan Harian'
+                                                ? 'Daily Exam'
+                                                : cat == 'UTS'
+                                                    ? 'Midterm'
+                                                    : 'Final Exam');
                                 return Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
@@ -391,7 +403,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                     ),
                                   ),
                                   child: Text(
-                                    '$cat: ${avg != null ? avg.toStringAsFixed(0) : "-"}',
+                                    '$displayName: ${avg != null ? avg.toStringAsFixed(0) : "-"}',
                                     style: TextStyle(fontSize: 11, color: titleColor.withValues(alpha: 0.8)),
                                   ),
                                 );
@@ -400,7 +412,9 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                             const SizedBox(height: 10),
                             // Info bobot
                             Text(
-                              'Bobot Kategori: Tugas ${weights['Tugas']?.toStringAsFixed(0)}%, Kuis ${weights['Kuis']?.toStringAsFixed(0)}%, UH ${weights['Ulangan Harian']?.toStringAsFixed(0)}%, UTS ${weights['UTS']?.toStringAsFixed(0)}%, UAS ${weights['UAS']?.toStringAsFixed(0)}%',
+                              AppLocalization.isIndonesian
+                                  ? 'Bobot Kategori: Tugas ${weights['Tugas']?.toStringAsFixed(0)}%, Kuis ${weights['Kuis']?.toStringAsFixed(0)}%, UH ${weights['Ulangan Harian']?.toStringAsFixed(0)}%, UTS ${weights['UTS']?.toStringAsFixed(0)}%, UAS ${weights['UAS']?.toStringAsFixed(0)}%'
+                                  : 'Category Weights: Assignment ${weights['Tugas']?.toStringAsFixed(0)}%, Quiz ${weights['Kuis']?.toStringAsFixed(0)}%, UH ${weights['Ulangan Harian']?.toStringAsFixed(0)}%, Midterm ${weights['UTS']?.toStringAsFixed(0)}%, Final ${weights['UAS']?.toStringAsFixed(0)}%',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: subTextColor,
@@ -422,9 +436,12 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -602,8 +619,8 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                         void handlePdfExport() {
                           if (studentsList.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Tidak ada data siswa untuk diekspor'),
+                              SnackBar(
+                                content: Text(AppLocalization.isIndonesian ? 'Tidak ada data siswa untuk diekspor' : 'No student data to export'),
                                 backgroundColor: Colors.redAccent,
                               ),
                             );
@@ -685,7 +702,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Rekap Nilai Kelas',
+                                    AppLocalization.isIndonesian ? 'Rekap Nilai Kelas' : 'Class Grade Recap',
                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: titleColor),
                                   ),
                                   Text(
@@ -703,7 +720,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                   ),
                                   child: IconButton(
                                     icon: Icon(Icons.picture_as_pdf_rounded, color: iconColor, size: 20),
-                                    tooltip: 'Ekspor Buku Nilai PDF',
+                                    tooltip: AppLocalization.isIndonesian ? 'Ekspor Buku Nilai PDF' : 'Export Gradebook PDF',
                                     onPressed: handlePdfExport,
                                   ),
                                 ),
@@ -725,7 +742,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                     controller: _searchController,
                                     style: TextStyle(color: titleColor, fontSize: 14),
                                     decoration: InputDecoration(
-                                      hintText: 'Cari murid berdasarkan nama atau NIS...',
+                                      hintText: AppLocalization.isIndonesian ? 'Cari murid berdasarkan nama atau NIS...' : 'Search student by name or NIS...',
                                       hintStyle: TextStyle(color: subTextColor, fontSize: 13),
                                       border: InputBorder.none,
                                       icon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
@@ -759,7 +776,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      'Daftar Murid (${filteredStudents.length})',
+                                      AppLocalization.isIndonesian ? 'Daftar Murid (${filteredStudents.length})' : 'Student List (${filteredStudents.length})',
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
@@ -770,10 +787,10 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                       children: [
                                         Text(
                                           _sortBy == 'nilai_tertinggi'
-                                              ? 'Nilai Tertinggi'
+                                              ? (AppLocalization.isIndonesian ? 'Nilai Tertinggi' : 'Highest Grade')
                                               : _sortBy == 'nilai_terendah'
-                                                  ? 'Nilai Terendah'
-                                                  : 'Nama (A-Z)',
+                                                  ? (AppLocalization.isIndonesian ? 'Nilai Terendah' : 'Lowest Grade')
+                                                  : (AppLocalization.isIndonesian ? 'Nama (A-Z)' : 'Name (A-Z)'),
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: subTextColor,
@@ -786,7 +803,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                           icon: Icon(Icons.sort_rounded, color: iconColor, size: 18),
                                           padding: EdgeInsets.zero,
                                           constraints: const BoxConstraints(),
-                                          tooltip: 'Urutkan Murid',
+                                          tooltip: AppLocalization.isIndonesian ? 'Urutkan Murid' : 'Sort Students',
                                           color: isDark ? const Color(0xFF0F0C20) : Colors.white,
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(16),
@@ -806,7 +823,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                                 children: [
                                                   Icon(Icons.sort_by_alpha_rounded, color: iconColor, size: 18),
                                                   const SizedBox(width: 8),
-                                                  Text('Nama (A-Z)', style: TextStyle(color: titleColor, fontSize: 13)),
+                                                  Text(AppLocalization.isIndonesian ? 'Nama (A-Z)' : 'Name (A-Z)', style: TextStyle(color: titleColor, fontSize: 13)),
                                                 ],
                                               ),
                                             ),
@@ -816,7 +833,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                                 children: [
                                                   Icon(Icons.arrow_upward_rounded, color: iconColor, size: 18),
                                                   const SizedBox(width: 8),
-                                                  Text('Nilai Tertinggi', style: TextStyle(color: titleColor, fontSize: 13)),
+                                                  Text(AppLocalization.isIndonesian ? 'Nilai Tertinggi' : 'Highest Grade', style: TextStyle(color: titleColor, fontSize: 13)),
                                                 ],
                                               ),
                                             ),
@@ -826,7 +843,7 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                                 children: [
                                                   Icon(Icons.arrow_downward_rounded, color: iconColor, size: 18),
                                                   const SizedBox(width: 8),
-                                                  Text('Nilai Terendah', style: TextStyle(color: titleColor, fontSize: 13)),
+                                                  Text(AppLocalization.isIndonesian ? 'Nilai Terendah' : 'Lowest Grade', style: TextStyle(color: titleColor, fontSize: 13)),
                                                 ],
                                               ),
                                             ),
@@ -852,12 +869,12 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                         Icon(Icons.search_off_rounded, size: 48, color: subTextColor),
                                         const SizedBox(height: 16),
                                         Text(
-                                          'Murid tidak ditemukan',
+                                          AppLocalization.isIndonesian ? 'Murid tidak ditemukan' : 'Student not found',
                                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: titleColor),
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          'Coba gunakan kata kunci pencarian yang lain.',
+                                          AppLocalization.isIndonesian ? 'Coba gunakan kata kunci pencarian yang lain.' : 'Try using other search keywords.',
                                           style: TextStyle(fontSize: 12, color: subTextColor),
                                           textAlign: TextAlign.center,
                                         ),
@@ -963,10 +980,10 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
                                                   Column(
                                                     crossAxisAlignment: CrossAxisAlignment.end,
                                                     children: [
-                                                      Text(
-                                                        'Rerata Nilai',
-                                                        style: TextStyle(fontSize: 10, color: subTextColor),
-                                                      ),
+                                                       Text(
+                                                         AppLocalization.isIndonesian ? 'Rerata Nilai' : 'Average Grade',
+                                                         style: TextStyle(fontSize: 10, color: subTextColor),
+                                                       ),
                                                       const SizedBox(height: 2),
                                                       Container(
                                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1007,6 +1024,8 @@ class _TeacherGradeRecapPageState extends State<TeacherGradeRecapPage> {
               },
             ),
           ),
+            );
+          },
         );
       },
     );

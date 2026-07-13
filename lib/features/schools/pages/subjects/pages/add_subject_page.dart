@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
+import '../../../../../core/localization/app_localization.dart';
 import '../data/subject_service.dart';
 
 class AddSubjectPage extends StatefulWidget {
@@ -37,7 +38,7 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mata pelajaran berhasil ditambahkan')),
+          SnackBar(content: Text(AppLocalization.isIndonesian ? 'Mata pelajaran berhasil ditambahkan' : 'Subject successfully added')),
         );
         Navigator.pop(context);
       }
@@ -97,7 +98,7 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            'Tambah Mata Pelajaran',
+                            AppLocalization.isIndonesian ? 'Tambah Mata Pelajaran' : 'Add Subject',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor),
                           ),
                         ),
@@ -152,12 +153,12 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Registrasi Mata Pelajaran',
+                                        AppLocalization.isIndonesian ? 'Registrasi Mata Pelajaran' : 'Subject Registration',
                                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimaryColor),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Kode mapel harus unik dan tidak boleh sama.',
+                                        AppLocalization.isIndonesian ? 'Kode mapel harus unik dan tidak boleh sama.' : 'Subject code must be unique.',
                                         style: TextStyle(fontSize: 12, color: textSecondaryColor),
                                       ),
                                     ],
@@ -172,31 +173,31 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
                           // Kode Mapel
                           _buildField(
                             controller: kodeController,
-                            label: 'Kode Mapel',
+                            label: AppLocalization.isIndonesian ? 'Kode Mapel' : 'Subject Code',
                             icon: Icons.tag_rounded,
                             isDark: isDark,
-                            validator: (v) => (v == null || v.isEmpty) ? 'Kode Mapel wajib diisi' : null,
+                            validator: (v) => (v == null || v.isEmpty) ? (AppLocalization.isIndonesian ? 'Kode Mapel wajib diisi' : 'Subject code is required') : null,
                           ),
                           const SizedBox(height: 14),
 
                           // Nama Mapel
                           _buildField(
                             controller: namaController,
-                            label: 'Nama Mapel',
+                            label: AppLocalization.isIndonesian ? 'Nama Mapel' : 'Subject Name',
                             icon: Icons.menu_book_rounded,
                             isDark: isDark,
-                            validator: (v) => (v == null || v.isEmpty) ? 'Nama Mapel wajib diisi' : null,
+                            validator: (v) => (v == null || v.isEmpty) ? (AppLocalization.isIndonesian ? 'Nama Mapel wajib diisi' : 'Subject name is required') : null,
                           ),
                           const SizedBox(height: 14),
 
                           // KKM Mapel
                           _buildField(
                             controller: kkmController,
-                            label: 'Nilai KKM (Contoh: 75)',
+                            label: AppLocalization.isIndonesian ? 'Nilai KKM (Contoh: 75)' : 'Passing Grade / KKM (E.g. 75)',
                             icon: Icons.speed_rounded,
                             isDark: isDark,
                             keyboardType: TextInputType.number,
-                            validator: (v) => (v == null || v.isEmpty) ? 'Nilai KKM wajib diisi' : null,
+                            validator: (v) => (v == null || v.isEmpty) ? (AppLocalization.isIndonesian ? 'Nilai KKM wajib diisi' : 'Passing Grade is required') : null,
                           ),
                           const SizedBox(height: 32),
 
@@ -229,9 +230,9 @@ class _AddSubjectPageState extends State<AddSubjectPage> {
                                       width: 24,
                                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                                     )
-                                  : const Text(
-                                      'Simpan Data',
-                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                  : Text(
+                                      AppLocalization.isIndonesian ? 'Simpan Data' : 'Save Data',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                                     ),
                             ),
                           ),

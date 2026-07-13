@@ -347,14 +347,61 @@ class OfficerRepository {
   Future<List<Map<String, dynamic>>> getDailyRecap(String schoolId, DateTime date) async {
     final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     
-    final query = await _firestore
+    // 1. Fetch all students for the school
+    final studentsSnap = await _firestore
+        .collection('schools')
+        .doc(schoolId)
+        .collection('students')
+        .get();
+
+    // 2. Fetch attendance for the selected date
+    final attSnap = await _firestore
         .collection('schools')
         .doc(schoolId)
         .collection('daily_attendance')
         .where('date', isEqualTo: dateStr)
         .get();
         
-    return query.docs.map((doc) => doc.data()).toList();
+    // 3. Create a map of attendance by studentId
+    final Map<String, Map<String, dynamic>> attMap = {};
+    for (var doc in attSnap.docs) {
+      final data = doc.data();
+      final studentId = data['studentId'] as String?;
+      if (studentId != null) {
+        attMap[studentId] = data;
+      }
+    }
+
+    // 4. Merge students with attendance
+    final List<Map<String, dynamic>> results = [];
+    for (var doc in studentsSnap.docs) {
+      final sData = doc.data();
+      final sId = doc.id;
+      final attendance = attMap[sId];
+      
+      if (attendance != null) {
+        results.add(attendance);
+      } else {
+        // If no attendance, mark as alfa (absent)
+        results.add({
+          'studentId': sId,
+          'studentName': sData['nama'] ?? sData['name'] ?? 'Siswa',
+          'className': sData['kelas'] ?? sData['class'] ?? '-',
+          'status': 'alfa',
+          'date': dateStr,
+          'method': '-',
+        });
+      }
+    }
+
+    // Sort by class then name alphabetically
+    results.sort((a, b) {
+      int classCmp = (a['className']?.toString() ?? '').compareTo(b['className']?.toString() ?? '');
+      if (classCmp != 0) return classCmp;
+      return (a['studentName']?.toString().toLowerCase() ?? '').compareTo(b['studentName']?.toString().toLowerCase() ?? '');
+    });
+
+    return results;
   }
 
   // 5a. Cek apakah sudah absen masuk hari ini

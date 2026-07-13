@@ -30,9 +30,12 @@ import '../../exams/models/exam_event_model.dart';
 import '../../exams/pages/teacher_proctor_dashboard_page.dart';
 import '../../exams/services/exam_session_service.dart';
 import 'teacher_student_violations_page.dart';
+import 'teacher_my_students_page.dart';
 import '../../librarian/services/library_service.dart';
 import '../../students/pages/student_qr_scanner_page.dart';
 import '../../officer/pages/officer_dashboard_page.dart';
+import '../../schools/pages/notifications/notifications_page.dart';
+import '../../../core/localization/app_localization.dart';
 
 
 import '../../../core/widgets/motif_card.dart';
@@ -278,10 +281,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour >= 0 && hour <= 10) return 'Selamat Pagi';
-    if (hour <= 14) return 'Selamat Siang';
-    if (hour <= 18) return 'Selamat Sore';
-    return 'Selamat Malam';
+    if (hour >= 0 && hour <= 10) return AppLocalization.greetingMorning;
+    if (hour <= 14) return AppLocalization.greetingAfternoon;
+    if (hour <= 18) return AppLocalization.greetingEvening;
+    return AppLocalization.greetingNight;
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
@@ -443,23 +446,38 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           );
         }
 
-        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(SessionService.currentUser!.uid)
-              .snapshots(),
-          builder: (context, userSnapshot) {
-            final userData = userSnapshot.data?.data();
-            final isGateOfficer = userData?['isGateOfficer'] as bool? ?? false;
-            final isLibrarian = userData?['isLibrarian'] as bool? ?? false;
+        return ValueListenableBuilder<String>(
+          valueListenable: AppLocalization.currentLocale,
+          builder: (context, locale, _) {
+            return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(SessionService.currentUser!.uid)
+                  .snapshots(),
+              builder: (context, userSnapshot) {
+                final userData = userSnapshot.data?.data();
+                final isGateOfficer = userData?['isGateOfficer'] as bool? ?? false;
+                final isLibrarian = userData?['isLibrarian'] as bool? ?? false;
 
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < 850) {
-                  return _buildMobileLayout(isDark, isGateOfficer, isLibrarian);
-                } else {
-                  return _buildDesktopLayout(isDark, isGateOfficer, isLibrarian);
-                }
+                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _teacherService.getClassesByTeacher(
+                    SessionService.currentUser!.schoolId,
+                    _teacherDocId!,
+                  ),
+                  builder: (context, classSnapshot) {
+                    final waliKelasClasses = classSnapshot.data?.docs ?? [];
+
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        if (constraints.maxWidth < 850) {
+                          return _buildMobileLayout(isDark, isGateOfficer, isLibrarian, waliKelasClasses);
+                        } else {
+                          return _buildDesktopLayout(isDark, isGateOfficer, isLibrarian, waliKelasClasses);
+                        }
+                      },
+                    );
+                  },
+                );
               },
             );
           },
@@ -468,7 +486,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildMobileLayout(bool isDark, bool isGateOfficer, bool isLibrarian) {
+  Widget _buildMobileLayout(bool isDark, bool isGateOfficer, bool isLibrarian, List<QueryDocumentSnapshot<Map<String, dynamic>>> waliKelasClasses) {
     final user = SessionService.currentUser!;
     final teacherId = _teacherDocId!;
     final teacherNama = _teacherData?['nama'] ?? user.nama;
@@ -511,22 +529,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   ).compareTo(_timeToMinutes(b['jamMulai'] ?? ''));
                 });
 
-                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _teacherService.getClassesByTeacher(
+                return StreamBuilder<
+                  QuerySnapshot<Map<String, dynamic>>
+                >(
+                  stream: _teacherSubjectService.getSubjectsByTeacher(
                     user.schoolId,
                     teacherId,
                   ),
-                  builder: (context, classSnapshot) {
-                    final waliKelasClasses = classSnapshot.data?.docs ?? [];
-
-                    return StreamBuilder<
-                      QuerySnapshot<Map<String, dynamic>>
-                    >(
-                      stream: _teacherSubjectService.getSubjectsByTeacher(
-                        user.schoolId,
-                        teacherId,
-                      ),
-                      builder: (context, subjectSnapshot) {
+                  builder: (context, subjectSnapshot) {
                         final teacherSubjects =
                             subjectSnapshot.data?.docs
                                 .map((e) => e.data())
@@ -649,7 +659,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                         color: iconColor,
                                         size: 20,
                                       ),
-                                      tooltip: 'Keluar',
+                                      tooltip: AppLocalization.logout,
                                       onPressed: () =>
                                           _confirmLogout(context),
                                     ),
@@ -679,7 +689,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                         children: [
                                           Expanded(
                                             child: _buildStatCard(
-                                              title: 'Kelas Mengajar',
+                                              title: AppLocalization.classesTaught,
                                               value: teacherClassIds.length
                                                   .toString(),
                                               icon: Icons.class_rounded,
@@ -692,7 +702,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                           const SizedBox(width: 12),
                                           Expanded(
                                             child: _buildStatCard(
-                                              title: 'Mata Pelajaran',
+                                              title: AppLocalization.menuSubjects,
                                               value: teacherSubjects.length
                                                   .toString(),
                                               icon: Icons.menu_book_rounded,
@@ -706,7 +716,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                       ),
                                       const SizedBox(height: 28),
                                       _buildSectionTitle(
-                                        'Mata Pelajaran Saya',
+                                        AppLocalization.mySubjects,
                                         Icons.menu_book_rounded,
                                         isDark,
                                       ),
@@ -717,7 +727,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                       ),
                                       const SizedBox(height: 28),
                                       _buildSectionTitle(
-                                        'Jadwal Hari Ini ($currentDay)',
+                                        '${AppLocalization.todaySchedule} ($currentDay)',
                                         Icons.calendar_today_rounded,
                                         isDark,
                                       ),
@@ -733,12 +743,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                         schoolId: user.schoolId,
                                       ),
                                       _buildSectionTitle(
-                                        'Menu Utama',
+                                        AppLocalization.menuStudentMain,
                                         Icons.dashboard_rounded,
                                         isDark,
                                       ),
                                       const SizedBox(height: 16),
-                                      _buildMenuGrid(isDark, isGateOfficer, isLibrarian),
+                                      _buildMenuGrid(isDark, isGateOfficer, isLibrarian, waliKelasClasses),
                                       const SizedBox(height: 40),
                                     ],
                                   ),
@@ -750,9 +760,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       },
                     );
                   },
-                );
-              },
-            ),
+                ),
           ),
         ),
       ),
@@ -1065,38 +1073,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF10B981,
-                            ).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(
-                                0xFF10B981,
-                              ).withValues(alpha: 0.5),
-                            ),
-                          ),
-                          child: const Text(
-                            'Guru',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF10B981),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildPlanBadge(),
-                      ],
-                    ),
+
                   ],
                 ),
               ),
@@ -1126,7 +1103,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Wali Kelas: ${waliKelasNames.join(", ")}',
+                      '${AppLocalization.homeroomLabel}: ${waliKelasNames.join(", ")}',
                       style: const TextStyle(
                         color: Color(0xFFF59E0B),
                         fontSize: 13,
@@ -1160,7 +1137,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Tahun Ajaran: ${_tahunAjaran ?? "-"}  |  ${_activeSemester ?? "-"}',
+                      '${AppLocalization.academicYearLabel}: ${_tahunAjaran ?? "-"}  |  ${_activeSemester ?? "-"}',
                       style: const TextStyle(
                         color: Color(0xFF6366F1),
                         fontSize: 13,
@@ -1398,7 +1375,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSectionTitle(
-                  'Ujian Semester',
+                  AppLocalization.isIndonesian ? 'Ujian Semester' : 'Semester Exam',
                   Icons.assignment_turned_in_rounded,
                   isDark,
                 ),
@@ -1484,15 +1461,20 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Ujian Semester',
-                                  style: TextStyle(
-                                      color: titleColor,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15)),
+                              Text(
+                                AppLocalization.isIndonesian ? 'Ujian Semester' : 'Semester Exam',
+                                style: TextStyle(
+                                  color: titleColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
                               const SizedBox(height: 4),
                               if (activeSession != null)
                                 Text(
-                                  '🔴 Sesi aktif: ${activeSession.subjectName}',
+                                  AppLocalization.isIndonesian
+                                      ? '🔴 Sesi aktif: ${activeSession.subjectName}'
+                                      : '🔴 Active session: ${activeSession.subjectName}',
                                   style: const TextStyle(
                                       color: Color(0xFF10B981),
                                       fontSize: 12,
@@ -1500,7 +1482,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                 )
                               else if (hasMissingQuestions)
                                 Text(
-                                  '⚠️ $missingCount soal belum dibuat',
+                                  AppLocalization.isIndonesian
+                                      ? '⚠️ $missingCount soal belum dibuat'
+                                      : '⚠️ $missingCount questions not created yet',
                                   style: const TextStyle(
                                       color: Color(0xFFEF4444),
                                       fontSize: 12,
@@ -1508,7 +1492,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                 )
                               else
                                 Text(
-                                  '${upcomingProctor > 0 ? '$upcomingProctor sesi pengawas' : ''}${upcomingProctor > 0 && authorSessions.isNotEmpty ? ' • ' : ''}${authorSessions.isNotEmpty ? '${authorSessions.map((s) => s.subjectId).toSet().length} mapel soal' : ''}',
+                                  AppLocalization.isIndonesian
+                                      ? '${upcomingProctor > 0 ? '$upcomingProctor sesi pengawas' : ''}${upcomingProctor > 0 && authorSessions.isNotEmpty ? ' • ' : ''}${authorSessions.isNotEmpty ? '${authorSessions.map((s) => s.subjectId).toSet().length} mapel soal' : ''}'
+                                      : '${upcomingProctor > 0 ? '$upcomingProctor proctor sessions' : ''}${upcomingProctor > 0 && authorSessions.isNotEmpty ? ' • ' : ''}${authorSessions.isNotEmpty ? '${authorSessions.map((s) => s.subjectId).toSet().length} subjects' : ''}',
                                   style: TextStyle(color: subtitleColor, fontSize: 12),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -1576,7 +1562,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           border: Border.all(color: emptyBorder),
         ),
         child: Text(
-          'Belum ada mata pelajaran yang di-assign',
+          AppLocalization.noSubjectsYet,
           style: TextStyle(color: emptyTextColor, fontSize: 14),
         ),
       );
@@ -1650,7 +1636,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           border: Border.all(color: emptyBorder),
         ),
         child: Text(
-          'Tidak ada jadwal hari ini 🎉',
+          '${AppLocalization.noScheduleToday} 🎉',
           style: TextStyle(color: emptyTextColor, fontSize: 16),
         ),
       );
@@ -1745,92 +1731,110 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildMenuGrid(bool isDark, bool isGateOfficer, bool isLibrarian) {
+  Widget _buildMenuGrid(bool isDark, bool isGateOfficer, bool isLibrarian, List<QueryDocumentSnapshot<Map<String, dynamic>>> waliKelasClasses) {
     final menus = [
       {
-        'title': 'Jadwal Mengajar',
+        'id': 'teaching_schedule',
+        'title': AppLocalization.menuTeachingSchedule,
         'icon': Icons.calendar_month_rounded,
         'color': const Color(0xFFF59E0B),
       },
+      if (waliKelasClasses.isNotEmpty) ...[
+        {
+          'id': 'student_list',
+          'title': AppLocalization.menuStudentList,
+          'icon': Icons.groups_rounded,
+          'color': const Color(0xFF0EA5E9),
+        },
+      ],
       {
-        'title': 'Absensi Murid',
+        'id': 'student_attendance',
+        'title': AppLocalization.menuStudentAttendance,
         'icon': Icons.fact_check_rounded,
         'color': const Color(0xFF10B981),
       },
       {
-        'title': 'Absensi Harian',
+        'id': 'daily_attendance',
+        'title': AppLocalization.menuDailyAttendance,
         'icon': Icons.co_present_rounded,
         'color': const Color(0xFF6366F1),
       },
       if (isGateOfficer) ...[
         {
-          'title': 'Scan Absensi Harian',
+          'id': 'scan_daily_attendance',
+          'title': AppLocalization.menuScanDailyAttendance,
           'icon': Icons.qr_code_scanner_rounded,
           'color': const Color(0xFF10B981),
         },
       ],
       if (isLibrarian) ...[
         {
-          'title': 'Dashboard Perpustakaan',
+          'id': 'library_dashboard',
+          'title': AppLocalization.menuLibraryDashboard,
           'icon': Icons.menu_book_rounded,
           'color': const Color(0xFF6366F1),
         },
       ],
       {
-        'title': 'Input Nilai',
+        'id': 'input_grades',
+        'title': AppLocalization.menuInputGrades,
         'icon': Icons.grade_rounded,
         'color': const Color(0xFF8B5CF6),
       },
       {
-        'title': 'Manajemen Tugas',
+        'id': 'task_management',
+        'title': AppLocalization.menuTaskManagement,
         'icon': Icons.assignment_rounded,
         'color': const Color(0xFF3B82F6),
       },
       {
-        'title': 'Ujian Online',
+        'id': 'online_exam',
+        'title': AppLocalization.menuOnlineExam,
         'icon': Icons.quiz_rounded,
         'color': const Color(0xFF8B5CF6),
       },
 
       {
-        'title': 'Chat',
+        'id': 'chat',
+        'title': AppLocalization.menuChat,
         'icon': Icons.chat_rounded,
         'color': const Color(0xFF8B5CF6),
       },
       {
-        'title': 'Laporan & Rapor',
+        'id': 'reports_and_cards',
+        'title': AppLocalization.menuReportsAndCards,
         'icon': Icons.bar_chart_rounded,
         'color': const Color(0xFFEC4899),
       },
       {
-        'title': 'Surat Izin Siswa',
+        'id': 'student_permit',
+        'title': AppLocalization.menuStudentPermit,
         'icon': Icons.mark_email_read_rounded,
         'color': const Color(0xFF8B5CF6),
       },
       {
-        'title': 'Pengumuman',
+        'id': 'notifications',
+        'title': AppLocalization.menuNotifications,
         'icon': Icons.campaign_rounded,
         'color': const Color(0xFFEF4444),
       },
       {
-        'title': 'Daftar Siswa',
-        'icon': Icons.groups_rounded,
-        'color': const Color(0xFF0EA5E9),
-      },
-      {
-        'title': 'Input Pelanggaran',
+        'id': 'input_violation',
+        'title': AppLocalization.menuInputViolation,
         'icon': Icons.report_problem_rounded,
         'color': const Color(0xFFEF4444),
       },
 
       {
-        'title': 'Realtime Control',
+        'id': 'realtime_control',
+        'title': AppLocalization.menuRealtimeControl,
         'icon': Icons.settings_remote_rounded,
         'color': const Color(0xFF84CC16),
       },
 
       {
-        'title': 'Pengaturan Profil',
+        'id': 'profile_settings',
+        'title': AppLocalization.menuProfileSettings,
         'icon': Icons.manage_accounts_rounded,
         'color': const Color(0xFF64748B),
         'badge': null,
@@ -1869,7 +1873,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         final menu = menus[index];
         final color = menu['color'] as Color;
         final badge = menu['badge'] as String?;
-        final isScanCard = menu['title'] == 'Scan Absensi Harian';
+        final isScanCard = menu['id'] == 'scan_daily_attendance';
         final isDisabled = isScanCard && !isGateOfficer;
 
         return Opacity(
@@ -1897,92 +1901,107 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   if (isScanCard) {
                     if (!isGateOfficer) {
                       Get.snackbar(
-                        'Akses Ditolak',
-                        'Anda tidak memiliki izin sebagai petugas scan.',
+                        AppLocalization.isIndonesian ? 'Akses Ditolak' : 'Access Denied',
+                        AppLocalization.isIndonesian
+                            ? 'Anda tidak memiliki izin sebagai petugas scan.'
+                            : 'You do not have permission as a scan officer.',
                         backgroundColor: Colors.amber,
                         colorText: Colors.black,
                       );
                     } else {
                       Get.toNamed(AppRoutes.officerDashboard);
                     }
-                  } else if (menu['title'] == 'Dashboard Perpustakaan') {
+                  } else if (menu['id'] == 'library_dashboard') {
                     Get.to(() => const LibrarianDashboardPage());
-                  } else if (menu['title'] == 'Jadwal Mengajar') {
+                  } else if (menu['id'] == 'teaching_schedule') {
                     Get.to(() => TeacherSchedulePage(teacherId: _teacherDocId!));
-                  } else if (menu['title'] == 'Absensi Murid') {
+                  } else if (menu['id'] == 'student_attendance') {
                     Get.to(
                       () =>
                           TeacherAttendanceSchedulePage(teacherId: _teacherDocId!),
                     );
-                  } else if (menu['title'] == 'Absensi Harian') {
-                  Get.to(
-                    () => TeacherDailyAttendancePage(
-                      teacherId: _teacherDocId!,
-                      teacherName: _teacherData?['nama'] ?? user.nama,
-                      nip: _teacherData?['nip'] ?? '',
-                    ),
-                  );
-                } else if (menu['title'] == 'Realtime Control') {
-                  Get.to(
-                    () => TeacherBehaviorRecordsPage(teacherId: _teacherDocId!),
-                  );
-                } else if (menu['title'] == 'Input Nilai') {
-                  Get.to(() => TeacherGradesPage(teacherId: _teacherDocId!));
-                } else if (menu['title'] == 'Manajemen Tugas') {
-                  Get.to(() => TeacherTasksPage(teacherId: _teacherDocId!));
-                } else if (menu['title'] == 'Ujian Online') {
-                  Get.to(() => TeacherExamsPage(teacherId: _teacherDocId!));
-
-                } else if (menu['title'] == 'Laporan & Rapor') {
-                  Get.to(
-                    () => TeacherReportsPage(
-                      schoolId: user.schoolId,
-                      teacherId: _teacherDocId!,
-                    ),
-                  );
-                } else if (menu['title'] == 'Surat Izin Siswa') {
-                  if (_teacherDocId == null) {
-                    Get.snackbar('Error', 'Data guru belum dimuat sepenuhnya.',
-                        backgroundColor: Colors.redAccent, colorText: Colors.white);
+                  } else if (menu['id'] == 'daily_attendance') {
+                    Get.to(
+                      () => TeacherDailyAttendancePage(
+                        teacherId: _teacherDocId!,
+                        teacherName: _teacherData?['nama'] ?? user.nama,
+                        nip: _teacherData?['nip'] ?? '',
+                      ),
+                    );
+                  } else if (menu['id'] == 'realtime_control') {
+                    Get.to(
+                      () => TeacherBehaviorRecordsPage(teacherId: _teacherDocId!),
+                    );
+                  } else if (menu['id'] == 'input_grades') {
+                    Get.to(() => TeacherGradesPage(teacherId: _teacherDocId!));
+                  } else if (menu['id'] == 'task_management') {
+                    Get.to(() => TeacherTasksPage(teacherId: _teacherDocId!));
+                  } else if (menu['id'] == 'online_exam') {
+                    Get.to(() => TeacherExamsPage(teacherId: _teacherDocId!));
+                  } else if (menu['id'] == 'reports_and_cards') {
+                    Get.to(
+                      () => TeacherReportsPage(
+                        schoolId: user.schoolId,
+                        teacherId: _teacherDocId!,
+                      ),
+                    );
+                  } else if (menu['id'] == 'student_permit') {
+                    if (_teacherDocId == null) {
+                      Get.snackbar(
+                        AppLocalization.isIndonesian ? 'Error' : 'Error',
+                        AppLocalization.isIndonesian
+                            ? 'Data guru belum dimuat sepenuhnya.'
+                            : 'Teacher data is not fully loaded.',
+                        backgroundColor: Colors.redAccent,
+                        colorText: Colors.white,
+                      );
+                    } else {
+                      Get.toNamed(
+                        AppRoutes.teacherPermits,
+                        arguments: {
+                          'teacherDocId': _teacherDocId,
+                          'schoolId': user.schoolId,
+                        },
+                      );
+                    }
+                  } else if (menu['id'] == 'chat') {
+                    Get.to(
+                      () => TeacherChatSelectorPage(
+                        schoolId: user.schoolId,
+                        teacherDocId: _teacherDocId!,
+                        teacherName: _teacherData?['nama'] ?? user.nama,
+                      ),
+                    );
+                  } else if (menu['id'] == 'notifications') {
+                    Get.toNamed(AppRoutes.notifications);
+                  } else if (menu['id'] == 'profile_settings') {
+                    await Get.to(() => const TeacherSettingsPage());
+                    _resolveTeacherDocId();
+                  } else if (menu['id'] == 'input_violation') {
+                    Get.to(() => TeacherStudentViolationsPage(teacherId: _teacherDocId!));
+                  } else if (menu['id'] == 'student_list') {
+                    Get.to(
+                      () => TeacherMyStudentsPage(
+                        schoolId: user.schoolId,
+                        teacherId: _teacherDocId!,
+                        waliKelasClasses: waliKelasClasses,
+                      ),
+                    );
                   } else {
-                    Get.toNamed(
-                      AppRoutes.teacherPermits,
-                      arguments: {
-                        'teacherDocId': _teacherDocId,
-                        'schoolId': user.schoolId,
-                      },
+                    Get.snackbar(
+                      AppLocalization.isIndonesian ? 'Info' : 'Info',
+                      AppLocalization.isIndonesian
+                          ? 'Fitur "${menu['title']}" sedang dalam pengembangan.'
+                          : 'Feature "${menu['title']}" is currently in development.',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: Colors.amber,
+                      colorText: Colors.black,
+                      margin: const EdgeInsets.all(16),
+                      borderRadius: 12,
+                      icon: const Icon(Icons.info_outline, color: Colors.black),
                     );
                   }
-                } else if (menu['title'] == 'Chat') {
-                  Get.to(
-                    () => TeacherChatSelectorPage(
-                      schoolId: user.schoolId,
-                      teacherDocId: _teacherDocId!,
-                      teacherName: _teacherData?['nama'] ?? user.nama,
-                    ),
-                  );
-                } else if (menu['title'] == 'Pengumuman') {
-                  Get.toNamed(AppRoutes.notifications);
-                } else if (menu['title'] == 'Pengaturan Profil') {
-                  await Get.to(() => const TeacherSettingsPage());
-                  _resolveTeacherDocId();
-
-                } else if (menu['title'] == 'Input Pelanggaran') {
-                  Get.to(() => TeacherStudentViolationsPage(teacherId: _teacherDocId!));
-
-                } else {
-                  Get.snackbar(
-                    'Info',
-                    'Fitur "${menu['title']}" sedang dalam pengembangan.',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: Colors.amber,
-                    colorText: Colors.black,
-                    margin: const EdgeInsets.all(16),
-                    borderRadius: 12,
-                    icon: const Icon(Icons.info_outline, color: Colors.black),
-                  );
-                }
-              },
+                },
               borderRadius: BorderRadius.circular(20),
               child: Stack(
                 clipBehavior: Clip.none,
@@ -2166,19 +2185,19 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildDesktopLayout(bool isDark, bool isGateOfficer, bool isLibrarian) {
+  Widget _buildDesktopLayout(bool isDark, bool isGateOfficer, bool isLibrarian, List<QueryDocumentSnapshot<Map<String, dynamic>>> waliKelasClasses) {
     final panelBg = isDark ? const Color(0xFF0B081B) : const Color(0xFFF8FAFC);
 
     return Scaffold(
       body: Row(
         children: [
           // Sidebar
-          _buildTeacherSidebar(isDark, isGateOfficer, isLibrarian),
+          _buildTeacherSidebar(isDark, isGateOfficer, isLibrarian, waliKelasClasses),
           // Main Panel Content
           Expanded(
             child: Container(
               color: panelBg,
-              child: _buildDesktopContent(isDark, isGateOfficer, isLibrarian),
+              child: _buildDesktopContent(isDark, isGateOfficer, isLibrarian, waliKelasClasses),
             ),
           ),
         ],
@@ -2186,7 +2205,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildTeacherSidebar(bool isDark, bool isGateOfficer, bool isLibrarian) {
+  Widget _buildTeacherSidebar(bool isDark, bool isGateOfficer, bool isLibrarian, List<QueryDocumentSnapshot<Map<String, dynamic>>> waliKelasClasses) {
     final sidebarBg = isDark ? const Color(0xFF110E24) : Colors.white;
     final borderRightColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
     final miniLogoBorder = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06);
@@ -2299,42 +2318,48 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               children: [
-                _buildSidebarItem('Dashboard', Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuDashboard, Icons.dashboard_rounded, 0, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Jadwal Mengajar', Icons.calendar_month_rounded, 1, const Color(0xFFF59E0B), isDark),
+                _buildSidebarItem(AppLocalization.menuTeachingSchedule, Icons.calendar_month_rounded, 1, const Color(0xFFF59E0B), isDark),
+                if (waliKelasClasses.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  _buildSidebarItem(AppLocalization.menuStudentList, Icons.groups_rounded, 17, const Color(0xFF0EA5E9), isDark),
+                ],
                 const SizedBox(height: 4),
-                _buildSidebarItem('Absensi Murid', Icons.fact_check_rounded, 2, const Color(0xFF10B981), isDark),
+                _buildSidebarItem(AppLocalization.menuStudentAttendance, Icons.fact_check_rounded, 2, const Color(0xFF10B981), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Absensi Harian', Icons.co_present_rounded, 3, const Color(0xFF6366F1), isDark),
+                _buildSidebarItem(AppLocalization.menuDailyAttendance, Icons.co_present_rounded, 3, const Color(0xFF6366F1), isDark),
                 if (isGateOfficer) ...[
                   const SizedBox(height: 4),
-                  _buildSidebarItem('Scan Absensi Harian', Icons.qr_code_scanner_rounded, 13, const Color(0xFF10B981), isDark, isGateOfficer: isGateOfficer),
+                  _buildSidebarItem(AppLocalization.menuScanDailyAttendance, Icons.qr_code_scanner_rounded, 13, const Color(0xFF10B981), isDark, isGateOfficer: isGateOfficer),
                 ],
                 if (isLibrarian) ...[
                   const SizedBox(height: 4),
-                  _buildSidebarItem('Perpustakaan', Icons.menu_book_rounded, 14, const Color(0xFF8B5CF6), isDark),
+                  _buildSidebarItem(AppLocalization.menuLibrary, Icons.menu_book_rounded, 14, const Color(0xFF8B5CF6), isDark),
                 ],
                 const SizedBox(height: 4),
-                _buildSidebarItem('Input Nilai', Icons.grade_rounded, 4, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuInputGrades, Icons.grade_rounded, 4, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Manajemen Tugas', Icons.assignment_rounded, 5, const Color(0xFF3B82F6), isDark),
+                _buildSidebarItem(AppLocalization.menuTaskManagement, Icons.assignment_rounded, 5, const Color(0xFF3B82F6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Ujian Online', Icons.quiz_rounded, 6, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuOnlineExam, Icons.quiz_rounded, 6, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Ujian Semester', Icons.assignment_rounded, 15, const Color(0xFF8B5CF6), isDark),
+                _buildSidebarItem(AppLocalization.menuSemesterExam, Icons.assignment_rounded, 15, const Color(0xFF8B5CF6), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Realtime Control', Icons.settings_remote_rounded, 7, const Color(0xFF84CC16), isDark),
+                _buildSidebarItem(AppLocalization.menuRealtimeControl, Icons.settings_remote_rounded, 7, const Color(0xFF84CC16), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Chat', Icons.chat_rounded, 8, const Color(0xFF8B5CF6), isDark, isChat: true),
+                _buildSidebarItem(AppLocalization.menuChat, Icons.chat_rounded, 8, const Color(0xFF8B5CF6), isDark, isChat: true),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Laporan & Rapor', Icons.bar_chart_rounded, 9, const Color(0xFFEC4899), isDark),
+                _buildSidebarItem(AppLocalization.menuReportsAndCards, Icons.bar_chart_rounded, 9, const Color(0xFFEC4899), isDark),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Surat Izin Siswa', Icons.mark_email_read_rounded, 10, const Color(0xFF8B5CF6), isDark, isPermit: true),
+                _buildSidebarItem(AppLocalization.menuStudentPermit, Icons.mark_email_read_rounded, 10, const Color(0xFF8B5CF6), isDark, isPermit: true),
                 const SizedBox(height: 4),
-                _buildSidebarItem('Input Pelanggaran', Icons.report_problem_rounded, 12, const Color(0xFFEF4444), isDark),
+                _buildSidebarItem(AppLocalization.menuInputViolation, Icons.report_problem_rounded, 12, const Color(0xFFEF4444), isDark),
+                const SizedBox(height: 4),
+                _buildSidebarItem(AppLocalization.menuNotifications, Icons.notifications_rounded, 16, const Color(0xFFEF4444), isDark),
                 const SizedBox(height: 4),
 
-                _buildSidebarItem('Pengaturan Profil', Icons.settings_rounded, 11, const Color(0xFF64748B), isDark),
+                _buildSidebarItem(AppLocalization.menuProfileSettings, Icons.settings_rounded, 11, const Color(0xFF64748B), isDark),
               ],
             ),
           ),
@@ -2342,6 +2367,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             color: dividerColor,
             height: 1,
           ),
+
           // Logout Item at the bottom
           Padding(
             padding: const EdgeInsets.all(12),
@@ -2364,7 +2390,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Keluar',
+                        AppLocalization.logout,
                         style: TextStyle(
                           color: Colors.red.shade400,
                           fontWeight: FontWeight.bold,
@@ -2545,7 +2571,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildDesktopContent(bool isDark, bool isGateOfficer, bool isLibrarian) {
+  Widget _buildDesktopContent(bool isDark, bool isGateOfficer, bool isLibrarian, List<QueryDocumentSnapshot<Map<String, dynamic>>> waliKelasClasses) {
     switch (_selectedMenuIndex) {
       case 0:
         return _buildDesktopDashboardHome(isDark);
@@ -2605,6 +2631,15 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       case 15:
         return TeacherProctorDashboardPage(
           teacherId: _teacherDocId!,
+          hideBackButton: true,
+        );
+      case 16:
+        return NotificationsPage(hideBackButton: true);
+      case 17:
+        return TeacherMyStudentsPage(
+          schoolId: SessionService.currentUser!.schoolId,
+          teacherId: _teacherDocId!,
+          waliKelasClasses: waliKelasClasses,
           hideBackButton: true,
         );
       default:
@@ -2697,7 +2732,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                             children: [
                               Expanded(
                                 child: _buildStatCard(
-                                  title: 'Kelas Mengajar',
+                                  title: AppLocalization.classesTaught,
                                   value: teacherClassIds.length.toString(),
                                   icon: Icons.class_rounded,
                                   color: const Color(0xFF6366F1),
@@ -2707,7 +2742,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: _buildStatCard(
-                                  title: 'Mata Pelajaran',
+                                  title: AppLocalization.menuSubjects,
                                   value: teacherSubjects.length.toString(),
                                   icon: Icons.menu_book_rounded,
                                   color: const Color(0xFF10B981),
@@ -2726,7 +2761,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _buildSectionTitle(
-                                      'Jadwal Hari Ini ($currentDay)',
+                                      '${AppLocalization.todaySchedule} ($currentDay)',
                                       Icons.calendar_today_rounded,
                                       isDark,
                                     ),
@@ -2745,7 +2780,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _buildSectionTitle(
-                                      'Mata Pelajaran Saya',
+                                      AppLocalization.mySubjects,
                                       Icons.menu_book_rounded,
                                       isDark,
                                     ),

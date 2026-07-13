@@ -596,6 +596,13 @@ class _ParentRegisterPageState extends State<ParentRegisterPage> {
   }) {
     return TextField(
       controller: controller,
+      onTap: () {
+        if (controller.selection.baseOffset != controller.selection.extentOffset) {
+          controller.selection = TextSelection.collapsed(
+            offset: controller.selection.extentOffset,
+          );
+        }
+      },
       style: TextStyle(color: textColor),
       keyboardType: keyboard,
       obscureText: obscure,

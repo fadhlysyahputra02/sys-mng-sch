@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../students/data/student_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherStudentViolationsPage extends StatefulWidget {
   final String teacherId;
@@ -120,8 +121,8 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
     } catch (e) {
       if (Get.isDialogOpen ?? false) Get.back();
       Get.snackbar(
-        'Gagal',
-        'Gagal memilih gambar: $e',
+        AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+        AppLocalization.isIndonesian ? 'Gagal memilih gambar: $e' : 'Failed to pick image: $e',
         backgroundColor: const Color(0xFFEF4444),
         colorText: Colors.white,
       );
@@ -224,7 +225,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Pilih Sumber Foto Bukti',
+              AppLocalization.isIndonesian ? 'Pilih Sumber Foto Bukti' : 'Select Evidence Photo Source',
               style: TextStyle(
                 color: textColor,
                 fontWeight: FontWeight.bold,
@@ -235,7 +236,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
             const SizedBox(height: 20),
             ListTile(
               leading: Icon(Icons.camera_alt_rounded, color: const Color(0xFF8B5CF6)),
-              title: Text('Kamera Langsung', style: TextStyle(color: textColor)),
+              title: Text(AppLocalization.isIndonesian ? 'Kamera Langsung' : 'Camera', style: TextStyle(color: textColor)),
               onTap: () {
                 Get.back();
                 _pickImage(ImageSource.camera);
@@ -243,7 +244,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
             ),
             ListTile(
               leading: Icon(Icons.photo_library_rounded, color: const Color(0xFF8B5CF6)),
-              title: Text('Pilih dari Galeri', style: TextStyle(color: textColor)),
+              title: Text(AppLocalization.isIndonesian ? 'Pilih dari Galeri' : 'Choose from Gallery', style: TextStyle(color: textColor)),
               onTap: () {
                 Get.back();
                 _pickImage(ImageSource.gallery);
@@ -259,8 +260,8 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
     if (!_formKey.currentState!.validate()) return;
     if (_selectedStudentId == null) {
       Get.snackbar(
-        'Peringatan',
-        'Silakan pilih murid terlebih dahulu.',
+        AppLocalization.isIndonesian ? 'Peringatan' : 'Warning',
+        AppLocalization.isIndonesian ? 'Silakan pilih murid terlebih dahulu.' : 'Please select a student first.',
         backgroundColor: Colors.amber,
         colorText: const Color(0xFF1E1B4B),
       );
@@ -305,15 +306,15 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
       });
 
       Get.snackbar(
-        'Sukses',
-        'Pelanggaran murid berhasil dicatat.',
+        AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+        AppLocalization.isIndonesian ? 'Pelanggaran murid berhasil dicatat.' : 'Student violation successfully recorded.',
         backgroundColor: const Color(0xFF10B981),
         colorText: Colors.white,
       );
     } catch (e) {
       Get.snackbar(
-        'Error',
-        'Gagal mencatat pelanggaran: $e',
+        AppLocalization.isIndonesian ? 'Error' : 'Error',
+        AppLocalization.isIndonesian ? 'Gagal mencatat pelanggaran: $e' : 'Failed to record violation: $e',
         backgroundColor: const Color(0xFFEF4444),
         colorText: Colors.white,
       );
@@ -326,20 +327,23 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
   Widget build(BuildContext context) {
     final user = SessionService.currentUser!;
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: AuthBackground.isDarkMode,
-      builder: (context, isDark, _) {
-        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-        final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-        final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
-        final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
-        final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
-        final shadowColor = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLocalization.currentLocale,
+      builder: (context, locale, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: AuthBackground.isDarkMode,
+          builder: (context, isDark, _) {
+            final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+            final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+            final cardBorderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08);
+            final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+            final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final inputFillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+            final shadowColor = isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04);
 
-        return Scaffold(
-          body: AuthBackground(
+            return Scaffold(
+              body: AuthBackground(
             child: SafeArea(
               child: CustomScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -360,7 +364,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                       ),
                     ),
                     title: Text(
-                      'Input Pelanggaran Murid',
+                      AppLocalization.isIndonesian ? 'Input Pelanggaran Murid' : 'Input Student Violation',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
                     ),
                   ),
@@ -374,7 +378,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                           children: [
                             // 1. SEARCH STUDENT TEXTFIELD OR SELECTED STUDENT CARD
                             Text(
-                              'Cari Murid',
+                              AppLocalization.isIndonesian ? 'Cari Murid' : 'Search Student',
                               style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                             ),
                             const SizedBox(height: 8),
@@ -416,7 +420,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            'Kelas: ${_selectedClassName ?? "Tanpa Kelas"}',
+                                            'Kelas: ${_selectedClassName ?? (AppLocalization.isIndonesian ? "Tanpa Kelas" : "No Class")}',
                                             style: TextStyle(color: subTextColor, fontSize: 12),
                                           ),
                                         ],
@@ -447,7 +451,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                 },
                                 style: TextStyle(color: textColor, fontSize: 14),
                                 decoration: InputDecoration(
-                                  hintText: 'Cari nama atau NIS murid...',
+                                  hintText: AppLocalization.isIndonesian ? 'Cari nama atau NIS murid...' : 'Search student name or ID...',
                                   hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                                   prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
                                   fillColor: inputFillColor,
@@ -491,7 +495,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                     return Padding(
                                       padding: const EdgeInsets.all(8.0),
                                       child: Text(
-                                        'Ketikkan nama/nis murid untuk mulai mencari.',
+                                        AppLocalization.isIndonesian ? 'Ketikkan nama/nis murid untuk mulai mencari.' : 'Type a student name/ID to start searching.',
                                         style: TextStyle(color: subTextColor, fontSize: 12, fontStyle: FontStyle.italic),
                                         textAlign: TextAlign.center,
                                       ),
@@ -502,7 +506,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                     return Padding(
                                       padding: const EdgeInsets.all(16.0),
                                       child: Text(
-                                        'Murid tidak ditemukan.',
+                                        AppLocalization.isIndonesian ? 'Murid tidak ditemukan.' : 'Student not found.',
                                         style: TextStyle(color: subTextColor, fontSize: 13),
                                         textAlign: TextAlign.center,
                                       ),
@@ -529,7 +533,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
 
                                         return ListTile(
                                           title: Text(name, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14)),
-                                          subtitle: Text('NIS: $nis • Kelas: $className', style: TextStyle(color: subTextColor, fontSize: 12)),
+                                          subtitle: Text('NIS: $nis • ${AppLocalization.isIndonesian ? 'Kelas' : 'Class'}: $className', style: TextStyle(color: subTextColor, fontSize: 12)),
                                           trailing: Icon(Icons.chevron_right_rounded, color: subTextColor),
                                           onTap: () {
                                             setState(() {
@@ -552,7 +556,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                             // 2. FORM INPUTS (ONLY REVEALED WHEN STUDENT SELECTED)
                             if (_selectedStudentId != null) ...[
                               Text(
-                                'Jenis Pelanggaran',
+                                AppLocalization.isIndonesian ? 'Jenis Pelanggaran' : 'Violation Type',
                                 style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                               const SizedBox(height: 8),
@@ -589,16 +593,16 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
 
                               if (_selectedJenis == 'Lainnya (Tulis manual)') ...[
                                 Text(
-                                  'Tulis Pelanggaran',
+                                  AppLocalization.isIndonesian ? 'Tulis Pelanggaran' : 'Write Violation',
                                   style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                                 ),
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _customJenisController,
                                   style: TextStyle(color: textColor, fontSize: 14),
-                                  validator: (v) => v == null || v.trim().isEmpty ? 'Masukkan jenis pelanggaran' : null,
+                                  validator: (v) => v == null || v.trim().isEmpty ? (AppLocalization.isIndonesian ? 'Masukkan jenis pelanggaran' : 'Enter violation type') : null,
                                   decoration: InputDecoration(
-                                    hintText: 'Misal: Makan di kelas saat pelajaran',
+                                    hintText: AppLocalization.isIndonesian ? 'Misal: Makan di kelas saat pelajaran' : 'Example: Eating in class during lesson',
                                     hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                                     fillColor: inputFillColor,
                                     filled: true,
@@ -623,7 +627,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Poin Pelanggaran',
+                                          AppLocalization.isIndonesian ? 'Poin Pelanggaran' : 'Violation Points',
                                           style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                                         ),
                                         const SizedBox(height: 8),
@@ -632,12 +636,12 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                           keyboardType: TextInputType.number,
                                           style: TextStyle(color: textColor, fontSize: 14),
                                           validator: (v) {
-                                            if (v == null || v.isEmpty) return 'Masukkan poin';
-                                            if (int.tryParse(v) == null) return 'Harus angka';
+                                           if (v == null || v.isEmpty) return AppLocalization.isIndonesian ? 'Masukkan poin' : 'Enter points';
+                                            if (int.tryParse(v) == null) return AppLocalization.isIndonesian ? 'Harus angka' : 'Must be a number';
                                             return null;
                                           },
                                           decoration: InputDecoration(
-                                            hintText: 'Misal: 10',
+                                            hintText: '10',
                                             hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                                             fillColor: inputFillColor,
                                             filled: true,
@@ -661,7 +665,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Tanggal Pelanggaran',
+                                          AppLocalization.isIndonesian ? 'Tanggal Pelanggaran' : 'Violation Date',
                                           style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                                         ),
                                         const SizedBox(height: 8),
@@ -694,7 +698,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                               const SizedBox(height: 16),
 
                               Text(
-                                'Keterangan Tambahan',
+                                AppLocalization.isIndonesian ? 'Keterangan Tambahan' : 'Additional Notes',
                                 style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                               const SizedBox(height: 8),
@@ -703,7 +707,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                 style: TextStyle(color: textColor, fontSize: 14),
                                 maxLines: 3,
                                 decoration: InputDecoration(
-                                  hintText: 'Tulis detail pelanggaran...',
+                                  hintText: AppLocalization.isIndonesian ? 'Tulis detail pelanggaran...' : 'Write violation details...',
                                   hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                                   fillColor: inputFillColor,
                                   filled: true,
@@ -720,7 +724,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Bukti Foto (Opsional)',
+                                AppLocalization.isIndonesian ? 'Bukti Foto (Opsional)' : 'Photo Evidence (Optional)',
                                 style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                               const SizedBox(height: 8),
@@ -784,7 +788,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
-                                          'Unggah Bukti Foto',
+                                          AppLocalization.isIndonesian ? 'Unggah Bukti Foto' : 'Upload Photo Evidence',
                                           style: TextStyle(
                                             color: textColor,
                                             fontWeight: FontWeight.w600,
@@ -793,7 +797,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'Kamera langsung atau pilih dari galeri',
+                                          AppLocalization.isIndonesian ? 'Kamera langsung atau pilih dari galeri' : 'Take a photo or choose from gallery',
                                           style: TextStyle(
                                             color: subTextColor,
                                             fontSize: 12,
@@ -819,7 +823,7 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
                                         width: 20,
                                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                                       )
-                                    : const Text('Simpan Catatan Pelanggaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                    : Text(AppLocalization.isIndonesian ? 'Simpan Catatan Pelanggaran' : 'Save Violation Record', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                               ),
                             ],
                           ],
@@ -831,6 +835,8 @@ class _TeacherStudentViolationsPageState extends State<TeacherStudentViolationsP
               ),
             ),
           ),
+            );
+          },
         );
       },
     );

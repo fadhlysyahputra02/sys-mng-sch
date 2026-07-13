@@ -139,7 +139,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
 
                           // Quick Actions Grid
                           Text(
-                            'Menu Cepat',
+                            AppLocalization.menuQuickMenu,
                             style: TextStyle(
                               color: textColor,
                               fontSize: 16,
@@ -149,7 +149,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                           const SizedBox(height: 16),
 
                           // ─── MURID section ───────────────────────────────
-                          _buildSectionLabel('Absensi Murid', Icons.school_rounded, const Color(0xFF10B981), textColor),
+                          _buildSectionLabel(AppLocalization.menuStudentAttendance, Icons.school_rounded, const Color(0xFF10B981), textColor),
                           const SizedBox(height: 12),
                           GridView.count(
                             crossAxisCount: 2,
@@ -160,7 +160,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                             childAspectRatio: 1.1,
                             children: [
                               _buildMenuCard(
-                                title: 'Scan Murid\n(Masuk)',
+                                title: AppLocalization.menuScanStudentIn,
                                 icon: Icons.qr_code_scanner_rounded,
                                 color: const Color(0xFF10B981), // Emerald Green
                                 onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'student', 'action': 'check_in'}),
@@ -170,7 +170,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                                 isDisabled: !scanMuridEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Scan Murid\n(Pulang)',
+                                title: AppLocalization.menuScanStudentOut,
                                 icon: Icons.exit_to_app_rounded,
                                 color: const Color(0xFF059669), // Darker Green
                                 onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'student', 'action': 'check_out'}),
@@ -180,7 +180,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                                 isDisabled: !scanMuridEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Absen Manual\nMurid (Masuk)',
+                                title: AppLocalization.menuManualStudentIn,
                                 icon: Icons.how_to_reg_rounded,
                                 color: const Color(0xFF34D399), // Light Green
                                 onTap: () => Get.toNamed(AppRoutes.officerManual, arguments: {'mode': 'student_check_in'}),
@@ -190,7 +190,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                                 isDisabled: !scanMuridEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Absen Manual\nMurid (Pulang)',
+                                title: AppLocalization.menuManualStudentOut,
                                 icon: Icons.assignment_return_rounded,
                                 color: const Color(0xFF0D9488), // Teal Green
                                 onTap: () => Get.toNamed(AppRoutes.officerManual, arguments: {'mode': 'student_check_out'}),
@@ -204,7 +204,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                           const SizedBox(height: 24),
 
                           // ─── GURU section ────────────────────────────────
-                          _buildSectionLabel('Absensi Guru', Icons.assignment_ind_rounded, const Color(0xFF2563EB), textColor),
+                          _buildSectionLabel(AppLocalization.menuTeacherAttendance, Icons.assignment_ind_rounded, const Color(0xFF2563EB), textColor),
                           const SizedBox(height: 12),
                           GridView.count(
                             crossAxisCount: 2,
@@ -215,7 +215,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                             childAspectRatio: 1.1,
                             children: [
                               _buildMenuCard(
-                                title: 'Scan Guru\n(Masuk)',
+                                title: AppLocalization.menuScanTeacherIn,
                                 icon: Icons.qr_code_scanner_rounded,
                                 color: const Color(0xFF3B82F6), // Blue
                                 onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'teacher', 'action': 'check_in'}),
@@ -225,7 +225,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                                 isDisabled: !scanGuruEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Scan Guru\n(Pulang)',
+                                title: AppLocalization.menuScanTeacherOut,
                                 icon: Icons.exit_to_app_rounded,
                                 color: const Color(0xFF1D4ED8), // Dark Blue
                                 onTap: () => Get.toNamed(AppRoutes.officerScan, arguments: {'role': 'teacher', 'action': 'check_out'}),
@@ -235,7 +235,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                                 isDisabled: !scanGuruEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Absen Manual\nGuru (Masuk)',
+                                title: AppLocalization.menuManualTeacherIn,
                                 icon: Icons.how_to_reg_rounded,
                                 color: const Color(0xFF60A5FA), // Light Blue
                                 onTap: () => Get.toNamed(AppRoutes.officerManual, arguments: {'mode': 'teacher_check_in'}),
@@ -245,7 +245,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                                 isDisabled: !scanGuruEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Absen Manual\nGuru (Pulang)',
+                                title: AppLocalization.menuManualTeacherOut,
                                 icon: Icons.assignment_return_rounded,
                                 color: const Color(0xFF2563EB), // Royal Blue
                                 onTap: () => Get.toNamed(AppRoutes.officerManual, arguments: {'mode': 'teacher_check_out'}),
@@ -259,7 +259,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                           const SizedBox(height: 24),
 
                           // ─── REKAP section ───────────────────────────────
-                          _buildSectionLabel('Rekap Absensi', Icons.bar_chart_rounded, const Color(0xFF6366F1), textColor),
+                          _buildSectionLabel(AppLocalization.menuAttendanceSummary, Icons.bar_chart_rounded, const Color(0xFF6366F1), textColor),
                           const SizedBox(height: 12),
                           GridView.count(
                             crossAxisCount: 2,
@@ -270,7 +270,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                             childAspectRatio: 1.1,
                             children: [
                               _buildMenuCard(
-                                title: 'Rekap Murid',
+                                title: AppLocalization.menuStudentSummary,
                                 icon: Icons.school_rounded,
                                 color: const Color(0xFF10B981),
                                 onTap: () => Get.toNamed(AppRoutes.officerRecap),
@@ -280,7 +280,7 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
                                 isDisabled: !scanMuridEnabled,
                               ),
                               _buildMenuCard(
-                                title: 'Rekap Guru',
+                                title: AppLocalization.menuTeacherSummary,
                                 icon: Icons.assignment_ind_rounded,
                                 color: const Color(0xFF3B82F6),
                                 onTap: () => Get.to(() => const AdminTeacherAttendancePage(isMonthly: false)),
@@ -506,26 +506,6 @@ class _OfficerDashboardPageState extends State<OfficerDashboardPage> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Row for Badges
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
-                ),
-                child: const Text(
-                  'Officer',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF6366F1)),
-                ),
-              ),
-              // Removed plan badge display
-            ],
-          ),
-          const SizedBox(height: 16),
           Divider(color: dividerColor, height: 1),
           const SizedBox(height: 16),
           // Footer: Date and System Status

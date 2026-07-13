@@ -217,6 +217,20 @@ class ExamSessionService {
     // Update status di Firestore setelah validasi berhasil
     await _eventsRef(schoolId).doc(eventId).update({'examStatus': status});
 
+    if (status == 'Finished') {
+      try {
+        final sessionsSnap = await _sessionsRef(schoolId).where('eventId', isEqualTo: eventId).get();
+        for (final doc in sessionsSnap.docs) {
+          await ExamBehaviorService().deleteExamBehaviorForSession(
+            schoolId: schoolId,
+            sessionId: doc.id,
+          );
+        }
+      } catch (e) {
+        // Abaikan error jika ada
+      }
+    }
+
     if (status == 'Active') {
       // Ambil detail event lagi untuk generate exams
       final eventDoc = await _eventsRef(schoolId).doc(eventId).get();
@@ -400,6 +414,16 @@ class ExamSessionService {
         refsToDelete.add(pDoc.reference);
       }
       refsToDelete.add(sDoc.reference);
+
+      // Bersihkan juga behavior records jika masih ada
+      try {
+        await ExamBehaviorService().deleteExamBehaviorForSession(
+          schoolId: schoolId,
+          sessionId: sDoc.id,
+        );
+      } catch (e) {
+        // Abaikan
+      }
     }
 
     // 2. Hapus exams yang digenerate oleh event ini

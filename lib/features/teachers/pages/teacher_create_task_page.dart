@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../tasks/services/task_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 class TeacherCreateTaskPage extends StatefulWidget {
   final String teacherId;
@@ -105,8 +106,10 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
 
     if (_selectedClassId == null || _selectedSubjectId == null) {
       Get.snackbar(
-        'Peringatan',
-        'Pilih kelas dan mata pelajaran target',
+        AppLocalization.isIndonesian ? 'Peringatan' : 'Warning',
+        AppLocalization.isIndonesian
+            ? 'Pilih kelas dan mata pelajaran target'
+            : 'Please select target class and subject',
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.amber,
         colorText: Colors.black,
@@ -118,8 +121,10 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
 
     if (_selectedDueDate == null || _selectedDueTime == null) {
       Get.snackbar(
-        'Peringatan',
-        'Tentukan tenggat tanggal dan jam pengumpulan',
+        AppLocalization.isIndonesian ? 'Peringatan' : 'Warning',
+        AppLocalization.isIndonesian
+            ? 'Tentukan tenggat tanggal dan jam pengumpulan'
+            : 'Please specify submission due date and time',
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.amber,
         colorText: Colors.black,
@@ -168,8 +173,10 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
 
       Get.back();
       Get.snackbar(
-        'Sukses',
-        'Tugas berhasil diterbitkan untuk kelas $className',
+        AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+        AppLocalization.isIndonesian
+            ? 'Tugas berhasil diterbitkan untuk kelas $className'
+            : 'Task successfully published for class $className',
         snackPosition: SnackPosition.TOP,
         backgroundColor: const Color(0xFF10B981),
         colorText: Colors.white,
@@ -178,8 +185,8 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
       );
     } catch (e) {
       Get.snackbar(
-        'Gagal',
-        'Gagal menerbitkan tugas: $e',
+        AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+        AppLocalization.isIndonesian ? 'Gagal menerbitkan tugas: $e' : 'Failed to publish task: $e',
         snackPosition: SnackPosition.TOP,
         backgroundColor: const Color(0xFFEF4444),
         colorText: Colors.white,
@@ -243,7 +250,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                       ),
                     ),
                     title: Text(
-                      'Buat Tugas Baru',
+                      AppLocalization.isIndonesian ? 'Buat Tugas Baru' : 'Create New Task',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                     ),
                   ),
@@ -272,7 +279,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                             children: [
                               // Judul Tugas
                               Text(
-                                'Judul Tugas',
+                                AppLocalization.isIndonesian ? 'Judul Tugas' : 'Task Title',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                               ),
                               const SizedBox(height: 8),
@@ -280,7 +287,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                 controller: _titleController,
                                 style: TextStyle(color: titleColor, fontSize: 14),
                                 decoration: InputDecoration(
-                                  hintText: 'Masukkan judul tugas...',
+                                  hintText: AppLocalization.isIndonesian ? 'Masukkan judul tugas...' : 'Enter task title...',
                                   hintStyle: TextStyle(color: subTextColor, fontSize: 13),
                                   fillColor: inputFillColor,
                                   filled: true,
@@ -288,7 +295,9 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 ),
                                 validator: (val) {
-                                  if (val == null || val.trim().isEmpty) return 'Judul tugas wajib diisi';
+                                  if (val == null || val.trim().isEmpty) {
+                                    return AppLocalization.isIndonesian ? 'Judul tugas wajib diisi' : 'Task title is required';
+                                  }
                                   return null;
                                 },
                               ),
@@ -296,7 +305,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
 
                               // Deskripsi Tugas
                               Text(
-                                'Instruksi / Deskripsi Tugas',
+                                AppLocalization.isIndonesian ? 'Instruksi / Deskripsi Tugas' : 'Task Instructions / Description',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                               ),
                               const SizedBox(height: 8),
@@ -305,7 +314,9 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                 maxLines: 5,
                                 style: TextStyle(color: titleColor, fontSize: 14),
                                 decoration: InputDecoration(
-                                  hintText: 'Tulis instruksi pengerjaan tugas secara rinci...',
+                                  hintText: AppLocalization.isIndonesian
+                                      ? 'Tulis instruksi pengerjaan tugas secara rinci...'
+                                      : 'Write detailed task instructions...',
                                   hintStyle: TextStyle(color: subTextColor, fontSize: 13),
                                   fillColor: inputFillColor,
                                   filled: true,
@@ -313,7 +324,9 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                   contentPadding: const EdgeInsets.all(16),
                                 ),
                                 validator: (val) {
-                                  if (val == null || val.trim().isEmpty) return 'Deskripsi wajib diisi';
+                                  if (val == null || val.trim().isEmpty) {
+                                    return AppLocalization.isIndonesian ? 'Deskripsi wajib diisi' : 'Description is required';
+                                  }
                                   return null;
                                 },
                               ),
@@ -327,7 +340,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Kelas',
+                                          AppLocalization.isIndonesian ? 'Kelas' : 'Class',
                                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                                         ),
                                         const SizedBox(height: 8),
@@ -364,7 +377,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Mata Pelajaran',
+                                          AppLocalization.subjectLabel,
                                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                                         ),
                                         const SizedBox(height: 8),
@@ -400,7 +413,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
 
                               // Tenggat Waktu (DueDate)
                               Text(
-                                'Tenggat Waktu Pengumpulan',
+                                AppLocalization.isIndonesian ? 'Tenggat Waktu Pengumpulan' : 'Submission Deadline',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                               ),
                               const SizedBox(height: 8),
@@ -423,7 +436,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                           const SizedBox(width: 8),
                                           Text(
                                             _selectedDueDate == null
-                                                ? 'Pilih Tanggal'
+                                                ? (AppLocalization.isIndonesian ? 'Pilih Tanggal' : 'Select Date')
                                                 : DateFormat('dd/MM/yyyy').format(_selectedDueDate!),
                                             style: const TextStyle(fontSize: 12),
                                           ),
@@ -449,7 +462,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                           const SizedBox(width: 8),
                                           Text(
                                             _selectedDueTime == null
-                                                ? 'Pilih Jam'
+                                                ? (AppLocalization.isIndonesian ? 'Pilih Jam' : 'Select Time')
                                                 : '${_selectedDueTime!.hour.toString().padLeft(2, '0')}:${_selectedDueTime!.minute.toString().padLeft(2, '0')}',
                                             style: const TextStyle(fontSize: 12),
                                           ),
@@ -463,7 +476,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
 
                               // Link Lampiran (Opsional)
                               Text(
-                                'Link Lampiran / Materi (Opsional)',
+                                AppLocalization.isIndonesian ? 'Link Lampiran / Materi (Opsional)' : 'Attachment Link / Material (Optional)',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                               ),
                               const SizedBox(height: 8),
@@ -471,7 +484,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                 controller: _attachmentLinkController,
                                 style: TextStyle(color: titleColor, fontSize: 14),
                                 decoration: InputDecoration(
-                                  hintText: 'Contoh: https://drive.google.com/drive/...',
+                                  hintText: AppLocalization.isIndonesian ? 'Contoh: https://drive.google.com/drive/...' : 'e.g. https://drive.google.com/drive/...',
                                   hintStyle: TextStyle(color: subTextColor, fontSize: 13),
                                   fillColor: inputFillColor,
                                   filled: true,
@@ -490,7 +503,7 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Sinkronisasi ke Buku Nilai',
+                                          AppLocalization.isIndonesian ? 'Sinkronisasi ke Buku Nilai' : 'Sync to Gradebook',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 13,
@@ -499,7 +512,9 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'Otomatis masukkan nilai tugas ini ke dalam rekapitulasi nilai akademik kelas.',
+                                          AppLocalization.isIndonesian
+                                              ? 'Otomatis masukkan nilai tugas ini ke dalam rekapitulasi nilai akademik kelas.'
+                                              : 'Automatically include this task score into class academic gradebook.',
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: subTextColor,
@@ -538,9 +553,9 @@ class _TeacherCreateTaskPageState extends State<TeacherCreateTaskPage> {
                                         width: 20,
                                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                                       )
-                                    : const Text(
-                                        'Terbitkan Tugas',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    : Text(
+                                        AppLocalization.isIndonesian ? 'Terbitkan Tugas' : 'Publish Task',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                       ),
                               ),
                             ],
