@@ -705,18 +705,53 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                       ),
                     ),
                   ),
-                IconButton(
-                  icon: Icon(
-                    _isExamLocked ? Icons.lock_rounded : Icons.save_rounded,
-                    color: _isExamLocked
-                        ? Colors.redAccent.withValues(alpha: 0.7)
-                        : const Color(0xFF10B981),
-                  ),
-                  tooltip: _isExamLocked
-                      ? (AppLocalization.isIndonesian ? 'Soal Terkunci (Ujian Sedang Berlangsung)' : 'Questions Locked (Exam Active)')
-                      : (AppLocalization.isIndonesian ? 'Simpan Soal' : 'Save Questions'),
-                  onPressed: _isExamLocked ? null : _saveData,
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _isExamLocked
+                      ? TextButton.icon(
+                          onPressed: null,
+                          icon: Icon(
+                            Icons.lock_rounded,
+                            size: 15,
+                            color: Colors.redAccent.withValues(alpha: 0.6),
+                          ),
+                          label: Text(
+                            AppLocalization.isIndonesian ? 'Terkunci' : 'Locked',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.redAccent.withValues(alpha: 0.6),
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.redAccent.withValues(alpha: 0.08),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        )
+                      : TextButton.icon(
+                          onPressed: _saveData,
+                          icon: const Icon(
+                            Icons.save_rounded,
+                            size: 15,
+                            color: Color(0xFF10B981),
+                          ),
+                          label: Text(
+                            AppLocalization.isIndonesian ? 'Simpan Soal' : 'Save Questions',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF10B981),
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.1),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
                 ),
+
               ],
             ),
             body: AuthBackground(

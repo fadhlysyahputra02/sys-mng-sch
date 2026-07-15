@@ -7,6 +7,9 @@ import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_event_model.dart';
 import '../services/exam_session_service.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  AdminExamScheduleViewPage — Kalender jadwal + manual override
@@ -24,6 +27,8 @@ class _AdminExamScheduleViewPageState
     extends State<AdminExamScheduleViewPage> {
   final _service = ExamSessionService();
   DateTime? _selectedDate;
+  List<ExamSession> _cachedSessions = [];
+  ExamEvent? _cachedEvent;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +56,11 @@ class _AdminExamScheduleViewPageState
               stream: _service.getExamEventById(schoolId, widget.eventId),
               builder: (context, eventSnap) {
                 final event = eventSnap.data;
+                if (event != null && _cachedEvent?.id != event.id) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _cachedEvent = event);
+                  });
+                }
 
                 return Column(
                   children: [
@@ -153,6 +163,41 @@ class _AdminExamScheduleViewPageState
                                 ),
                               ),
                             ],
+                            // ── Print / Download button ──
+                            if (event != null) ...[
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => _printSchedule(),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6366F1)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: const Color(0xFF6366F1)
+                                            .withValues(alpha: 0.3)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.print_rounded,
+                                          size: 12,
+                                          color: Color(0xFF6366F1)),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Cetak & Unduh',
+                                        style: TextStyle(
+                                            color: Color(0xFF6366F1),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -174,6 +219,11 @@ class _AdminExamScheduleViewPageState
                           }
 
                           final sessions = snap.data ?? [];
+                          if (sessions.length != _cachedSessions.length) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) setState(() => _cachedSessions = sessions);
+                            });
+                          }
                           if (sessions.isEmpty) {
                             return Center(
                               child: Text(
@@ -297,6 +347,389 @@ class _AdminExamScheduleViewPageState
     );
   },
 );
+  }
+
+  Future<void> _printSchedule() async {
+    final sessions = _cachedSessions;
+    final event = _cachedEvent;
+
+    if (sessions.isEmpty) {
+      Get.snackbar(
+        'Perhatian',
+        'Tidak ada sesi jadwal untuk dicetak.',
+        backgroundColor: const Color(0xFFF59E0B),
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    final doc = pw.Document();
+
+    // Colour tokens
+    const PdfColor accentColor   = PdfColor.fromInt(0xFF5C6BC0);
+    const PdfColor slotBandColor = PdfColor.fromInt(0xFF7986CB);
+    const PdfColor rowEven       = PdfColor.fromInt(0xFFF5F5FF);
+    const PdfColor borderColor   = PdfColor.fromInt(0xFFBBBEE8);
+
+    // Helper: header cell fixed width
+    pw.Widget hdrFixed(String text, double w) => pw.Container(
+          width: w,
+          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+          color: accentColor,
+          child: pw.Text(text,
+              style: pw.TextStyle(
+                  fontSize: 8,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.white)),
+        );
+
+    // Helper: header cell flex
+    pw.Widget hdrFlex(String text, int flex) => pw.Expanded(
+          flex: flex,
+          child: pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+            color: accentColor,
+            child: pw.Text(text,
+                style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white)),
+          ),
+        );
+
+    // Group sessions by date
+    final Map<String, List<ExamSession>> sessionsByDay = {};
+    for (final s in sessions) {
+      final dayStr = DateFormat('yyyy-MM-dd').format(s.date);
+      sessionsByDay.putIfAbsent(dayStr, () => []).add(s);
+    }
+    final sortedDays = sessionsByDay.keys.toList()..sort();
+
+    for (final dayStr in sortedDays) {
+      final daySessions = sessionsByDay[dayStr]!;
+      final parsedDate  = DateTime.parse(dayStr);
+
+      // Group by slot
+      final Map<String, List<ExamSession>> sessionsBySlot = {};
+      for (final s in daySessions) {
+        sessionsBySlot.putIfAbsent(s.slotName, () => []).add(s);
+      }
+      final sortedSlots = sessionsBySlot.keys.toList()..sort();
+
+      // Build table row widgets
+      int rowIdx = 0;
+      final List<pw.Widget> tableRows = [];
+
+      // Column header row
+      tableRows.add(
+        pw.Container(
+          decoration: const pw.BoxDecoration(
+            color: accentColor,
+            border: pw.Border(
+                bottom: pw.BorderSide(color: PdfColors.white, width: 1.5)),
+          ),
+          child: pw.Row(children: [
+            hdrFixed('No', 22),
+            hdrFixed('Ruangan', 54),
+            hdrFlex('Kelas : Mata Pelajaran  (Pembuat Soal)', 3),
+            hdrFlex('Pengawas', 2),
+          ]),
+        ),
+      );
+
+      for (final slotName in sortedSlots) {
+        final slotSessions = sessionsBySlot[slotName]!
+          ..sort((a, b) => a.roomName.compareTo(b.roomName));
+
+        final sample = slotSessions.first;
+        final timeRange = '${sample.startTime} s.d. ${sample.endTime}';
+
+        // Slot band row
+        tableRows.add(
+          pw.Container(
+            color: slotBandColor,
+            padding:
+                const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            child: pw.Row(children: [
+              pw.Text(
+                '$slotName   |   $timeRange',
+                style: pw.TextStyle(
+                    fontSize: 7.5,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white),
+              ),
+            ]),
+          ),
+        );
+
+        // Group by room
+        final Map<String, List<ExamSession>> byRoom = {};
+        for (final s in slotSessions) {
+          byRoom.putIfAbsent(s.roomName, () => []).add(s);
+        }
+        final sortedRooms = byRoom.keys.toList()..sort();
+
+        for (final roomName in sortedRooms) {
+          rowIdx++;
+          final roomSessions = byRoom[roomName]!;
+          final sampleRoom   = roomSessions.first;
+          final rowBg        = rowIdx.isEven ? rowEven : PdfColors.white;
+          final hasProctor   = sampleRoom.proctorId.isNotEmpty;
+
+          final subjectLines = roomSessions.map((s) {
+            final cfg = event?.subjectConfigs
+                .where((c) => c.subjectId == s.subjectId);
+            final author = (cfg != null &&
+                    cfg.isNotEmpty &&
+                    cfg.first.authorTeacherNames.isNotEmpty)
+                ? cfg.first.authorTeacherNames.join(', ')
+                : '-';
+            return '${s.className} : ${s.subjectName}   (Pembuat: $author)';
+          }).join('\n');
+
+          tableRows.add(
+            pw.Container(
+              decoration: pw.BoxDecoration(
+                color: rowBg,
+                border: const pw.Border(
+                    bottom: pw.BorderSide(color: borderColor, width: 0.4)),
+              ),
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // No
+                  pw.Container(
+                    width: 22,
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 7),
+                    color: rowBg,
+                    child: pw.Text('$rowIdx',
+                        textAlign: pw.TextAlign.center,
+                        style: const pw.TextStyle(
+                            fontSize: 7, color: PdfColors.grey600)),
+                  ),
+                  // Room
+                  pw.Container(
+                    width: 54,
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 7),
+                    color: rowBg,
+                    child: pw.Text(roomName,
+                        style: pw.TextStyle(
+                            fontSize: 8,
+                            fontWeight: pw.FontWeight.bold,
+                            color: const PdfColor.fromInt(0xFF3949AB))),
+                  ),
+                  // Subject / class
+                  pw.Expanded(
+                    flex: 3,
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 7),
+                      color: rowBg,
+                      child: pw.Text(subjectLines,
+                          style: const pw.TextStyle(fontSize: 7.5)),
+                    ),
+                  ),
+                  // Proctor
+                  pw.Expanded(
+                    flex: 2,
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 7),
+                      color: hasProctor
+                          ? rowBg
+                          : const PdfColor.fromInt(0xFFFFF8E1),
+                      child: pw.Text(
+                        hasProctor
+                            ? sampleRoom.proctorName
+                            : 'Belum ditugaskan',
+                        style: pw.TextStyle(
+                          fontSize: 7.5,
+                          color: hasProctor
+                              ? const PdfColor.fromInt(0xFF1B5E20)
+                              : const PdfColor.fromInt(0xFFB45309),
+                          fontStyle: hasProctor
+                              ? pw.FontStyle.normal
+                              : pw.FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      }
+
+      // Build the page
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          build: (pw.Context ctx) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+
+                // ── Branded header ─────────────────────────────────
+                pw.Container(
+                  decoration: const pw.BoxDecoration(
+                    color: accentColor,
+                    borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
+                  ),
+                  padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left: title block
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'JADWAL PELAKSANAAN UJIAN',
+                              style: pw.TextStyle(
+                                fontSize: 8,
+                                fontWeight: pw.FontWeight.bold,
+                                color: const PdfColor.fromInt(0xB3FFFFFF),
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                            pw.SizedBox(height: 4),
+                            pw.Text(
+                              event?.title ?? 'Jadwal Ujian',
+                              style: pw.TextStyle(
+                                fontSize: 18,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                              ),
+                            ),
+                            if (event != null) ...[
+                              pw.SizedBox(height: 3),
+                              pw.Text(
+                                '${DateFormat('dd MMM yyyy', 'id').format(event.startDate)} s.d. ${DateFormat('dd MMM yyyy', 'id').format(event.endDate)}',
+                                style: const pw.TextStyle(
+                                    fontSize: 8, color: const PdfColor.fromInt(0xB3FFFFFF)),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      pw.SizedBox(width: 10),
+                      // Right: day badge
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        decoration: const pw.BoxDecoration(
+                          color: PdfColors.white,
+                          borderRadius:
+                              pw.BorderRadius.all(pw.Radius.circular(6)),
+                        ),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.center,
+                          children: [
+                            pw.Text(
+                              DateFormat('EEEE', 'id')
+                                  .format(parsedDate)
+                                  .toUpperCase(),
+                              style: pw.TextStyle(
+                                fontSize: 7,
+                                fontWeight: pw.FontWeight.bold,
+                                color: accentColor,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            pw.Text(
+                              DateFormat('dd', 'id').format(parsedDate),
+                              style: pw.TextStyle(
+                                fontSize: 24,
+                                fontWeight: pw.FontWeight.bold,
+                                color: accentColor,
+                              ),
+                            ),
+                            pw.Text(
+                              DateFormat('MMMM yyyy', 'id').format(parsedDate),
+                              style:
+                                  pw.TextStyle(fontSize: 7, color: accentColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                pw.SizedBox(height: 14),
+
+                // ── Table ──────────────────────────────────────────
+                pw.Container(
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: borderColor, width: 0.8),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(4)),
+                  ),
+                  child: pw.Column(children: tableRows),
+                ),
+
+                pw.Spacer(),
+
+                // ── Signature ──────────────────────────────────────
+                pw.Align(
+                  alignment: pw.Alignment.centerRight,
+                  child: pw.SizedBox(
+                    width: 180,
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text('Mengetahui,',
+                            style: const pw.TextStyle(fontSize: 8)),
+                        pw.Text('Kepala Sekolah',
+                            style: pw.TextStyle(
+                                fontSize: 8,
+                                fontWeight: pw.FontWeight.bold)),
+                        pw.SizedBox(height: 44),
+                        pw.Container(height: 0.5, color: PdfColors.grey500),
+                        pw.SizedBox(height: 3),
+                        pw.Text('(................................)',
+                            style: const pw.TextStyle(fontSize: 8)),
+                      ],
+                    ),
+                  ),
+                ),
+
+                pw.SizedBox(height: 10),
+
+                // ── Footer ─────────────────────────────────────────
+                pw.Divider(color: borderColor, thickness: 0.5),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'Dicetak: ${DateFormat('dd MMM yyyy, HH:mm', 'id').format(DateTime.now())}',
+                      style: const pw.TextStyle(
+                          fontSize: 6.5, color: PdfColors.grey500),
+                    ),
+                    pw.Text(
+                      'Hal ${sortedDays.indexOf(dayStr) + 1} dari ${sortedDays.length}',
+                      style: const pw.TextStyle(
+                          fontSize: 6.5, color: PdfColors.grey500),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => doc.save(),
+      name: '${(event?.title ?? 'Jadwal_Ujian').replaceAll(' ', '_')}.pdf',
+    );
   }
 
   Widget _buildDateFilterStrip(

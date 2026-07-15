@@ -41,7 +41,12 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
 
   // Layout configuration
   // Options: 3, 4, or 5 pairs of desks per row
-  int _pairsPerRow = 3; 
+  int _pairsPerRow = 3;
+
+  // ── Animasi kedip untuk status Keluar ────────────────────────
+  late final AnimationController _blinkController;
+  late final Animation<Color?> _blinkBorderColor;
+  late final Animation<Color?> _blinkBgColor;
 
   @override
   void initState() {
@@ -55,10 +60,27 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
       schoolId: schoolId,
       sessionId: widget.sessionId,
     );
+
+    // Animasi merah ↔ amber untuk status Keluar (500ms, repeat)
+    _blinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..repeat(reverse: true);
+
+    _blinkBorderColor = ColorTween(
+      begin: Colors.redAccent,
+      end: Colors.amber,
+    ).animate(CurvedAnimation(parent: _blinkController, curve: Curves.easeInOut));
+
+    _blinkBgColor = ColorTween(
+      begin: Colors.redAccent.withValues(alpha: 0.22),
+      end: Colors.amber.withValues(alpha: 0.16),
+    ).animate(CurvedAnimation(parent: _blinkController, curve: Curves.easeInOut));
   }
 
   @override
   void dispose() {
+    _blinkController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -560,7 +582,14 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
     final nameParts = student.studentName.split(' ');
     final displayName = nameParts.length > 1 ? '${nameParts[0]} ${nameParts[1][0]}.' : student.studentName;
 
-    return Opacity(
+    // Jika status keluar, bungkus seluruh kartu dengan efek berkedip
+    final isKeluar = !isFilteredOut &&
+        behavior != null &&
+        (behavior['type']?.toString().toLowerCase().contains('keluar') == true ||
+            behavior['type']?.toString().toLowerCase().contains('meninggalkan') == true) &&
+        student.submittedAt == null;
+
+    final card = Opacity(
       opacity: isFilteredOut ? 0.2 : 1.0,
       child: GestureDetector(
         onTap: () => _showStudentLogs(student, behavior),
@@ -639,6 +668,89 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
         ),
       ),
     );
+
+    if (isKeluar) {
+      // Kartu berkedip merah↔amber: border, background, dan glow ikut beranimasi
+      return AnimatedBuilder(
+        animation: _blinkController,
+        builder: (context, _) {
+          final borderColor = _blinkBorderColor.value ?? Colors.redAccent;
+          final bgColor = _blinkBgColor.value ?? Colors.redAccent.withValues(alpha: 0.2);
+          return GestureDetector(
+            onTap: () => _showStudentLogs(student, behavior),
+            child: Container(
+              width: 75,
+              height: 75,
+              margin: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor, width: 2.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: borderColor.withValues(alpha: 0.55),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '#$seatNumber',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: borderColor,
+                          ),
+                        ),
+                        Icon(statusIcon, size: 10, color: borderColor),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      displayName,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: titleColor,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: borderColor.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      statusLabel,
+                      style: TextStyle(
+                        fontSize: 7,
+                        fontWeight: FontWeight.bold,
+                        color: borderColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+    return card;
   }
 
   Widget _buildListView({
@@ -741,26 +853,69 @@ class _ProctorExamMonitorPageState extends State<ProctorExamMonitorPage>
                   ],
                 ),
               ),
-              // Status Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(statusIcon, size: 12, color: statusColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      statusLabel,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
-                    ),
-                  ],
-                ),
-              ),
+              // Status Badge — berkedip merah↔amber jika status Keluar
+              () {
+                final isKeluar =
+                    student.submittedAt == null &&
+                    behavior != null &&
+                    (behavior['type']?.toString().toLowerCase().contains('keluar') == true ||
+                        behavior['type']?.toString().toLowerCase().contains('meninggalkan') == true);
+
+                if (isKeluar) {
+                  return AnimatedBuilder(
+                    animation: _blinkController,
+                    builder: (context, _) {
+                      final col = _blinkBorderColor.value ?? Colors.redAccent;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: col.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: col.withValues(alpha: 0.8), width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: col.withValues(alpha: 0.4),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(statusIcon, size: 12, color: col),
+                            const SizedBox(width: 4),
+                            Text(
+                              statusLabel,
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: col),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 12, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        statusLabel,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+                      ),
+                    ],
+                  ),
+                );
+              }(),
               const SizedBox(width: 8),
               // Action View Log
               IconButton(

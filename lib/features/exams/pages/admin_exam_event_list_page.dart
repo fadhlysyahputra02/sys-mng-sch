@@ -452,34 +452,59 @@ class AdminExamEventListPage extends StatelessWidget {
                       ),
                       const Spacer(),
                       // More menu — hanya tampil untuk admin, berisi aksi sekunder
-                      PopupMenuButton<String>(
-                        onSelected: (val) =>
-                            _onMenuAction(val, event, service, schoolId),
-                        icon: Icon(Icons.more_vert_rounded,
-                            color: subtitleColor, size: 20),
-                        color: isDark ? const Color(0xFF1A1730) : Colors.white,
-                        itemBuilder: (_) => [
-                          if (event.examStatus == 'Active')
-                            PopupMenuItem(
-                              value: 'finish',
-                              child: Text(AppLocalization.isIndonesian ? 'Selesaikan Event' : 'Finish Event',
-                                  style: TextStyle(color: titleColor)),
-                            ),
-                          if (event.examStatus == 'Finished') ...[
-                            PopupMenuItem(
-                              value: 'archive',
-                              child: Text(AppLocalization.isIndonesian ? 'Arsipkan Event' : 'Archive Event',
-                                  style: const TextStyle(color: Colors.orangeAccent)),
-                            ),
-                            if (isAdmin)
+                        PopupMenuButton<String>(
+                          onSelected: (val) =>
+                              _onMenuAction(val, event, service, schoolId),
+                          icon: Icon(Icons.more_vert_rounded,
+                              color: subtitleColor, size: 20),
+                          color: isDark ? const Color(0xFF1A1730) : Colors.white,
+                          itemBuilder: (_) => [
+                            // ── Planning: bisa edit & hapus ──
+                            if (event.examStatus == 'Planning') ...[
                               PopupMenuItem(
-                                value: 'delete',
-                                child: Text(AppLocalization.isIndonesian ? 'Hapus Event' : 'Delete Event',
-                                    style: const TextStyle(color: Color(0xFFEF4444))),
+                                value: 'edit_planning',
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.edit_rounded, size: 16, color: Color(0xFF6366F1)),
+                                    const SizedBox(width: 8),
+                                    Text(AppLocalization.isIndonesian ? 'Edit Event' : 'Edit Event',
+                                        style: TextStyle(color: titleColor)),
+                                  ],
+                                ),
                               ),
+                              PopupMenuItem(
+                                value: 'delete_planning',
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.delete_rounded, size: 16, color: Color(0xFFEF4444)),
+                                    const SizedBox(width: 8),
+                                    Text(AppLocalization.isIndonesian ? 'Hapus Event' : 'Delete Event',
+                                        style: const TextStyle(color: Color(0xFFEF4444))),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            if (event.examStatus == 'Active')
+                              PopupMenuItem(
+                                value: 'finish',
+                                child: Text(AppLocalization.isIndonesian ? 'Selesaikan Event' : 'Finish Event',
+                                    style: TextStyle(color: titleColor)),
+                              ),
+                            if (event.examStatus == 'Finished') ...[
+                              PopupMenuItem(
+                                value: 'archive',
+                                child: Text(AppLocalization.isIndonesian ? 'Arsipkan Event' : 'Archive Event',
+                                    style: const TextStyle(color: Colors.orangeAccent)),
+                              ),
+                              if (isAdmin)
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text(AppLocalization.isIndonesian ? 'Hapus Event' : 'Delete Event',
+                                      style: const TextStyle(color: Color(0xFFEF4444))),
+                                ),
+                            ],
                           ],
-                        ],
-                      ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -604,6 +629,86 @@ class AdminExamEventListPage extends StatelessWidget {
     String schoolId,
   ) async {
     switch (action) {
+      case 'edit_planning':
+        await Get.to(() => AdminExamGeneratorPage(editEvent: event));
+        break;
+
+      case 'delete_planning':
+        final isDarkDel = AuthBackground.isDarkMode.value;
+        final confirmDel = await Get.dialog<bool>(
+          AlertDialog(
+            backgroundColor: isDarkDel ? const Color(0xFF1A1730) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.warning_rounded, color: Color(0xFFEF4444)),
+                const SizedBox(width: 8),
+                Text(
+                  AppLocalization.isIndonesian ? 'Hapus Event?' : 'Delete Event?',
+                  style: TextStyle(
+                    color: isDarkDel ? Colors.white : Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              AppLocalization.isIndonesian
+                  ? 'Event \"${event.title}\" dan semua data terkait (jadwal, soal, dll.) akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.'
+                  : 'Event \"${event.title}\" and all related data (schedules, questions, etc.) will be permanently deleted. This cannot be undone.',
+              style: TextStyle(
+                color: isDarkDel ? Colors.white70 : Colors.black87,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(result: false),
+                child: Text(
+                  AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
+                  style: TextStyle(color: isDarkDel ? Colors.white54 : Colors.black54),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Get.back(result: true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF4444),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: Text(AppLocalization.isIndonesian ? 'Hapus' : 'Delete'),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmDel == true) {
+          Get.dialog(
+            const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),
+            barrierDismissible: false,
+          );
+          try {
+            await service.deleteExamEvent(schoolId, event.id);
+            Get.back();
+            Get.snackbar(
+              AppLocalization.isIndonesian ? 'Dihapus' : 'Deleted',
+              AppLocalization.isIndonesian
+                  ? 'Event \"${event.title}\" berhasil dihapus.'
+                  : 'Event \"${event.title}\" has been deleted.',
+              backgroundColor: const Color(0xFFEF4444),
+              colorText: Colors.white,
+              snackPosition: SnackPosition.TOP,
+              margin: const EdgeInsets.all(16),
+            );
+          } catch (e) {
+            Get.back();
+            Get.snackbar('Error', e.toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+          }
+        }
+        break;
+
       case 'activate':
         Get.dialog(
           const Center(child: CircularProgressIndicator(color: Color(0xFF8B5CF6))),

@@ -1009,6 +1009,50 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                 width: 130,
                 child: Builder(
                   builder: (context) {
+                    // Cek terlebih dahulu apakah waktu ujian sudah berakhir
+                    bool isExamTimeOver = false;
+                    final now = DateTime.now();
+                    final todayDateStr = DateFormat('yyyy-MM-dd').format(now);
+                    final sessionDateStr = DateFormat('yyyy-MM-dd').format(session.date);
+
+                    if (session.examStatus == 'Finished') {
+                      isExamTimeOver = true;
+                    } else {
+                      final cmp = sessionDateStr.compareTo(todayDateStr);
+                      if (cmp < 0) {
+                        isExamTimeOver = true;
+                      } else if (cmp == 0) {
+                        try {
+                          final endParts = session.endTime.split(':');
+                          final sessionEnd = DateTime(
+                            now.year, now.month, now.day,
+                            int.parse(endParts[0]), int.parse(endParts[1]),
+                          );
+                          isExamTimeOver = now.isAfter(sessionEnd);
+                        } catch (_) {
+                          isExamTimeOver = false;
+                        }
+                      }
+                    }
+
+                    if (isExamTimeOver && !hasScan) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.cancel_rounded, size: 12, color: Color(0xFFEF4444)),
+                            const SizedBox(width: 4),
+                            Text('Tidak Mengikuti Ujian', style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      );
+                    }
+
                     if (!hasScan) {
                       if (isToday && isActive) {
                         return const Text('Menunggu Scan', style: TextStyle(color: Color(0xFF8B5CF6), fontSize: 11, fontStyle: FontStyle.italic));
@@ -1144,6 +1188,24 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                                         Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
                                         SizedBox(width: 4),
                                         Text('Selesai', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                if (isExamTimeOver) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.cancel_rounded, size: 12, color: Color(0xFFEF4444)),
+                                        SizedBox(width: 4),
+                                        Text('Tidak Mengikuti Ujian', style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold)),
                                       ],
                                     ),
                                   );

@@ -1024,6 +1024,44 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
           .doc(user.uid)
           .snapshots(),
       builder: (context, userSnapshot) {
+        if (userSnapshot.connectionState == ConnectionState.waiting) {
+          return ValueListenableBuilder<bool>(
+            valueListenable: AuthBackground.isDarkMode,
+            builder: (context, isDark, _) {
+              return AuthBackground(
+                child: Scaffold(
+                  backgroundColor: Colors.transparent,
+                  body: Center(
+                    child: CircularProgressIndicator(
+                      color: isDark ? Colors.white : const Color(0xFF6366F1),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        }
+
+        if (userSnapshot.hasError) {
+          return ValueListenableBuilder<bool>(
+            valueListenable: AuthBackground.isDarkMode,
+            builder: (context, isDark, _) {
+              final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+              return AuthBackground(
+                child: Scaffold(
+                  backgroundColor: Colors.transparent,
+                  body: Center(
+                    child: Text(
+                      'Terjadi kesalahan saat memuat data user.',
+                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        }
+
         final userData = userSnapshot.data?.data();
         final isOfficer = userData?['role'] == 'officer';
         final scanGuruEnabled = userData?['scanGuruEnabled'] as bool? ??

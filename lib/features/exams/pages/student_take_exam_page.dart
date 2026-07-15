@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/localization/app_localization.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
 import '../services/exam_service.dart';
@@ -86,7 +87,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
           if (remainingSec > 0 && remainingSec < defaultSeconds) {
             calculatedSeconds = remainingSec;
           } else if (remainingSec <= 0) {
-            calculatedSeconds = 1; // force immediate submission
+            calculatedSeconds = 0; // force immediate submission without time left
           }
         }
       } catch (_) {}
@@ -130,7 +131,11 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
 
       if (draftStarted) {
         _hasStarted = true;
-        _startTimer();
+        if (_secondsRemaining <= 0) {
+          _autoSubmit();
+        } else {
+          _startTimer();
+        }
       }
 
       if (mounted) {
@@ -254,7 +259,11 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
       _hasStarted = true;
     });
     _reportStatus('Standby', 'Murid mulai mengerjakan ujian');
-    _startTimer();
+    if (_secondsRemaining <= 0) {
+      _autoSubmit();
+    } else {
+      _startTimer();
+    }
     _saveDraftAnswers();
   }
 
@@ -509,6 +518,33 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
 
           if (!_hasStarted) {
             return _buildInstructionScreen(isDark, titleColor, subTextColor, cardBgColor, cardBorderColor);
+          }
+
+          if (_secondsRemaining <= 0 || _isSubmitting) {
+            return Scaffold(
+              body: AuthBackground(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+                      const SizedBox(height: 24),
+                      Text(
+                        AppLocalization.isIndonesian ? 'Waktu Ujian Telah Selesai' : 'Exam Session Has Ended',
+                        style: TextStyle(color: titleColor, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        AppLocalization.isIndonesian
+                            ? 'Mengumpulkan jawaban secara otomatis...'
+                            : 'Auto-submitting your answers...',
+                        style: TextStyle(color: subTextColor, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
           }
 
           final totalQuestions = widget.exam.questions.length;

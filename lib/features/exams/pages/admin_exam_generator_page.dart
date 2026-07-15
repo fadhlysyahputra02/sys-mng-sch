@@ -12,6 +12,9 @@ import '../models/exam_event_model.dart';
 import '../services/exam_session_service.dart';
 import '../services/exam_scheduler_service.dart';
 import 'admin_exam_schedule_view_page.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  AdminExamGeneratorPage — Form multi-step konfigurasi UTS/UAS
@@ -22,7 +25,13 @@ import 'admin_exam_schedule_view_page.dart';
 // ─────────────────────────────────────────────────────────────
 class AdminExamGeneratorPage extends StatefulWidget {
   final bool restoreFromFirestore;
-  const AdminExamGeneratorPage({super.key, this.restoreFromFirestore = false});
+  /// Jika diisi, halaman masuk ke mode EDIT (pre-populate semua data dari event ini)
+  final ExamEvent? editEvent;
+  const AdminExamGeneratorPage({
+    super.key,
+    this.restoreFromFirestore = false,
+    this.editEvent,
+  });
 
   @override
   State<AdminExamGeneratorPage> createState() => _AdminExamGeneratorPageState();
@@ -351,12 +360,110 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     }
   }
 
+  /// Load semua field dari ExamEvent yang sudah ada (mode Edit)
+  void _loadFromEvent(ExamEvent ev) {
+    _titleController.text = ev.title;
+    _examType = ev.examType;
+    _startDate = ev.startDate;
+    _endDate = ev.endDate;
+
+    if (ev.dailySlots.isNotEmpty) {
+      _slots.clear();
+      _slots.addAll(ev.dailySlots);
+    }
+
+    if (ev.subjectConfigs.isNotEmpty) {
+      _subjectConfigs.clear();
+      _subjectConfigs.addAll(ev.subjectConfigs);
+    }
+
+    if (ev.rooms.isNotEmpty) {
+      _rooms.clear();
+      _rooms.addAll(ev.rooms);
+    }
+
+    // Try restore scheduled subjects and sessions from Firestore
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _restoreEditDraftSessions(ev.id);
+    });
+  }
+
+  /// Restore scheduledSubjects + draftSessions dari Firestore exam_events sessions
+  Future<void> _restoreEditDraftSessions(String eventId) async {
+    final schoolId = SessionService.currentUser?.schoolId;
+    if (schoolId == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_events')
+          .doc(eventId)
+          .collection('sessions')
+          .get();
+
+      if (!mounted) return;
+
+      // Parse sessions — normalise date to midnight (dateOnly) for consistent comparison
+      final List<Map<String, dynamic>> sessions = snap.docs.map((doc) {
+        final d = doc.data();
+        final rawDate = (d['date'] as Timestamp?)?.toDate() ?? DateTime.now();
+        // Strip time component — _compileDraftSessions and _buildStep5Schedule both
+        // use DateTime(y,m,d) without time, so comparison needs to match exactly.
+        final dateOnly = DateTime(rawDate.year, rawDate.month, rawDate.day);
+
+        // className is the display string e.g. "X IPA 1, X IPS 1"
+        final className = d['className'] as String? ?? '';
+        // classNames is the list of individual class names used as schedule keys
+        final classNames = className.split(', ').where((s) => s.isNotEmpty).toList();
+
+        return {
+          'date':        dateOnly,
+          'slotName':    d['slotName'] ?? '',
+          'startTime':   d['startTime'] ?? '',
+          'endTime':     d['endTime'] ?? '',
+          'roomName':    d['roomName'] ?? '',
+          'subjectId':   d['subjectId'] ?? '',
+          'subjectName': d['subjectName'] ?? '',
+          'className':   className,
+          // 'classes' is the per-class list, same as what _compileDraftSessions produces
+          'classes':     classNames,
+          'proctorId':   d['proctorId'] ?? '',
+          'proctorName': d['proctorName'] ?? 'Belum ditugaskan',
+          // Empty students list — re-populated if user navigates through Step 5
+          'students':    <Map<String, dynamic>>[],
+        };
+      }).toList();
+
+      // Rebuild _scheduledSubjects map from sessions.
+      // Key format: "yyyy-MM-dd_SlotName_RoomName_ClassName" (per individual class name)
+      final Map<String, String> scheduled = {};
+      for (final s in sessions) {
+        final date   = s['date'] as DateTime;
+        final dayStr = DateFormat('yyyy-MM-dd').format(date);
+        for (final cls in (s['classes'] as List<dynamic>).cast<String>()) {
+          final key = '${dayStr}_${s['slotName']}_${s['roomName']}_$cls';
+          scheduled[key] = s['subjectId'] as String;
+        }
+      }
+
+      setState(() {
+        _draftSessions = sessions;
+        _scheduledSubjects
+          ..clear()
+          ..addAll(scheduled);
+      });
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
     _loadSchoolData();
     _titleController.addListener(_onTitleChanged);
-    if (widget.restoreFromFirestore) {
+    if (widget.editEvent != null) {
+      // Edit mode: pre-populate dari event yang ada, skip draft
+      _loadFromEvent(widget.editEvent!);
+    } else if (widget.restoreFromFirestore) {
       _restoreDraftFromFirestore();
     } else {
       _checkAndLoadDraft();
@@ -437,10 +544,99 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     }
   }
 
+  Future<void> _pullFromDailySchedules() async {
+    final schoolId = SessionService.currentUser?.schoolId;
+    if (schoolId == null) return;
+
+    setState(() => _isLoadingData = true);
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('class_schedules')
+          .where('aktif', isEqualTo: true)
+          .where('jenisJadwal', isEqualTo: 'pelajaran')
+          .get();
+
+      if (snap.docs.isEmpty) {
+        Get.snackbar(
+          'Peringatan',
+          'Tidak ditemukan jadwal harian aktif untuk ditarik.',
+          backgroundColor: const Color(0xFFEF4444),
+          colorText: Colors.white,
+        );
+        setState(() => _isLoadingData = false);
+        return;
+      }
+
+      // Group schedules by subjectId
+      final Map<String, Map<String, dynamic>> grouped = {};
+
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final subjectId = data['subjectId'] as String? ?? '';
+        final subjectName = data['subjectName'] as String? ?? '';
+        final classId = data['classId'] as String? ?? '';
+        final teacherId = data['teacherId'] as String? ?? '';
+        final teacherName = data['teacherName'] as String? ?? '';
+
+        if (subjectId.isEmpty || subjectName.isEmpty) continue;
+
+        grouped.putIfAbsent(subjectId, () => {
+          'subjectId': subjectId,
+          'subjectName': subjectName,
+          'classIds': <String>{},
+          'teacherIds': <String>{},
+          'teacherNames': <String>{},
+        });
+
+        if (classId.isNotEmpty) {
+          (grouped[subjectId]!['classIds'] as Set<String>).add(classId);
+        }
+        if (teacherId.isNotEmpty && teacherId != '-') {
+          (grouped[subjectId]!['teacherIds'] as Set<String>).add(teacherId);
+          if (teacherName.isNotEmpty && teacherName != '-') {
+            (grouped[subjectId]!['teacherNames'] as Set<String>).add(teacherName);
+          }
+        }
+      }
+
+      final List<ExamSubjectConfig> configs = [];
+      grouped.forEach((subId, val) {
+        configs.add(ExamSubjectConfig(
+          subjectId: subId,
+          subjectName: val['subjectName'] as String,
+          classIds: (val['classIds'] as Set<String>).toList(),
+          authorTeacherIds: (val['teacherIds'] as Set<String>).toList(),
+          authorTeacherNames: (val['teacherNames'] as Set<String>).toList(),
+        ));
+      });
+
+      setState(() {
+        _subjectConfigs.clear();
+        _subjectConfigs.addAll(configs);
+        _isLoadingData = false;
+      });
+
+      _saveDraft();
+
+      Get.snackbar(
+        'Sukses',
+        'Berhasil menarik ${_subjectConfigs.length} mata pelajaran dari jadwal harian.',
+        backgroundColor: const Color(0xFF10B981),
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      setState(() => _isLoadingData = false);
+      _showError('Gagal menarik jadwal harian: $e');
+    }
+  }
+
   void _nextStep() {
     if (!_validateCurrentStep()) return;
-    if (_currentStep < 6) {
-      if (_currentStep == 4) {
+    if (_currentStep < 7) {
+      if (_currentStep == 5) {
         _compileDraftSessions();
       }
       setState(() => _currentStep++);
@@ -516,6 +712,11 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         }
         return true;
       case 4:
+        // Step 5 (Room Seating / Pembagian Kursi)
+        // No hard validation requirements, but warning is shown dynamically.
+        return true;
+      case 5:
+        // Step 6 (Exam Schedule / Jadwal Ujian)
         final scheduledSubjectIds = _scheduledSubjects.values.toSet();
         final unscheduledSubjects = _subjectConfigs.where((s) => !scheduledSubjectIds.contains(s.subjectId)).toList();
         if (unscheduledSubjects.isNotEmpty) {
@@ -524,7 +725,8 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
           return false;
         }
         return true;
-      case 5:
+      case 6:
+        // Step 7 (Proctors / Pengawas)
         final unassignedCount = _draftSessions.where((s) => (s['proctorId'] as String).isEmpty).length;
         if (unassignedCount > 0) {
           _showError('Terdapat $unassignedCount sesi ujian yang belum memiliki pengawas.');
@@ -595,7 +797,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                AppLocalization.isIndonesian ? 'Buat Jadwal Ujian Semester' : 'Create Semester Exam Schedule',
+                                AppLocalization.isIndonesian
+                                    ? (widget.editEvent != null ? 'Edit Jadwal Ujian' : 'Buat Jadwal Ujian Semester')
+                                    : (widget.editEvent != null ? 'Edit Exam Schedule' : 'Create Semester Exam Schedule'),
                                 style: TextStyle(
                                   color: titleColor,
                                   fontSize: 18,
@@ -627,6 +831,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                       _buildStep3(isDark, cardColor, cardBorder, titleColor),
                       _buildStep4(isDark, cardColor, cardBorder, titleColor),
                       _buildStep5(isDark, cardColor, cardBorder, titleColor),
+                      _buildStep5Schedule(isDark, cardColor, cardBorder, titleColor),
                       _buildStep6(isDark, cardColor, cardBorder, titleColor),
                       _buildStep7(isDark, cardColor, cardBorder, titleColor),
                     ],
@@ -660,7 +865,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                         if (_currentStep > 0) const SizedBox(width: 12),
                         Expanded(
                           flex: 2,
-                          child: _currentStep < 6
+                          child: _currentStep < 7
                               ? ElevatedButton.icon(
                                   onPressed: _nextStep,
                                   icon: const Icon(
@@ -679,8 +884,11 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                   ),
                                 )
                               : ElevatedButton.icon(
-                                  onPressed:
-                                      _isGenerating ? null : _saveAndCreateEvent,
+                                  onPressed: _isGenerating
+                                      ? null
+                                      : (widget.editEvent != null
+                                          ? _saveAndUpdateEvent
+                                          : _saveAndCreateEvent),
                                   icon: _isGenerating
                                       ? const SizedBox(
                                           width: 18,
@@ -693,7 +901,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                           size: 18),
                                   label: Text(_isGenerating
                                       ? (AppLocalization.isIndonesian ? 'Menyimpan...' : 'Saving...')
-                                      : (AppLocalization.isIndonesian ? 'Simpan & Buat Jadwal' : 'Save & Generate')),
+                                      : widget.editEvent != null
+                                          ? (AppLocalization.isIndonesian ? 'Simpan Perubahan' : 'Save Changes')
+                                          : (AppLocalization.isIndonesian ? 'Simpan & Buat Jadwal' : 'Save & Generate')),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor:
                                         const Color(0xFF10B981),
@@ -723,8 +933,8 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
   // ── Step Indicator ───────────────────────────────────────────
   Widget _buildStepIndicator(bool isDark) {
     final steps = AppLocalization.isIndonesian
-        ? ['Info Dasar', 'Slot Waktu', 'Mata Pelajaran', 'Ruang Ujian', 'Jadwal & Meja', 'Pengawas', 'Jadwal Final']
-        : ['Basic Info', 'Time Slots', 'Subjects', 'Exam Rooms', 'Schedule & Seats', 'Proctors', 'Final Schedule'];
+        ? ['Info Dasar', 'Slot Waktu', 'Mata Pelajaran', 'Ruang Ujian', 'Pembagian Kursi', 'Jadwal Ujian', 'Pengawas', 'Jadwal Final']
+        : ['Basic Info', 'Time Slots', 'Subjects', 'Exam Rooms', 'Room Seating', 'Exam Schedule', 'Proctors', 'Final Schedule'];
     return Row(
       children: List.generate(steps.length, (i) {
         final isActive = i == _currentStep;
@@ -1172,20 +1382,46 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                 i, config, isDark, cardColor, cardBorder, titleColor, subtitleColor);
           }),
 
-          // Tombol tambah mapel
-          OutlinedButton.icon(
-            onPressed: () => _showAddSubjectDialog(
-                isDark, cardColor, cardBorder, titleColor, subtitleColor),
-            icon: const Icon(Icons.add_rounded, color: Color(0xFF8B5CF6)),
-            label: const Text('Tambah Mata Pelajaran',
-                style: TextStyle(color: Color(0xFF8B5CF6))),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF8B5CF6)),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
+          // Tombol tambah mapel & tarik jadwal
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _showAddSubjectDialog(
+                      isDark, cardColor, cardBorder, titleColor, subtitleColor),
+                  icon: const Icon(Icons.add_rounded, color: Color(0xFF8B5CF6)),
+                  label: const Text('Tambah Mapel Manual',
+                      style: TextStyle(color: Color(0xFF8B5CF6), fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF8B5CF6)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _pullFromDailySchedules,
+                  icon: const Icon(Icons.sync_rounded, color: Colors.white, size: 16),
+                  label: const Text('Tarik Jadwal Harian',
+                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
         ],
@@ -1818,47 +2054,22 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         ? Colors.white.withValues(alpha: 0.6)
         : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
 
-
-
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Masukkan Murid ke Ruangan & Atur Jadwal',
+          Text('Alokasi Ruang Ujian & Kursi',
               style: TextStyle(
                   color: titleColor,
                   fontSize: 16,
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('Pastikan seluruh murid sudah memiliki ruangan ujian.',
+          Text('Masukkan murid ke ruangan secara manual atau otomatis dan atur pembagian kursi.',
               style: TextStyle(color: subtitleColor, fontSize: 13)),
           const SizedBox(height: 24),
-
-
           
           if (_rooms.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Daftar Ruang Ujian (${_rooms.length})',
-                    style: TextStyle(
-                        color: titleColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold)),
-                TextButton.icon(
-                  onPressed: _autoAssignClassesToRooms,
-                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
-                  label: const Text('Atur Otomatis', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF6366F1),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
             Builder(
               builder: (context) {
                 final assignments = _calculateRoomAssignments();
@@ -1866,181 +2077,356 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                 final activeClassIds = _subjectConfigs.expand((c) => c.classIds).toSet();
                 final filteredClasses = _allClasses.where((c) => activeClassIds.contains(c['id'] ?? '')).toList();
 
-                return ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _rooms.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final room = _rooms[index];
-                    final expandedSet = _expandedRooms ??= {};
-                    final isExpanded = expandedSet.contains(room.name);
-
-                    final isEven = index % 2 == 0;
-                    final itemBgColor = isEven
-                        ? (isDark ? const Color(0xFF1E1C38) : const Color(0xFFF5F3FF))
-                        : (isDark ? const Color(0xFF1B1A30) : const Color(0xFFEEF2FF));
-                    final itemBorderColor = isEven
-                        ? (isDark ? const Color(0xFF8B5CF6).withValues(alpha: 0.2) : const Color(0xFF8B5CF6).withValues(alpha: 0.15))
-                        : (isDark ? const Color(0xFF6366F1).withValues(alpha: 0.2) : const Color(0xFF6366F1).withValues(alpha: 0.15));
-
-                    return Ink(
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Status Murid Belum Dialokasikan (Summary Badges)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: itemBgColor,
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: itemBorderColor),
+                        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.15)),
                       ),
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            if (isExpanded) {
-                              expandedSet.remove(room.name);
-                            } else {
-                              expandedSet.add(room.name);
-                            }
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.people_rounded, color: Color(0xFF6366F1), size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                AppLocalization.isIndonesian ? 'Status Murid Belum Dialokasikan' : 'Unallocated Students Status',
+                                style: TextStyle(
+                                  color: titleColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 10,
+                            children: filteredClasses.map((cls) {
+                              final className = cls['name'] ?? '';
+                              final classId = cls['id'] ?? '';
+                              final totalInClass = _studentsByClass[classId]?.length ?? 0;
+                              final remaining = remainingCounts[className] ?? 0;
+
+                              Color badgeColor;
+                              if (remaining == 0) {
+                                badgeColor = Colors.green.withValues(alpha: 0.15);
+                              } else if (remaining < totalInClass) {
+                                badgeColor = Colors.amber.withValues(alpha: 0.15);
+                              } else {
+                                badgeColor = isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.03);
+                              }
+
+                              Color textColor = remaining == 0
+                                  ? Colors.green
+                                  : (remaining < totalInClass ? Colors.orange : titleColor);
+
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: badgeColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: remaining == 0
+                                        ? Colors.green.withValues(alpha: 0.3)
+                                        : (remaining < totalInClass
+                                            ? Colors.orange.withValues(alpha: 0.3)
+                                            : cardBorder),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Icon(Icons.meeting_room_rounded,
-                                          color: const Color(0xFF6366F1), size: 18),
+                                    Text(
+                                      '$className: ',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: titleColor),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        room.name,
-                                        style: TextStyle(
-                                          color: titleColor,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
+                                    Text(
+                                      '$remaining / $totalInClass',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Daftar Ruang Ujian (${_rooms.length})',
+                            style: TextStyle(
+                                color: titleColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold)),
+                        PopupMenuButton<int>(
+                          onSelected: (maxAngkatan) => _autoAssignClassesToRooms(maxAngkatan),
+                          offset: const Offset(0, 38),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          color: isDark ? const Color(0xFF1E1C38) : Colors.white,
+                          elevation: 4,
+                          itemBuilder: (context) => [
+                            PopupMenuItem<int>(
+                              value: 1,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.person_rounded, size: 16, color: Color(0xFF10B981)),
+                                  const SizedBox(width: 8),
+                                  Text('1 Angkatan / Ruang', style: TextStyle(fontSize: 12, color: titleColor, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem<int>(
+                              value: 2,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.people_alt_rounded, size: 16, color: Color(0xFF6366F1)),
+                                  const SizedBox(width: 8),
+                                  Text('2 Angkatan / Ruang', style: TextStyle(fontSize: 12, color: titleColor, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem<int>(
+                              value: 3,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.groups_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                                  const SizedBox(width: 8),
+                                  Text('3 Angkatan / Ruang', style: TextStyle(fontSize: 12, color: titleColor, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ],
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.auto_awesome_rounded, size: 14, color: Color(0xFF6366F1)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  AppLocalization.isIndonesian ? 'Atur Otomatis' : 'Auto Assign',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF6366F1),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _rooms.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final room = _rooms[index];
+                        final expandedSet = _expandedRooms ??= {};
+                        final isExpanded = expandedSet.contains(room.name);
+
+                        // Calculate sum of allocated students in this room
+                        int roomAllocatedTotal = 0;
+                        for (final rawCls in room.classes) {
+                          final parts = rawCls.split(':');
+                          if (parts.length > 1) {
+                            roomAllocatedTotal += int.tryParse(parts[1]) ?? 0;
+                          }
+                        }
+                        final bool isOverCapacity = roomAllocatedTotal > room.capacity;
+
+                        final isEven = index % 2 == 0;
+                        final itemBgColor = isEven
+                            ? (isDark ? const Color(0xFF1E1C38) : const Color(0xFFF5F3FF))
+                            : (isDark ? const Color(0xFF1B1A30) : const Color(0xFFEEF2FF));
+                        
+                        // Red border if over capacity
+                        final itemBorderColor = isOverCapacity
+                            ? Colors.red.withValues(alpha: 0.6)
+                            : (isEven
+                                ? (isDark ? const Color(0xFF8B5CF6).withValues(alpha: 0.2) : const Color(0xFF8B5CF6).withValues(alpha: 0.15))
+                                : (isDark ? const Color(0xFF6366F1).withValues(alpha: 0.2) : const Color(0xFF6366F1).withValues(alpha: 0.15)));
+
+                        return Ink(
+                          decoration: BoxDecoration(
+                            color: itemBgColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: itemBorderColor, width: isOverCapacity ? 1.5 : 1.0),
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                if (isExpanded) {
+                                  expandedSet.remove(room.name);
+                                } else {
+                                  expandedSet.add(room.name);
+                                }
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: isOverCapacity
+                                              ? Colors.red.withValues(alpha: 0.1)
+                                              : const Color(0xFF6366F1).withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(Icons.meeting_room_rounded,
+                                            color: isOverCapacity ? Colors.red : const Color(0xFF6366F1), size: 18),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              room.name,
+                                              style: TextStyle(
+                                                color: titleColor,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            if (isOverCapacity) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                AppLocalization.isIndonesian
+                                                    ? '⚠️ Melebihi Kapasitas! ($roomAllocatedTotal / ${room.capacity} Kursi)'
+                                                    : '⚠️ Over Capacity! ($roomAllocatedTotal / ${room.capacity} Seats)',
+                                                style: const TextStyle(
+                                                  color: Colors.red,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        'Kapasitas: ${room.capacity} Kursi',
-                                        style: TextStyle(
-                                          color: isDark ? Colors.white70 : Colors.black87,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    if (room.classes.isNotEmpty) ...[
-                                      const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                                          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
                                           borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
                                         ),
                                         child: Text(
-                                          '${room.classes.length} Kelas',
-                                          style: const TextStyle(
-                                            color: Color(0xFF6366F1),
+                                          'Kapasitas: ${room.capacity} Kursi',
+                                          style: TextStyle(
+                                            color: isDark ? Colors.white70 : Colors.black87,
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       ),
-                                    ],
-                                    const SizedBox(width: 8),
-                                    Icon(
-                                      isExpanded
-                                          ? Icons.keyboard_arrow_up_rounded
-                                          : Icons.keyboard_arrow_down_rounded,
-                                      color: subtitleColor,
-                                      size: 20,
-                                    ),
-                                  ],
-                                ),
-                                if (isExpanded) ...[
-                                  const SizedBox(height: 12),
-                                  const Divider(height: 1),
-                                  const SizedBox(height: 12),
-                                  // Nomor Meja
-                                  Row(
-                                    children: [
-                                      Icon(Icons.table_restaurant_rounded, size: 13, color: const Color(0xFF6366F1)),
-                                      const SizedBox(width: 6),
-                                      Text(
-                              'Nomor Meja (${room.capacity} Meja)',
-                                        style: TextStyle(
-                                          color: titleColor.withValues(alpha: 0.8),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        isExpanded
+                                            ? Icons.keyboard_arrow_up_rounded
+                                            : Icons.keyboard_arrow_down_rounded,
+                                        color: subtitleColor,
+                                        size: 20,
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    children: () {
-                                      final interleaved = assignments[index] ?? [];
-                                      return List.generate(room.capacity, (idx) {
-                                        final num = idx + 1;
-                                        final student = idx < interleaved.length ? interleaved[idx] : null;
-                                        final hasStudent = student != null;
-                                        final name = hasStudent ? student['nama'] ?? '' : 'Kosong';
-                                        final angkatan = hasStudent ? student['angkatan'] ?? '' : '';
-                                        final clsName = hasStudent ? student['className'] ?? '' : '';
-
-                                        return Container(
-                                          width: 105,
-                                          height: 58,
-                                          padding: const EdgeInsets.all(5),
-                                          decoration: BoxDecoration(
-                                            color: hasStudent
-                                                ? (isDark
-                                                    ? const Color(0xFF6366F1).withValues(alpha: 0.15)
-                                                    : const Color(0xFF6366F1).withValues(alpha: 0.05))
-                                                : (isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02)),
-                                            borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(
-                                              color: hasStudent
-                                                  ? (isDark
-                                                      ? const Color(0xFF6366F1).withValues(alpha: 0.3)
-                                                      : const Color(0xFF6366F1).withValues(alpha: 0.18))
-                                                  : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
-                                              width: 0.8,
-                                            ),
+                                  if (isExpanded) ...[
+                                    const SizedBox(height: 12),
+                                    const Divider(height: 1),
+                                    const SizedBox(height: 12),
+                                    // Meja layout preview
+                                    Row(
+                                      children: [
+                                        Icon(Icons.table_restaurant_rounded, size: 13, color: isOverCapacity ? Colors.red : const Color(0xFF6366F1)),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Susunan Kursi & Zig-Zag Preview',
+                                          style: TextStyle(
+                                            color: titleColor.withValues(alpha: 0.8),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Text(
-                                                    'M-$num',
-                                                    style: TextStyle(
-                                                      color: isDark ? Colors.white54 : Colors.black54,
-                                                      fontSize: 8,
-                                                      fontWeight: FontWeight.bold,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    () {
+                                      final roomStudents = assignments[index] ?? [];
+                                      if (roomStudents.isEmpty) {
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                          child: Text(
+                                            'Ruangan belum terisi. Atur jumlah murid di bawah ini.',
+                                            style: TextStyle(color: subtitleColor, fontSize: 11, fontStyle: FontStyle.italic),
+                                          ),
+                                        );
+                                      }
+                                      return Wrap(
+                                        spacing: 6,
+                                        runSpacing: 6,
+                                        children: List.generate(roomStudents.length, (idx) {
+                                          final student = roomStudents[idx];
+                                          final num = student['seatNumber'] ?? (idx + 1);
+                                          final name = student['nama'] ?? '';
+                                          final angkatan = student['angkatan'] ?? '';
+                                          final clsName = student['className'] ?? '';
+
+                                          return Container(
+                                            width: 105,
+                                            height: 58,
+                                            padding: const EdgeInsets.all(5),
+                                            decoration: BoxDecoration(
+                                              color: isDark
+                                                  ? const Color(0xFF6366F1).withValues(alpha: 0.15)
+                                                  : const Color(0xFF6366F1).withValues(alpha: 0.05),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(
+                                                color: isDark
+                                                    ? const Color(0xFF6366F1).withValues(alpha: 0.3)
+                                                    : const Color(0xFF6366F1).withValues(alpha: 0.18),
+                                                width: 0.8,
+                                              ),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    Text(
+                                                      'M-$num',
+                                                      style: TextStyle(
+                                                        color: isDark ? Colors.white54 : Colors.black54,
+                                                        fontSize: 8,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
                                                     ),
-                                                  ),
-                                                  if (hasStudent)
                                                     Container(
                                                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                                       decoration: BoxDecoration(
@@ -2056,156 +2442,409 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                                         ),
                                                       ),
                                                     ),
-                                                ],
-                                              ),
-                                              Text(
-                                                name,
-                                                style: TextStyle(
-                                                  color: hasStudent
-                                                      ? (isDark ? Colors.white : const Color(0xFF1E1B4B))
-                                                      : (isDark ? Colors.white30 : Colors.black38),
-                                                  fontSize: 9,
-                                                  fontWeight: hasStudent ? FontWeight.bold : FontWeight.normal,
+                                                  ],
                                                 ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              if (hasStudent)
                                                 Text(
-                                                  '${room.name}-$num-$angkatan',
+                                                  name,
                                                   style: TextStyle(
-                                                    color: isDark ? Colors.white38 : Colors.black38,
-                                                    fontSize: 6.5,
+                                                    color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                                                    fontSize: 9,
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
-                                            ],
-                                          ),
-                                        );
-                                      });
-                                    }(),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  const Divider(height: 1),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'Pilih Kelas',
-                                    style: TextStyle(
-                                      color: titleColor.withValues(alpha: 0.7),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  if (filteredClasses.isEmpty)
-                                    Text(
-                                      'Tidak ada kelas terpilih dari mata pelajaran.',
-                                      style: TextStyle(
-                                          color: subtitleColor,
-                                          fontSize: 11,
-                                          fontStyle: FontStyle.italic),
-                                    )
-                                  else
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: filteredClasses.map((cls) {
-                                        final className = cls['name'] ?? '';
-                                        final classId = cls['id'] ?? '';
-                                        final totalInClass = _studentsByClass[classId]?.length ?? 0;
-                                        final remaining = remainingCounts[className] ?? 0;
-                                        final isSelected = room.classes.contains(className);
-                                        final displayText = remaining == 0
-                                            ? '$className (Penuh)'
-                                            : '$className ($remaining/$totalInClass)';
-
-                                        return GestureDetector(
-                                          onTap: () {
-                                            if (!isSelected && room.classes.length >= 3) {
-                                              Get.snackbar(
-                                                'Peringatan',
-                                                'Maksimal 3 kelas dalam satu ruangan',
-                                                backgroundColor: const Color(0xFFEF4444),
-                                                colorText: Colors.white,
-                                                snackPosition: SnackPosition.BOTTOM,
-                                                margin: const EdgeInsets.all(16),
-                                              );
-                                              return;
-                                            }
-                                            setState(() {
-                                              final updatedClasses = List<String>.from(room.classes);
-                                              if (isSelected) {
-                                                updatedClasses.remove(className);
-                                              } else {
-                                                updatedClasses.add(className);
-                                              }
-                                              _rooms[index] = room.copyWith(classes: updatedClasses);
-                                            });
-                                            _saveDraft();
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                            decoration: BoxDecoration(
-                                              color: isSelected
-                                                  ? const Color(0xFF6366F1)
-                                                  : const Color(0xFF6366F1).withValues(alpha: 0.04),
-                                              borderRadius: BorderRadius.circular(10),
-                                              border: Border.all(
-                                                color: isSelected
-                                                    ? const Color(0xFF6366F1)
-                                                    : (isDark ? Colors.white24 : Colors.black12),
-                                              ),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  isSelected
-                                                      ? Icons.check_circle_rounded
-                                                      : Icons.radio_button_off_rounded,
-                                                  color: isSelected ? Colors.white : subtitleColor,
-                                                  size: 14,
-                                                ),
-                                                const SizedBox(width: 6),
                                                 Text(
-                                                  displayText,
+                                                  '$clsName',
                                                   style: TextStyle(
-                                                    color: isSelected ? Colors.white : titleColor,
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.bold,
+                                                    color: isDark ? Colors.white38 : Colors.black38,
+                                                    fontSize: 7,
                                                   ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                               ],
                                             ),
-                                          ),
-                                        );
-                                      }).toList(),
+                                          );
+                                        }),
+                                      );
+                                    }(),
+                                    const SizedBox(height: 16),
+                                    const Divider(height: 1),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Alokasi Jumlah Murid Per Kelas',
+                                      style: TextStyle(
+                                        color: titleColor.withValues(alpha: 0.8),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
+                                    const SizedBox(height: 8),
+                                    if (filteredClasses.isEmpty)
+                                      Text(
+                                        'Tidak ada kelas terpilih dari mata pelajaran.',
+                                        style: TextStyle(
+                                            color: subtitleColor,
+                                            fontSize: 11,
+                                            fontStyle: FontStyle.italic),
+                                      )
+                                    else
+                                      Column(
+                                        children: filteredClasses.map((cls) {
+                                          final className = cls['name'] ?? '';
+                                          final classId = cls['id'] ?? '';
+                                          final totalInClass = _studentsByClass[classId]?.length ?? 0;
+                                          final remaining = remainingCounts[className] ?? 0;
+
+                                          // Get current count allocated in this room
+                                          int currentAllocated = 0;
+                                          final match = room.classes.firstWhere((c) => c.startsWith('$className:'), orElse: () => '');
+                                          if (match.isNotEmpty) {
+                                            currentAllocated = int.tryParse(match.split(':')[1]) ?? 0;
+                                          }
+
+                                          final maxAllowed = remaining + currentAllocated;
+
+                                          return Container(
+                                            margin: const EdgeInsets.only(bottom: 8),
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01),
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(color: cardBorder),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      className,
+                                                      style: TextStyle(
+                                                        color: titleColor,
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      'Tersisa: $remaining / $totalInClass siswa',
+                                                      style: TextStyle(
+                                                        color: remaining == 0 ? Colors.green : subtitleColor,
+                                                        fontSize: 10,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                Row(
+                                                  children: [
+                                                    // Minus button
+                                                    IconButton(
+                                                      icon: const Icon(Icons.remove_circle_outline_rounded, size: 20),
+                                                      color: currentAllocated > 0 ? const Color(0xFF6366F1) : subtitleColor.withValues(alpha: 0.5),
+                                                      onPressed: currentAllocated > 0
+                                                          ? () {
+                                                              final updated = List<String>.from(room.classes);
+                                                              updated.removeWhere((c) => c.startsWith('$className:'));
+                                                              final newVal = currentAllocated - 1;
+                                                              if (newVal > 0) {
+                                                                updated.add('$className:$newVal');
+                                                              }
+                                                              updated.sort();
+                                                              setState(() {
+                                                                _rooms[index] = room.copyWith(classes: updated);
+                                                              });
+                                                              _saveDraft();
+                                                            }
+                                                          : null,
+                                                    ),
+                                                    // Count text field
+                                                    SizedBox(
+                                                      width: 54,
+                                                      height: 36,
+                                                      child: TextFormField(
+                                                        key: ValueKey('${room.name}_${className}_$currentAllocated'),
+                                                        initialValue: currentAllocated.toString(),
+                                                        keyboardType: TextInputType.number,
+                                                        textAlign: TextAlign.center,
+                                                        style: TextStyle(
+                                                          color: titleColor,
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                        decoration: InputDecoration(
+                                                          contentPadding: EdgeInsets.zero,
+                                                          border: OutlineInputBorder(
+                                                            borderRadius: BorderRadius.circular(8),
+                                                            borderSide: BorderSide(color: cardBorder),
+                                                          ),
+                                                          enabledBorder: OutlineInputBorder(
+                                                            borderRadius: BorderRadius.circular(8),
+                                                            borderSide: BorderSide(color: cardBorder),
+                                                          ),
+                                                          focusedBorder: OutlineInputBorder(
+                                                            borderRadius: BorderRadius.circular(8),
+                                                            borderSide: const BorderSide(color: Color(0xFF6366F1)),
+                                                          ),
+                                                        ),
+                                                        onChanged: (val) {
+                                                          final valInt = int.tryParse(val) ?? 0;
+                                                          if (valInt == currentAllocated) return;
+                                                          int target = valInt;
+                                                          if (target < 0) target = 0;
+                                                          if (target > maxAllowed) target = maxAllowed;
+
+                                                          final updated = List<String>.from(room.classes);
+                                                          updated.removeWhere((c) => c.startsWith('$className:'));
+                                                          if (target > 0) {
+                                                            updated.add('$className:$target');
+                                                          }
+                                                          updated.sort();
+                                                          setState(() {
+                                                            _rooms[index] = room.copyWith(classes: updated);
+                                                          });
+                                                          _saveDraft();
+                                                        },
+                                                      ),
+                                                    ),
+                                                    // Plus button
+                                                    IconButton(
+                                                      icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+                                                      color: remaining > 0 ? const Color(0xFF6366F1) : subtitleColor.withValues(alpha: 0.5),
+                                                      onPressed: remaining > 0
+                                                          ? () {
+                                                              final updated = List<String>.from(room.classes);
+                                                              updated.removeWhere((c) => c.startsWith('$className:'));
+                                                              final newVal = currentAllocated + 1;
+                                                              updated.add('$className:$newVal');
+                                                              updated.sort();
+                                                              setState(() {
+                                                                _rooms[index] = room.copyWith(classes: updated);
+                                                              });
+                                                              _saveDraft();
+                                                            }
+                                                          : null,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              _buildScheduleSection(isDark, cardColor, cardBorder, titleColor, subtitleColor),
-            ],
-          const SizedBox(height: 24),
-
-
+                        );
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
           const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  void _autoAssignClassesToRooms() {
+  Widget _buildStep5Schedule(bool isDark, Color cardColor, Color cardBorder, Color titleColor) {
+    final subtitleColor = isDark
+        ? Colors.white.withValues(alpha: 0.6)
+        : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Jadwal Ujian & Mata Pelajaran',
+                        style: TextStyle(
+                            color: titleColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('Tentukan jadwal mata pelajaran untuk setiap sesi ujian.',
+                        style: TextStyle(color: subtitleColor, fontSize: 13)),
+                  ],
+                ),
+              ),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _clearSchedule,
+                    icon: const Icon(Icons.delete_sweep_rounded, color: Color(0xFFEF4444), size: 16),
+                    label: const Text('Kosongkan',
+                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFEF4444)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _autoGenerateSchedule,
+                    icon: const Icon(Icons.auto_awesome, color: Colors.white, size: 16),
+                    label: const Text('Generate Otomatis',
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildScheduleSection(isDark, cardColor, cardBorder, titleColor, subtitleColor),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  void _clearSchedule() {
+    setState(() {
+      _scheduledSubjects.clear();
+    });
+    _saveDraft();
+    _compileDraftSessions();
+    Get.snackbar(
+      'Sukses',
+      'Jadwal ujian berhasil dikosongkan.',
+      backgroundColor: const Color(0xFFEF4444),
+      colorText: Colors.white,
+    );
+  }
+
+  void _autoGenerateSchedule() {
+    final days = _getEventDays();
+    if (days.isEmpty || _slots.isEmpty) {
+      _showError('Tentukan rentang tanggal di Step 1 dan slot waktu terlebih dahulu.');
+      return;
+    }
+
+    setState(() {
+      _scheduledSubjects.clear();
+    });
+
+    // 1. Partition subjects into General (Umum) and Specialization (Penjurusan) groups, shuffle them, and combine
+    final int maxClasses = _subjectConfigs.isEmpty 
+        ? 0 
+        : _subjectConfigs.map((s) => s.classIds.length).fold(0, (maxVal, countVal) => countVal > maxVal ? countVal : maxVal);
+    
+    // A subject is general if it targets at least 70% of the maximum class participation count
+    final threshold = maxClasses <= 1 ? 1 : (maxClasses * 0.7).ceil();
+    final List<ExamSubjectConfig> generalSubjects = [];
+    final List<ExamSubjectConfig> specializationSubjects = [];
+
+    for (final config in _subjectConfigs) {
+      if (config.classIds.length >= threshold) {
+        generalSubjects.add(config);
+      } else {
+        specializationSubjects.add(config);
+      }
+    }
+
+    // Shuffle both lists independently for random ordering within categories
+    generalSubjects.shuffle();
+    specializationSubjects.shuffle();
+
+    final List<ExamSubjectConfig> sortedConfigs = [...generalSubjects, ...specializationSubjects];
+
+    // Map class name to class id
+    final Map<String, String> classNameToId = {};
+    for (final cls in _allClasses) {
+      classNameToId[cls['name'] as String] = cls['id'] as String;
+    }
+
+    // 2. Track busy classes per slot
+    final Map<String, Set<String>> busyClassesInSlot = {};
+
+    // 3. Chronological time slots
+    final List<Map<String, dynamic>> timeSlots = [];
+    for (final day in days) {
+      final dayStr = DateFormat('yyyy-MM-dd').format(day);
+      for (final slot in _slots) {
+        timeSlots.add({
+          'dayStr': dayStr,
+          'slot': slot,
+        });
+      }
+    }
+
+    // 4. Schedule each subject config
+    for (final config in sortedConfigs) {
+      final configClassIds = config.classIds.toSet();
+      bool scheduled = false;
+
+      // Find the earliest slot where no classes for this subject are busy
+      for (final timeSlot in timeSlots) {
+        final dayStr = timeSlot['dayStr'] as String;
+        final slotName = (timeSlot['slot'] as ExamSlot).name;
+        final slotKey = '${dayStr}_$slotName';
+
+        final busy = busyClassesInSlot[slotKey] ?? {};
+        if (busy.intersection(configClassIds).isEmpty) {
+          // No conflict, schedule here!
+          setState(() {
+            // Assign subject for each class in each room that has this class
+            for (final room in _rooms) {
+              final List<String> roomClassNames = room.classes.map((c) => c.split(':')[0]).toList();
+              for (final clsName in roomClassNames) {
+                final cid = classNameToId[clsName] ?? '';
+                if (config.classIds.contains(cid)) {
+                  final targetKey = '${dayStr}_${slotName}_${room.name}_$clsName';
+                  _scheduledSubjects[targetKey] = config.subjectId;
+                }
+              }
+            }
+            // Mark classes as busy in this slot
+            busyClassesInSlot.putIfAbsent(slotKey, () => {}).addAll(configClassIds);
+          });
+          scheduled = true;
+          break;
+        }
+      }
+
+      if (!scheduled) {
+        // If we ran out of time slots, display a warning
+        _showError('Gagal menjadwalkan "${config.subjectName}" karena slot waktu penuh.');
+        return;
+      }
+    }
+
+    _saveDraft();
+    _compileDraftSessions();
+
+    Get.snackbar(
+      'Sukses',
+      'Berhasil menyusun ${_subjectConfigs.length} mata pelajaran secara otomatis.',
+      backgroundColor: const Color(0xFF10B981),
+      colorText: Colors.white,
+    );
+  }
+
+  void _autoAssignClassesToRooms(int maxAngkatan) {
     if (_allClasses.isEmpty) return;
 
     final activeClassIds = _subjectConfigs.expand((c) => c.classIds).toSet();
@@ -2262,9 +2901,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
     for (final room in _rooms) {
       final capacity = room.capacity;
-      final List<String> assignedClasses = [];
+      final List<String> roomClasses = [];
 
-      // Find Cohort queues that still have students
+      // Find Cohorts that still have students
       final activeCohorts = classesByCohort.keys.where((cohort) {
         return classesByCohort[cohort]!.any((cid) => remainingClassStudents[cid]! > 0);
       }).toList()..sort();
@@ -2275,102 +2914,90 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         continue;
       }
 
-      // We want to select at most 2 classes to mix (ideally from different cohorts)
-      String? classA;
-      String? classB;
+      // Mix up to maxAngkatan cohorts
+      final int numMix = maxAngkatan < activeCohorts.length ? maxAngkatan : activeCohorts.length;
+      final List<String> selectedCohorts = [];
+      for (int i = 0; i < numMix; i++) {
+        selectedCohorts.add(activeCohorts[i]);
+      }
 
-      if (activeCohorts.length >= 2) {
-        // Mix two different cohorts
-        final cohortA = activeCohorts[0];
-        final cohortB = activeCohorts[1];
-
-        classA = classesByCohort[cohortA]!.firstWhere((cid) => remainingClassStudents[cid]! > 0);
-        classB = classesByCohort[cohortB]!.firstWhere((cid) => remainingClassStudents[cid]! > 0);
-      } else {
-        // Only one cohort has remaining students
-        final cohort = activeCohorts[0];
-        final candidates = classesByCohort[cohort]!.where((cid) => remainingClassStudents[cid]! > 0).toList();
-        if (candidates.isNotEmpty) {
-          classA = candidates[0];
-        }
-        if (candidates.length >= 2) {
-          classB = candidates[1];
+      // We distribute the room capacity among the selected cohorts.
+      // E.g., if capacity is 40 and we have 2 cohorts, each gets 20.
+      final Map<String, int> cohortCapacities = {};
+      int remainingCapacity = capacity;
+      
+      // Distribute cohort capacities as evenly as possible
+      while (remainingCapacity > 0) {
+        for (final cohort in selectedCohorts) {
+          if (remainingCapacity <= 0) break;
+          cohortCapacities[cohort] = (cohortCapacities[cohort] ?? 0) + 1;
+          remainingCapacity--;
         }
       }
 
-      // Now fill the room with students from classA and classB
-      int filledA = 0;
-      int filledB = 0;
-
-      if (classA != null && classB != null) {
-        // Both classes selected
-        final nameA = classIdToName[classA]!;
-        final nameB = classIdToName[classB]!;
-        assignedClasses.add(nameA);
-        assignedClasses.add(nameB);
-
-        int targetA = (capacity / 2).ceil();
-        int targetB = capacity - targetA;
-
-        // Fill Class A
-        final remA = remainingClassStudents[classA]!;
-        if (remA >= targetA) {
-          remainingClassStudents[classA] = remA - targetA;
-          filledA = targetA;
-        } else {
-          remainingClassStudents[classA] = 0;
-          filledA = remA;
-        }
-
-        // Fill Class B
-        final remB = remainingClassStudents[classB]!;
-        if (remB >= targetB) {
-          remainingClassStudents[classB] = remB - targetB;
-          filledB = targetB;
-        } else {
-          remainingClassStudents[classB] = 0;
-          filledB = remB;
-        }
-
-        // If Class A or B had leftovers, fill the remainder
-        int totalFilled = filledA + filledB;
-        if (totalFilled < capacity) {
-          int leftover = capacity - totalFilled;
-          if (remainingClassStudents[classA]! > 0) {
-            final rem = remainingClassStudents[classA]!;
-            if (rem >= leftover) {
-              remainingClassStudents[classA] = rem - leftover;
-              filledA += leftover;
-            } else {
-              remainingClassStudents[classA] = 0;
-              filledA += rem;
-            }
-          } else if (remainingClassStudents[classB]! > 0) {
-            final rem = remainingClassStudents[classB]!;
-            if (rem >= leftover) {
-              remainingClassStudents[classB] = rem - leftover;
-              filledB += leftover;
-            } else {
-              remainingClassStudents[classB] = 0;
-              filledB += rem;
+      // Now, for each cohort, we fill its capacity using its classes round-robin
+      final Map<String, int> allocatedClassCounts = {};
+      
+      for (final cohort in selectedCohorts) {
+        final cohortClasses = classesByCohort[cohort]!.where((cid) => remainingClassStudents[cid]! > 0).toList()..sort();
+        int cohortCapacity = cohortCapacities[cohort] ?? 0;
+        
+        while (cohortCapacity > 0 && cohortClasses.any((cid) => remainingClassStudents[cid]! > (allocatedClassCounts[cid] ?? 0))) {
+          for (final cid in cohortClasses) {
+            if (cohortCapacity <= 0) break;
+            final currentAllocated = allocatedClassCounts[cid] ?? 0;
+            final available = remainingClassStudents[cid]! - currentAllocated;
+            if (available > 0) {
+              allocatedClassCounts[cid] = currentAllocated + 1;
+              cohortCapacity--;
             }
           }
         }
-      } else if (classA != null) {
-        // Only classA selected
-        final nameA = classIdToName[classA]!;
-        assignedClasses.add(nameA);
-
-        final remA = remainingClassStudents[classA]!;
-        if (remA >= capacity) {
-          remainingClassStudents[classA] = remA - capacity;
-        } else {
-          remainingClassStudents[classA] = 0;
+        
+        // If there is still cohort capacity left (because this cohort's classes are fully exhausted),
+        // we can add it to the remaining capacity of other cohorts (if any are not exhausted yet).
+        if (cohortCapacity > 0) {
+          remainingCapacity += cohortCapacity;
         }
       }
 
-      assignedClasses.sort();
-      updatedRooms.add(room.copyWith(classes: assignedClasses));
+      // If we have remaining capacity (leftovers from exhausted cohorts),
+      // we distribute it among the cohorts that still have students left
+      while (remainingCapacity > 0) {
+        final cohortsWithStudents = selectedCohorts.where((cohort) {
+          return classesByCohort[cohort]!.any((cid) => remainingClassStudents[cid]! > (allocatedClassCounts[cid] ?? 0));
+        }).toList();
+        
+        if (cohortsWithStudents.isEmpty) break;
+        
+        for (final cohort in cohortsWithStudents) {
+          if (remainingCapacity <= 0) break;
+          final cohortClasses = classesByCohort[cohort]!.where((cid) => remainingClassStudents[cid]! > (allocatedClassCounts[cid] ?? 0)).toList()..sort();
+          
+          for (final cid in cohortClasses) {
+            if (remainingCapacity <= 0) break;
+            final currentAllocated = allocatedClassCounts[cid] ?? 0;
+            final available = remainingClassStudents[cid]! - currentAllocated;
+            if (available > 0) {
+              allocatedClassCounts[cid] = currentAllocated + 1;
+              remainingCapacity--;
+              break; // go to next cohort to keep it distributed
+            }
+          }
+        }
+      }
+
+      // Subtract allocated counts from remainingClassStudents and format string
+      allocatedClassCounts.forEach((cid, cnt) {
+        remainingClassStudents[cid] = remainingClassStudents[cid]! - cnt;
+        if (cnt > 0) {
+          final cname = classIdToName[cid]!;
+          roomClasses.add('$cname:$cnt');
+        }
+      });
+
+      roomClasses.sort();
+      updatedRooms.add(room.copyWith(classes: roomClasses));
     }
 
     setState(() {
@@ -2382,11 +3009,11 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     // Check for remaining unassigned students
     final List<String> unassignedDetails = [];
     int totalUnassigned = 0;
-    remainingClassStudents.forEach((cid, count) {
-      if (count > 0) {
+    remainingClassStudents.forEach((cid, cnt) {
+      if (cnt > 0) {
         final cname = classIdToName[cid]!;
-        totalUnassigned += count;
-        unassignedDetails.add('$cname ($count siswa)');
+        totalUnassigned += cnt;
+        unassignedDetails.add('$cname ($cnt siswa)');
       }
     });
 
@@ -2511,94 +3138,89 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       final assignments = _calculateRoomAssignments();
       final List<ExamSession> generatedSessions = [];
 
-      _scheduledSubjects.forEach((scheduleKey, subjectId) {
-        // scheduleKey format is "yyyy-MM-dd_slotName"
-        final firstUnderscore = scheduleKey.indexOf('_');
-        if (firstUnderscore == -1) return;
-        final dayStr = scheduleKey.substring(0, firstUnderscore);
-        final slotName = scheduleKey.substring(firstUnderscore + 1);
+      final days = _getEventDays();
+      for (final day in days) {
+        final dayStr = DateFormat('yyyy-MM-dd').format(day);
+        for (final slot in _slots) {
+          for (int i = 0; i < _rooms.length; i++) {
+            final room = _rooms[i];
+            final roomStudents = assignments[i] ?? [];
 
-        final date = DateTime.tryParse(dayStr);
-        if (date == null) return;
+            // Group room students by subject scheduled for their class in this slot
+            final Map<String, List<Map<String, dynamic>>> studentsBySubject = {};
 
-        final slotMatches = _slots.where((s) => s.name == slotName).toList();
-        if (slotMatches.isEmpty) return;
-        final slot = slotMatches.first;
-
-        final configMatches = _subjectConfigs.where((c) => c.subjectId == subjectId).toList();
-        if (configMatches.isEmpty) return;
-        final config = configMatches.first;
-
-        // For each room
-        for (int i = 0; i < _rooms.length; i++) {
-          final room = _rooms[i];
-          final roomStudents = assignments[i] ?? [];
-
-          // Find students in this room taking this subject
-          final sessionStudents = roomStudents
-              .where((s) => config.classIds.contains(s['classId']))
-              .toList();
-
-          if (sessionStudents.isNotEmpty) {
-            // Generate participations
-            final List<ExamParticipation> participations = sessionStudents.map((s) {
-              return ExamParticipation(
-                studentId: s['id'] ?? '',
-                studentName: s['nama'] ?? s['name'] ?? '',
-                nis: s['nis'] ?? '',
-                hasStarted: false,
-                seatNumber: s['seatNumber'] as int? ?? 0,
-                roomName: room.name,
-                angkatan: s['angkatan'] ?? '',
-              );
-            }).toList();
-
-            // Find overlapping classes in this session
-            final sessionClasses = sessionStudents.map((s) => s['className'] as String).toSet().toList()..sort();
-
-            // Look up proctor from _draftSessions
-            String sessionProctorId = '';
-            String sessionProctorName = 'Belum ditugaskan';
-            if (_draftSessions.isNotEmpty) {
-              final matchedDraft = _draftSessions.cast<Map<String, dynamic>?>().firstWhere(
-                (s) => s != null &&
-                    s['date'] == date &&
-                    s['slotName'] == slot.name &&
-                    s['roomName'] == room.name &&
-                    s['subjectId'] == config.subjectId,
-                orElse: () => null,
-              );
-              if (matchedDraft != null) {
-                sessionProctorId = matchedDraft['proctorId'] as String? ?? '';
-                sessionProctorName = matchedDraft['proctorName'] as String? ?? 'Belum ditugaskan';
+            for (final student in roomStudents) {
+              final clsName = student['className'] as String? ?? '';
+              final scheduleKey = '${dayStr}_${slot.name}_${room.name}_$clsName';
+              final subjectId = _scheduledSubjects[scheduleKey];
+              if (subjectId != null && subjectId.isNotEmpty) {
+                studentsBySubject.putIfAbsent(subjectId, () => []).add(student);
               }
             }
 
-            final session = ExamSession(
-              id: '', // will be set in saveGeneratedSessions
-              eventId: eventId,
-              subjectId: config.subjectId,
-              subjectName: config.subjectName,
-              classId: config.classIds.join(', '),
-              className: sessionClasses.join(', '),
-              date: date,
-              slotName: slot.name,
-              startTime: slot.startTime,
-              endTime: slot.endTime,
-              roomName: room.name,
-              proctorId: sessionProctorId,
-              proctorName: sessionProctorName,
-              authorTeacherId: config.authorTeacherId,
-              qrToken: ExamSessionService.generateQrToken(),
-              isQrActive: false,
-              examStatus: 'Scheduled',
-              previewParticipations: participations,
-            );
+            studentsBySubject.forEach((subjectId, sessionStudents) {
+              final configMatches = _subjectConfigs.where((c) => c.subjectId == subjectId).toList();
+              if (configMatches.isEmpty) return;
+              final config = configMatches.first;
 
-            generatedSessions.add(session);
+              final List<ExamParticipation> participations = sessionStudents.map((s) {
+                return ExamParticipation(
+                  studentId: s['id'] ?? '',
+                  studentName: s['nama'] ?? s['name'] ?? '',
+                  nis: s['nis'] ?? '',
+                  hasStarted: false,
+                  seatNumber: s['seatNumber'] as int? ?? 0,
+                  roomName: room.name,
+                  angkatan: s['angkatan'] ?? '',
+                );
+              }).toList();
+
+              final sessionClasses = sessionStudents.map((s) => s['className'] as String).toSet().toList()..sort();
+
+              // Look up proctor from _draftSessions
+              String sessionProctorId = '';
+              String sessionProctorName = 'Belum ditugaskan';
+              if (_draftSessions.isNotEmpty) {
+                final matchedDraft = _draftSessions.cast<Map<String, dynamic>?>().firstWhere(
+                  (s) => s != null &&
+                      s['date'] == day &&
+                      s['slotName'] == slot.name &&
+                      s['roomName'] == room.name &&
+                      s['subjectId'] == config.subjectId,
+                  orElse: () => null,
+                );
+                if (matchedDraft != null) {
+                  sessionProctorId = matchedDraft['proctorId'] as String? ?? '';
+                  sessionProctorName = matchedDraft['proctorName'] as String? ?? 'Belum ditugaskan';
+                }
+              }
+
+              final session = ExamSession(
+                id: '', // will be set in saveGeneratedSessions
+                eventId: eventId,
+                subjectId: config.subjectId,
+                subjectName: config.subjectName,
+                classId: config.classIds.join(', '),
+                className: sessionClasses.join(', '),
+                date: day,
+                slotName: slot.name,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+                roomName: room.name,
+                proctorId: sessionProctorId,
+                proctorName: sessionProctorName,
+                authorTeacherId: config.authorTeacherId,
+                qrToken: ExamSessionService.generateQrToken(),
+                isQrActive: false,
+                examStatus: 'Scheduled',
+                previewParticipations: participations,
+              );
+
+              generatedSessions.add(session);
+            });
           }
         }
-      });
+      }
 
       // Save generated sessions to Firestore
       if (generatedSessions.isNotEmpty) {
@@ -2620,6 +3242,192 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     } catch (e) {
       if (mounted) setState(() => _isGenerating = false);
       _showError('Gagal membuat event: $e');
+    }
+  }
+
+  // ── Save & Update (Edit Mode) ────────────────────────────────
+  Future<void> _saveAndUpdateEvent() async {
+    if (_titleController.text.trim().isEmpty) {
+      _showError('Nama event tidak boleh kosong');
+      return;
+    }
+    if (_startDate == null || _endDate == null) {
+      _showError('Rentang tanggal belum dipilih');
+      return;
+    }
+    if (_slots.isEmpty) {
+      _showError('Slot waktu belum dikonfigurasi');
+      return;
+    }
+    if (_rooms.isEmpty) {
+      _showError('Ruangan belum dikonfigurasi');
+      return;
+    }
+
+    final scheduledSubjectIds = _scheduledSubjects.values.toSet();
+    final unscheduledSubjects = _subjectConfigs
+        .where((s) => !scheduledSubjectIds.contains(s.subjectId))
+        .toList();
+    if (unscheduledSubjects.isNotEmpty) {
+      _showError(
+          'Terdapat ${unscheduledSubjects.length} mata pelajaran yang belum dijadwalkan: '
+          '${unscheduledSubjects.map((s) => s.subjectName).join(', ')}');
+      return;
+    }
+
+    setState(() => _isGenerating = true);
+
+    try {
+      final schoolId = SessionService.currentUser!.schoolId;
+      final eventId  = widget.editEvent!.id;
+      final db       = FirebaseFirestore.instance;
+
+      // 1. Update exam_event document
+      await db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_events')
+          .doc(eventId)
+          .update({
+        'title':          _titleController.text.trim(),
+        'examType':       _examType,
+        'startDate':      Timestamp.fromDate(_startDate!),
+        'endDate':        Timestamp.fromDate(_endDate!),
+        'dailySlots':     _slots.map((s) => s.toMap()).toList(),
+        'subjectConfigs': _subjectConfigs.map((c) => c.toMap()).toList(),
+        'rooms':          _rooms.map((r) => r.toMap()).toList(),
+      });
+
+      // 2. Delete all existing sessions
+      final oldSessions = await db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_events')
+          .doc(eventId)
+          .collection('sessions')
+          .get();
+
+      final batch = db.batch();
+      for (final d in oldSessions.docs) {
+        batch.delete(d.reference);
+      }
+      await batch.commit();
+
+      // 3. Regenerate sessions from current state
+      final assignments = _calculateRoomAssignments();
+      final List<ExamSession> generatedSessions = [];
+
+      final days = _getEventDays();
+      for (final day in days) {
+        final dayStr = DateFormat('yyyy-MM-dd').format(day);
+        for (final slot in _slots) {
+          for (int i = 0; i < _rooms.length; i++) {
+            final room = _rooms[i];
+            final roomStudents = assignments[i] ?? [];
+
+            final Map<String, List<Map<String, dynamic>>> studentsBySubject = {};
+            for (final student in roomStudents) {
+              final clsName = student['className'] as String? ?? '';
+              final scheduleKey =
+                  '${dayStr}_${slot.name}_${room.name}_$clsName';
+              final subjectId = _scheduledSubjects[scheduleKey];
+              if (subjectId != null && subjectId.isNotEmpty) {
+                studentsBySubject.putIfAbsent(subjectId, () => []).add(student);
+              }
+            }
+
+            studentsBySubject.forEach((subjectId, sessionStudents) {
+              final configMatches = _subjectConfigs
+                  .where((c) => c.subjectId == subjectId)
+                  .toList();
+              if (configMatches.isEmpty) return;
+              final config = configMatches.first;
+
+              final List<ExamParticipation> participations =
+                  sessionStudents.map((s) {
+                return ExamParticipation(
+                  studentId:   s['id'] ?? '',
+                  studentName: s['nama'] ?? s['name'] ?? '',
+                  nis:         s['nis'] ?? '',
+                  hasStarted:  false,
+                  seatNumber:  s['seatNumber'] as int? ?? 0,
+                  roomName:    room.name,
+                  angkatan:    s['angkatan'] ?? '',
+                );
+              }).toList();
+
+              final sessionClasses = sessionStudents
+                  .map((s) => s['className'] as String)
+                  .toSet()
+                  .toList()
+                ..sort();
+
+              // Preserve proctor assignment from _draftSessions
+              String sessionProctorId   = '';
+              String sessionProctorName = 'Belum ditugaskan';
+              if (_draftSessions.isNotEmpty) {
+                final matchedDraft =
+                    _draftSessions.cast<Map<String, dynamic>?>().firstWhere(
+                  (s) =>
+                      s != null &&
+                      s['date'] == day &&
+                      s['slotName'] == slot.name &&
+                      s['roomName'] == room.name &&
+                      s['subjectId'] == config.subjectId,
+                  orElse: () => null,
+                );
+                if (matchedDraft != null) {
+                  sessionProctorId   = matchedDraft['proctorId'] as String? ?? '';
+                  sessionProctorName = matchedDraft['proctorName'] as String? ?? 'Belum ditugaskan';
+                }
+              }
+
+              generatedSessions.add(ExamSession(
+                id:               '',
+                eventId:          eventId,
+                subjectId:        config.subjectId,
+                subjectName:      config.subjectName,
+                classId:          config.classIds.join(', '),
+                className:        sessionClasses.join(', '),
+                date:             day,
+                slotName:         slot.name,
+                startTime:        slot.startTime,
+                endTime:          slot.endTime,
+                roomName:         room.name,
+                proctorId:        sessionProctorId,
+                proctorName:      sessionProctorName,
+                authorTeacherId:  config.authorTeacherId,
+                qrToken:          ExamSessionService.generateQrToken(),
+                isQrActive:       false,
+                examStatus:       'Scheduled',
+                previewParticipations: participations,
+              ));
+            });
+          }
+        }
+      }
+
+      if (generatedSessions.isNotEmpty) {
+        await _sessionService.saveGeneratedSessions(schoolId, generatedSessions);
+      }
+
+      if (mounted) {
+        setState(() => _isGenerating = false);
+        Get.back(); // back to event list
+        Get.snackbar(
+          AppLocalization.isIndonesian ? 'Berhasil Diperbarui' : 'Updated',
+          AppLocalization.isIndonesian
+              ? 'Event ujian berhasil diperbarui.'
+              : 'Exam event updated successfully.',
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+          margin: const EdgeInsets.all(16),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isGenerating = false);
+      _showError('Gagal memperbarui event: $e');
     }
   }
 
@@ -2776,16 +3584,31 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   ],
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: _autoAssignProctors,
-                icon: const Icon(Icons.auto_awesome_rounded, size: 14),
-                label: const Text('Atur Otomatis', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _clearProctors,
+                    icon: const Icon(Icons.delete_sweep_rounded, color: Color(0xFFEF4444), size: 14),
+                    label: const Text('Kosongkan', style: TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFEF4444)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _autoAssignProctors,
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 14),
+                    label: const Text('Atur Otomatis', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -2867,145 +3690,163 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            ...slotSessions.map((session) {
-                              final roomName = session['roomName'] as String;
-                              final subjectName = session['subjectName'] as String;
-                              final classes = session['classes'] as List<String>;
-                              final pId = session['proctorId'] as String;
+                            // Group slotSessions by roomName to render 1 card & 1 proctor per room
+                            () {
+                              final Map<String, List<Map<String, dynamic>>> roomSessionsMap = {};
+                              for (final s in slotSessions) {
+                                final rName = s['roomName'] as String;
+                                roomSessionsMap.putIfAbsent(rName, () => []).add(s);
+                              }
 
-                              final hasConf = hasConflict(session);
-                              final hasExceed = exceedsDailyLimit(session);
+                              return Column(
+                                children: roomSessionsMap.entries.map((roomEntry) {
+                                  final roomName = roomEntry.key;
+                                  final roomSessions = roomEntry.value;
+                                  final sampleSession = roomSessions.first;
+                                  final pId = sampleSession['proctorId'] as String;
 
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.02),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: cardBorder),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      flex: 3,
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            roomName,
-                                            style: TextStyle(
-                                              color: titleColor,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            '$subjectName (${classes.join(', ')})',
-                                            style: TextStyle(
-                                              color: subtitleColor,
-                                              fontSize: 11,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          if (hasConf || hasExceed) ...[
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              children: [
-                                                if (hasConf) ...[
-                                                  Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 12),
-                                                  const SizedBox(width: 4),
-                                                  const Text(
-                                                    'Bentrokan Sesi',
-                                                    style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                ],
-                                                if (hasExceed) ...[
-                                                  Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent, size: 12),
-                                                  const SizedBox(width: 4),
-                                                  const Text(
-                                                    'Melebihi 2 Sesi',
-                                                    style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ],
-                                        ],
-                                      ),
+                                  final hasConf = roomSessions.any((s) => hasConflict(s));
+                                  final hasExceed = roomSessions.any((s) => exceedsDailyLimit(s));
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.02),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: cardBorder),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      flex: 4,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF1E1C38) : Colors.white,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: hasConf
-                                                ? Colors.redAccent
-                                                : (hasExceed
-                                                    ? Colors.orangeAccent
-                                                    : (pId.isNotEmpty
-                                                        ? const Color(0xFF6366F1).withValues(alpha: 0.5)
-                                                        : cardBorder)),
-                                          ),
-                                        ),
-                                        child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
-                                            value: pId.isEmpty ? null : pId,
-                                            hint: Text(
-                                              'Pilih Pengawas',
-                                              style: TextStyle(
-                                                color: subtitleColor,
-                                                fontSize: 11.5,
-                                              ),
-                                            ),
-                                            dropdownColor: isDark ? const Color(0xFF1E1C38) : Colors.white,
-                                            isExpanded: true,
-                                            style: TextStyle(
-                                              color: titleColor,
-                                              fontSize: 12,
-                                            ),
-                                            items: [
-                                              const DropdownMenuItem<String>(
-                                                value: null,
-                                                child: Text(
-                                                  'Belum ditugaskan',
-                                                  style: TextStyle(fontStyle: FontStyle.italic),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 3,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                roomName,
+                                                style: TextStyle(
+                                                  color: titleColor,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
                                                 ),
                                               ),
-                                              ..._allTeachers.map((teacher) {
-                                                return DropdownMenuItem<String>(
-                                                  value: teacher['id'] as String,
-                                                  child: Text(teacher['nama'] as String),
+                                              const SizedBox(height: 6),
+                                              ...roomSessions.map((s) {
+                                                final subName = s['subjectName'] as String;
+                                                final clsList = s['classes'] as List<String>;
+                                                return Padding(
+                                                  padding: const EdgeInsets.only(bottom: 4),
+                                                  child: Text(
+                                                    '$subName (${clsList.join(', ')})',
+                                                    style: TextStyle(
+                                                      color: subtitleColor,
+                                                      fontSize: 11,
+                                                    ),
+                                                  ),
                                                 );
                                               }),
+                                              if (hasConf || hasExceed) ...[
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  children: [
+                                                    if (hasConf) ...[
+                                                      Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 12),
+                                                      const SizedBox(width: 4),
+                                                      const Text(
+                                                        'Bentrokan Sesi',
+                                                        style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                    ],
+                                                    if (hasExceed) ...[
+                                                      Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent, size: 12),
+                                                      const SizedBox(width: 4),
+                                                      const Text(
+                                                        'Melebihi 2 Sesi',
+                                                        style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ],
                                             ],
-                                            onChanged: (val) {
-                                              setState(() {
-                                                if (val == null) {
-                                                  session['proctorId'] = '';
-                                                  session['proctorName'] = 'Belum ditugaskan';
-                                                } else {
-                                                  final teacher = _allTeachers.firstWhere((t) => t['id'] == val);
-                                                  session['proctorId'] = val;
-                                                  session['proctorName'] = teacher['nama'] as String;
-                                                }
-                                              });
-                                              _saveDraft();
-                                            },
                                           ),
                                         ),
-                                      ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          flex: 4,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF1E1C38) : Colors.white,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: hasConf
+                                                    ? Colors.redAccent
+                                                    : (hasExceed
+                                                        ? Colors.orangeAccent
+                                                        : (pId.isNotEmpty
+                                                            ? const Color(0xFF6366F1).withValues(alpha: 0.5)
+                                                            : cardBorder)),
+                                              ),
+                                            ),
+                                            child: DropdownButtonHideUnderline(
+                                              child: DropdownButton<String>(
+                                                value: pId.isEmpty ? null : pId,
+                                                hint: Text(
+                                                  'Pilih Pengawas',
+                                                  style: TextStyle(
+                                                    color: subtitleColor,
+                                                    fontSize: 11.5,
+                                                  ),
+                                                ),
+                                                dropdownColor: isDark ? const Color(0xFF1E1C38) : Colors.white,
+                                                isExpanded: true,
+                                                style: TextStyle(
+                                                  color: titleColor,
+                                                  fontSize: 12,
+                                                ),
+                                                items: [
+                                                  const DropdownMenuItem<String>(
+                                                    value: null,
+                                                    child: Text(
+                                                      'Belum ditugaskan',
+                                                      style: TextStyle(fontStyle: FontStyle.italic),
+                                                    ),
+                                                  ),
+                                                  ..._allTeachers.map((teacher) {
+                                                    return DropdownMenuItem<String>(
+                                                      value: teacher['id'] as String,
+                                                      child: Text(teacher['nama'] as String),
+                                                    );
+                                                  }),
+                                                ],
+                                                onChanged: (val) {
+                                                  setState(() {
+                                                    for (final s in roomSessions) {
+                                                      if (val == null) {
+                                                        s['proctorId'] = '';
+                                                        s['proctorName'] = 'Belum ditugaskan';
+                                                      } else {
+                                                        final teacher = _allTeachers.firstWhere((t) => t['id'] == val);
+                                                        s['proctorId'] = val;
+                                                        s['proctorName'] = teacher['nama'] as String;
+                                                      }
+                                                    }
+                                                  });
+                                                  _saveDraft();
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
+                                  );
+                                }).toList(),
                               );
-                            }).toList(),
+                            }(),
                           ],
                         ),
                       );
@@ -3016,6 +3857,287 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             }),
         ],
       ),
+    );
+  }
+
+  void _showSessionDetailDialog(
+    String roomName,
+    List<Map<String, dynamic>> roomSessions,
+    String dayLabel,
+    String slotName,
+    String timeRange,
+  ) {
+    final sampleSession = roomSessions.first;
+    final proctorName = sampleSession['proctorName'] as String? ?? 'Belum ditugaskan';
+
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Detail Ruang Ujian',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.titleLarge?.color,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.close_rounded),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              
+              // Room & Time details
+              _buildDetailRow('Ruangan', roomName),
+              _buildDetailRow('Waktu', '$dayLabel • $slotName ($timeRange)'),
+              _buildDetailRow('Pengawas', proctorName),
+              const SizedBox(height: 16),
+              
+              Text(
+                'Mata Pelajaran & Pembuat Soal:',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.titleMedium?.color,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              // List subjects and authors
+              ...roomSessions.map((session) {
+                final subjectName = session['subjectName'] as String;
+                final classes = session['classes'] as List<String>;
+                final subId = session['subjectId'] as String;
+                
+                final config = _subjectConfigs.firstWhere(
+                  (c) => c.subjectId == subId,
+                  orElse: () => const ExamSubjectConfig(
+                    subjectId: '',
+                    subjectName: '',
+                    classIds: [],
+                    authorTeacherIds: [],
+                    authorTeacherNames: [],
+                  ),
+                );
+                
+                final authorText = config.authorTeacherNames.isNotEmpty
+                    ? config.authorTeacherNames.join(', ')
+                    : 'Tidak ditentukan';
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Theme.of(context).dividerColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${classes.join(', ')} : $subjectName',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Pembuat Soal: $authorText',
+                        style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _printSchedule() async {
+    final doc = pw.Document();
+    
+    // Group draft sessions by date
+    final Map<String, List<Map<String, dynamic>>> sessionsByDay = {};
+    for (final session in _draftSessions) {
+      final dayStr = DateFormat('yyyy-MM-dd').format(session['date'] as DateTime);
+      sessionsByDay.putIfAbsent(dayStr, () => []).add(session);
+    }
+
+    final sortedDays = sessionsByDay.keys.toList()..sort();
+
+    for (final dayStr in sortedDays) {
+      final daySessions = sessionsByDay[dayStr]!;
+      final parsedDate = DateTime.parse(dayStr);
+      final dayLabel = DateFormat('EEEE, dd MMMM yyyy', 'id').format(parsedDate);
+
+      // Group sessions by slotName for this day
+      final Map<String, List<Map<String, dynamic>>> sessionsBySlot = {};
+      for (final s in daySessions) {
+        final slotName = s['slotName'] as String;
+        sessionsBySlot.putIfAbsent(slotName, () => []).add(s);
+      }
+      final sortedSlots = sessionsBySlot.keys.toList()..sort();
+
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(24),
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header / Title
+                pw.Center(
+                  child: pw.Text(
+                    _titleController.text.isNotEmpty ? _titleController.text : 'Jadwal Ujian',
+                    style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+                pw.SizedBox(height: 6),
+                pw.Center(
+                  child: pw.Text(
+                    dayLabel,
+                    style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+
+                // Table representation
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                  columnWidths: const {
+                    0: pw.FixedColumnWidth(80),  // Sesi
+                    1: pw.FixedColumnWidth(60),  // Ruangan
+                    2: pw.FlexColumnWidth(2),    // Mata Pelajaran
+                    3: pw.FlexColumnWidth(1.5),  // Pengawas
+                  },
+                  children: [
+                    // Table Header
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Sesi / Waktu', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Ruangan', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Mata Pelajaran (Kelas)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Pengawas', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                        ),
+                      ],
+                    ),
+
+                    // Table rows
+                    ...sortedSlots.expand((slotName) {
+                      final slotSessions = sessionsBySlot[slotName]!
+                        ..sort((a, b) => (a['roomName'] as String).compareTo(b['roomName'] as String));
+                      
+                      final sampleSession = slotSessions.first;
+                      final timeRange = '${sampleSession['startTime']} - ${sampleSession['endTime']}';
+
+                      // Group slotSessions by roomName
+                      final Map<String, List<Map<String, dynamic>>> roomSessionsMap = {};
+                      for (final s in slotSessions) {
+                        final rName = s['roomName'] as String;
+                        roomSessionsMap.putIfAbsent(rName, () => []).add(s);
+                      }
+
+                      final sortedRooms = roomSessionsMap.keys.toList()..sort();
+
+                      return sortedRooms.map((roomName) {
+                        final roomSessions = roomSessionsMap[roomName]!;
+                        final sampleRoomSession = roomSessions.first;
+                        
+                        final subjectsText = roomSessions
+                            .map((s) => "${(s['classes'] as List<String>).join(', ')} : ${s['subjectName']}")
+                            .join(', ');
+                        
+                        final proctorName = sampleRoomSession['proctorName'] as String? ?? 'Belum ditugaskan';
+
+                        return pw.TableRow(
+                          children: [
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text('$slotName\n($timeRange)', style: const pw.TextStyle(fontSize: 8)),
+                            ),
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(roomName, style: const pw.TextStyle(fontSize: 8)),
+                            ),
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(subjectsText, style: const pw.TextStyle(fontSize: 8)),
+                            ),
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(proctorName, style: const pw.TextStyle(fontSize: 8)),
+                            ),
+                          ],
+                        );
+                      });
+                    }),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
+    // Print / share PDF
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => doc.save(),
+      name: '${_titleController.text.trim().replaceAll(' ', '_')}_Jadwal_Ujian.pdf',
     );
   }
 
@@ -3070,8 +4192,19 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   ],
                 ),
               ),
-              // Summary chip
-              if (_draftSessions.isNotEmpty)
+              // Summary chip and Print button
+              if (_draftSessions.isNotEmpty) ...[
+                OutlinedButton.icon(
+                  onPressed: _printSchedule,
+                  icon: const Icon(Icons.print_rounded, size: 14, color: Color(0xFF6366F1)),
+                  label: const Text('Cetak & Unduh', style: TextStyle(color: Color(0xFF6366F1), fontSize: 11, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF6366F1)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
@@ -3088,6 +4221,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 20),
@@ -3231,6 +4365,13 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
                               final sampleSession = slotSessions.first;
 
+                              // Group slotSessions by roomName to render 1 row per room in this slot
+                              final Map<String, List<Map<String, dynamic>>> roomSessionsMap = {};
+                              for (final s in slotSessions) {
+                                final rName = s['roomName'] as String;
+                                roomSessionsMap.putIfAbsent(rName, () => []).add(s);
+                              }
+
                               return [
                                 // Slot separator band
                                 Container(
@@ -3269,88 +4410,103 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                   ),
                                 ),
 
-                                // One row per session in this slot
-                                ...slotSessions.map((session) {
-                                  final roomName = session['roomName'] as String;
-                                  final subjectName = session['subjectName'] as String;
-                                  final proctorName = session['proctorName'] as String;
-                                  final proctorId = session['proctorId'] as String;
+                                // One row per room in this slot
+                                ...roomSessionsMap.entries.map((roomEntry) {
+                                  final roomName = roomEntry.key;
+                                  final roomSessions = roomEntry.value;
+                                  final sampleRoomSession = roomSessions.first;
+
+                                  final subjectsText = roomSessions
+                                      .map((s) => "${(s['classes'] as List<String>).join(', ')} : ${s['subjectName']}")
+                                      .join(', ');
+
+                                  final proctorName = sampleRoomSession['proctorName'] as String;
+                                  final proctorId = sampleRoomSession['proctorId'] as String;
                                   final hasProctor = proctorId.isNotEmpty;
 
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(color: cardBorder, width: 0.5),
-                                      ),
+                                  return InkWell(
+                                    onTap: () => _showSessionDetailDialog(
+                                      roomName,
+                                      roomSessions,
+                                      dayLabel,
+                                      slotName,
+                                      '${sampleSession['startTime']} – ${sampleSession['endTime']}',
                                     ),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        // Slot/Time placeholder (empty since shown in band above)
-                                        const SizedBox(width: 90),
-                                        // Room
-                                        SizedBox(
-                                          width: 70,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF6366F1).withValues(alpha: 0.08),
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              roomName,
-                                              style: const TextStyle(
-                                                color: Color(0xFF6366F1),
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(color: cardBorder, width: 0.5),
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          // Slot/Time placeholder (empty since shown in band above)
+                                          const SizedBox(width: 90),
+                                          // Room
+                                          SizedBox(
+                                            width: 70,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+                                                borderRadius: BorderRadius.circular(6),
                                               ),
-                                              maxLines: 1,
+                                              child: Text(
+                                                roomName,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF6366F1),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          // Subject
+                                          Expanded(
+                                            child: Text(
+                                              subjectsText,
+                                              style: TextStyle(
+                                                color: titleColor,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        // Subject
-                                        Expanded(
-                                          child: Text(
-                                            subjectName,
-                                            style: TextStyle(
-                                              color: titleColor,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        // Proctor
-                                        Expanded(
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                hasProctor ? Icons.person_rounded : Icons.person_off_outlined,
-                                                size: 13,
-                                                color: hasProctor ? const Color(0xFF10B981) : Colors.redAccent,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  proctorName,
-                                                  style: TextStyle(
-                                                    color: hasProctor ? titleColor : Colors.redAccent,
-                                                    fontSize: 10,
-                                                    fontStyle: hasProctor ? FontStyle.normal : FontStyle.italic,
-                                                  ),
-                                                  maxLines: 2,
-                                                  overflow: TextOverflow.ellipsis,
+                                          const SizedBox(width: 8),
+                                          // Proctor
+                                          Expanded(
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  hasProctor ? Icons.person_rounded : Icons.person_off_outlined,
+                                                  size: 13,
+                                                  color: hasProctor ? const Color(0xFF10B981) : Colors.redAccent,
                                                 ),
-                                              ),
-                                            ],
+                                                const SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    proctorName,
+                                                    style: TextStyle(
+                                                      color: hasProctor ? titleColor : Colors.redAccent,
+                                                      fontSize: 10,
+                                                      fontStyle: hasProctor ? FontStyle.normal : FontStyle.italic,
+                                                    ),
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   );
                                 }),
@@ -3454,7 +4610,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
           final dayLabel = DateFormat('EEEE, dd MMMM yyyy', 'id').format(day);
 
           return Container(
-            margin: const EdgeInsets.only(bottom: 16),
+            margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
               color: cardColor,
               borderRadius: BorderRadius.circular(16),
@@ -3463,7 +4619,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Day Header
+                // Day/Date Header
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -3483,112 +4639,219 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     ),
                   ),
                 ),
-                // Slots
+                // Sessions/Slots List
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: _slots.map((slot) {
-                      final scheduleKey = '${dayStr}_${slot.name}';
-                      final selectedSubjectId = _scheduledSubjects[scheduleKey];
-
-                      // Determine items for this slot
-                      final scheduledIds = _scheduledSubjects.entries
-                          .where((e) => e.key != scheduleKey)
-                          .map((e) => e.value)
-                          .toSet();
-
-                      final availableSubjects = _subjectConfigs.where((sub) {
-                        return !scheduledIds.contains(sub.subjectId);
-                      }).toList();
-
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Row(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.01),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: cardBorder),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              flex: 2,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    slot.name,
-                                    style: TextStyle(
-                                      color: titleColor,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
+                            // Session Name and Time
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  slot.name,
+                                  style: TextStyle(
+                                    color: titleColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${slot.startTime} - ${slot.endTime}',
-                                    style: TextStyle(
-                                      color: subtitleColor,
-                                      fontSize: 11,
-                                    ),
+                                ),
+                                Text(
+                                  '${slot.startTime} - ${slot.endTime}',
+                                  style: TextStyle(
+                                    color: subtitleColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 3,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                            const SizedBox(height: 12),
+                            const Divider(height: 1),
+                            const SizedBox(height: 12),
+                            
+                            // Rooms List inside this session
+                            ..._rooms.map((room) {
+                              // Extract class names configured for this room in Step 5 (e.g. from "X IPA 1:12" -> "X IPA 1")
+                              final List<String> roomClassNames = room.classes.map((c) => c.split(':')[0]).toList();
+                              
+                              if (roomClassNames.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.03),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: selectedSubjectId != null
-                                        ? const Color(0xFF6366F1).withValues(alpha: 0.5)
-                                        : cardBorder,
-                                  ),
+                                  color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: cardBorder),
                                 ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: selectedSubjectId,
-                                    hint: Text(
-                                      'Pilih Mata Pelajaran',
-                                      style: TextStyle(
-                                        color: subtitleColor,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    dropdownColor: isDark ? const Color(0xFF1E1C38) : Colors.white,
-                                    isExpanded: true,
-                                    style: TextStyle(
-                                      color: titleColor,
-                                      fontSize: 12,
-                                      fontWeight: selectedSubjectId != null ? FontWeight.bold : FontWeight.normal,
-                                    ),
-                                    items: [
-                                      const DropdownMenuItem<String>(
-                                        value: null,
-                                        child: Text(
-                                          'Kosong / Tidak ada ujian',
-                                          style: TextStyle(fontStyle: FontStyle.italic),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Room name
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.meeting_room_rounded, size: 14, color: Color(0xFF6366F1)),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          room.name,
+                                          style: TextStyle(
+                                            color: titleColor,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
                                         ),
-                                      ),
-                                      ...availableSubjects.map((sub) {
-                                        return DropdownMenuItem<String>(
-                                          value: sub.subjectId,
-                                          child: Text(sub.subjectName),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    
+                                    // Classes in this room
+                                    ...roomClassNames.map((clsName) {
+                                      final scheduleKey = '${dayStr}_${slot.name}_${room.name}_$clsName';
+                                      final selectedSubjectId = _scheduledSubjects[scheduleKey];
+                                      
+                                      // Get subjects that are available for this class
+                                      // A subject config contains class IDs it belongs to.
+                                      // We filter `_subjectConfigs` to only show subjects that this class is participant of.
+                                      final classObj = _allClasses.firstWhere((c) => c['name'] == clsName, orElse: () => {});
+                                      final classId = classObj['id'] ?? '';
+                                      
+                                      final classSubjects = _subjectConfigs.where((sub) {
+                                        return sub.classIds.contains(classId);
+                                      }).toList();
+
+                                      // Filter out subjects that are already scheduled in other slots/days globally
+                                      final currentSlotPrefix = '${dayStr}_${slot.name}_';
+                                      final scheduledInOtherSlots = _scheduledSubjects.entries
+                                          .where((e) => !e.key.startsWith(currentSlotPrefix))
+                                          .map((e) => e.value)
+                                          .toSet();
+
+                                      final availableSubjects = classSubjects.where((sub) {
+                                        return !scheduledInOtherSlots.contains(sub.subjectId);
+                                      }).toList();
+
+                                      // Safety check: ensure selected value is in the items list to prevent crash
+                                      if (selectedSubjectId != null && !availableSubjects.any((sub) => sub.subjectId == selectedSubjectId)) {
+                                        final matched = classSubjects.firstWhere(
+                                          (sub) => sub.subjectId == selectedSubjectId,
+                                          orElse: () => ExamSubjectConfig(
+                                            subjectId: selectedSubjectId,
+                                            subjectName: '',
+                                            classIds: [],
+                                            authorTeacherIds: [],
+                                            authorTeacherNames: [],
+                                          ),
                                         );
-                                      }),
-                                    ],
-                                    onChanged: (val) {
-                                      setState(() {
-                                        if (val == null) {
-                                          _scheduledSubjects.remove(scheduleKey);
-                                        } else {
-                                          _scheduledSubjects[scheduleKey] = val;
+                                        if (matched.subjectName.isNotEmpty) {
+                                          availableSubjects.add(matched);
                                         }
-                                      });
-                                      _saveDraft();
-                                    },
-                                  ),
+                                      }
+                                      
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(
+                                                clsName,
+                                                style: TextStyle(
+                                                  color: titleColor,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              flex: 3,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                                decoration: BoxDecoration(
+                                                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.02),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: selectedSubjectId != null
+                                                        ? const Color(0xFF6366F1).withValues(alpha: 0.4)
+                                                        : cardBorder,
+                                                  ),
+                                                ),
+                                                child: DropdownButtonHideUnderline(
+                                                  child: DropdownButton<String>(
+                                                    value: selectedSubjectId,
+                                                    hint: Text(
+                                                      'Pilih Mata Pelajaran',
+                                                      style: TextStyle(
+                                                        color: subtitleColor,
+                                                        fontSize: 11,
+                                                      ),
+                                                    ),
+                                                    dropdownColor: isDark ? const Color(0xFF1E1C38) : Colors.white,
+                                                    isExpanded: true,
+                                                    style: TextStyle(
+                                                      color: titleColor,
+                                                      fontSize: 11,
+                                                      fontWeight: selectedSubjectId != null ? FontWeight.bold : FontWeight.normal,
+                                                    ),
+                                                    items: [
+                                                      const DropdownMenuItem<String>(
+                                                        value: null,
+                                                        child: Text(
+                                                          'Kosong / Tidak ada ujian',
+                                                          style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                                                        ),
+                                                      ),
+                                                      ...availableSubjects.map((sub) {
+                                                        return DropdownMenuItem<String>(
+                                                          value: sub.subjectId,
+                                                          child: Text(sub.subjectName, style: const TextStyle(fontSize: 11)),
+                                                        );
+                                                      }),
+                                                    ],
+                                                    onChanged: (val) {
+                                                      setState(() {
+                                                        // Update for this class name in ALL rooms for this specific day and slot
+                                                        for (final r in _rooms) {
+                                                          final rClasses = r.classes.map((c) => c.split(':')[0]).toList();
+                                                          if (rClasses.contains(clsName)) {
+                                                            final targetKey = '${dayStr}_${slot.name}_${r.name}_$clsName';
+                                                            if (val == null) {
+                                                              _scheduledSubjects.remove(targetKey);
+                                                            } else {
+                                                              _scheduledSubjects[targetKey] = val;
+                                                            }
+                                                          }
+                                                        }
+                                                      });
+                                                      _saveDraft();
+                                                    },
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ],
                                 ),
-                              ),
-                            ),
+                              );
+                            }).toList(),
                           ],
                         ),
                       );
@@ -3598,7 +4861,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
               ],
             ),
           );
-        }),
+        }).toList(),
       ],
     );
   }
@@ -3629,6 +4892,22 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         s['date'] == date).length;
         
     return dailyCount > 2;
+  }
+
+  void _clearProctors() {
+    setState(() {
+      for (final session in _draftSessions) {
+        session['proctorId'] = '';
+        session['proctorName'] = '';
+      }
+    });
+    _saveDraft();
+    Get.snackbar(
+      'Sukses',
+      'Distribusi pengawas berhasil dikosongkan.',
+      backgroundColor: const Color(0xFFEF4444),
+      colorText: Colors.white,
+    );
   }
 
   void _autoAssignProctors() {
@@ -3683,16 +4962,21 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         sessionsBySlot.forEach((slotName, slotSessions) {
           final Set<String> assignedInThisSlot = {};
 
-          // ★ Shuffle urutan ruangan/sesi dalam satu slot agar tidak selalu ruang pertama
-          //   mendapat guru "terbaik" (beban 0 paling awal)
-          final shuffledSlotSessions = List<Map<String, dynamic>>.from(slotSessions)..shuffle(rng);
+          // Group slotSessions by roomName to distribute exactly 1 proctor per room
+          final Map<String, List<Map<String, dynamic>>> sessionsByRoom = {};
+          for (final s in slotSessions) {
+            final rName = s['roomName'] as String;
+            sessionsByRoom.putIfAbsent(rName, () => []).add(s);
+          }
 
-          for (final session in shuffledSlotSessions) {
+          // Shuffle rooms to distribute randomly
+          final roomNames = sessionsByRoom.keys.toList()..shuffle(rng);
+
+          for (final rName in roomNames) {
+            final roomSessions = sessionsByRoom[rName]!;
             String? chosenId;
             String chosenName = 'Belum ditugaskan';
 
-            // ★ Buat candidates dari pool yang sudah di-shuffle, lalu sort by count
-            //   Karena pool sudah acak, tie-breaking (count sama) akan ikut urutan acak
             final candidates = List<Map<String, dynamic>>.from(dailyTeacherPool);
             candidates.sort((a, b) {
               final countA = dailyProctorCounts[a['id']] ?? 0;
@@ -3705,7 +4989,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
               final dailyCount = dailyProctorCounts[tId] ?? 0;
 
               // Constraints:
-              // 1. Not already teaching in this slot
+              // 1. Not already assigned in this slot
               // 2. Daily count < 2
               if (!assignedInThisSlot.contains(tId) && dailyCount < 2) {
                 chosenId = tId;
@@ -3714,14 +4998,20 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
               }
             }
 
+            // Assign this chosen proctor to all sessions in this room for this slot
+            for (final s in roomSessions) {
+              if (chosenId != null) {
+                s['proctorId'] = chosenId;
+                s['proctorName'] = chosenName;
+              } else {
+                s['proctorId'] = '';
+                s['proctorName'] = 'Belum ditugaskan';
+              }
+            }
+
             if (chosenId != null) {
-              session['proctorId'] = chosenId;
-              session['proctorName'] = chosenName;
               assignedInThisSlot.add(chosenId);
               dailyProctorCounts[chosenId] = (dailyProctorCounts[chosenId] ?? 0) + 1;
-            } else {
-              session['proctorId'] = '';
-              session['proctorName'] = 'Belum ditugaskan';
             }
           }
         });
@@ -3744,76 +5034,64 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     final assignments = _calculateRoomAssignments();
     final List<Map<String, dynamic>> compiled = [];
 
-    _scheduledSubjects.forEach((scheduleKey, subjectId) {
-      // scheduleKey format is "yyyy-MM-dd_slotName"
-      final firstUnderscore = scheduleKey.indexOf('_');
-      if (firstUnderscore == -1) return; // Malformed key, skip
-      final dayStr = scheduleKey.substring(0, firstUnderscore);
-      final slotName = scheduleKey.substring(firstUnderscore + 1);
+    final days = _getEventDays();
+    if (days.isEmpty) return;
 
-      final date = DateTime.tryParse(dayStr);
-      if (date == null) return; // Malformed date, skip
+    for (final day in days) {
+      final dayStr = DateFormat('yyyy-MM-dd').format(day);
+      for (final slot in _slots) {
+        for (int i = 0; i < _rooms.length; i++) {
+          final room = _rooms[i];
+          final roomStudents = assignments[i] ?? [];
 
-      final slotMatches = _slots.where((s) => s.name == slotName).toList();
-      if (slotMatches.isEmpty) return; // Slot not found, skip
-      final slot = slotMatches.first;
+          // Group room students by subject scheduled for their class in this slot
+          final Map<String, List<Map<String, dynamic>>> studentsBySubject = {};
 
-      final configMatches = _subjectConfigs.where((c) => c.subjectId == subjectId).toList();
-      if (configMatches.isEmpty) return; // Config not found, skip
-      final config = configMatches.first;
+          for (final student in roomStudents) {
+            final clsName = student['className'] as String? ?? '';
+            final scheduleKey = '${dayStr}_${slot.name}_${room.name}_$clsName';
+            final subjectId = _scheduledSubjects[scheduleKey];
+            if (subjectId != null && subjectId.isNotEmpty) {
+              studentsBySubject.putIfAbsent(subjectId, () => []).add(student);
+            }
+          }
 
-      for (int i = 0; i < _rooms.length; i++) {
-        final room = _rooms[i];
-        final roomStudents = assignments[i] ?? [];
+          // Compile a session for each scheduled subject in this room
+          studentsBySubject.forEach((subjectId, sessionStudents) {
+            final configMatches = _subjectConfigs.where((c) => c.subjectId == subjectId).toList();
+            if (configMatches.isEmpty) return;
+            final config = configMatches.first;
 
-        // Find students in this room taking this subject by classId
-        final sessionStudents = roomStudents
-            .where((s) => config.classIds.contains(s['classId'] ?? ''))
-            .toList();
+            final sessionClasses = sessionStudents.map((s) => s['className'] as String).toSet().toList()..sort();
 
-        // Determine classes for this session:
-        // Prefer student-derived, fall back to room.classes intersection with config.classIds
-        List<String> sessionClasses;
-        if (sessionStudents.isNotEmpty) {
-          sessionClasses = sessionStudents.map((s) => s['className'] as String).toSet().toList()..sort();
-        } else {
-          // Match room classes to config classIds by name
-          final configClassNames = _allClasses
-              .where((c) => config.classIds.contains(c['id']))
-              .map((c) => c['name'] as String)
-              .toSet();
-          sessionClasses = room.classes
-              .where((clsName) => configClassNames.contains(clsName))
-              .toList()..sort();
-        }
+            // Check if this session already exists in _draftSessions (to preserve proctor).
+            // Use date string comparison to avoid DateTime microsecond mismatch.
+            final existing = _draftSessions.cast<Map<String, dynamic>?>().firstWhere(
+              (s) => s != null &&
+                  DateFormat('yyyy-MM-dd').format(s['date'] as DateTime) == dayStr &&
+                  s['slotName'] == slot.name &&
+                  s['roomName'] == room.name &&
+                  s['subjectId'] == config.subjectId,
+              orElse: () => null,
+            );
 
-        if (sessionClasses.isNotEmpty) {
-          // Check if this session already exists in our state _draftSessions
-          final existing = _draftSessions.cast<Map<String, dynamic>?>().firstWhere(
-            (s) => s != null &&
-                s['date'] == date &&
-                s['slotName'] == slot.name &&
-                s['roomName'] == room.name &&
-                s['subjectId'] == config.subjectId,
-            orElse: () => null,
-          );
-
-          compiled.add({
-            'date': date,
-            'slotName': slot.name,
-            'startTime': slot.startTime,
-            'endTime': slot.endTime,
-            'roomName': room.name,
-            'subjectId': config.subjectId,
-            'subjectName': config.subjectName,
-            'classes': sessionClasses,
-            'proctorId': existing != null ? existing['proctorId'] ?? '' : '',
-            'proctorName': existing != null ? existing['proctorName'] ?? 'Belum ditugaskan' : 'Belum ditugaskan',
-            'students': sessionStudents,
+            compiled.add({
+              'date': day,
+              'slotName': slot.name,
+              'startTime': slot.startTime,
+              'endTime': slot.endTime,
+              'roomName': room.name,
+              'subjectId': config.subjectId,
+              'subjectName': config.subjectName,
+              'classes': sessionClasses,
+              'proctorId': existing != null ? existing['proctorId'] ?? '' : '',
+              'proctorName': existing != null ? existing['proctorName'] ?? 'Belum ditugaskan' : 'Belum ditugaskan',
+              'students': sessionStudents,
+            });
           });
         }
       }
-    });
+    }
 
     // Sort compiled draft sessions by date, then slot, then room
     compiled.sort((a, b) {
@@ -3835,88 +5113,84 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
     for (int index = 0; index < _rooms.length; index++) {
       final room = _rooms[index];
-      final List<Map<String, dynamic>> roomStudents = [];
+      final List<String> roomClassNames = room.classes.map((c) => c.split(':')[0]).toList();
 
-      for (final clsName in room.classes) {
+      // For each class, retrieve its unassigned students and sort them alphabetically
+      final Map<String, List<Map<String, dynamic>>> classStudents = {};
+      for (final rawCls in room.classes) {
+        final parts = rawCls.split(':');
+        final clsName = parts[0];
+
         final cls = _allClasses.firstWhere(
           (c) => c['name'] == clsName,
           orElse: () => <String, dynamic>{},
         );
         final cid = cls['id'];
         if (cid != null) {
-          final students = _studentsByClass[cid];
-          if (students != null) {
-            for (final s in students) {
-              if (!assignedStudentIds.contains(s['id'])) {
-                roomStudents.add({
-                  ...s,
-                  'className': clsName,
-                  'classId': cid, // ensure classId is available for subject matching
-                });
-              }
+          final students = _studentsByClass[cid] ?? [];
+          final List<Map<String, dynamic>> unassigned = [];
+          for (final s in students) {
+            if (!assignedStudentIds.contains(s['id'])) {
+              unassigned.add({
+                ...s,
+                'className': clsName,
+                'classId': cid,
+              });
             }
           }
+          unassigned.sort((a, b) => (a['nama'] as String).compareTo(b['nama'] as String));
+
+          // Get the target count configured for this class in this room
+          int targetCount = unassigned.length;
+          if (parts.length > 1) {
+            targetCount = int.tryParse(parts[1]) ?? unassigned.length;
+          }
+
+          // Limit to the target count
+          if (targetCount < unassigned.length) {
+            classStudents[clsName] = unassigned.sublist(0, targetCount);
+          } else {
+            classStudents[clsName] = unassigned;
+          }
         }
       }
 
-      if (roomStudents.isEmpty) {
-        assignments[index] = [];
-        continue;
-      }
-
-      final Map<String, List<Map<String, dynamic>>> byAngkatan = {};
-      for (final s in roomStudents) {
-        final a = (s['angkatan'] as String).isNotEmpty ? s['angkatan'] as String : '-';
-        byAngkatan.putIfAbsent(a, () => []).add(s);
-      }
-
-      final sortedAngkatans = byAngkatan.keys.toList()
-        ..sort((a, b) => byAngkatan[b]!.length.compareTo(byAngkatan[a]!.length));
-
-      List<Map<String, dynamic>> listA = [];
-      List<Map<String, dynamic>> listB = [];
-
-      if (sortedAngkatans.isNotEmpty) {
-        listA = List<Map<String, dynamic>>.from(byAngkatan[sortedAngkatans[0]]!);
-      }
-      if (sortedAngkatans.length > 1) {
-        for (int i = 1; i < sortedAngkatans.length; i++) {
-          listB.addAll(byAngkatan[sortedAngkatans[i]]!);
-        }
-      }
-
-      listA.sort((a, b) => (a['nama'] as String).compareTo(b['nama'] as String));
-      listB.sort((a, b) => (a['nama'] as String).compareTo(b['nama'] as String));
+      // Filter to keep only classes that actually have remaining students to place
+      final List<String> activeClasses = roomClassNames.where((clsName) => classStudents[clsName]?.isNotEmpty ?? false).toList();
+      final Map<String, int> classIndices = { for (var c in activeClasses) c : 0 };
 
       final List<Map<String, dynamic>> interleaved = [];
-      int idxA = 0;
-      int idxB = 0;
-      
-      for (int i = 0; i < room.capacity; i++) {
-        if (idxA >= listA.length && idxB >= listB.length) break;
-        
-        Map<String, dynamic>? picked;
-        if (i % 2 == 0) {
-          if (idxA < listA.length) {
-            picked = listA[idxA++];
-          } else if (idxB < listB.length) {
-            picked = listB[idxB++];
+      int seatNumber = 1;
+      int classPointer = 0;
+
+      while (seatNumber <= room.capacity && activeClasses.isNotEmpty) {
+        final clsName = activeClasses[classPointer];
+        final students = classStudents[clsName]!;
+        final idx = classIndices[clsName]!;
+
+        if (idx < students.length) {
+          final student = students[idx];
+          final copy = Map<String, dynamic>.from(student);
+          copy['seatNumber'] = seatNumber;
+          interleaved.add(copy);
+          assignedStudentIds.add(student['id'] as String);
+
+          classIndices[clsName] = idx + 1;
+          seatNumber++;
+
+          // Move pointer to the next active class
+          if (activeClasses.isNotEmpty) {
+            classPointer = (classPointer + 1) % activeClasses.length;
           }
         } else {
-          if (idxB < listB.length) {
-            picked = listB[idxB++];
-          } else if (idxA < listA.length) {
-            picked = listA[idxA++];
+          // This class is exhausted, remove it from round-robin rotation
+          activeClasses.removeAt(classPointer);
+          if (activeClasses.isNotEmpty) {
+            classPointer = classPointer % activeClasses.length;
           }
         }
-
-        if (picked != null) {
-          final copy = Map<String, dynamic>.from(picked);
-          copy['seatNumber'] = i + 1;
-          interleaved.add(copy);
-          assignedStudentIds.add(picked['id'] as String);
-        }
       }
+
       assignments[index] = interleaved;
     }
     return assignments;

@@ -1791,18 +1791,46 @@ class ProctorRoomSeatingPage extends StatefulWidget {
   State<ProctorRoomSeatingPage> createState() => _ProctorRoomSeatingPageState();
 }
 
-class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
+class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
+    with SingleTickerProviderStateMixin {
   final _behaviorService = ExamBehaviorService();
-  int _pairsPerRow = 3;
+  int _desksPerGroup = 2;
+  int _groupsPerRow = 3;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _behaviorStream;
+
+  late final AnimationController _blinkController;
+  late final Animation<Color?> _blinkColorAnimation;
+  late final TextEditingController _desksController;
+  late final TextEditingController _groupsController;
 
   @override
   void initState() {
     super.initState();
+    _desksController = TextEditingController(text: _desksPerGroup.toString());
+    _groupsController = TextEditingController(text: _groupsPerRow.toString());
     _behaviorStream = _behaviorService.getExamBehaviorStream(
       schoolId: widget.schoolId,
       sessionId: widget.session.id,
     );
+
+    // Red <-> Amber/Yellow color blinking animation (500ms duration, repeating)
+    _blinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..repeat(reverse: true);
+
+    _blinkColorAnimation = ColorTween(
+      begin: Colors.redAccent,
+      end: Colors.amber,
+    ).animate(CurvedAnimation(parent: _blinkController, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _blinkController.dispose();
+    _desksController.dispose();
+    _groupsController.dispose();
+    super.dispose();
   }
 
   @override
@@ -1858,9 +1886,9 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                 ),
                 actions: [
                   Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: 12),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
                         borderRadius: BorderRadius.circular(10),
@@ -1868,24 +1896,96 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                           color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08),
                         ),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          value: _pairsPerRow,
-                          dropdownColor: isDark ? const Color(0xFF15122F) : Colors.white,
-                          style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.bold),
-                          items: [
-                            DropdownMenuItem(value: 3, child: Text(AppLocalization.isIndonesian ? '3 Pasang Meja' : '3 Desk Pairs')),
-                            DropdownMenuItem(value: 4, child: Text(AppLocalization.isIndonesian ? '4 Pasang Meja' : '4 Desk Pairs')),
-                            DropdownMenuItem(value: 5, child: Text(AppLocalization.isIndonesian ? '5 Pasang Meja' : '5 Desk Pairs')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _pairsPerRow = val);
-                          },
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            AppLocalization.isIndonesian ? 'Meja: ' : 'Desks: ',
+                            style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: 28,
+                            height: 26,
+                            child: TextField(
+                              controller: _desksController,
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                              decoration: InputDecoration(
+                                contentPadding: EdgeInsets.zero,
+                                filled: true,
+                                fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(color: isDark ? Colors.white30 : Colors.black26),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.black12),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                                ),
+                              ),
+                              onChanged: (val) {
+                                final parsed = int.tryParse(val);
+                                if (parsed != null && parsed >= 1 && parsed <= 3) {
+                                  setState(() {
+                                    _desksPerGroup = parsed;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalization.isIndonesian ? 'Kolom: ' : 'Cols: ',
+                            style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: 28,
+                            height: 26,
+                            child: TextField(
+                              controller: _groupsController,
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                              decoration: InputDecoration(
+                                contentPadding: EdgeInsets.zero,
+                                filled: true,
+                                fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(color: isDark ? Colors.white30 : Colors.black26),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.black12),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                                ),
+                              ),
+                              onChanged: (val) {
+                                final parsed = int.tryParse(val);
+                                if (parsed != null && parsed >= 1 && parsed <= 12) {
+                                  setState(() {
+                                    _groupsPerRow = parsed;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ],
+
               ),
               body: AuthBackground(
                 child: StreamBuilder<List<ExamParticipation>>(
@@ -1940,7 +2040,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                         }
 
                         final maxSeat = participations.fold(0, (m, p) => p.seatNumber > m ? p.seatNumber : m);
-                        final colCount = _pairsPerRow * 2;
+                        final colCount = _desksPerGroup * _groupsPerRow;
                         final rowCount = (maxSeat / colCount).ceil();
                         final seatMap = {for (var p in participations) p.seatNumber: p};
 
@@ -1987,14 +2087,16 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                             Expanded(
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
-                                  final availableWidth = constraints.maxWidth - 24; // 12px padding each side
-                                  final aisleCount = _pairsPerRow - 1;
-                                  final totalAisleWidth = aisleCount * 14.0;
+                                  final availableWidth = constraints.maxWidth - 48; // 24px padding each side
+                                  final aisleCount = _groupsPerRow - 1;
+                                  const double gapWidth = 14.0;
+                                  final totalAisleWidth = aisleCount * gapWidth;
+                                  final totalCardMargins = colCount * 6.0;
 
-                                  const double minCardWidth = 60.0;
-                                  final calculatedWidth = (availableWidth - totalAisleWidth) / colCount;
-                                  final cardWidth = calculatedWidth < minCardWidth ? minCardWidth : calculatedWidth.clamp(60.0, 80.0);
-                                  final cardHeight = (cardWidth * 1.15).clamp(65.0, 95.0);
+                                  const double minCardWidth = 50.0;
+                                  final calculatedWidth = (availableWidth - totalAisleWidth - totalCardMargins) / colCount;
+                                  final cardWidth = calculatedWidth < minCardWidth ? minCardWidth : calculatedWidth.clamp(50.0, 180.0);
+                                  final cardHeight = (cardWidth * 1.15).clamp(65.0, 210.0);
 
                                   return SingleChildScrollView(
                                     scrollDirection: Axis.vertical,
@@ -2028,12 +2130,12 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
                                                     isFinished: isSessionFinished,
                                                   );
 
-                                                  // Insert aisle gap after every pair (every 2 seats)
-                                                  final isAfterPair = (cIdx % 2 == 1) && (cIdx < colCount - 1);
-                                                  if (isAfterPair) {
+                                                  // Insert aisle gap after every group of desks
+                                                  final isAfterGroup = ((cIdx + 1) % _desksPerGroup == 0) && (cIdx < colCount - 1);
+                                                  if (isAfterGroup) {
                                                     return Row(mainAxisSize: MainAxisSize.min, children: [
                                                       card,
-                                                      const SizedBox(width: 14),
+                                                      SizedBox(width: gapWidth),
                                                     ]);
                                                   }
                                                   return card;
@@ -2203,9 +2305,81 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
         ? statusColor
         : Colors.white;
 
-    // Short name
+    // Ambil nama lengkap jika kartu cukup lebar di desktop, jika kecil tampilkan nama singkat
     final parts = student.studentName.split(' ');
     final shortName = parts.length > 1 ? '${parts[0]} ${parts[1][0]}.' : student.studentName;
+    
+    // Tampilkan hingga 2 kata penuh jika lebar kartu memadai (misal > 100px)
+    final String displayName;
+    if (cardWidth > 100.0) {
+      if (parts.length > 2) {
+        displayName = '${parts[0]} ${parts[1]}';
+      } else {
+        displayName = student.studentName;
+      }
+    } else {
+      displayName = shortName;
+    }
+
+    // Hitung faktor skala untuk memperbesar font, ikon, & padding secara proporsional di desktop
+    final double scale = cardWidth / 68.0;
+    final double seatNumSize = (8.0 * scale).clamp(8.0, 13.0);
+    final double iconSize = (9.0 * scale).clamp(9.0, 15.0);
+    final double nameSize = (8.0 * scale).clamp(8.0, 13.0);
+    final double statusSize = (7.0 * scale).clamp(7.0, 11.0);
+    final double innerPadding = (5.0 * scale).clamp(5.0, 10.0);
+    final double badgeHMargin = (4.0 * scale).clamp(4.0, 10.0);
+    final double badgeVMargin = (2.0 * scale).clamp(2.0, 5.0);
+
+
+    final isKeluar = behavior != null &&
+        (behavior['type']?.toString().toLowerCase().contains('keluar') == true) &&
+        !isSubmitted;
+
+    if (isKeluar) {
+      return AnimatedBuilder(
+        animation: _blinkController,
+        builder: (context, child) {
+          final currentColor = _blinkColorAnimation.value ?? Colors.redAccent;
+          return GestureDetector(
+            onTap: () => _showStudentLog(student, behavior, isDark, subtitleColor, isFinished: isFinished),
+            child: Container(
+              width: cardWidth, height: cardHeight, margin: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: currentColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: currentColor, width: 2.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: currentColor.withValues(alpha: 0.6),
+                    blurRadius: 8,
+                    spreadRadius: 1.5,
+                  )
+                ],
+              ),
+              padding: EdgeInsets.all(innerPadding),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text('#', style: TextStyle(fontSize: seatNumSize, fontWeight: FontWeight.bold, color: Colors.white70)),
+                    Text('$seatNum', style: TextStyle(fontSize: seatNumSize, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Icon(statusIcon, size: iconSize, color: Colors.white),
+                  ]),
+                  Text(displayName, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: nameSize, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: badgeHMargin, vertical: badgeVMargin),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(4)),
+                    child: Text(statusLabel, style: TextStyle(fontSize: statusSize, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
 
     return GestureDetector(
       onTap: () => _showStudentLog(student, behavior, isDark, subtitleColor, isFinished: isFinished),
@@ -2219,20 +2393,20 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage> {
               ? null
               : [BoxShadow(color: statusColor.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))],
         ),
-        padding: const EdgeInsets.all(5),
+        padding: EdgeInsets.all(innerPadding),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('#$seatNum', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: seatNumColor)),
-              Icon(statusIcon, size: 9, color: iconColor),
+              Text('#$seatNum', style: TextStyle(fontSize: seatNumSize, fontWeight: FontWeight.bold, color: seatNumColor)),
+              Icon(statusIcon, size: iconSize, color: iconColor),
             ]),
-            Text(shortName, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: textColor)),
+            Text(displayName, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+              style: TextStyle(fontSize: nameSize, fontWeight: FontWeight.bold, color: textColor)),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+              padding: EdgeInsets.symmetric(horizontal: badgeHMargin, vertical: badgeVMargin),
               decoration: BoxDecoration(color: badgeBgColor, borderRadius: BorderRadius.circular(4)),
-              child: Text(statusLabel, style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: badgeTextColor)),
+              child: Text(statusLabel, style: TextStyle(fontSize: statusSize, fontWeight: FontWeight.bold, color: badgeTextColor)),
             ),
           ],
         ),
