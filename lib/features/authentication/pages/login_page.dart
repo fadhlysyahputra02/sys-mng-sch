@@ -16,7 +16,6 @@ import '../../../core/localization/app_localization.dart';
 import '../widgets/auth_background.dart';
 import '../widgets/language_toggle_button.dart';
 import '../widgets/theme_toggle_button.dart';
-import 'login_success_page.dart';
 
 
 class LoginPage extends StatefulWidget {
@@ -351,18 +350,7 @@ class _LoginPageState extends State<LoginPage> {
           throw ('Unknown role');
       }
 
-      Get.off(
-        () => LoginSuccessPage(
-          destinationRoute: targetRoute,
-          destinationArguments: targetArgs,
-          userName: SessionService.currentUser?.nama ?? '',
-          roleName: role,
-          logoBase64: _schoolLogoBase64,
-          schoolName: _schoolName,
-        ),
-        transition: Transition.fadeIn,
-        duration: const Duration(milliseconds: 500),
-      );
+      Get.offAllNamed(targetRoute, arguments: targetArgs);
     } catch (e) {
       debugPrint('LOGIN ERROR: $e');
       String errorMessage = AppLocalization.loginDefaultError;

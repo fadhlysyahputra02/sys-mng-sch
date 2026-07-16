@@ -281,7 +281,15 @@ class StudentService {
   }
 
   Future<void> deleteStudent(String studentId) async {
-    await _studentsRef.doc(studentId).delete();
+    final snap = await _studentsRef.doc(studentId).get();
+    if (snap.exists) {
+      final data = snap.data();
+      final uid = data?['uid'] as String?;
+      await _studentsRef.doc(studentId).delete();
+      if (uid != null && uid.isNotEmpty) {
+        await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+      }
+    }
   }
 
   /// Sinkronisasi/Backfill data histori kelas ke `class_enrollments` berdasarkan:

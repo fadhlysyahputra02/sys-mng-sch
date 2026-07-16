@@ -1030,7 +1030,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
             ),
           ),
 
-          const SizedBox(height: 36),
+          const SizedBox(height: 24),
 
           // ── Save button (Profil) ──────────────────────────────────
           Builder(
@@ -1512,7 +1512,7 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
             ),
           ),
 
-          const SizedBox(height: 36),
+          const SizedBox(height: 24),
 
           // ── Save button (Nilai) ───────────────────────────────────
           _buildSaveButton(
@@ -1522,7 +1522,9 @@ class _SchoolSettingsPageState extends State<SchoolSettingsPage>
             onPressed: _saveNilai,
           ),
 
-          const SizedBox(height: 36),
+          const SizedBox(height: 40),
+          Divider(color: cardBorder, height: 1),
+          const SizedBox(height: 32),
 
           // ── Akhiri Semester ───────────────────────────────────────
           _buildEndSemesterSection(isDark),

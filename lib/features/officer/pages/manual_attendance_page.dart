@@ -766,10 +766,38 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
     Color cardBg,
     Color cardBorder,
   ) {
-    if (_isLoadingCounts) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF6366F1)),
-      );
+    if (_totalTeachersCount == null) {
+      if (_isLoadingCounts) {
+        return const Center(
+          child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+        );
+      } else {
+        return RefreshIndicator(
+          onRefresh: () async {
+            await _fetchCounts();
+            await _loadAllTeachers();
+          },
+          color: const Color(0xFF6366F1),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            children: [
+              SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Text(
+                    'Gagal memuat statistik. Silakan tarik untuk memuat ulang.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: subTextColor),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
     }
 
     final total = _totalTeachersCount ?? 0;
@@ -1018,182 +1046,135 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
   Widget build(BuildContext context) {
     final user = SessionService.currentUser!;
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots(),
-      builder: (context, userSnapshot) {
-        if (userSnapshot.connectionState == ConnectionState.waiting) {
-          return ValueListenableBuilder<bool>(
-            valueListenable: AuthBackground.isDarkMode,
-            builder: (context, isDark, _) {
-              return AuthBackground(
-                child: Scaffold(
-                  backgroundColor: Colors.transparent,
-                  body: Center(
-                    child: CircularProgressIndicator(
-                      color: isDark ? Colors.white : const Color(0xFF6366F1),
-                    ),
-                  ),
+    final isOfficer = user.role == 'officer';
+    final scanGuruEnabled = user.scanGuruEnabled;
+    final scanMuridEnabled = user.scanMuridEnabled;
+
+    final List<String> tabs = [];
+    if (_mode.startsWith('teacher_')) {
+      if (scanGuruEnabled) tabs.add('Guru');
+    } else if (_mode.startsWith('student_')) {
+      if (scanMuridEnabled) tabs.add('Siswa');
+    } else {
+      if (scanMuridEnabled) tabs.add('Siswa');
+      if (scanGuruEnabled) tabs.add('Guru');
+    }
+
+    if (tabs.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Text(
+              'Akses Ditolak: Anda tidak memiliki otoritas untuk melakukan absensi manual.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Set title based on mode
+    String pageTitle = 'Absensi Manual';
+    if (_mode == 'student_check_in') {
+      pageTitle = 'Absen Manual Siswa (Masuk)';
+    } else if (_mode == 'student_check_out') {
+      pageTitle = 'Absen Manual Siswa (Pulang)';
+    } else if (_mode == 'teacher_check_in') {
+      pageTitle = 'Absen Manual Guru (Masuk)';
+    } else if (_mode == 'teacher_check_out') {
+      pageTitle = 'Absen Manual Guru (Pulang)';
+    }
+
+    return DefaultTabController(
+      length: tabs.length,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: AuthBackground.isDarkMode,
+        builder: (context, isDark, _) {
+          final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+          final subTextColor = isDark
+              ? Colors.white.withValues(alpha: 0.5)
+              : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
+          final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
+          final cardBorder = isDark
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.black.withValues(alpha: 0.08);
+
+          return AuthBackground(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              extendBodyBehindAppBar: false,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                iconTheme: IconThemeData(color: textColor),
+                title: Text(
+                  pageTitle,
+                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
                 ),
-              );
-            },
-          );
-        }
-
-        if (userSnapshot.hasError) {
-          return ValueListenableBuilder<bool>(
-            valueListenable: AuthBackground.isDarkMode,
-            builder: (context, isDark, _) {
-              final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-              return AuthBackground(
-                child: Scaffold(
-                  backgroundColor: Colors.transparent,
-                  body: Center(
-                    child: Text(
-                      'Terjadi kesalahan saat memuat data user.',
-                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-                    ),
+                bottom: tabs.length <= 1
+                    ? null
+                    : TabBar(
+                        indicatorColor: const Color(0xFF6366F1),
+                        labelColor: textColor,
+                        unselectedLabelColor: subTextColor,
+                        tabs: tabs.map((tab) => Tab(text: tab)).toList(),
+                      ),
+              ),
+              body: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _searchController,
+                        style: TextStyle(color: textColor),
+                        onChanged: (val) {
+                          setState(() => _searchQuery = val.trim());
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Cari nama...',
+                          hintStyle: TextStyle(color: subTextColor),
+                          prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
+                          filled: true,
+                          fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(color: cardBorder),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildSemesterStateBanner(),
+                      if (_isLoading || 
+                          (_isLoadingStudents && _allStudents.isNotEmpty) || 
+                          (_isLoadingTeachers && _allTeachers.isNotEmpty))
+                        const LinearProgressIndicator(color: Color(0xFF6366F1)),
+                        
+                      Expanded(
+                        child: TabBarView(
+                          children: tabs.map((tab) {
+                            if (tab == 'Siswa') {
+                              return _searchQuery.isEmpty
+                                  ? _buildStatsOverview(isDark, textColor, subTextColor, cardBg, cardBorder)
+                                  : _buildSearchResultsList(user.schoolId, isDark, textColor, subTextColor, cardBg, cardBorder);
+                            } else {
+                              return _searchQuery.isEmpty
+                                  ? _buildStatsOverviewTeachers(isDark, textColor, subTextColor, cardBg, cardBorder)
+                                  : _buildSearchResultsListTeachers(user.schoolId, isDark, textColor, subTextColor, cardBg, cardBorder);
+                            }
+                          }).toList(),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              );
-            },
-          );
-        }
-
-        final userData = userSnapshot.data?.data();
-        final isOfficer = userData?['role'] == 'officer';
-        final scanGuruEnabled = userData?['scanGuruEnabled'] as bool? ??
-            (isOfficer ? true : (userData?['isGateOfficer'] as bool? ?? false));
-        final scanMuridEnabled = userData?['scanMuridEnabled'] as bool? ??
-            (isOfficer ? true : (userData?['isGateOfficer'] as bool? ?? false));
-
-        final List<String> tabs = [];
-        if (_mode.startsWith('teacher_')) {
-          if (scanGuruEnabled) tabs.add('Guru');
-        } else if (_mode.startsWith('student_')) {
-          if (scanMuridEnabled) tabs.add('Siswa');
-        } else {
-          if (scanMuridEnabled) tabs.add('Siswa');
-          if (scanGuruEnabled) tabs.add('Guru');
-        }
-
-        if (tabs.isEmpty) {
-          return const Scaffold(
-            body: Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Text(
-                  'Akses Ditolak: Anda tidak memiliki otoritas untuk melakukan absensi manual.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
             ),
           );
-        }
-
-        // Set title based on mode
-        String pageTitle = 'Absensi Manual';
-        if (_mode == 'student_check_in') {
-          pageTitle = 'Absen Manual Siswa (Masuk)';
-        } else if (_mode == 'student_check_out') {
-          pageTitle = 'Absen Manual Siswa (Pulang)';
-        } else if (_mode == 'teacher_check_in') {
-          pageTitle = 'Absen Manual Guru (Masuk)';
-        } else if (_mode == 'teacher_check_out') {
-          pageTitle = 'Absen Manual Guru (Pulang)';
-        }
-
-        return DefaultTabController(
-          length: tabs.length,
-          child: ValueListenableBuilder<bool>(
-            valueListenable: AuthBackground.isDarkMode,
-            builder: (context, isDark, _) {
-              final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-              final subTextColor = isDark
-                  ? Colors.white.withValues(alpha: 0.5)
-                  : const Color(0xFF1E1B4B).withValues(alpha: 0.5);
-              final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
-              final cardBorder = isDark
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.08);
-
-              return AuthBackground(
-                child: Scaffold(
-                  backgroundColor: Colors.transparent,
-                  extendBodyBehindAppBar: false,
-                  appBar: AppBar(
-                    backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    iconTheme: IconThemeData(color: textColor),
-                    title: Text(
-                      pageTitle,
-                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-                    ),
-                    bottom: tabs.length <= 1
-                        ? null
-                        : TabBar(
-                            indicatorColor: const Color(0xFF6366F1),
-                            labelColor: textColor,
-                            unselectedLabelColor: subTextColor,
-                            tabs: tabs.map((tab) => Tab(text: tab)).toList(),
-                          ),
-                  ),
-                  body: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: _searchController,
-                            style: TextStyle(color: textColor),
-                            onChanged: (val) {
-                              setState(() => _searchQuery = val.trim());
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Cari nama...',
-                              hintStyle: TextStyle(color: subTextColor),
-                              prefixIcon: Icon(Icons.search_rounded, color: subTextColor),
-                              filled: true,
-                              fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.black.withValues(alpha: 0.02),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide(color: cardBorder),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          _buildSemesterStateBanner(),
-                          if (_isLoading || (_isLoadingStudents && _allStudents.isEmpty) || (_isLoadingTeachers && _allTeachers.isEmpty))
-                            const LinearProgressIndicator(color: Color(0xFF6366F1)),
-                            
-                          Expanded(
-                            child: TabBarView(
-                              children: tabs.map((tab) {
-                                if (tab == 'Siswa') {
-                                  return _searchQuery.isEmpty
-                                      ? _buildStatsOverview(isDark, textColor, subTextColor, cardBg, cardBorder)
-                                      : _buildSearchResultsList(user.schoolId, isDark, textColor, subTextColor, cardBg, cardBorder);
-                                } else {
-                                  return _searchQuery.isEmpty
-                                      ? _buildStatsOverviewTeachers(isDark, textColor, subTextColor, cardBg, cardBorder)
-                                      : _buildSearchResultsListTeachers(user.schoolId, isDark, textColor, subTextColor, cardBg, cardBorder);
-                                }
-                              }).toList(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 
@@ -1204,10 +1185,38 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
     Color cardBg,
     Color cardBorder,
   ) {
-    if (_isLoadingCounts) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF6366F1)),
-      );
+    if (_totalStudentsCount == null) {
+      if (_isLoadingCounts) {
+        return const Center(
+          child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+        );
+      } else {
+        return RefreshIndicator(
+          onRefresh: () async {
+            await _fetchCounts();
+            await _loadAllStudents();
+          },
+          color: const Color(0xFF6366F1),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            children: [
+              SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Text(
+                    'Gagal memuat statistik. Silakan tarik untuk memuat ulang.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: subTextColor),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
     }
 
     final total = _totalStudentsCount ?? 0;

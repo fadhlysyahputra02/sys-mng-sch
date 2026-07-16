@@ -453,12 +453,21 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                           }
 
                           // Hapus data guru
+                          final String? uid = teacher['uid'];
                           await FirebaseFirestore.instance
                               .collection('schools')
                               .doc(teacher['schoolId'])
                               .collection('teachers')
                               .doc(teacher['teacherId'])
                               .delete();
+
+                          // Hapus juga dokumen global user-nya jika ada
+                          if (uid != null && uid.isNotEmpty) {
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(uid)
+                                .delete();
+                          }
 
                           // Hapus juga relasi mata pelajaran guru ini
                           final subjectsSnapshot = await FirebaseFirestore.instance
@@ -1190,7 +1199,14 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                                 );
                               }
 
-                              final docs = snapshot.data!.docs;
+                              final docs = List.from(snapshot.data!.docs);
+                              docs.sort((a, b) {
+                                final aData = a.data() as Map<String, dynamic>;
+                                final bData = b.data() as Map<String, dynamic>;
+                                final aName = (aData['subjectName'] ?? '').toString().toLowerCase();
+                                final bName = (bData['subjectName'] ?? '').toString().toLowerCase();
+                                return aName.compareTo(bName);
+                              });
 
                               if (docs.isEmpty) {
                                 return Center(

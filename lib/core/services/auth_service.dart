@@ -1,7 +1,9 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   Future<UserCredential> login({
     required String email,
@@ -28,7 +30,15 @@ class AuthService {
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
-    await _auth.sendPasswordResetEmail(email: email);
+    try {
+      await _functions.httpsCallable('sendCustomResetPasswordEmail').call({
+        'email': email,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'Gagal mengirim email reset password.');
+    } catch (e) {
+      throw Exception(e.toString());
+    }
   }
 
   User? get currentUser => _auth.currentUser;

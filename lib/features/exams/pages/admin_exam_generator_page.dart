@@ -75,6 +75,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
   Set<String>? _expandedRooms;
   final Map<String, String> _scheduledSubjects = {};
   bool _isLoadingDraftFromFirestore = false;
+  bool _isZigzag = true;
+  bool _isRandom = false;
+  int _maxAngkatanPerRoom = 2;
+  int _maxKelasPerRoom = 2;
 
   // ── Hari aktif KBM (dari class_schedules) ───────────────────
   Set<String> _activeStudyDays = {}; // e.g. {'senin','selasa','rabu','kamis','jumat'}
@@ -248,9 +252,11 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             return AlertDialog(
               backgroundColor: dialogBg,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text('Draf Ditemukan', style: TextStyle(color: titleColor, fontWeight: FontWeight.bold)),
+              title: Text(AppLocalization.isIndonesian ? 'Draf Ditemukan' : 'Draft Found', style: TextStyle(color: titleColor, fontWeight: FontWeight.bold)),
               content: Text(
-                'Ada draf pembuatan ujian yang belum selesai. Apakah Anda ingin melanjutkan draf tersebut?',
+                AppLocalization.isIndonesian
+                    ? 'Ada draf pembuatan ujian yang belum selesai. Apakah Anda ingin melanjutkan draf tersebut?'
+                    : 'There is an unfinished exam creation draft. Do you want to continue from where you left off?',
                 style: TextStyle(color: titleColor.withValues(alpha: 0.7)),
               ),
               actions: [
@@ -259,7 +265,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     Navigator.pop(ctx);
                     await _clearDraft();
                   },
-                  child: const Text('Mulai Baru', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                  child: Text(AppLocalization.isIndonesian ? 'Mulai Baru' : 'Start Fresh', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -271,7 +277,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text('Lanjutkan'),
+                  child: Text(AppLocalization.isIndonesian ? 'Lanjutkan' : 'Continue'),
                 ),
               ],
             );
@@ -388,7 +394,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     });
   }
 
-  /// Restore scheduledSubjects + draftSessions dari Firestore exam_events sessions
+  /// Restore scheduledSubjects + draftSessions dari Firestore exam_sessions
   Future<void> _restoreEditDraftSessions(String eventId) async {
     final schoolId = SessionService.currentUser?.schoolId;
     if (schoolId == null) return;
@@ -396,9 +402,8 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       final snap = await FirebaseFirestore.instance
           .collection('schools')
           .doc(schoolId)
-          .collection('exam_events')
-          .doc(eventId)
-          .collection('sessions')
+          .collection('exam_sessions')
+          .where('eventId', isEqualTo: eventId)
           .get();
 
       if (!mounted) return;
@@ -561,8 +566,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
       if (snap.docs.isEmpty) {
         Get.snackbar(
-          'Peringatan',
-          'Tidak ditemukan jadwal harian aktif untuk ditarik.',
+          AppLocalization.isIndonesian ? 'Peringatan' : 'Warning',
+          AppLocalization.isIndonesian
+              ? 'Tidak ditemukan jadwal harian aktif untuk ditarik.'
+              : 'No active daily schedule found to pull from.',
           backgroundColor: const Color(0xFFEF4444),
           colorText: Colors.white,
         );
@@ -622,14 +629,18 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       _saveDraft();
 
       Get.snackbar(
-        'Sukses',
-        'Berhasil menarik ${_subjectConfigs.length} mata pelajaran dari jadwal harian.',
+        AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+        AppLocalization.isIndonesian
+            ? 'Berhasil menarik ${_subjectConfigs.length} mata pelajaran dari jadwal harian.'
+            : 'Successfully pulled ${_subjectConfigs.length} subjects from daily schedule.',
         backgroundColor: const Color(0xFF10B981),
         colorText: Colors.white,
       );
     } catch (e) {
       setState(() => _isLoadingData = false);
-      _showError('Gagal menarik jadwal harian: $e');
+      _showError(AppLocalization.isIndonesian
+          ? 'Gagal menarik jadwal harian: $e'
+          : 'Failed to pull daily schedules: $e');
     }
   }
 
@@ -659,54 +670,72 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     switch (_currentStep) {
       case 0:
         if (_titleController.text.trim().isEmpty) {
-          _showError('Nama event ujian tidak boleh kosong');
+          _showError(AppLocalization.isIndonesian
+              ? 'Nama event ujian tidak boleh kosong'
+              : 'Exam event name cannot be empty');
           return false;
         }
         if (_startDate == null || _endDate == null) {
-          _showError('Pilih rentang tanggal ujian');
+          _showError(AppLocalization.isIndonesian
+              ? 'Pilih rentang tanggal ujian'
+              : 'Select exam date range');
           return false;
         }
         if (_endDate!.isBefore(_startDate!)) {
-          _showError('Tanggal akhir harus setelah tanggal mulai');
+          _showError(AppLocalization.isIndonesian
+              ? 'Tanggal akhir harus setelah tanggal mulai'
+              : 'End date must be after start date');
           return false;
         }
         return true;
       case 1:
         if (_slots.isEmpty) {
-          _showError('Tambahkan minimal satu slot waktu');
+          _showError(AppLocalization.isIndonesian
+              ? 'Tambahkan minimal satu slot waktu'
+              : 'Add at least one time slot');
           return false;
         }
         return true;
       case 2:
         if (_subjectConfigs.isEmpty) {
-          _showError('Tambahkan minimal satu mata pelajaran');
+          _showError(AppLocalization.isIndonesian
+              ? 'Tambahkan minimal satu mata pelajaran'
+              : 'Add at least one subject');
           return false;
         }
         for (final config in _subjectConfigs) {
           if (config.authorTeacherIds.isEmpty) {
-            _showError(
-                'Pilih pembuat soal untuk "${config.subjectName}"');
+            _showError(AppLocalization.isIndonesian
+                ? 'Pilih pembuat soal untuk "${config.subjectName}"'
+                : 'Select question author for "${config.subjectName}"');
             return false;
           }
           if (config.classIds.isEmpty) {
-            _showError(
-                'Pilih kelas untuk "${config.subjectName}"');
+            _showError(AppLocalization.isIndonesian
+                ? 'Pilih kelas untuk "${config.subjectName}"'
+                : 'Select class for "${config.subjectName}"');
             return false;
           }
         }
         return true;
       case 3:
         if (_rooms.isEmpty) {
-          _showError('Tambahkan minimal satu ruangan ujian');
+          _showError(AppLocalization.isIndonesian
+              ? 'Tambahkan minimal satu ruangan ujian'
+              : 'Add at least one exam room');
           return false;
         }
         for (final room in _rooms) {
           if (room.name.trim().isEmpty) {
-            _showError('Nama ruangan tidak boleh kosong');
+            _showError(AppLocalization.isIndonesian
+                ? 'Nama ruangan tidak boleh kosong'
+                : 'Room name cannot be empty');
             return false;
           }
           if (room.capacity <= 0) {
-            _showError('Kapasitas ruangan "${room.name}" harus lebih dari 0');
+            _showError(AppLocalization.isIndonesian
+                ? 'Kapasitas ruangan "${room.name}" harus lebih dari 0'
+                : 'Room capacity for "${room.name}" must be greater than 0');
             return false;
           }
         }
@@ -720,8 +749,11 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         final scheduledSubjectIds = _scheduledSubjects.values.toSet();
         final unscheduledSubjects = _subjectConfigs.where((s) => !scheduledSubjectIds.contains(s.subjectId)).toList();
         if (unscheduledSubjects.isNotEmpty) {
-          _showError('Terdapat ${unscheduledSubjects.length} mata pelajaran yang belum dijadwalkan: '
-              '${unscheduledSubjects.map((s) => s.subjectName).join(', ')}');
+          _showError(AppLocalization.isIndonesian
+              ? 'Terdapat ${unscheduledSubjects.length} mata pelajaran yang belum dijadwalkan: '
+                  '${unscheduledSubjects.map((s) => s.subjectName).join(', ')}'
+              : 'There are ${unscheduledSubjects.length} unscheduled subjects: '
+                  '${unscheduledSubjects.map((s) => s.subjectName).join(', ')}');
           return false;
         }
         return true;
@@ -729,16 +761,22 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         // Step 7 (Proctors / Pengawas)
         final unassignedCount = _draftSessions.where((s) => (s['proctorId'] as String).isEmpty).length;
         if (unassignedCount > 0) {
-          _showError('Terdapat $unassignedCount sesi ujian yang belum memiliki pengawas.');
+          _showError(AppLocalization.isIndonesian
+              ? 'Terdapat $unassignedCount sesi ujian yang belum memiliki pengawas.'
+              : 'There are $unassignedCount exam sessions that do not have a proctor.');
           return false;
         }
         for (final s in _draftSessions) {
           if (hasConflict(s)) {
-            _showError('Terdapat bentrokan sesi pengawas (satu guru mengawas beberapa kelas di sesi yang sama).');
+            _showError(AppLocalization.isIndonesian
+                ? 'Terdapat bentrokan sesi pengawas (satu guru mengawas beberapa kelas di sesi yang sama).'
+                : 'There is a proctor conflict (one teacher proctored multiple classes in the same session).');
             return false;
           }
           if (exceedsDailyLimit(s)) {
-            _showError('Terdapat guru yang ditugaskan mengawas melebihi batas 2 sesi dalam sehari.');
+            _showError(AppLocalization.isIndonesian
+                ? 'Terdapat guru yang ditugaskan mengawas melebihi batas 2 sesi dalam sehari.'
+                : 'There is a teacher assigned to proctor exceeding the limit of 2 sessions in a day.');
             return false;
           }
         }
@@ -1191,14 +1229,20 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Slot Waktu Harian',
-              style: TextStyle(
-                  color: titleColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold)),
+          Text(
+            AppLocalization.isIndonesian ? 'Slot Waktu Harian' : 'Daily Time Slots',
+            style: TextStyle(
+                color: titleColor,
+                fontSize: 16,
+                fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
-          Text('Tentukan sesi-sesi ujian per hari',
-              style: TextStyle(color: subtitleColor, fontSize: 13)),
+          Text(
+            AppLocalization.isIndonesian
+                ? 'Tentukan sesi-sesi ujian per hari'
+                : 'Define exam sessions per day',
+            style: TextStyle(color: subtitleColor, fontSize: 13),
+          ),
           const SizedBox(height: 20),
 
           ..._slots.asMap().entries.map((entry) {
@@ -1225,11 +1269,13 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                               const Color(0xFF8B5CF6).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Text(slot.name,
-                            style: const TextStyle(
-                                color: Color(0xFF8B5CF6),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12)),
+                        child: Text(
+                          slot.name.replaceAll('Sesi', AppLocalization.isIndonesian ? 'Sesi' : 'Session'),
+                          style: const TextStyle(
+                              color: Color(0xFF8B5CF6),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12),
+                        ),
                       ),
                       const Spacer(),
                       if (_slots.length > 1)
@@ -1250,7 +1296,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     children: [
                       Expanded(
                         child: _buildTimePickerButton(
-                          label: 'Mulai: ${slot.startTime}',
+                          label: AppLocalization.isIndonesian
+                              ? 'Mulai: ${slot.startTime}'
+                              : 'Start: ${slot.startTime}',
                           icon: Icons.access_time_rounded,
                           isDark: isDark,
                           inputBg: inputBg,
@@ -1285,7 +1333,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: _buildTimePickerButton(
-                          label: 'Selesai: ${slot.endTime}',
+                          label: AppLocalization.isIndonesian
+                              ? 'Selesai: ${slot.endTime}'
+                              : 'End: ${slot.endTime}',
                           icon: Icons.timer_off_rounded,
                           isDark: isDark,
                           inputBg: inputBg,
@@ -1310,7 +1360,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                   startTime: slot.startTime,
                                   endTime:
                                       '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}',
-                                );
+                                  );
                               });
                               _saveDraft();
                             }
@@ -1330,7 +1380,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
               final nextNum = _slots.length + 1;
               setState(() {
                 _slots.add(ExamSlot(
-                  name: 'Sesi $nextNum',
+                  name: '${AppLocalization.isIndonesian ? 'Sesi' : 'Session'} $nextNum',
                   startTime: '10:00',
                   endTime: '12:00',
                 ));
@@ -1339,8 +1389,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             },
             icon: const Icon(Icons.add_circle_outline_rounded,
                 color: Color(0xFF8B5CF6)),
-            label: const Text('Tambah Sesi',
-                style: TextStyle(color: Color(0xFF8B5CF6))),
+            label: Text(
+              AppLocalization.isIndonesian ? 'Tambah Sesi' : 'Add Session',
+              style: const TextStyle(color: Color(0xFF8B5CF6)),
+            ),
           ),
           const SizedBox(height: 24),
         ],
@@ -1365,13 +1417,13 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Mata Pelajaran & Kelas',
+          Text(AppLocalization.isIndonesian ? 'Mata Pelajaran & Kelas' : 'Subjects & Classes',
               style: TextStyle(
                   color: titleColor,
                   fontSize: 16,
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('Pilih mapel, kelas peserta, dan pembuat soal',
+          Text(AppLocalization.isIndonesian ? 'Pilih mapel, kelas peserta, dan pembuat soal' : 'Select subjects, participant classes, and exam authors',
               style: TextStyle(color: subtitleColor, fontSize: 13)),
           const SizedBox(height: 20),
 
@@ -1390,8 +1442,8 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   onPressed: () => _showAddSubjectDialog(
                       isDark, cardColor, cardBorder, titleColor, subtitleColor),
                   icon: const Icon(Icons.add_rounded, color: Color(0xFF8B5CF6)),
-                  label: const Text('Tambah Mapel Manual',
-                      style: TextStyle(color: Color(0xFF8B5CF6), fontSize: 11),
+                  label: Text(AppLocalization.isIndonesian ? 'Tambah Mapel Manual' : 'Add Subject Manually',
+                      style: const TextStyle(color: Color(0xFF8B5CF6), fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   style: OutlinedButton.styleFrom(
@@ -1408,8 +1460,8 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                 child: ElevatedButton.icon(
                   onPressed: _pullFromDailySchedules,
                   icon: const Icon(Icons.sync_rounded, color: Colors.white, size: 16),
-                  label: const Text('Tarik Jadwal Harian',
-                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  label: Text(AppLocalization.isIndonesian ? 'Tarik Jadwal Harian' : 'Pull Daily Schedule',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   style: ElevatedButton.styleFrom(
@@ -1440,12 +1492,18 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
   ) {
     final authorNames = config.authorTeacherNames.isNotEmpty
         ? config.authorTeacherNames.join(', ')
-        : 'Belum dipilih';
-    final classNames = config.classIds
+        : (AppLocalization.isIndonesian ? 'Belum dipilih' : 'Not selected');
+    final classNamesList = config.classIds
         .map((id) => _allClasses
             .firstWhere((c) => c['id'] == id,
                 orElse: () => {'name': id})['name'] as String)
-        .join(', ');
+        .toList();
+    classNamesList.sort((a, b) {
+      final indexA = _allClasses.indexWhere((c) => c['name'] == a);
+      final indexB = _allClasses.indexWhere((c) => c['name'] == b);
+      return indexA.compareTo(indexB);
+    });
+    final classNames = classNamesList.join(', ');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1480,14 +1538,15 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             ],
           ),
           const SizedBox(height: 8),
-          _buildInfoRow(Icons.person_rounded, 'Pembuat Soal: $authorNames',
+          _buildInfoRow(Icons.person_rounded,
+              '${AppLocalization.isIndonesian ? 'Pembuat Soal' : 'Exam Author'}: $authorNames',
               subtitleColor),
           const SizedBox(height: 4),
           _buildInfoRow(
               Icons.class_rounded,
               config.classIds.isEmpty
-                  ? 'Kelas: Belum dipilih'
-                  : 'Kelas: $classNames',
+                  ? '${AppLocalization.isIndonesian ? 'Kelas' : 'Class'}: ${AppLocalization.isIndonesian ? 'Belum dipilih' : 'Not selected'}'
+                  : '${AppLocalization.isIndonesian ? 'Kelas' : 'Class'}: $classNames',
               subtitleColor),
         ],
       ),
@@ -1598,19 +1657,23 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Tambah Mata Pelajaran',
-                      style: TextStyle(
-                          color: titleColor,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    AppLocalization.isIndonesian ? 'Tambah Mata Pelajaran' : 'Add Subject',
+                    style: TextStyle(
+                        color: titleColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 20),
 
                   // Pilih Mapel
-                  Text('Mata Pelajaran',
-                      style: TextStyle(
-                          color: subtitleColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
+                  Text(
+                    AppLocalization.isIndonesian ? 'Mata Pelajaran' : 'Subject',
+                    style: TextStyle(
+                        color: subtitleColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: selectedSubjectId,
@@ -1627,8 +1690,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 12),
                     ),
-                    hint: Text('Pilih Mata Pelajaran',
-                        style: TextStyle(color: subtitleColor)),
+                    hint: Text(
+                      AppLocalization.isIndonesian ? 'Pilih Mata Pelajaran' : 'Select Subject',
+                      style: TextStyle(color: subtitleColor),
+                    ),
                     items: _allSubjects.map((s) {
                       return DropdownMenuItem(
                           value: s['id'] as String,
@@ -1649,15 +1714,23 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   const SizedBox(height: 16),
 
                   // Pilih Author
-                  Text('Guru Penguji / Pembuat Soal (Bisa Pilih > 1)',
-                      style: TextStyle(
-                          color: subtitleColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
+                  Text(
+                    AppLocalization.isIndonesian
+                        ? 'Guru Penguji / Pembuat Soal (Bisa Pilih > 1)'
+                        : 'Examiner / Question Author (Can select > 1)',
+                    style: TextStyle(
+                        color: subtitleColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 8),
                   if (selectedSubjectId == null)
-                    Text('Pilih mata pelajaran terlebih dahulu',
-                        style: TextStyle(color: subtitleColor.withValues(alpha: 0.5), fontSize: 13))
+                    Text(
+                      AppLocalization.isIndonesian
+                          ? 'Pilih mata pelajaran terlebih dahulu'
+                          : 'Select subject first',
+                      style: TextStyle(color: subtitleColor.withValues(alpha: 0.5), fontSize: 13),
+                    )
                   else if (isLoadingTeachers)
                     const Center(
                       child: Padding(
@@ -1793,15 +1866,15 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   ElevatedButton(
                     onPressed: () {
                       if (selectedSubjectId == null) {
-                        _showError('Pilih mata pelajaran');
+                        _showError(AppLocalization.isIndonesian ? 'Pilih mata pelajaran' : 'Select subject');
                         return;
                       }
                       if (selectedAuthorIds.isEmpty) {
-                        _showError('Pilih minimal satu guru pengoreksi');
+                        _showError(AppLocalization.isIndonesian ? 'Pilih minimal satu guru pengoreksi' : 'Select at least one question author');
                         return;
                       }
                       if (selectedClassIds.isEmpty) {
-                        _showError('Pilih minimal satu kelas');
+                        _showError(AppLocalization.isIndonesian ? 'Pilih minimal satu kelas' : 'Select at least one class');
                         return;
                       }
                       setState(() {
@@ -1850,14 +1923,20 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Konfigurasi Ruang Ujian',
-              style: TextStyle(
-                  color: titleColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold)),
+          Text(
+            AppLocalization.isIndonesian ? 'Konfigurasi Ruang Ujian' : 'Exam Room Configuration',
+            style: TextStyle(
+                color: titleColor,
+                fontSize: 16,
+                fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
-          Text('Daftarkan ruangan yang akan digunakan beserta kapasitas kursinya',
-              style: TextStyle(color: subtitleColor, fontSize: 13)),
+          Text(
+            AppLocalization.isIndonesian
+                ? 'Daftarkan ruangan yang akan digunakan beserta kapasitas kursinya'
+                : 'Register exam rooms and their seating capacity',
+            style: TextStyle(color: subtitleColor, fontSize: 13),
+          ),
           const SizedBox(height: 20),
 
           // Form Tambah Ruangan
@@ -1871,11 +1950,13 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Tambah Ruang Ujian',
-                    style: TextStyle(
-                        color: titleColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14)),
+                Text(
+                  AppLocalization.isIndonesian ? 'Tambah Ruang Ujian' : 'Add Exam Room',
+                  style: TextStyle(
+                      color: titleColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14),
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -1884,7 +1965,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                       child: TextField(
                         controller: _roomNameController,
                         decoration: InputDecoration(
-                          hintText: 'Nama Ruang (e.g. Ruang 03)',
+                          hintText: AppLocalization.isIndonesian
+                              ? 'Nama Ruang (e.g. Ruang 03)'
+                              : 'Room Name (e.g. Room 03)',
                           hintStyle: TextStyle(
                               color: titleColor.withValues(alpha: 0.4),
                               fontSize: 13),
@@ -1907,7 +1990,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                         controller: _roomCapacityController,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
-                          hintText: 'Kapasitas',
+                          hintText: AppLocalization.isIndonesian ? 'Kapasitas' : 'Capacity',
                           hintStyle: TextStyle(
                               color: titleColor.withValues(alpha: 0.4),
                               fontSize: 13),
@@ -1933,11 +2016,15 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     final capacity = int.tryParse(capacityStr) ?? 0;
 
                     if (name.isEmpty) {
-                      _showError('Nama ruangan tidak boleh kosong');
+                      _showError(AppLocalization.isIndonesian
+                          ? 'Nama ruangan tidak boleh kosong'
+                          : 'Room name cannot be empty');
                       return;
                     }
                     if (capacity <= 0) {
-                      _showError('Kapasitas ruangan harus lebih dari 0');
+                      _showError(AppLocalization.isIndonesian
+                          ? 'Kapasitas ruangan harus lebih dari 0'
+                          : 'Room capacity must be greater than 0');
                       return;
                     }
 
@@ -1949,7 +2036,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     _saveDraft();
                   },
                   icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Tambah ke Daftar'),
+                  label: Text(AppLocalization.isIndonesian ? 'Tambah ke Daftar' : 'Add to List'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF8B5CF6),
                     foregroundColor: Colors.white,
@@ -1964,18 +2051,22 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
           const SizedBox(height: 20),
 
           // List Ruangan
-          Text('Daftar Ruangan Terdaftar (${_rooms.length})',
-              style: TextStyle(
-                  color: titleColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14)),
+          Text(
+            AppLocalization.isIndonesian
+                ? 'Daftar Ruangan Terdaftar (${_rooms.length})'
+                : 'Registered Room List (${_rooms.length})',
+            style: TextStyle(
+                color: titleColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14),
+          ),
           const SizedBox(height: 10),
           if (_rooms.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Text(
-                  'Belum ada ruangan terdaftar.',
+                  AppLocalization.isIndonesian ? 'Belum ada ruangan terdaftar.' : 'No registered rooms yet.',
                   style: TextStyle(color: subtitleColor, fontSize: 13),
                 ),
               ),
@@ -2021,7 +2112,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Kapasitas: ${room.capacity} Kursi',
+                              AppLocalization.isIndonesian
+                                  ? 'Kapasitas: ${room.capacity} Kursi'
+                                  : 'Capacity: ${room.capacity} Seats',
                               style: TextStyle(
                                   color: subtitleColor, fontSize: 12),
                             ),
@@ -2059,14 +2152,20 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Alokasi Ruang Ujian & Kursi',
-              style: TextStyle(
-                  color: titleColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold)),
+          Text(
+            AppLocalization.isIndonesian ? 'Alokasi Ruang Ujian & Kursi' : 'Exam Room & Seating Allocation',
+            style: TextStyle(
+                color: titleColor,
+                fontSize: 16,
+                fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
-          Text('Masukkan murid ke ruangan secara manual atau otomatis dan atur pembagian kursi.',
-              style: TextStyle(color: subtitleColor, fontSize: 13)),
+          Text(
+            AppLocalization.isIndonesian
+                ? 'Masukkan murid ke ruangan secara manual atau otomatis dan atur pembagian kursi.'
+                : 'Assign students to rooms manually or automatically and manage seating distribution.',
+            style: TextStyle(color: subtitleColor, fontSize: 13),
+          ),
           const SizedBox(height: 24),
           
           if (_rooms.isNotEmpty) ...[
@@ -2162,200 +2261,409 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
+                    // Seating Allocation Settings Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: cardBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.settings_suggest_rounded, color: Color(0xFF6366F1), size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                AppLocalization.isIndonesian ? 'Pengaturan Alokasi Otomatis' : 'Automatic Allocation Settings',
+                                style: TextStyle(
+                                  color: titleColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                                icon: Icon(Icons.help_outline_rounded, color: subtitleColor, size: 16),
+                                onPressed: () {
+                                  Get.dialog(
+                                    AlertDialog(
+                                      backgroundColor: isDark ? const Color(0xFF1A1730) : Colors.white,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      title: Row(
+                                        children: [
+                                          const Icon(Icons.info_outline_rounded, color: Color(0xFF6366F1)),
+                                          const SizedBox(width: 8),
+                                          Text(AppLocalization.isIndonesian ? 'Info Parameter Alokasi' : 'Allocation Parameter Info', style: TextStyle(color: titleColor)),
+                                        ],
+                                      ),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            AppLocalization.isIndonesian ? '1. Maksimal Angkatan per Ruangan' : '1. Max Cohorts per Room',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            AppLocalization.isIndonesian
+                                                ? 'Membatasi jumlah angkatan/tahun masuk berbeda yang boleh dicampur di dalam satu ruangan ujian (untuk meminimalkan kecurangan antar angkatan).'
+                                                : 'Limits the number of different cohorts/entry years that can be mixed in a single exam room.',
+                                            style: TextStyle(fontSize: 12, color: subtitleColor),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            AppLocalization.isIndonesian ? '2. Maksimal Kelas per Ruangan' : '2. Max Classes per Room',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            AppLocalization.isIndonesian
+                                                ? 'Membatasi jumlah rombel/kelas berbeda yang boleh dimasukkan ke dalam satu ruangan ujian (agar satu ruangan tidak terlalu banyak gabungan kelas).'
+                                                : 'Limits the number of different classes/sections that can be assigned to a single exam room.',
+                                            style: TextStyle(fontSize: 12, color: subtitleColor),
+                                          ),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Get.back(),
+                                          child: Text(AppLocalization.isIndonesian ? 'Mengerti' : 'Understood', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final bool isMobile = constraints.maxWidth < 600;
+                              final children = [
+                                // Dropdown Angkatan
+                                Expanded(
+                                  flex: isMobile ? 0 : 1,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        AppLocalization.isIndonesian ? 'Maksimal Angkatan / Ruang' : 'Max Cohorts / Room',
+                                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.02),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: cardBorder),
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<int>(
+                                            value: _maxAngkatanPerRoom,
+                                            dropdownColor: isDark ? const Color(0xFF1E1C38) : Colors.white,
+                                            style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                            isExpanded: true,
+                                            items: [1, 2, 3].map((val) {
+                                              return DropdownMenuItem<int>(
+                                                value: val,
+                                                child: Text(
+                                                  AppLocalization.isIndonesian
+                                                      ? '$val Angkatan'
+                                                      : '$val Cohort${val > 1 ? 's' : ''}',
+                                                ),
+                                              );
+                                            }).toList(),
+                                            onChanged: (val) {
+                                              if (val != null) {
+                                                setState(() => _maxAngkatanPerRoom = val);
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(width: isMobile ? 0 : 12, height: isMobile ? 12 : 0),
+                                // Dropdown Kelas
+                                Expanded(
+                                  flex: isMobile ? 0 : 1,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        AppLocalization.isIndonesian ? 'Maksimal Kelas / Ruang' : 'Max Classes / Room',
+                                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.02),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: cardBorder),
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<int>(
+                                            value: _maxKelasPerRoom,
+                                            dropdownColor: isDark ? const Color(0xFF1E1C38) : Colors.white,
+                                            style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                            isExpanded: true,
+                                            items: [1, 2, 3, 4, 5].map((val) {
+                                              return DropdownMenuItem<int>(
+                                                value: val,
+                                                child: Text(
+                                                  AppLocalization.isIndonesian
+                                                      ? '$val Kelas'
+                                                      : '$val Class${val > 1 ? 'es' : ''}',
+                                                ),
+                                              );
+                                            }).toList(),
+                                            onChanged: (val) {
+                                              if (val != null) {
+                                                setState(() => _maxKelasPerRoom = val);
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(width: isMobile ? 0 : 12, height: isMobile ? 16 : 0),
+                                // Action Button
+                                SizedBox(
+                                  width: isMobile ? double.infinity : null,
+                                  child: Column(
+                                    children: [
+                                      const SizedBox(height: 18),
+                                      SizedBox(
+                                        width: isMobile ? double.infinity : null,
+                                        height: 38,
+                                        child: ElevatedButton.icon(
+                                          onPressed: () => _autoAssignClassesToRooms(_maxAngkatanPerRoom, _maxKelasPerRoom),
+                                          icon: const Icon(Icons.auto_awesome_rounded, size: 14, color: Colors.white),
+                                          label: Text(
+                                            AppLocalization.isIndonesian ? 'Atur Otomatis' : 'Auto Assign',
+                                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.white),
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: isDark ? const Color(0xFF8B5CF6) : const Color(0xFF6366F1),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                                            elevation: 2,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ];
+
+                              if (isMobile) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: children.map((c) => c is Expanded ? c.child : c).toList(),
+                                );
+                              } else {
+                                return Row(
+                                  children: children,
+                                );
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Daftar Ruang Ujian (${_rooms.length})',
-                            style: TextStyle(
-                                color: titleColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold)),
-                        PopupMenuButton<int>(
-                          onSelected: (maxAngkatan) => _autoAssignClassesToRooms(maxAngkatan),
-                          offset: const Offset(0, 38),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          color: isDark ? const Color(0xFF1E1C38) : Colors.white,
-                          elevation: 4,
-                          itemBuilder: (context) => [
-                            PopupMenuItem<int>(
-                              value: 1,
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.person_rounded, size: 16, color: Color(0xFF10B981)),
-                                  const SizedBox(width: 8),
-                                  Text('1 Angkatan / Ruang', style: TextStyle(fontSize: 12, color: titleColor, fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem<int>(
-                              value: 2,
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.people_alt_rounded, size: 16, color: Color(0xFF6366F1)),
-                                  const SizedBox(width: 8),
-                                  Text('2 Angkatan / Ruang', style: TextStyle(fontSize: 12, color: titleColor, fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem<int>(
-                              value: 3,
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.groups_rounded, size: 16, color: Color(0xFF8B5CF6)),
-                                  const SizedBox(width: 8),
-                                  Text('3 Angkatan / Ruang', style: TextStyle(fontSize: 12, color: titleColor, fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                            ),
-                          ],
-                          child: Container(
+                        Text(
+                          AppLocalization.isIndonesian
+                              ? 'Daftar Ruang Ujian (${_rooms.length})'
+                              : 'Exam Room List (${_rooms.length})',
+                          style: TextStyle(
+                              color: titleColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _clearAllRoomAllocations,
+                          icon: const Icon(Icons.delete_sweep_rounded, color: Color(0xFFEF4444), size: 14),
+                          label: Text(
+                            AppLocalization.isIndonesian ? 'Kosongkan Ruangan' : 'Clear Rooms',
+                            style: const TextStyle(color: Color(0xFFEF4444), fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFEF4444)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.auto_awesome_rounded, size: 14, color: Color(0xFF6366F1)),
-                                const SizedBox(width: 6),
-                                Text(
-                                  AppLocalization.isIndonesian ? 'Atur Otomatis' : 'Auto Assign',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF6366F1),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _rooms.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final room = _rooms[index];
-                        final expandedSet = _expandedRooms ??= {};
-                        final isExpanded = expandedSet.contains(room.name);
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        _buildToggleChip(
+                          label: AppLocalization.isIndonesian ? 'Susunan Zigzag' : 'Zigzag Layout',
+                          icon: Icons.alt_route_rounded,
+                          isActive: _isZigzag,
+                          onTap: () => setState(() => _isZigzag = !_isZigzag),
+                          isDark: isDark,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildToggleChip(
+                          label: AppLocalization.isIndonesian ? 'Acak Urutan' : 'Randomize Seating',
+                          icon: Icons.shuffle_rounded,
+                          isActive: _isRandom,
+                          onTap: () => setState(() => _isRandom = !_isRandom),
+                          isDark: isDark,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF13112A) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: cardBorder),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _rooms.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final room = _rooms[index];
+                          final expandedSet = _expandedRooms ??= {};
+                          final isExpanded = expandedSet.contains(room.name);
 
-                        // Calculate sum of allocated students in this room
-                        int roomAllocatedTotal = 0;
-                        for (final rawCls in room.classes) {
-                          final parts = rawCls.split(':');
-                          if (parts.length > 1) {
-                            roomAllocatedTotal += int.tryParse(parts[1]) ?? 0;
+                          // Calculate sum of allocated students in this room
+                          int roomAllocatedTotal = 0;
+                          for (final rawCls in room.classes) {
+                            final parts = rawCls.split(':');
+                            if (parts.length > 1) {
+                              roomAllocatedTotal += int.tryParse(parts[1]) ?? 0;
+                            }
                           }
-                        }
-                        final bool isOverCapacity = roomAllocatedTotal > room.capacity;
+                          final bool isOverCapacity = roomAllocatedTotal > room.capacity;
 
-                        final isEven = index % 2 == 0;
-                        final itemBgColor = isEven
-                            ? (isDark ? const Color(0xFF1E1C38) : const Color(0xFFF5F3FF))
-                            : (isDark ? const Color(0xFF1B1A30) : const Color(0xFFEEF2FF));
-                        
-                        // Red border if over capacity
-                        final itemBorderColor = isOverCapacity
-                            ? Colors.red.withValues(alpha: 0.6)
-                            : (isEven
-                                ? (isDark ? const Color(0xFF8B5CF6).withValues(alpha: 0.2) : const Color(0xFF8B5CF6).withValues(alpha: 0.15))
-                                : (isDark ? const Color(0xFF6366F1).withValues(alpha: 0.2) : const Color(0xFF6366F1).withValues(alpha: 0.15)));
+                          final isEven = index % 2 == 0;
+                          final itemBgColor = isEven
+                              ? (isDark ? const Color(0xFF1E1C38) : const Color(0xFFF5F3FF))
+                              : (isDark ? const Color(0xFF1B1A30) : const Color(0xFFEEF2FF));
+                          
+                          // Red border if over capacity
+                          final itemBorderColor = isOverCapacity
+                              ? Colors.red.withValues(alpha: 0.6)
+                              : (isEven
+                                  ? (isDark ? const Color(0xFF8B5CF6).withValues(alpha: 0.2) : const Color(0xFF8B5CF6).withValues(alpha: 0.15))
+                                  : (isDark ? const Color(0xFF6366F1).withValues(alpha: 0.2) : const Color(0xFF6366F1).withValues(alpha: 0.15)));
 
-                        return Ink(
-                          decoration: BoxDecoration(
-                            color: itemBgColor,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: itemBorderColor, width: isOverCapacity ? 1.5 : 1.0),
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() {
-                                if (isExpanded) {
-                                  expandedSet.remove(room.name);
-                                } else {
-                                  expandedSet.add(room.name);
-                                }
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: isOverCapacity
-                                              ? Colors.red.withValues(alpha: 0.1)
-                                              : const Color(0xFF6366F1).withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(10),
+                          return Ink(
+                            decoration: BoxDecoration(
+                              color: itemBgColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: itemBorderColor, width: isOverCapacity ? 1.5 : 1.0),
+                            ),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  if (isExpanded) {
+                                    expandedSet.remove(room.name);
+                                  } else {
+                                    expandedSet.add(room.name);
+                                  }
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: isOverCapacity
+                                                ? Colors.red.withValues(alpha: 0.1)
+                                                : const Color(0xFF6366F1).withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(Icons.meeting_room_rounded,
+                                              color: isOverCapacity ? Colors.red : const Color(0xFF6366F1), size: 18),
                                         ),
-                                        child: Icon(Icons.meeting_room_rounded,
-                                            color: isOverCapacity ? Colors.red : const Color(0xFF6366F1), size: 18),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              room.name,
-                                              style: TextStyle(
-                                                color: titleColor,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                            if (isOverCapacity) ...[
-                                              const SizedBox(height: 2),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
                                               Text(
-                                                AppLocalization.isIndonesian
-                                                    ? '⚠️ Melebihi Kapasitas! ($roomAllocatedTotal / ${room.capacity} Kursi)'
-                                                    : '⚠️ Over Capacity! ($roomAllocatedTotal / ${room.capacity} Seats)',
-                                                style: const TextStyle(
-                                                  color: Colors.red,
-                                                  fontSize: 10,
+                                                room.name,
+                                                style: TextStyle(
+                                                  color: titleColor,
                                                   fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
                                                 ),
                                               ),
+                                              if (isOverCapacity) ...[
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  AppLocalization.isIndonesian
+                                                      ? '⚠️ Melebihi Kapasitas! ($roomAllocatedTotal / ${room.capacity} Kursi)'
+                                                      : '⚠️ Over Capacity! ($roomAllocatedTotal / ${room.capacity} Seats)',
+                                                  style: const TextStyle(
+                                                    color: Colors.red,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
                                             ],
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Text(
-                                          'Kapasitas: ${room.capacity} Kursi',
-                                          style: TextStyle(
-                                            color: isDark ? Colors.white70 : Colors.black87,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Icon(
-                                        isExpanded
-                                            ? Icons.keyboard_arrow_up_rounded
-                                            : Icons.keyboard_arrow_down_rounded,
-                                        color: subtitleColor,
-                                        size: 20,
-                                      ),
-                                    ],
-                                  ),
-                                  if (isExpanded) ...[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            AppLocalization.isIndonesian
+                                                ? 'Kapasitas: ${room.capacity} Kursi'
+                                                : 'Capacity: ${room.capacity} Seats',
+                                            style: TextStyle(
+                                              color: isDark ? Colors.white70 : Colors.black87,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          isExpanded
+                                              ? Icons.keyboard_arrow_up_rounded
+                                              : Icons.keyboard_arrow_down_rounded,
+                                          color: subtitleColor,
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
+                                    if (isExpanded) ...[
                                     const SizedBox(height: 12),
                                     const Divider(height: 1),
                                     const SizedBox(height: 12),
@@ -2365,115 +2673,164 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                         Icon(Icons.table_restaurant_rounded, size: 13, color: isOverCapacity ? Colors.red : const Color(0xFF6366F1)),
                                         const SizedBox(width: 6),
                                         Text(
-                                          'Susunan Kursi & Zig-Zag Preview',
-                                          style: TextStyle(
-                                            color: titleColor.withValues(alpha: 0.8),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
+                                           () {
+                                             if (_isZigzag && _isRandom) {
+                                               return 'Susunan Kursi Zig-Zag & Acak Preview';
+                                             } else if (_isZigzag) {
+                                               return 'Susunan Kursi Zig-Zag Preview';
+                                             } else if (_isRandom) {
+                                               return 'Susunan Kursi Acak Preview';
+                                             } else {
+                                               return 'Susunan Kursi Berurutan Preview';
+                                             }
+                                           }(),
+                                           style: TextStyle(
+                                             color: titleColor.withValues(alpha: 0.8),
+                                             fontSize: 11,
+                                             fontWeight: FontWeight.bold,
+                                           ),
+                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 8),
                                     () {
                                       final roomStudents = assignments[index] ?? [];
-                                      if (roomStudents.isEmpty) {
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                          child: Text(
-                                            'Ruangan belum terisi. Atur jumlah murid di bawah ini.',
-                                            style: TextStyle(color: subtitleColor, fontSize: 11, fontStyle: FontStyle.italic),
-                                          ),
-                                        );
-                                      }
                                       return Wrap(
                                         spacing: 6,
                                         runSpacing: 6,
-                                        children: List.generate(roomStudents.length, (idx) {
-                                          final student = roomStudents[idx];
-                                          final num = student['seatNumber'] ?? (idx + 1);
-                                          final name = student['nama'] ?? '';
-                                          final angkatan = student['angkatan'] ?? '';
-                                          final clsName = student['className'] ?? '';
+                                        children: List.generate(room.capacity, (idx) {
+                                          final num = idx + 1;
+                                          final studentIndex = roomStudents.indexWhere((s) => (s['seatNumber'] ?? 0) == num);
 
-                                          return Container(
-                                            width: 105,
-                                            height: 58,
-                                            padding: const EdgeInsets.all(5),
-                                            decoration: BoxDecoration(
-                                              color: isDark
-                                                  ? const Color(0xFF6366F1).withValues(alpha: 0.15)
-                                                  : const Color(0xFF6366F1).withValues(alpha: 0.05),
-                                              borderRadius: BorderRadius.circular(6),
-                                              border: Border.all(
+                                          if (studentIndex != -1) {
+                                            final student = roomStudents[studentIndex];
+                                            final name = student['nama'] ?? '';
+                                            final angkatan = student['angkatan'] ?? '';
+                                            final clsName = student['className'] ?? '';
+
+                                            return Container(
+                                              width: 105,
+                                              height: 58,
+                                              padding: const EdgeInsets.all(5),
+                                              decoration: BoxDecoration(
                                                 color: isDark
-                                                    ? const Color(0xFF6366F1).withValues(alpha: 0.3)
-                                                    : const Color(0xFF6366F1).withValues(alpha: 0.18),
-                                                width: 0.8,
+                                                    ? const Color(0xFF6366F1).withValues(alpha: 0.15)
+                                                    : const Color(0xFF6366F1).withValues(alpha: 0.05),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: isDark
+                                                      ? const Color(0xFF6366F1).withValues(alpha: 0.3)
+                                                      : const Color(0xFF6366F1).withValues(alpha: 0.18),
+                                                ),
                                               ),
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                  children: [
-                                                    Text(
-                                                      'M-$num',
-                                                      style: TextStyle(
-                                                        color: isDark ? Colors.white54 : Colors.black54,
-                                                        fontSize: 8,
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                                                        borderRadius: BorderRadius.circular(4),
-                                                      ),
-                                                      child: Text(
-                                                        angkatan.isNotEmpty ? 'A-$angkatan' : clsName,
-                                                        style: const TextStyle(
-                                                          color: Color(0xFF8B5CF6),
-                                                          fontSize: 7,
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        'M-$num',
+                                                        style: TextStyle(
+                                                          color: isDark ? Colors.white54 : Colors.black54,
+                                                          fontSize: 8,
                                                           fontWeight: FontWeight.bold,
                                                         ),
                                                       ),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                                                          borderRadius: BorderRadius.circular(4),
+                                                        ),
+                                                        child: Text(
+                                                          angkatan.isNotEmpty ? 'A-$angkatan' : clsName,
+                                                          style: const TextStyle(
+                                                            color: Color(0xFF8B5CF6),
+                                                            fontSize: 7,
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  Text(
+                                                    name,
+                                                    style: TextStyle(
+                                                      color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.bold,
                                                     ),
-                                                  ],
-                                                ),
-                                                Text(
-                                                  name,
-                                                  style: TextStyle(
-                                                    color: isDark ? Colors.white : const Color(0xFF1E1B4B),
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.bold,
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
                                                   ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                                Text(
-                                                  '$clsName',
-                                                  style: TextStyle(
-                                                    color: isDark ? Colors.white38 : Colors.black38,
-                                                    fontSize: 7,
+                                                  Text(
+                                                    clsName,
+                                                    style: TextStyle(
+                                                      color: isDark ? Colors.white38 : Colors.black38,
+                                                      fontSize: 7,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
                                                   ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                ],
+                                              ),
+                                            );
+                                          } else {
+                                            // Placeholder empty seat
+                                            return Container(
+                                              width: 105,
+                                              height: 58,
+                                              padding: const EdgeInsets.all(5),
+                                              decoration: BoxDecoration(
+                                                color: isDark
+                                                    ? Colors.white.withValues(alpha: 0.02)
+                                                    : Colors.black.withValues(alpha: 0.01),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: isDark ? Colors.white10 : Colors.black12,
+                                                  width: 0.8,
                                                 ),
-                                              ],
-                                            ),
-                                          );
-                                        }),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Text(
+                                                    'M-$num',
+                                                    style: TextStyle(
+                                                      color: isDark ? Colors.white24 : Colors.black26,
+                                                      fontSize: 8,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  const Center(
+                                                     child: Text(
+                                                       'KOSONG',
+                                                       style: TextStyle(
+                                                         color: Colors.grey,
+                                                         fontSize: 8,
+                                                         fontWeight: FontWeight.w600,
+                                                         letterSpacing: 0.5,
+                                                       ),
+                                                     ),
+                                                   ),
+                                                   const SizedBox(height: 8),
+                                                 ],
+                                               ),
+                                             );
+                                           }
+                                         }),
                                       );
                                     }(),
                                     const SizedBox(height: 16),
                                     const Divider(height: 1),
                                     const SizedBox(height: 12),
                                     Text(
-                                      'Alokasi Jumlah Murid Per Kelas',
+                                      AppLocalization.isIndonesian
+                                          ? 'Alokasi Jumlah Murid Per Kelas'
+                                          : 'Student Allocation Per Class',
                                       style: TextStyle(
                                         color: titleColor.withValues(alpha: 0.8),
                                         fontSize: 11,
@@ -2483,7 +2840,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                     const SizedBox(height: 8),
                                     if (filteredClasses.isEmpty)
                                       Text(
-                                        'Tidak ada kelas terpilih dari mata pelajaran.',
+                                        AppLocalization.isIndonesian
+                                            ? 'Tidak ada kelas terpilih dari mata pelajaran.'
+                                            : 'No classes selected from subjects.',
                                         style: TextStyle(
                                             color: subtitleColor,
                                             fontSize: 11,
@@ -2530,7 +2889,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                                     ),
                                                     const SizedBox(height: 2),
                                                     Text(
-                                                      'Tersisa: $remaining / $totalInClass siswa',
+                                                      AppLocalization.isIndonesian
+                                                          ? 'Tersisa: $remaining / $totalInClass siswa'
+                                                          : 'Remaining: $remaining / $totalInClass students',
                                                       style: TextStyle(
                                                         color: remaining == 0 ? Colors.green : subtitleColor,
                                                         fontSize: 10,
@@ -2642,6 +3003,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                         );
                       },
                     ),
+                  ),
                   ],
                 );
               },
@@ -2670,14 +3032,20 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Jadwal Ujian & Mata Pelajaran',
-                        style: TextStyle(
-                            color: titleColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold)),
+                    Text(
+                      AppLocalization.isIndonesian ? 'Jadwal Ujian & Mata Pelajaran' : 'Exam Schedule & Subjects',
+                      style: TextStyle(
+                          color: titleColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 4),
-                    Text('Tentukan jadwal mata pelajaran untuk setiap sesi ujian.',
-                        style: TextStyle(color: subtitleColor, fontSize: 13)),
+                    Text(
+                      AppLocalization.isIndonesian
+                          ? 'Tentukan jadwal mata pelajaran untuk setiap sesi ujian.'
+                          : 'Assign subject schedules for each exam session.',
+                      style: TextStyle(color: subtitleColor, fontSize: 13),
+                    ),
                   ],
                 ),
               ),
@@ -2686,8 +3054,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   OutlinedButton.icon(
                     onPressed: _clearSchedule,
                     icon: const Icon(Icons.delete_sweep_rounded, color: Color(0xFFEF4444), size: 16),
-                    label: const Text('Kosongkan',
-                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.bold)),
+                    label: Text(
+                      AppLocalization.isIndonesian ? 'Kosongkan' : 'Clear',
+                      style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFFEF4444)),
                       shape: RoundedRectangleBorder(
@@ -2700,8 +3070,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   ElevatedButton.icon(
                     onPressed: _autoGenerateSchedule,
                     icon: const Icon(Icons.auto_awesome, color: Colors.white, size: 16),
-                    label: const Text('Generate Otomatis',
-                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    label: Text(
+                      AppLocalization.isIndonesian ? 'Generate Otomatis' : 'Auto Generate',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6366F1),
                       shape: RoundedRectangleBorder(
@@ -2729,8 +3101,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     _saveDraft();
     _compileDraftSessions();
     Get.snackbar(
-      'Sukses',
-      'Jadwal ujian berhasil dikosongkan.',
+      AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+      AppLocalization.isIndonesian
+          ? 'Jadwal ujian berhasil dikosongkan.'
+          : 'Exam schedule successfully cleared.',
       backgroundColor: const Color(0xFFEF4444),
       colorText: Colors.white,
     );
@@ -2739,7 +3113,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
   void _autoGenerateSchedule() {
     final days = _getEventDays();
     if (days.isEmpty || _slots.isEmpty) {
-      _showError('Tentukan rentang tanggal di Step 1 dan slot waktu terlebih dahulu.');
+      _showError(AppLocalization.isIndonesian
+          ? 'Tentukan rentang tanggal di Step 1 dan slot waktu terlebih dahulu.'
+          : 'Please set the date range in Step 1 and time slots first.');
       return;
     }
 
@@ -2828,7 +3204,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
       if (!scheduled) {
         // If we ran out of time slots, display a warning
-        _showError('Gagal menjadwalkan "${config.subjectName}" karena slot waktu penuh.');
+        _showError(AppLocalization.isIndonesian
+            ? 'Gagal menjadwalkan "${config.subjectName}" karena slot waktu penuh.'
+            : 'Failed to schedule "${config.subjectName}" because time slots are full.');
         return;
       }
     }
@@ -2837,14 +3215,33 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     _compileDraftSessions();
 
     Get.snackbar(
-      'Sukses',
-      'Berhasil menyusun ${_subjectConfigs.length} mata pelajaran secara otomatis.',
+      AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+      AppLocalization.isIndonesian
+          ? 'Berhasil menyusun ${_subjectConfigs.length} mata pelajaran secara otomatis.'
+          : 'Successfully scheduled ${_subjectConfigs.length} subjects automatically.',
       backgroundColor: const Color(0xFF10B981),
       colorText: Colors.white,
     );
   }
 
-  void _autoAssignClassesToRooms(int maxAngkatan) {
+  void _clearAllRoomAllocations() {
+    setState(() {
+      for (int i = 0; i < _rooms.length; i++) {
+        _rooms[i] = _rooms[i].copyWith(classes: []);
+      }
+    });
+    _saveDraft();
+    Get.snackbar(
+      AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+      AppLocalization.isIndonesian 
+          ? 'Semua alokasi ruang ujian berhasil dikosongkan.' 
+          : 'All room allocations cleared successfully.',
+      backgroundColor: const Color(0xFFEF4444),
+      colorText: Colors.white,
+    );
+  }
+
+  void _autoAssignClassesToRooms(int maxAngkatan, int maxKelas) {
     if (_allClasses.isEmpty) return;
 
     final activeClassIds = _subjectConfigs.expand((c) => c.classIds).toSet();
@@ -2921,74 +3318,59 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         selectedCohorts.add(activeCohorts[i]);
       }
 
-      // We distribute the room capacity among the selected cohorts.
-      // E.g., if capacity is 40 and we have 2 cohorts, each gets 20.
-      final Map<String, int> cohortCapacities = {};
-      int remainingCapacity = capacity;
-      
-      // Distribute cohort capacities as evenly as possible
-      while (remainingCapacity > 0) {
-        for (final cohort in selectedCohorts) {
-          if (remainingCapacity <= 0) break;
-          cohortCapacities[cohort] = (cohortCapacities[cohort] ?? 0) + 1;
-          remainingCapacity--;
-        }
+      // Find candidate classes from the selected cohorts that still have remaining students
+      final Map<String, List<String>> cohortToCandidates = {};
+      for (final cohort in selectedCohorts) {
+        final list = classesByCohort[cohort]!.where((cid) => remainingClassStudents[cid]! > 0).toList()..sort();
+        cohortToCandidates[cohort] = list;
       }
 
-      // Now, for each cohort, we fill its capacity using its classes round-robin
-      final Map<String, int> allocatedClassCounts = {};
-      
-      for (final cohort in selectedCohorts) {
-        final cohortClasses = classesByCohort[cohort]!.where((cid) => remainingClassStudents[cid]! > 0).toList()..sort();
-        int cohortCapacity = cohortCapacities[cohort] ?? 0;
-        
-        while (cohortCapacity > 0 && cohortClasses.any((cid) => remainingClassStudents[cid]! > (allocatedClassCounts[cid] ?? 0))) {
-          for (final cid in cohortClasses) {
-            if (cohortCapacity <= 0) break;
-            final currentAllocated = allocatedClassCounts[cid] ?? 0;
-            final available = remainingClassStudents[cid]! - currentAllocated;
-            if (available > 0) {
-              allocatedClassCounts[cid] = currentAllocated + 1;
-              cohortCapacity--;
-            }
+      // Select up to maxKelas classes round-robin from selected cohorts
+      final List<String> chosenClassIds = [];
+      int cohortPointer = 0;
+      bool addedAny = true;
+      while (chosenClassIds.length < maxKelas && addedAny) {
+        addedAny = false;
+        for (int i = 0; i < selectedCohorts.length; i++) {
+          final idx = (cohortPointer + i) % selectedCohorts.length;
+          final cohort = selectedCohorts[idx];
+          final candidates = cohortToCandidates[cohort] ?? [];
+          if (candidates.isNotEmpty) {
+            final cid = candidates.removeAt(0); // take first class
+            chosenClassIds.add(cid);
+            addedAny = true;
+            cohortPointer = (idx + 1) % selectedCohorts.length;
+            break; // break to update index and keep round-robin across cohorts
           }
         }
-        
-        // If there is still cohort capacity left (because this cohort's classes are fully exhausted),
-        // we can add it to the remaining capacity of other cohorts (if any are not exhausted yet).
-        if (cohortCapacity > 0) {
-          remainingCapacity += cohortCapacity;
-        }
       }
 
-      // If we have remaining capacity (leftovers from exhausted cohorts),
-      // we distribute it among the cohorts that still have students left
-      while (remainingCapacity > 0) {
-        final cohortsWithStudents = selectedCohorts.where((cohort) {
-          return classesByCohort[cohort]!.any((cid) => remainingClassStudents[cid]! > (allocatedClassCounts[cid] ?? 0));
-        }).toList();
+      final Map<String, int> allocatedCounts = { for (var cid in chosenClassIds) cid : 0 };
+      int remainingCapacity = capacity;
+      
+      // Filter chosenClassIds to those that actually have students
+      List<String> activeRoomClasses = chosenClassIds.where((cid) => remainingClassStudents[cid]! > 0).toList();
+      int classPointer = 0;
+
+      while (remainingCapacity > 0 && activeRoomClasses.isNotEmpty) {
+        final cid = activeRoomClasses[classPointer];
+        final currentAllocated = allocatedCounts[cid] ?? 0;
+        final totalAvailable = remainingClassStudents[cid]!;
         
-        if (cohortsWithStudents.isEmpty) break;
-        
-        for (final cohort in cohortsWithStudents) {
-          if (remainingCapacity <= 0) break;
-          final cohortClasses = classesByCohort[cohort]!.where((cid) => remainingClassStudents[cid]! > (allocatedClassCounts[cid] ?? 0)).toList()..sort();
-          
-          for (final cid in cohortClasses) {
-            if (remainingCapacity <= 0) break;
-            final currentAllocated = allocatedClassCounts[cid] ?? 0;
-            final available = remainingClassStudents[cid]! - currentAllocated;
-            if (available > 0) {
-              allocatedClassCounts[cid] = currentAllocated + 1;
-              remainingCapacity--;
-              break; // go to next cohort to keep it distributed
-            }
+        if (currentAllocated < totalAvailable) {
+          allocatedCounts[cid] = currentAllocated + 1;
+          remainingCapacity--;
+          classPointer = (classPointer + 1) % activeRoomClasses.length;
+        } else {
+          activeRoomClasses.removeAt(classPointer);
+          if (activeRoomClasses.isNotEmpty) {
+            classPointer = classPointer % activeRoomClasses.length;
           }
         }
       }
 
       // Subtract allocated counts from remainingClassStudents and format string
-      allocatedClassCounts.forEach((cid, cnt) {
+      allocatedCounts.forEach((cid, cnt) {
         remainingClassStudents[cid] = remainingClassStudents[cid]! - cnt;
         if (cnt > 0) {
           final cname = classIdToName[cid]!;
@@ -3088,19 +3470,21 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
   Future<void> _saveAndCreateEvent() async {
     if (_titleController.text.trim().isEmpty) {
-      _showError('Jadwal/Nama Event tidak boleh kosong');
+      _showError(AppLocalization.isIndonesian
+          ? 'Jadwal/Nama Event tidak boleh kosong'
+          : 'Schedule/Event Name cannot be empty');
       return;
     }
     if (_startDate == null || _endDate == null) {
-      _showError('Rentang tanggal belum dipilih');
+      _showError(AppLocalization.isIndonesian ? 'Rentang tanggal belum dipilih' : 'Date range has not been selected');
       return;
     }
     if (_slots.isEmpty) {
-      _showError('Slot waktu belum dikonfigurasi');
+      _showError(AppLocalization.isIndonesian ? 'Slot waktu belum dikonfigurasi' : 'Time slots have not been configured');
       return;
     }
     if (_rooms.isEmpty) {
-      _showError('Ruangan belum dikonfigurasi');
+      _showError(AppLocalization.isIndonesian ? 'Ruangan belum dikonfigurasi' : 'Rooms have not been configured');
       return;
     }
 
@@ -3108,8 +3492,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     final scheduledSubjectIds = _scheduledSubjects.values.toSet();
     final unscheduledSubjects = _subjectConfigs.where((s) => !scheduledSubjectIds.contains(s.subjectId)).toList();
     if (unscheduledSubjects.isNotEmpty) {
-      _showError('Terdapat ${unscheduledSubjects.length} mata pelajaran yang belum dijadwalkan: '
-          '${unscheduledSubjects.map((s) => s.subjectName).join(', ')}');
+      _showError(AppLocalization.isIndonesian
+          ? 'Terdapat ${unscheduledSubjects.length} mata pelajaran yang belum dijadwalkan: ${unscheduledSubjects.map((s) => s.subjectName).join(', ')}'
+          : 'There are ${unscheduledSubjects.length} subjects that have not been scheduled: ${unscheduledSubjects.map((s) => s.subjectName).join(', ')}');
       return;
     }
 
@@ -3233,34 +3618,36 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         Get.back(); // Back to list page
         Get.to(() => AdminExamScheduleViewPage(eventId: eventId));
         Get.snackbar(
-          'Sukses',
-          'Event ujian berhasil dibuat. Silakan tambahkan jadwal sesi secara manual.',
+          AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+          AppLocalization.isIndonesian
+              ? 'Event ujian berhasil dibuat. Silakan tambahkan jadwal sesi secara manual.'
+              : 'Exam event successfully created. Please add session schedules manually.',
           backgroundColor: const Color(0xFF10B981),
           colorText: Colors.white,
         );
       }
     } catch (e) {
       if (mounted) setState(() => _isGenerating = false);
-      _showError('Gagal membuat event: $e');
+      _showError(AppLocalization.isIndonesian ? 'Gagal membuat event: $e' : 'Failed to create event: $e');
     }
   }
 
   // ── Save & Update (Edit Mode) ────────────────────────────────
   Future<void> _saveAndUpdateEvent() async {
     if (_titleController.text.trim().isEmpty) {
-      _showError('Nama event tidak boleh kosong');
+      _showError(AppLocalization.isIndonesian ? 'Nama event tidak boleh kosong' : 'Event name cannot be empty');
       return;
     }
     if (_startDate == null || _endDate == null) {
-      _showError('Rentang tanggal belum dipilih');
+      _showError(AppLocalization.isIndonesian ? 'Rentang tanggal belum dipilih' : 'Date range has not been selected');
       return;
     }
     if (_slots.isEmpty) {
-      _showError('Slot waktu belum dikonfigurasi');
+      _showError(AppLocalization.isIndonesian ? 'Slot waktu belum dikonfigurasi' : 'Time slots have not been configured');
       return;
     }
     if (_rooms.isEmpty) {
-      _showError('Ruangan belum dikonfigurasi');
+      _showError(AppLocalization.isIndonesian ? 'Ruangan belum dikonfigurasi' : 'Rooms have not been configured');
       return;
     }
 
@@ -3269,9 +3656,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         .where((s) => !scheduledSubjectIds.contains(s.subjectId))
         .toList();
     if (unscheduledSubjects.isNotEmpty) {
-      _showError(
-          'Terdapat ${unscheduledSubjects.length} mata pelajaran yang belum dijadwalkan: '
-          '${unscheduledSubjects.map((s) => s.subjectName).join(', ')}');
+      _showError(AppLocalization.isIndonesian
+          ? 'Terdapat ${unscheduledSubjects.length} mata pelajaran yang belum dijadwalkan: ${unscheduledSubjects.map((s) => s.subjectName).join(', ')}'
+          : 'There are ${unscheduledSubjects.length} subjects that have not been scheduled: ${unscheduledSubjects.map((s) => s.subjectName).join(', ')}');
       return;
     }
 
@@ -3298,20 +3685,36 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
         'rooms':          _rooms.map((r) => r.toMap()).toList(),
       });
 
-      // 2. Delete all existing sessions
-      final oldSessions = await db
+      // 2. Delete all existing sessions cleanly (including participations subcollections)
+      final List<DocumentReference> refsToDelete = [];
+      final oldSessionsSnap = await db
           .collection('schools')
           .doc(schoolId)
-          .collection('exam_events')
-          .doc(eventId)
-          .collection('sessions')
+          .collection('exam_sessions')
+          .where('eventId', isEqualTo: eventId)
           .get();
 
-      final batch = db.batch();
-      for (final d in oldSessions.docs) {
-        batch.delete(d.reference);
+      for (final sDoc in oldSessionsSnap.docs) {
+        // Collect participations
+        final parts = await sDoc.reference.collection('participations').get();
+        for (final pDoc in parts.docs) {
+          refsToDelete.add(pDoc.reference);
+        }
+        refsToDelete.add(sDoc.reference);
       }
-      await batch.commit();
+
+      // Execute chunked delete to avoid exceeding batch limit of 500
+      for (int i = 0; i < refsToDelete.length; i += 400) {
+        final chunk = refsToDelete.sublist(
+          i,
+          i + 400 > refsToDelete.length ? refsToDelete.length : i + 400,
+        );
+        final chunkBatch = db.batch();
+        for (final ref in chunk) {
+          chunkBatch.delete(ref);
+        }
+        await chunkBatch.commit();
+      }
 
       // 3. Regenerate sessions from current state
       final assignments = _calculateRoomAssignments();
@@ -3370,7 +3773,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     _draftSessions.cast<Map<String, dynamic>?>().firstWhere(
                   (s) =>
                       s != null &&
-                      s['date'] == day &&
+                      DateFormat('yyyy-MM-dd').format(s['date'] as DateTime) == dayStr &&
                       s['slotName'] == slot.name &&
                       s['roomName'] == room.name &&
                       s['subjectId'] == config.subjectId,
@@ -3427,13 +3830,57 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       }
     } catch (e) {
       if (mounted) setState(() => _isGenerating = false);
-      _showError('Gagal memperbarui event: $e');
+      _showError(AppLocalization.isIndonesian ? 'Gagal memperbarui event: $e' : 'Failed to update event: $e');
     }
   }
 
 
 
   // ── UI Helpers ───────────────────────────────────────────────
+  Widget _buildToggleChip({
+    required String label,
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive
+              ? const Color(0xFF6366F1).withValues(alpha: 0.15)
+              : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03)),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isActive
+                ? const Color(0xFF6366F1)
+                : (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black12),
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: isActive ? const Color(0xFF6366F1) : (isDark ? Colors.white70 : Colors.black54)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? const Color(0xFF6366F1) : (isDark ? Colors.white70 : Colors.black87),
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLabel(String text, bool isDark) {
     return Text(
       text,
@@ -3569,7 +4016,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Distribusi Pengawas Ujian',
+                      AppLocalization.isIndonesian ? 'Distribusi Pengawas Ujian' : 'Exam Proctor Assignment',
                       style: TextStyle(
                         color: titleColor,
                         fontSize: 16,
@@ -3578,7 +4025,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Tugaskan guru pengawas untuk setiap ruangan & sesi.',
+                      AppLocalization.isIndonesian
+                          ? 'Tugaskan guru pengawas untuk setiap ruangan & sesi.'
+                          : 'Assign teacher proctors for each room & session.',
                       style: TextStyle(color: subtitleColor, fontSize: 13),
                     ),
                   ],
@@ -3589,7 +4038,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   OutlinedButton.icon(
                     onPressed: _clearProctors,
                     icon: const Icon(Icons.delete_sweep_rounded, color: Color(0xFFEF4444), size: 14),
-                    label: const Text('Kosongkan', style: TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.bold)),
+                    label: Text(
+                      AppLocalization.isIndonesian ? 'Kosongkan' : 'Clear',
+                      style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFFEF4444)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -3600,7 +4052,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   ElevatedButton.icon(
                     onPressed: _autoAssignProctors,
                     icon: const Icon(Icons.auto_awesome_rounded, size: 14),
-                    label: const Text('Atur Otomatis', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    label: Text(
+                      AppLocalization.isIndonesian ? 'Atur Otomatis' : 'Auto Assign',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6366F1),
                       foregroundColor: Colors.white,
@@ -3619,7 +4074,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 40),
                 child: Text(
-                  'Belum ada jadwal mapel yang disusun di Step sebelumnya.',
+                  AppLocalization.isIndonesian
+                      ? 'Belum ada jadwal mapel yang disusun di Step sebelumnya.'
+                      : 'No subject schedules have been created in the previous step.',
                   style: TextStyle(color: subtitleColor),
                 ),
               ),
@@ -3751,20 +4208,20 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                                 Row(
                                                   children: [
                                                     if (hasConf) ...[
-                                                      Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 12),
+                                                      const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 12),
                                                       const SizedBox(width: 4),
-                                                      const Text(
-                                                        'Bentrokan Sesi',
-                                                        style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                                                      Text(
+                                                        AppLocalization.isIndonesian ? 'Bentrokan Sesi' : 'Session Conflict',
+                                                        style: const TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
                                                       ),
                                                       const SizedBox(width: 8),
                                                     ],
                                                     if (hasExceed) ...[
-                                                      Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent, size: 12),
+                                                      const Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent, size: 12),
                                                       const SizedBox(width: 4),
-                                                      const Text(
-                                                        'Melebihi 2 Sesi',
-                                                        style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                                                      Text(
+                                                        AppLocalization.isIndonesian ? 'Melebihi 2 Sesi' : 'Exceeds 2 Sessions',
+                                                        style: const TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
                                                       ),
                                                     ],
                                                   ],
@@ -3795,7 +4252,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                               child: DropdownButton<String>(
                                                 value: pId.isEmpty ? null : pId,
                                                 hint: Text(
-                                                  'Pilih Pengawas',
+                                                  AppLocalization.isIndonesian ? 'Pilih Pengawas' : 'Select Proctor',
                                                   style: TextStyle(
                                                     color: subtitleColor,
                                                     fontSize: 11.5,
@@ -3808,19 +4265,28 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                                   fontSize: 12,
                                                 ),
                                                 items: [
-                                                  const DropdownMenuItem<String>(
+                                                  DropdownMenuItem<String>(
                                                     value: null,
                                                     child: Text(
-                                                      'Belum ditugaskan',
-                                                      style: TextStyle(fontStyle: FontStyle.italic),
+                                                      AppLocalization.isIndonesian ? 'Belum ditugaskan' : 'Not assigned',
+                                                      style: const TextStyle(fontStyle: FontStyle.italic),
                                                     ),
                                                   ),
-                                                  ..._allTeachers.map((teacher) {
-                                                    return DropdownMenuItem<String>(
-                                                      value: teacher['id'] as String,
-                                                      child: Text(teacher['nama'] as String),
-                                                    );
-                                                  }),
+                                                  ...() {
+                                                    final List<Map<String, dynamic>> teachersList = List.from(_allTeachers);
+                                                    if (pId.isNotEmpty && !teachersList.any((t) => t['id'] == pId)) {
+                                                      teachersList.add({
+                                                        'id': pId,
+                                                        'nama': sampleSession['proctorName'] ?? (AppLocalization.isIndonesian ? 'Loading pengawas...' : 'Loading proctor...'),
+                                                      });
+                                                    }
+                                                    return teachersList.map((teacher) {
+                                                      return DropdownMenuItem<String>(
+                                                        value: teacher['id'] as String,
+                                                        child: Text(teacher['nama'] as String),
+                                                      );
+                                                    });
+                                                  }(),
                                                 ],
                                                 onChanged: (val) {
                                                   setState(() {
@@ -3869,6 +4335,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
   ) {
     final sampleSession = roomSessions.first;
     final proctorName = sampleSession['proctorName'] as String? ?? 'Belum ditugaskan';
+    final displayProctorName = (proctorName.isEmpty || proctorName == 'Belum ditugaskan' || proctorName == 'Not assigned')
+        ? (AppLocalization.isIndonesian ? 'Belum ditugaskan' : 'Not assigned')
+        : proctorName;
 
     Get.dialog(
       Dialog(
@@ -3885,7 +4354,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Detail Ruang Ujian',
+                    AppLocalization.isIndonesian ? 'Detail Ruang Ujian' : 'Exam Room Details',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -3903,13 +4372,13 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
               const Divider(height: 24),
               
               // Room & Time details
-              _buildDetailRow('Ruangan', roomName),
-              _buildDetailRow('Waktu', '$dayLabel • $slotName ($timeRange)'),
-              _buildDetailRow('Pengawas', proctorName),
+              _buildDetailRow(AppLocalization.isIndonesian ? 'Ruangan' : 'Room', roomName),
+              _buildDetailRow(AppLocalization.isIndonesian ? 'Waktu' : 'Time', '$dayLabel • ${slotName.replaceAll('Sesi', AppLocalization.isIndonesian ? 'Sesi' : 'Session')} ($timeRange)'),
+              _buildDetailRow(AppLocalization.isIndonesian ? 'Pengawas' : 'Proctor', displayProctorName),
               const SizedBox(height: 16),
               
               Text(
-                'Mata Pelajaran & Pembuat Soal:',
+                AppLocalization.isIndonesian ? 'Mata Pelajaran & Pembuat Soal:' : 'Subject & Question Author:',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -3937,7 +4406,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                 
                 final authorText = config.authorTeacherNames.isNotEmpty
                     ? config.authorTeacherNames.join(', ')
-                    : 'Tidak ditentukan';
+                    : (AppLocalization.isIndonesian ? 'Tidak ditentukan' : 'Not specified');
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
@@ -3956,7 +4425,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Pembuat Soal: $authorText',
+                        AppLocalization.isIndonesian
+                            ? 'Pembuat Soal: $authorText'
+                            : 'Question Author: $authorText',
                         style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color),
                       ),
                     ],
@@ -4030,7 +4501,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                 // Header / Title
                 pw.Center(
                   child: pw.Text(
-                    _titleController.text.isNotEmpty ? _titleController.text : 'Jadwal Ujian',
+                    _titleController.text.isNotEmpty ? _titleController.text : (AppLocalization.isIndonesian ? 'Jadwal Ujian' : 'Exam Schedule'),
                     style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
                   ),
                 ),
@@ -4059,19 +4530,27 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                       children: [
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text('Sesi / Waktu', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                          child: pw.Text(
+                              AppLocalization.isIndonesian ? 'Sesi / Waktu' : 'Session / Time',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text('Ruangan', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                          child: pw.Text(
+                              AppLocalization.isIndonesian ? 'Ruangan' : 'Room',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text('Mata Pelajaran (Kelas)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                          child: pw.Text(
+                              AppLocalization.isIndonesian ? 'Mata Pelajaran (Kelas)' : 'Subject (Class)',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(6),
-                          child: pw.Text('Pengawas', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                          child: pw.Text(
+                              AppLocalization.isIndonesian ? 'Pengawas' : 'Proctor',
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
                         ),
                       ],
                     ),
@@ -4101,13 +4580,18 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                             .map((s) => "${(s['classes'] as List<String>).join(', ')} : ${s['subjectName']}")
                             .join(', ');
                         
-                        final proctorName = sampleRoomSession['proctorName'] as String? ?? 'Belum ditugaskan';
+                        final rawProctorName = sampleRoomSession['proctorName'] as String? ?? 'Belum ditugaskan';
+                        final proctorName = (rawProctorName.isEmpty || rawProctorName == 'Belum ditugaskan' || rawProctorName == 'Not assigned')
+                            ? (AppLocalization.isIndonesian ? 'Belum ditugaskan' : 'Not assigned')
+                            : rawProctorName;
 
                         return pw.TableRow(
                           children: [
                             pw.Padding(
                               padding: const pw.EdgeInsets.all(6),
-                              child: pw.Text('$slotName\n($timeRange)', style: const pw.TextStyle(fontSize: 8)),
+                              child: pw.Text(
+                                  '${slotName.replaceAll('Sesi', AppLocalization.isIndonesian ? 'Sesi' : 'Session')}\n($timeRange)',
+                                  style: const pw.TextStyle(fontSize: 8)),
                             ),
                             pw.Padding(
                               padding: const pw.EdgeInsets.all(6),
@@ -4177,7 +4661,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Jadwal Ujian Final',
+                      AppLocalization.isIndonesian ? 'Jadwal Ujian Final' : 'Final Exam Schedule',
                       style: TextStyle(
                         color: titleColor,
                         fontSize: 16,
@@ -4186,7 +4670,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Tampilan lengkap jadwal ujian per hari yang siap diterbitkan.',
+                      AppLocalization.isIndonesian
+                          ? 'Tampilan lengkap jadwal ujian per hari yang siap diterbitkan.'
+                          : 'Full list of exam schedules per day ready for publication.',
                       style: TextStyle(color: subtitleColor, fontSize: 12),
                     ),
                   ],
@@ -4197,7 +4683,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                 OutlinedButton.icon(
                   onPressed: _printSchedule,
                   icon: const Icon(Icons.print_rounded, size: 14, color: Color(0xFF6366F1)),
-                  label: const Text('Cetak & Unduh', style: TextStyle(color: Color(0xFF6366F1), fontSize: 11, fontWeight: FontWeight.bold)),
+                  label: Text(
+                    AppLocalization.isIndonesian ? 'Cetak & Unduh' : 'Print & Download',
+                    style: const TextStyle(color: Color(0xFF6366F1), fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF6366F1)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -4212,14 +4701,20 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
                   ),
-                  child: Text(
-                    '${_draftSessions.length} Sesi • ${sessionsByDay.length} Hari',
-                    style: const TextStyle(
-                      color: Color(0xFF10B981),
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: Builder(builder: (context) {
+                    final sessionPlural = _draftSessions.length > 1 ? 's' : '';
+                    final dayPlural = sessionsByDay.length > 1 ? 's' : '';
+                    return Text(
+                      AppLocalization.isIndonesian
+                          ? '${_draftSessions.length} Sesi • ${sessionsByDay.length} Hari'
+                          : '${_draftSessions.length} Session$sessionPlural • ${sessionsByDay.length} Day$dayPlural',
+                      style: const TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }),
                 ),
               ],
             ],
@@ -4235,12 +4730,14 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                     Icon(Icons.calendar_today_outlined, size: 48, color: subtitleColor.withValues(alpha: 0.5)),
                     const SizedBox(height: 12),
                     Text(
-                      'Jadwal belum tersusun.',
+                      AppLocalization.isIndonesian ? 'Jadwal belum tersusun.' : 'Schedule not generated yet.',
                       style: TextStyle(color: subtitleColor, fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Kembali ke step sebelumnya dan atur jadwal mapel.',
+                      AppLocalization.isIndonesian
+                          ? 'Kembali ke step sebelumnya dan atur jadwal mapel.'
+                          : 'Go back to the previous step and set subject schedules.',
                       style: TextStyle(color: subtitleColor.withValues(alpha: 0.7), fontSize: 12),
                     ),
                   ],
@@ -4252,7 +4749,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
               final dayStr = entry.key;
               final daySessions = entry.value;
               final parsedDate = DateTime.parse(dayStr);
-              final dayLabel = DateFormat('EEEE, dd MMMM yyyy', 'id').format(parsedDate);
+              final dayLabel = DateFormat('EEEE, dd MMMM yyyy', AppLocalization.isIndonesian ? 'id' : 'en').format(parsedDate);
 
               // Collect all unique slots for this day (sorted)
               final slots = daySessions
@@ -4322,7 +4819,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
-                                      '${daySessions.length} sesi',
+                                      AppLocalization.isIndonesian
+                                          ? '${daySessions.length} sesi'
+                                          : '${daySessions.length} session${daySessions.length > 1 ? 's' : ''}',
                                       style: TextStyle(
                                         color: isDark ? Colors.white60 : const Color(0xFF6366F1),
                                         fontSize: 10,
@@ -4342,17 +4841,25 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                 children: [
                                   SizedBox(
                                     width: 90,
-                                    child: Text('Sesi / Waktu', style: TextStyle(color: headerText, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    child: Text(
+                                        AppLocalization.isIndonesian ? 'Sesi / Waktu' : 'Session / Time',
+                                        style: TextStyle(color: headerText, fontSize: 10, fontWeight: FontWeight.bold)),
                                   ),
                                   SizedBox(
                                     width: 70,
-                                    child: Text('Ruangan', style: TextStyle(color: headerText, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    child: Text(
+                                        AppLocalization.isIndonesian ? 'Ruangan' : 'Room',
+                                        style: TextStyle(color: headerText, fontSize: 10, fontWeight: FontWeight.bold)),
                                   ),
                                   Expanded(
-                                    child: Text('Mata Pelajaran', style: TextStyle(color: headerText, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    child: Text(
+                                        AppLocalization.isIndonesian ? 'Mata Pelajaran' : 'Subject',
+                                        style: TextStyle(color: headerText, fontSize: 10, fontWeight: FontWeight.bold)),
                                   ),
                                   Expanded(
-                                    child: Text('Pengawas', style: TextStyle(color: headerText, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    child: Text(
+                                        AppLocalization.isIndonesian ? 'Pengawas' : 'Proctor',
+                                        style: TextStyle(color: headerText, fontSize: 10, fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               ),
@@ -4391,7 +4898,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        slotName,
+                                        slotName.replaceAll('Sesi', AppLocalization.isIndonesian ? 'Sesi' : 'Session'),
                                         style: const TextStyle(
                                           color: Color(0xFF8B5CF6),
                                           fontSize: 11,
@@ -4420,8 +4927,11 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                       .map((s) => "${(s['classes'] as List<String>).join(', ')} : ${s['subjectName']}")
                                       .join(', ');
 
-                                  final proctorName = sampleRoomSession['proctorName'] as String;
-                                  final proctorId = sampleRoomSession['proctorId'] as String;
+                                  final rawProctorName = sampleRoomSession['proctorName'] as String? ?? 'Belum ditugaskan';
+                                  final proctorName = (rawProctorName.isEmpty || rawProctorName == 'Belum ditugaskan' || rawProctorName == 'Not assigned')
+                                      ? (AppLocalization.isIndonesian ? 'Belum ditugaskan' : 'Not assigned')
+                                      : rawProctorName;
+                                  final proctorId = sampleRoomSession['proctorId'] as String? ?? '';
                                   final hasProctor = proctorId.isNotEmpty;
 
                                   return InkWell(
@@ -4579,7 +5089,9 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Rentang tanggal belum ditentukan di Step 1. Silakan tentukan tanggal ujian untuk menyusun jadwal.',
+                AppLocalization.isIndonesian
+                    ? 'Rentang tanggal belum ditentukan di Step 1. Silakan tentukan tanggal ujian untuk menyusun jadwal.'
+                    : 'Date range not defined in Step 1. Please specify exam dates to arrange the schedule.',
                 style: TextStyle(color: subtitleColor, fontSize: 13),
               ),
             ),
@@ -4591,23 +5103,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Jadwal Ujian & Mata Pelajaran',
-          style: TextStyle(
-            color: titleColor,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Tentukan hari dan slot waktu untuk masing-masing mata pelajaran. Satu mata pelajaran hanya bisa dijadwalkan sekali.',
-          style: TextStyle(color: subtitleColor, fontSize: 12),
-        ),
-        const SizedBox(height: 12),
+
         ...days.map((day) {
           final dayStr = DateFormat('yyyy-MM-dd').format(day);
-          final dayLabel = DateFormat('EEEE, dd MMMM yyyy', 'id').format(day);
+          final dayLabel = DateFormat('EEEE, dd MMMM yyyy', AppLocalization.isIndonesian ? 'id' : 'en').format(day);
 
           return Container(
             margin: const EdgeInsets.only(bottom: 20),
@@ -4660,7 +5159,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  slot.name,
+                                  slot.name.replaceAll('Sesi', AppLocalization.isIndonesian ? 'Sesi' : 'Session'),
                                   style: TextStyle(
                                     color: titleColor,
                                     fontWeight: FontWeight.bold,
@@ -4744,22 +5243,20 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                         return !scheduledInOtherSlots.contains(sub.subjectId);
                                       }).toList();
 
-                                      // Safety check: ensure selected value is in the items list to prevent crash
-                                      if (selectedSubjectId != null && !availableSubjects.any((sub) => sub.subjectId == selectedSubjectId)) {
-                                        final matched = classSubjects.firstWhere(
-                                          (sub) => sub.subjectId == selectedSubjectId,
-                                          orElse: () => ExamSubjectConfig(
-                                            subjectId: selectedSubjectId,
-                                            subjectName: '',
-                                            classIds: [],
-                                            authorTeacherIds: [],
-                                            authorTeacherNames: [],
-                                          ),
-                                        );
-                                        if (matched.subjectName.isNotEmpty) {
-                                          availableSubjects.add(matched);
-                                        }
-                                      }
+// Safety check: ensure selected value is in the items list to prevent crash
+                                       if (selectedSubjectId != null && !availableSubjects.any((sub) => sub.subjectId == selectedSubjectId)) {
+                                         final matched = _subjectConfigs.firstWhere(
+                                           (sub) => sub.subjectId == selectedSubjectId,
+                                           orElse: () => ExamSubjectConfig(
+                                             subjectId: selectedSubjectId,
+                                             subjectName: AppLocalization.isIndonesian ? 'Loading mapel...' : 'Loading subject...',
+                                             classIds: [],
+                                             authorTeacherIds: [],
+                                             authorTeacherNames: [],
+                                           ),
+                                         );
+                                         availableSubjects.add(matched);
+                                       }
                                       
                                       return Padding(
                                         padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -4795,7 +5292,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                                   child: DropdownButton<String>(
                                                     value: selectedSubjectId,
                                                     hint: Text(
-                                                      'Pilih Mata Pelajaran',
+                                                      AppLocalization.isIndonesian ? 'Pilih Mata Pelajaran' : 'Select Subject',
                                                       style: TextStyle(
                                                         color: subtitleColor,
                                                         fontSize: 11,
@@ -4809,11 +5306,13 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                                       fontWeight: selectedSubjectId != null ? FontWeight.bold : FontWeight.normal,
                                                     ),
                                                     items: [
-                                                      const DropdownMenuItem<String>(
+                                                      DropdownMenuItem<String>(
                                                         value: null,
                                                         child: Text(
-                                                          'Kosong / Tidak ada ujian',
-                                                          style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                                                          AppLocalization.isIndonesian
+                                                              ? 'Kosong / Tidak ada ujian'
+                                                              : 'Empty / No exam',
+                                                          style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
                                                         ),
                                                       ),
                                                       ...availableSubjects.map((sub) {
@@ -4912,14 +5411,18 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
   void _autoAssignProctors() {
     if (_allTeachers.isEmpty) {
-      _showError('Tidak ada data guru untuk ditugaskan sebagai pengawas.');
+      _showError(AppLocalization.isIndonesian
+          ? 'Tidak ada data guru untuk ditugaskan sebagai pengawas.'
+          : 'No teacher data available to assign as proctors.');
       return;
     }
 
     // Compile sessions first if not yet done
     if (_draftSessions.isEmpty) {
       if (_scheduledSubjects.isEmpty) {
-        _showError('Jadwal mata pelajaran belum dikonfigurasi di Step sebelumnya.');
+        _showError(AppLocalization.isIndonesian
+            ? 'Jadwal mata pelajaran belum dikonfigurasi di Step sebelumnya.'
+            : 'Subject schedule has not been configured in the previous step.');
         return;
       }
       _compileDraftSessions();
@@ -5115,7 +5618,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       final room = _rooms[index];
       final List<String> roomClassNames = room.classes.map((c) => c.split(':')[0]).toList();
 
-      // For each class, retrieve its unassigned students and sort them alphabetically
+      // For each class, retrieve its unassigned students
       final Map<String, List<Map<String, dynamic>>> classStudents = {};
       for (final rawCls in room.classes) {
         final parts = rawCls.split(':');
@@ -5138,7 +5641,12 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
               });
             }
           }
-          unassigned.sort((a, b) => (a['nama'] as String).compareTo(b['nama'] as String));
+          
+          if (_isRandom) {
+            unassigned.shuffle();
+          } else {
+            unassigned.sort((a, b) => (a['nama'] as String).compareTo(b['nama'] as String));
+          }
 
           // Get the target count configured for this class in this room
           int targetCount = unassigned.length;
@@ -5157,37 +5665,98 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
       // Filter to keep only classes that actually have remaining students to place
       final List<String> activeClasses = roomClassNames.where((clsName) => classStudents[clsName]?.isNotEmpty ?? false).toList();
-      final Map<String, int> classIndices = { for (var c in activeClasses) c : 0 };
-
       final List<Map<String, dynamic>> interleaved = [];
       int seatNumber = 1;
-      int classPointer = 0;
 
-      while (seatNumber <= room.capacity && activeClasses.isNotEmpty) {
-        final clsName = activeClasses[classPointer];
-        final students = classStudents[clsName]!;
-        final idx = classIndices[clsName]!;
-
-        if (idx < students.length) {
-          final student = students[idx];
-          final copy = Map<String, dynamic>.from(student);
-          copy['seatNumber'] = seatNumber;
-          interleaved.add(copy);
-          assignedStudentIds.add(student['id'] as String);
-
-          classIndices[clsName] = idx + 1;
-          seatNumber++;
-
-          // Move pointer to the next active class
-          if (activeClasses.isNotEmpty) {
-            classPointer = (classPointer + 1) % activeClasses.length;
+      if (_isZigzag) {
+        // Group active classes by cohort/angkatan
+        final Map<String, List<String>> cohortToClassesMap = {};
+        for (final clsName in activeClasses) {
+          final clsObj = _allClasses.firstWhere((c) => c['name'] == clsName, orElse: () => {});
+          final classId = clsObj['id'] ?? '';
+          final students = _studentsByClass[classId] ?? [];
+          String cohort = '';
+          if (students.isNotEmpty) {
+            final counts = <String, int>{};
+            for (final s in students) {
+              final a = s['angkatan'] as String;
+              counts[a] = (counts[a] ?? 0) + 1;
+            }
+            cohort = counts.entries.reduce((a, b) => a.value > b.value ? a : b).key;
           }
-        } else {
-          // This class is exhausted, remove it from round-robin rotation
-          activeClasses.removeAt(classPointer);
-          if (activeClasses.isNotEmpty) {
-            classPointer = classPointer % activeClasses.length;
+          if (cohort.isEmpty) {
+            if (clsName.contains('XII') || clsName.contains('12')) {
+              cohort = '2022';
+            } else if (clsName.contains('XI') || clsName.contains('11')) {
+              cohort = '2023';
+            } else {
+              cohort = '2024';
+            }
           }
+          cohortToClassesMap.putIfAbsent(cohort, () => []).add(clsName);
+        }
+
+        // Sort class names alphabetically inside each cohort to be deterministic
+        cohortToClassesMap.forEach((cohort, list) => list.sort());
+
+        // Interleave classes from different cohorts
+        final List<String> sortedCohorts = cohortToClassesMap.keys.toList()..sort();
+        final List<String> orderedActiveClasses = [];
+        if (sortedCohorts.isNotEmpty) {
+          int maxLen = cohortToClassesMap.values.map((l) => l.length).reduce((a, b) => a > b ? a : b);
+          for (int step = 0; step < maxLen; step++) {
+            for (final cohort in sortedCohorts) {
+              final list = cohortToClassesMap[cohort]!;
+              if (step < list.length) {
+                orderedActiveClasses.add(list[step]);
+              }
+            }
+          }
+        }
+
+        final Map<String, int> classIndices = { for (var c in orderedActiveClasses) c : 0 };
+        int classPointer = 0;
+
+        while (seatNumber <= room.capacity && orderedActiveClasses.isNotEmpty) {
+          final clsName = orderedActiveClasses[classPointer];
+          final students = classStudents[clsName]!;
+          final idx = classIndices[clsName]!;
+
+          if (idx < students.length) {
+            final student = students[idx];
+            final copy = Map<String, dynamic>.from(student);
+            copy['seatNumber'] = seatNumber;
+            interleaved.add(copy);
+            assignedStudentIds.add(student['id'] as String);
+
+            classIndices[clsName] = idx + 1;
+            seatNumber++;
+
+            // Move pointer to the next active class
+            if (orderedActiveClasses.isNotEmpty) {
+              classPointer = (classPointer + 1) % orderedActiveClasses.length;
+            }
+          } else {
+            // This class is exhausted, remove it from round-robin rotation
+            orderedActiveClasses.removeAt(classPointer);
+            if (orderedActiveClasses.isNotEmpty) {
+              classPointer = classPointer % orderedActiveClasses.length;
+            }
+          }
+        }
+      } else {
+        // Sequential allocation (not zigzag)
+        for (final clsName in roomClassNames) {
+          final students = classStudents[clsName] ?? [];
+          for (final student in students) {
+            if (seatNumber > room.capacity) break;
+            final copy = Map<String, dynamic>.from(student);
+            copy['seatNumber'] = seatNumber;
+            interleaved.add(copy);
+            assignedStudentIds.add(student['id'] as String);
+            seatNumber++;
+          }
+          if (seatNumber > room.capacity) break;
         }
       }
 

@@ -137,7 +137,14 @@ class _TeacherSubjectPageState extends State<TeacherSubjectPage> {
                           );
                         }
 
-                        final docs = snapshot.data!.docs;
+                        final docs = List.from(snapshot.data!.docs);
+                        docs.sort((a, b) {
+                          final aData = a.data() as Map<String, dynamic>;
+                          final bData = b.data() as Map<String, dynamic>;
+                          final aName = (aData['namaMapel'] ?? '').toString().toLowerCase();
+                          final bName = (bData['namaMapel'] ?? '').toString().toLowerCase();
+                          return aName.compareTo(bName);
+                        });
 
                         if (docs.isEmpty) {
                           final emptyStateBgColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03);
