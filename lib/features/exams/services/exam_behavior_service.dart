@@ -57,6 +57,19 @@ class ExamBehaviorService {
         .snapshots();
   }
 
+  /// Memantau behavior seluruh murid pada beberapa sesi ujian sekaligus secara realtime
+  Stream<QuerySnapshot<Map<String, dynamic>>> getExamBehaviorStreamForSessions({
+    required String schoolId,
+    required List<String> sessionIds,
+  }) {
+    if (sessionIds.isEmpty) {
+      return const Stream.empty();
+    }
+    return _behaviorRef(schoolId)
+        .where('sessionId', whereIn: sessionIds)
+        .snapshots();
+  }
+
   /// Menghapus semua behavior records untuk satu sesi ujian tertentu (saat sesi diakhiri/dihapus)
   Future<void> deleteExamBehaviorForSession({
     required String schoolId,

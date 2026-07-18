@@ -75,6 +75,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
   Set<String>? _expandedRooms;
   final Map<String, String> _scheduledSubjects = {};
   bool _isLoadingDraftFromFirestore = false;
+  String? _editingEventId;
   bool _isZigzag = true;
   bool _isRandom = false;
   int _maxAngkatanPerRoom = 2;
@@ -107,6 +108,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
       final scheduleJson = jsonEncode(_scheduledSubjects);
       await prefs.setString('exam_draft_schedule', scheduleJson);
+      await prefs.setString('exam_draft_event_id', _editingEventId ?? '');
       
       await prefs.setBool('exam_draft_exists', true);
 
@@ -115,6 +117,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       if (schoolId != null) {
         final db = FirebaseFirestore.instance;
         await db.collection('schools').doc(schoolId).collection('exam_drafts').doc('current').set({
+          'eventId': _editingEventId,
           'step': _currentStep,
           'title': _titleController.text,
           'examType': _examType,
@@ -155,6 +158,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       await prefs.remove('exam_draft_subject_configs');
       await prefs.remove('exam_draft_rooms');
       await prefs.remove('exam_draft_schedule');
+      await prefs.remove('exam_draft_event_id');
       await prefs.remove('exam_draft_exists');
 
       // Clear from Firestore
@@ -177,8 +181,10 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       final slotsJson = prefs.getString('exam_draft_slots') ?? '';
       final configsJson = prefs.getString('exam_draft_subject_configs') ?? '';
       final roomsJson = prefs.getString('exam_draft_rooms') ?? '';
+      final eventId = prefs.getString('exam_draft_event_id') ?? '';
 
       setState(() {
+        _editingEventId = eventId.isEmpty ? null : eventId;
         _currentStep = step;
         _titleController.text = title;
         _examType = type;
@@ -298,6 +304,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
       if (doc.exists && mounted) {
         final data = doc.data()!;
         setState(() {
+          _editingEventId = data['eventId'] as String?;
           _currentStep = data['step'] ?? 0;
           _titleController.text = data['title'] ?? '';
           _examType = data['examType'] ?? 'UTS';
@@ -368,6 +375,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
   /// Load semua field dari ExamEvent yang sudah ada (mode Edit)
   void _loadFromEvent(ExamEvent ev) {
+    _editingEventId = ev.id;
     _titleController.text = ev.title;
     _examType = ev.examType;
     _startDate = ev.startDate;
@@ -924,7 +932,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                               : ElevatedButton.icon(
                                   onPressed: _isGenerating
                                       ? null
-                                      : (widget.editEvent != null
+                                      : ((widget.editEvent != null || _editingEventId != null)
                                           ? _saveAndUpdateEvent
                                           : _saveAndCreateEvent),
                                   icon: _isGenerating
@@ -939,7 +947,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
                                           size: 18),
                                   label: Text(_isGenerating
                                       ? (AppLocalization.isIndonesian ? 'Menyimpan...' : 'Saving...')
-                                      : widget.editEvent != null
+                                      : (widget.editEvent != null || _editingEventId != null)
                                           ? (AppLocalization.isIndonesian ? 'Simpan Perubahan' : 'Save Changes')
                                           : (AppLocalization.isIndonesian ? 'Simpan & Buat Jadwal' : 'Save & Generate')),
                                   style: ElevatedButton.styleFrom(
@@ -3666,7 +3674,12 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
     try {
       final schoolId = SessionService.currentUser!.schoolId;
-      final eventId  = widget.editEvent!.id;
+      final eventId = _editingEventId ?? widget.editEvent?.id;
+      if (eventId == null) {
+        _showError(AppLocalization.isIndonesian ? 'ID Event tidak ditemukan' : 'Event ID not found');
+        setState(() => _isGenerating = false);
+        return;
+      }
       final db       = FirebaseFirestore.instance;
 
       // 1. Update exam_event document
@@ -3816,6 +3829,7 @@ class _AdminExamGeneratorPageState extends State<AdminExamGeneratorPage> {
 
       if (mounted) {
         setState(() => _isGenerating = false);
+        await _clearDraft();
         Get.back(); // back to event list
         Get.snackbar(
           AppLocalization.isIndonesian ? 'Berhasil Diperbarui' : 'Updated',

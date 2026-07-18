@@ -341,7 +341,9 @@ class ExamParticipation {
   final int seatNumber;
   final String roomName;
   final String angkatan;
+  final String? className;
   final DateTime? submittedAt; // Waktu murid mengumpulkan ujian
+  final String sessionId; // id sesi asal (untuk multi-sesi per ruangan)
 
   const ExamParticipation({
     required this.studentId,
@@ -352,12 +354,19 @@ class ExamParticipation {
     required this.seatNumber,
     required this.roomName,
     required this.angkatan,
+    this.className,
     this.submittedAt,
+    this.sessionId = '',
   });
 
   factory ExamParticipation.fromFirestore(
       DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
+    // sessionId disimpan sebagai field opsional, atau bisa diisi dari path
+    final sidFromData = data['sessionId']?.toString() ?? '';
+    // path: schools/{}/exam_sessions/{sessionId}/participations/{studentId}
+    final pathParts = doc.reference.path.split('/');
+    final sidFromPath = pathParts.length >= 4 ? pathParts[pathParts.length - 3] : '';
     return ExamParticipation(
       studentId: doc.id,
       studentName: data['studentName'] ?? '',
@@ -367,7 +376,9 @@ class ExamParticipation {
       seatNumber: data['seatNumber'] as int? ?? 0,
       roomName: data['roomName'] ?? '',
       angkatan: data['angkatan'] ?? '',
+      className: data['className'],
       submittedAt: (data['submittedAt'] as Timestamp?)?.toDate(),
+      sessionId: sidFromData.isNotEmpty ? sidFromData : sidFromPath,
     );
   }
 
@@ -380,6 +391,7 @@ class ExamParticipation {
         'seatNumber': seatNumber,
         'roomName': roomName,
         'angkatan': angkatan,
+        if (className != null) 'className': className,
         if (submittedAt != null) 'submittedAt': Timestamp.fromDate(submittedAt!),
       };
 }

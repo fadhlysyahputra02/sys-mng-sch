@@ -424,15 +424,41 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                     final submissions = submissionSnapshot.data ?? [];
 
                     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: StudentService().getStudentsByClass(exam.classId, schoolId: user.schoolId),
+                      stream: StudentService().getStudentsBySchool(user.schoolId),
                       builder: (context, studentSnapshot) {
                         if (studentSnapshot.connectionState == ConnectionState.waiting) {
                           return const Center(child: CircularProgressIndicator());
                         }
 
-                        final studentDocs = studentSnapshot.data?.docs ?? [];
+                        final allStudentDocs = studentSnapshot.data?.docs ?? [];
+
+                        // Parse comma-separated classIds from exam (e.g. "X IPS 1, X IPS 2")
+                        final examClassIds = exam.classId
+                            .split(',')
+                            .map((s) => s.trim())
+                            .where((s) => s.isNotEmpty)
+                            .toSet();
+
+                        // Build studentId -> classId mapping for filtering
+                        final Map<String, String> studentIdToClassId = {
+                          for (final doc in allStudentDocs)
+                            doc.id: (doc.data()['classId'] ?? '').toString().trim(),
+                        };
+
+                        // Only students whose classId belongs to this exam's class(es)
+                        final studentDocs = allStudentDocs
+                            .where((doc) => examClassIds.contains(
+                                (doc.data()['classId'] ?? '').toString().trim()))
+                            .toList();
+
+                        // Filter submissions to only students in exam's class(es)
+                        final classSubmissions = submissions.where((sub) {
+                          final studentClassId = studentIdToClassId[sub.studentId] ?? '';
+                          return examClassIds.isEmpty || examClassIds.contains(studentClassId);
+                        }).toList();
+
                         final Map<String, ExamSubmission> submissionMap = {
-                          for (var sub in submissions) sub.studentId: sub
+                          for (var sub in classSubmissions) sub.studentId: sub
                         };
 
                         final notSubmittedStudents = studentDocs.where((doc) => !submissionMap.containsKey(doc.id)).toList();
@@ -453,7 +479,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                               tabs: [
                                 Tab(
                                   child: Text(
-                                    '${AppLocalization.isIndonesian ? 'Sudah' : 'Submitted'} (${submissions.length})',
+                                    '${AppLocalization.isIndonesian ? 'Sudah' : 'Submitted'} (${classSubmissions.length})',
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                 ),
@@ -470,7 +496,7 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                               child: TabBarView(
                                 children: [
                                   // TAB 1: SUDAH MENGERJAKAN
-                                  submissions.isEmpty
+                                  classSubmissions.isEmpty
                                       ? Center(
                                           child: Text(
                                             AppLocalization.isIndonesian
@@ -482,9 +508,9 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                                         )
                                       : ListView.builder(
                                           physics: const BouncingScrollPhysics(),
-                                          itemCount: submissions.length,
+                                          itemCount: classSubmissions.length,
                                           itemBuilder: (context, index) {
-                                            final sub = submissions[index];
+                                            final sub = classSubmissions[index];
                                             final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(sub.submittedAt);
                                             final hasEssay = exam.questions.any((q) => q.type == 'essay');
 

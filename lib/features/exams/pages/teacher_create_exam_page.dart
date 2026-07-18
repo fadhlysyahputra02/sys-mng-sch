@@ -49,7 +49,13 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
   void initState() {
     super.initState();
     if (widget.classMap.isNotEmpty) {
-      _selectedClassId = widget.classMap.keys.first;
+      final sortedKeys = widget.classMap.keys.toList()
+        ..sort((a, b) {
+          final nameA = widget.classMap[a]?['className']?.toString().toLowerCase() ?? '';
+          final nameB = widget.classMap[b]?['className']?.toString().toLowerCase() ?? '';
+          return nameA.compareTo(nameB);
+        });
+      _selectedClassId = sortedKeys.first;
     }
     // Default tambahkan 1 soal kosong
     _addQuestion();
@@ -321,6 +327,15 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
           totalExamPoints += pts;
         }
 
+        final reached100 = totalExamPoints >= 100;
+        final pointsColor = reached100 ? const Color(0xFF10B981) : const Color(0xFF8B5CF6);
+        final containerBgColor = reached100 
+            ? const Color(0xFF10B981).withValues(alpha: 0.1) 
+            : const Color(0xFF8B5CF6).withValues(alpha: 0.1);
+        final containerBorderColor = reached100 
+            ? const Color(0xFF10B981).withValues(alpha: 0.3) 
+            : const Color(0xFF8B5CF6).withValues(alpha: 0.3);
+
         final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white;
@@ -399,12 +414,20 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     ),
                                   ),
                                   style: TextStyle(color: titleColor, fontSize: 14),
-                                  items: widget.classMap.keys.map((classId) {
-                                    return DropdownMenuItem(
-                                      value: classId,
-                                      child: Text(widget.classMap[classId]?['className']?.toString() ?? ''),
-                                    );
-                                  }).toList(),
+                                  items: (() {
+                                    final sortedKeys = widget.classMap.keys.toList()
+                                      ..sort((a, b) {
+                                        final nameA = widget.classMap[a]?['className']?.toString().toLowerCase() ?? '';
+                                        final nameB = widget.classMap[b]?['className']?.toString().toLowerCase() ?? '';
+                                        return nameA.compareTo(nameB);
+                                      });
+                                    return sortedKeys.map((classId) {
+                                      return DropdownMenuItem(
+                                        value: classId,
+                                        child: Text(widget.classMap[classId]?['className']?.toString() ?? ''),
+                                      );
+                                    }).toList();
+                                  })(),
                                   onChanged: (val) {
                                     setState(() {
                                       _selectedClassId = val;
@@ -957,9 +980,9 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                  color: containerBgColor,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                                  border: Border.all(color: containerBorderColor),
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -974,10 +997,10 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                     ),
                                     Text(
                                       '$totalExamPoints ${AppLocalization.isIndonesian ? 'Poin' : 'Points'}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
-                                        color: Color(0xFF8B5CF6),
+                                        color: pointsColor,
                                       ),
                                     ),
                                   ],

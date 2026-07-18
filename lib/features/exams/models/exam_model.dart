@@ -77,6 +77,8 @@ class Exam {
   final String status;
   final List<ExamQuestion> questions;
   final List<String> susulanStudentIds;
+  final bool shufflePg;
+  final bool shuffleEssay;
 
   Exam({
     required this.id,
@@ -100,6 +102,8 @@ class Exam {
     required this.status,
     required this.questions,
     this.susulanStudentIds = const [],
+    this.shufflePg = false,
+    this.shuffleEssay = false,
   });
   
   Exam copyWith({
@@ -124,6 +128,8 @@ class Exam {
     String? status,
     List<ExamQuestion>? questions,
     List<String>? susulanStudentIds,
+    bool? shufflePg,
+    bool? shuffleEssay,
   }) {
     return Exam(
       id: id ?? this.id,
@@ -147,6 +153,8 @@ class Exam {
       status: status ?? this.status,
       questions: questions ?? this.questions,
       susulanStudentIds: susulanStudentIds ?? this.susulanStudentIds,
+      shufflePg: shufflePg ?? this.shufflePg,
+      shuffleEssay: shuffleEssay ?? this.shuffleEssay,
     );
   }
 
@@ -190,6 +198,8 @@ class Exam {
       status: data['status'] ?? 'active',
       questions: questionsList,
       susulanStudentIds: List<String>.from(data['susulanStudentIds'] ?? []),
+      shufflePg: data['shufflePg'] as bool? ?? false,
+      shuffleEssay: data['shuffleEssay'] as bool? ?? false,
     );
   }
 
@@ -215,6 +225,8 @@ class Exam {
       'status': status,
       'questions': questions.map((q) => q.toMap()).toList(),
       'susulanStudentIds': susulanStudentIds,
+      'shufflePg': shufflePg,
+      'shuffleEssay': shuffleEssay,
     };
   }
 }

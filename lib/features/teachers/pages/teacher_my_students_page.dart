@@ -285,68 +285,24 @@ class _TeacherMyStudentsPageState extends State<TeacherMyStudentsPage> {
                                 );
                               }
 
-                              // Calculate Stats
-                              int totalMale = 0;
-                              int totalFemale = 0;
-                              for (var s in filteredStudents) {
-                                final gender = s.data()['jenisKelamin']?.toString().toUpperCase() ?? 'L';
-                                if (gender == 'P' || gender == 'PEREMPUAN' || gender == 'FEMALE') {
-                                  totalFemale++;
-                                } else {
-                                  totalMale++;
-                                }
-                              }
-
                               return SliverPadding(
                                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                                 sliver: SliverList(
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
                                       if (index == 0) {
-                                        // Stats Cards Row
+                                        // Stats Card (Only Total Students)
                                         return Padding(
                                           padding: const EdgeInsets.only(bottom: 16),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
-                                                child: _buildStatCard(
-                                                  AppLocalization.isIndonesian ? 'Total Siswa' : 'Total Students',
-                                                  filteredStudents.length.toString(),
-                                                  Icons.groups_rounded,
-                                                  const Color(0xFF3B82F6),
-                                                  cardBgColor,
-                                                  cardBorderColor,
-                                                  titleColor,
-                                                  subTextColor,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: _buildStatCard(
-                                                  AppLocalization.isIndonesian ? 'Laki-laki' : 'Male',
-                                                  totalMale.toString(),
-                                                  Icons.male_rounded,
-                                                  const Color(0xFF0EA5E9),
-                                                  cardBgColor,
-                                                  cardBorderColor,
-                                                  titleColor,
-                                                  subTextColor,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: _buildStatCard(
-                                                  AppLocalization.isIndonesian ? 'Perempuan' : 'Female',
-                                                  totalFemale.toString(),
-                                                  Icons.female_rounded,
-                                                  const Color(0xFFEC4899),
-                                                  cardBgColor,
-                                                  cardBorderColor,
-                                                  titleColor,
-                                                  subTextColor,
-                                                ),
-                                              ),
-                                            ],
+                                          child: _buildStatCard(
+                                            AppLocalization.isIndonesian ? 'Total Siswa' : 'Total Students',
+                                            filteredStudents.length.toString(),
+                                            Icons.groups_rounded,
+                                            const Color(0xFF3B82F6),
+                                            cardBgColor,
+                                            cardBorderColor,
+                                            titleColor,
+                                            subTextColor,
                                           ),
                                         );
                                       }
@@ -356,27 +312,44 @@ class _TeacherMyStudentsPageState extends State<TeacherMyStudentsPage> {
                                       final studentData = studentDoc.data();
                                       final name = studentData['nama'] ?? 'Murid';
                                       final nis = studentData['nis'] ?? '-';
-                                      final gender = studentData['jenisKelamin']?.toString().toUpperCase() ?? 'L';
-                                      final isFemale = gender == 'P' || gender == 'PEREMPUAN' || gender == 'FEMALE';
+                                      final studentId = studentData['studentId'] ?? studentDoc.id;
 
-                                      return Container(
-                                        margin: const EdgeInsets.only(bottom: 12),
-                                        decoration: BoxDecoration(
-                                          color: cardBgColor,
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(color: cardBorderColor),
-                                        ),
-                                        child: ListTile(
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                          leading: CircleAvatar(
-                                            radius: 24,
-                                            backgroundColor: isFemale 
-                                                ? const Color(0xFFEC4899).withValues(alpha: 0.15)
-                                                : const Color(0xFF0EA5E9).withValues(alpha: 0.15),
-                                            child: Icon(
-                                              isFemale ? Icons.female_rounded : Icons.male_rounded,
-                                              color: isFemale ? const Color(0xFFEC4899) : const Color(0xFF0EA5E9),
-                                              size: 26,
+                                      return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                                        future: FirebaseFirestore.instance
+                                            .collection('schools')
+                                            .doc(widget.schoolId)
+                                            .collection('students')
+                                            .doc(studentId)
+                                            .get(),
+                                        builder: (context, studentSnap) {
+                                          String gender = 'Laki-laki';
+                                          if (studentSnap.hasData && studentSnap.data!.exists) {
+                                            final sData = studentSnap.data!.data();
+                                            if (sData != null) {
+                                              gender = sData['gender'] ?? sData['jenisKelamin'] ?? 'Laki-laki';
+                                            }
+                                          }
+                                          final genderUpper = gender.toUpperCase();
+                                          final isFemale = genderUpper.startsWith('P') || genderUpper.startsWith('F');
+
+                                          return Container(
+                                            margin: const EdgeInsets.only(bottom: 12),
+                                            decoration: BoxDecoration(
+                                              color: cardBgColor,
+                                              borderRadius: BorderRadius.circular(20),
+                                              border: Border.all(color: cardBorderColor),
+                                            ),
+                                            child: ListTile(
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                              leading: CircleAvatar(
+                                                radius: 24,
+                                                backgroundColor: isFemale 
+                                                    ? const Color(0xFFEC4899).withValues(alpha: 0.15)
+                                                    : const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+                                                child: Icon(
+                                                  isFemale ? Icons.female_rounded : Icons.male_rounded,
+                                                  color: isFemale ? const Color(0xFFEC4899) : const Color(0xFF0EA5E9),
+                                                  size: 26,
                                                 ),
                                               ),
                                               title: Text(
@@ -393,6 +366,8 @@ class _TeacherMyStudentsPageState extends State<TeacherMyStudentsPage> {
                                             ),
                                           );
                                         },
+                                      );
+                                    },
                                         childCount: filteredStudents.length + 1,
                                       ),
                                     ),

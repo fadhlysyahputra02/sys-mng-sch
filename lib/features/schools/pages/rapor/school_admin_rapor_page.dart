@@ -7,6 +7,7 @@ import '../../../authentication/widgets/auth_background.dart';
 import '../../../teachers/pages/teacher_rapor_detail_page.dart';
 import '../classes/data/class_service.dart';
 import '../../../../core/localization/app_localization.dart';
+import 'pages/admin_rapor_settings_page.dart';
 
 class SchoolAdminRaporPage extends StatefulWidget {
   final bool hideBackButton;
@@ -29,6 +30,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
   String _selectedClassName = '';
   String? _selectedClassTeacherId;
 
+  String _schoolName = '';
   String _activeSemester = 'Semester 1';
   String _tahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
   bool _isLoadingSchool = true;
@@ -170,6 +172,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         setState(() {
+          _schoolName = data['namaSekolah'] ?? data['name'] ?? data['nama'] ?? '';
           _activeSemester = data['semester'] as String? ?? 'Semester 1';
           _tahunAjaran = data['tahunAjaran'] as String? ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
         });
@@ -256,6 +259,24 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                           AppLocalization.isIndonesian ? 'E-Rapor Siswa (Admin)' : 'Student E-Report Card (Admin)',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
                         ),
+                        actions: [
+                          Container(
+                            margin: const EdgeInsets.only(right: 16),
+                            decoration: BoxDecoration(
+                              color: iconBgColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.settings_suggest_rounded, size: 20),
+                              onPressed: () {
+                                Get.to(() => AdminRaporSettingsPage(
+                                      schoolId: schoolId,
+                                      defaultSchoolName: _schoolName,
+                                    ));
+                              },
+                            ),
+                          ),
+                        ],
                       ),
 
                       // Selection Header & Class Dropdown

@@ -1149,6 +1149,8 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                               .get(),
                           builder: (context, qSnap) {
                             List<ExamQuestion> finalQuestions = exam.questions;
+                            bool finalShufflePg = exam.shufflePg;
+                            bool finalShuffleEssay = exam.shuffleEssay;
                             
                             if (qSnap.hasData && qSnap.data!.exists && qSnap.data!.data() != null) {
                               final qData = qSnap.data!.data()!;
@@ -1157,6 +1159,8 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                                   .toList();
                               if (qList.isNotEmpty) {
                                 finalQuestions = qList;
+                                finalShufflePg = qData['shufflePg'] as bool? ?? false;
+                                finalShuffleEssay = qData['shuffleEssay'] as bool? ?? false;
                               }
                             }
 
@@ -1164,7 +1168,11 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                               return const Text('Soal Kosong', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold));
                             }
 
-                            final overriddenExam = exam.copyWith(questions: finalQuestions);
+                            final overriddenExam = exam.copyWith(
+                              questions: finalQuestions,
+                              shufflePg: finalShufflePg,
+                              shuffleEssay: finalShuffleEssay,
+                            );
 
                             _initSubmissionStream(overriddenExam.id);
                             return StreamBuilder<DocumentSnapshot>(

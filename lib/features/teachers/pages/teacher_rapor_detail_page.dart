@@ -7,6 +7,7 @@ import '../services/grade_service.dart';
 import '../services/rapor_service.dart';
 import '../services/rapor_pdf_helper.dart';
 import '../../../core/localization/app_localization.dart';
+import '../../schools/pages/rapor/models/rapor_pdf_settings.dart';
 
 class TeacherRaporDetailPage extends StatefulWidget {
   final String schoolId;
@@ -424,6 +425,16 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       subjectScores.sort((a, b) => a['name'].toString().compareTo(b['name'].toString()));
 
       // 3. Kirim data ke helper cetak PDF
+      RaporPdfSettings? customSettings;
+      try {
+        final settingsSnap = await _raporService.getRaporPdfSettings(widget.schoolId);
+        if (settingsSnap.exists && settingsSnap.data() != null) {
+          customSettings = RaporPdfSettings.fromMap(settingsSnap.data()!, _schoolName);
+        }
+      } catch (e) {
+        debugPrint('Error loading custom PDF settings: $e');
+      }
+
       await RaporPdfHelper.generateAndShowRaporPdf(
         schoolName: _schoolName,
         className: widget.className,
@@ -440,6 +451,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
         catatanWali: _catatanController.text,
         gradeTemplates: _gradeTemplates,
         logoBase64: _schoolLogoBase64,
+        settings: customSettings,
       );
     } catch (e, stackTrace) {
       debugPrint('Error generating PDF Report Card: $e\n$stackTrace');

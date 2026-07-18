@@ -33,6 +33,8 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
   int _durationMinutes = 90;
   List<ExamQuestion> _questions = [];
   bool _hasUnsavedChanges = false;
+  bool _shufflePg = false;
+  bool _shuffleEssay = false;
 
   int get _totalPoints {
     return _questions.fold(0, (sum, q) => sum + q.points);
@@ -273,6 +275,8 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         _durationMinutes = data['durationMinutes'] ?? 90;
+        _shufflePg = data['shufflePg'] as bool? ?? false;
+        _shuffleEssay = data['shuffleEssay'] as bool? ?? false;
         final qList = (data['questions'] as List? ?? [])
             .map((q) => ExamQuestion.fromMap(Map<String, dynamic>.from(q)))
             .toList();
@@ -281,7 +285,11 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
           _isLoading = false;
         });
       } else {
-        setState(() => _isLoading = false);
+        setState(() {
+          _shufflePg = false;
+          _shuffleEssay = false;
+          _isLoading = false;
+        });
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -312,6 +320,8 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
         'subjectName': widget.subjectName,
         'authorTeacherId': widget.teacherId,
         'durationMinutes': _durationMinutes,
+        'shufflePg': _shufflePg,
+        'shuffleEssay': _shuffleEssay,
         'questions': qListMap,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -324,6 +334,8 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
         subjectId: widget.subjectId,
         questionsList: qListMap,
         gradeLevel: _selectedGrade,
+        shufflePg: _shufflePg,
+        shuffleEssay: _shuffleEssay,
       );
 
       Get.back(); // Close loading dialog
@@ -801,6 +813,130 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    if (!_isLoading) ...[
+                      // Toggle Acak Soal
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: border),
+                        ),
+                        child: Column(
+                          children: [
+                            // Toggle 1: Pilihan Ganda
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.shuffle_rounded,
+                                      color: _shufflePg
+                                          ? const Color(0xFF8B5CF6)
+                                          : titleColor.withValues(alpha: 0.6),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          AppLocalization.isIndonesian ? 'Acak Pilihan Ganda' : 'Shuffle Multiple Choice',
+                                          style: TextStyle(
+                                            color: titleColor,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          AppLocalization.isIndonesian
+                                              ? 'Urutan soal pilihan ganda diacak untuk setiap siswa'
+                                              : 'Multiple choice questions order shuffled for each student',
+                                          style: TextStyle(
+                                            color: subTextColor,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                Switch(
+                                  value: _shufflePg,
+                                  activeColor: const Color(0xFF8B5CF6),
+                                  onChanged: _isExamLocked
+                                      ? null
+                                      : (val) {
+                                          setState(() {
+                                            _shufflePg = val;
+                                            _hasUnsavedChanges = true;
+                                          });
+                                        },
+                                ),
+                              ],
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Divider(color: border),
+                            ),
+                            // Toggle 2: Essay
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.shuffle_on_outlined,
+                                      color: _shuffleEssay
+                                          ? const Color(0xFF8B5CF6)
+                                          : titleColor.withValues(alpha: 0.6),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          AppLocalization.isIndonesian ? 'Acak Essay' : 'Shuffle Essay',
+                                          style: TextStyle(
+                                            color: titleColor,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          AppLocalization.isIndonesian
+                                              ? 'Urutan soal essay diacak untuk setiap siswa'
+                                              : 'Essay questions order shuffled for each student',
+                                          style: TextStyle(
+                                            color: subTextColor,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                Switch(
+                                  value: _shuffleEssay,
+                                  activeColor: const Color(0xFF8B5CF6),
+                                  onChanged: _isExamLocked
+                                      ? null
+                                      : (val) {
+                                          setState(() {
+                                            _shuffleEssay = val;
+                                            _hasUnsavedChanges = true;
+                                          });
+                                        },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     if (_isLoading)
                       const Expanded(child: Center(child: CircularProgressIndicator()))

@@ -337,6 +337,20 @@ class _TeacherProctorDashboardPageState
             .where((s) => computeEffectiveStatus(s) == 'Finished')
             .toList();
 
+        // Group by room + date + startTime so 1 room = 1 card
+        Map<String, List<ExamSession>> groupSessions(List<ExamSession> list) {
+          final grouped = <String, List<ExamSession>>{};
+          for (final s in list) {
+            final dateStr = DateFormat('yyyy-MM-dd').format(s.date);
+            final key = '${s.roomName}_${dateStr}_${s.startTime}';
+            grouped.putIfAbsent(key, () => []).add(s);
+          }
+          return grouped;
+        }
+
+        final upcomingGroups = groupSessions(upcoming);
+        final pastGroups = groupSessions(past);
+
         if (sessions.isEmpty) {
           return _buildEmptyState(
             isDark,
@@ -353,7 +367,7 @@ class _TeacherProctorDashboardPageState
         return ListView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
           children: [
-            if (upcoming.isNotEmpty) ...[
+            if (upcomingGroups.isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildSectionHeader(
                   AppLocalization.isIndonesian ? 'Jadwal Mendatang' : 'Upcoming Schedule',
@@ -362,12 +376,18 @@ class _TeacherProctorDashboardPageState
                   isDark,
                   titleColor),
               const SizedBox(height: 10),
-              ...upcoming.map((s) => _buildProctorSessionCard(
-                  s, isDark, cardColor, cardBorder, titleColor, subtitleColor,
+              ...upcomingGroups.entries.map((entry) {
+                final groupedSessions = entry.value;
+                final rep = groupedSessions.first; // representative session (for room/time)
+                return _buildProctorSessionCard(
+                  rep, isDark, cardColor, cardBorder, titleColor, subtitleColor,
                   schoolId,
-                  effectiveStatus: computeEffectiveStatus(s))),
+                  effectiveStatus: computeEffectiveStatus(rep),
+                  allSessionsInRoom: groupedSessions,
+                );
+              }),
             ],
-            if (past.isNotEmpty) ...[
+            if (pastGroups.isNotEmpty) ...[
               const SizedBox(height: 20),
               _buildSectionHeader(
                   AppLocalization.isIndonesian ? 'Selesai' : 'Finished',
@@ -376,11 +396,17 @@ class _TeacherProctorDashboardPageState
                   isDark,
                   titleColor),
               const SizedBox(height: 10),
-              ...past.map((s) => _buildProctorSessionCard(
-                  s, isDark, cardColor, cardBorder, titleColor, subtitleColor,
+              ...pastGroups.entries.map((entry) {
+                final groupedSessions = entry.value;
+                final rep = groupedSessions.first;
+                return _buildProctorSessionCard(
+                  rep, isDark, cardColor, cardBorder, titleColor, subtitleColor,
                   schoolId,
                   isFinished: true,
-                  effectiveStatus: 'Finished')),
+                  effectiveStatus: 'Finished',
+                  allSessionsInRoom: groupedSessions,
+                );
+              }),
             ],
           ],
         );
@@ -398,6 +424,7 @@ class _TeacherProctorDashboardPageState
     String schoolId, {
     bool isFinished = false,
     String? effectiveStatus,
+    List<ExamSession> allSessionsInRoom = const [],
   }) {
     final isToday = DateFormat('yyyy-MM-dd').format(session.date) ==
         DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -497,24 +524,51 @@ class _TeacherProctorDashboardPageState
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(session.subjectName,
-                    style: TextStyle(
-                        color: titleColor,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold)),
+                Text(
+                  AppLocalization.isIndonesian
+                      ? 'Ruang: ${session.roomName.isEmpty ? '-' : session.roomName}'
+                      : 'Room: ${session.roomName.isEmpty ? '-' : session.roomName}',
+                  style: TextStyle(
+                    color: titleColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   '${AppLocalization.isIndonesian ? DateFormat('EEEE, dd MMMM yyyy', 'id').format(session.date) : DateFormat('EEEE, MMMM dd, yyyy', 'en').format(session.date)} • ${session.startTime}–${session.endTime}',
                   style: TextStyle(color: subtitleColor, fontSize: 12),
                 ),
-                const SizedBox(height: 4),
-                Text('${AppLocalization.isIndonesian ? 'Kelas' : 'Class'}: ${session.className.isEmpty ? session.classId : session.className} • ${AppLocalization.isIndonesian ? 'Ruang' : 'Room'}: ${session.roomName.isEmpty ? '-' : session.roomName}',
-                    style: TextStyle(color: subtitleColor, fontSize: 12)),
+                const SizedBox(height: 8),
+                // Daftar mapel dalam ruangan ini
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: (allSessionsInRoom.isNotEmpty ? allSessionsInRoom : [session]).map((s) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.15)),
+                      ),
+                      child: Text(
+                        '${s.subjectName} (${s.className.isEmpty ? s.classId : s.className})',
+                        style: const TextStyle(
+                          color: Color(0xFF8B5CF6),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () => Get.to(() => ProctorRoomSeatingPage(
                         schoolId: schoolId,
                         session: session,
+                        allSessions: allSessionsInRoom,
                       )),
                   icon: const Icon(Icons.grid_on_rounded, size: 16, color: Color(0xFF8B5CF6)),
                   label: Text(AppLocalization.isIndonesian ? 'Denah Tempat Duduk' : 'Seating Plan',
@@ -957,21 +1011,37 @@ class _TeacherProctorDashboardPageState
 
                             final allStudentDocs = studentSnapshot.data?.docs ?? [];
 
-                            // Build school-wide studentId -> angkatan mapping
+                            // Parse comma-separated classIds (e.g. "X IPS 1, X IPS 2")
+                            final examClassIds = exam.classId
+                                .split(',')
+                                .map((s) => s.trim())
+                                .where((s) => s.isNotEmpty)
+                                .toSet();
+
+                            // Build school-wide maps: studentId -> angkatan & studentId -> classId
                             final Map<String, String> studentIdToAngkatan = {};
+                            final Map<String, String> studentIdToClassId = {};
                             for (final doc in allStudentDocs) {
                               final data = doc.data();
                               final ang = (data['angkatan'] ?? '').toString().trim();
                               studentIdToAngkatan[doc.id] = ang.isNotEmpty ? ang : 'Lainnya';
+                              studentIdToClassId[doc.id] = (data['classId'] ?? '').toString().trim();
                             }
 
-                            // Only students in this exam's class for "Belum" tab
+                            // Only students whose classId is in this exam's class(es)
                             final classStudentDocs = allStudentDocs
-                                .where((doc) => doc.data()['classId'] == exam.classId)
+                                .where((doc) => examClassIds.contains(
+                                    (doc.data()['classId'] ?? '').toString().trim()))
                                 .toList();
 
-                            // Collect unique angkatan values from submissions + class students
-                            final submissionAngkatans = submissions
+                            // Filter submissions to only students belonging to exam's classes
+                            final classSubmissions = submissions.where((sub) {
+                              final studentClassId = studentIdToClassId[sub.studentId] ?? '';
+                              return examClassIds.isEmpty || examClassIds.contains(studentClassId);
+                            }).toList();
+
+                            // Collect unique angkatan values from filtered submissions + class students
+                            final submissionAngkatans = classSubmissions
                                 .map((s) => studentIdToAngkatan[s.studentId] ?? 'Lainnya')
                                 .toSet();
                             final classAngkatans = classStudentDocs
@@ -984,7 +1054,7 @@ class _TeacherProctorDashboardPageState
                             final uniqueAngkatans = ['Semua', ...allAngkatans.toList()..sort()];
 
                             final Map<String, ExamSubmission> submissionMap = {
-                              for (var sub in submissions) sub.studentId: sub
+                              for (var sub in classSubmissions) sub.studentId: sub
                             };
 
                             final notSubmittedStudents = classStudentDocs
@@ -997,7 +1067,7 @@ class _TeacherProctorDashboardPageState
                             });
 
                             // Filter lists based on selectedAngkatan
-                            final filteredSubmissions = submissions.where((sub) {
+                            final filteredSubmissions = classSubmissions.where((sub) {
                               if (selectedAngkatan == 'Semua') return true;
                               return (studentIdToAngkatan[sub.studentId] ?? 'Lainnya') == selectedAngkatan;
                             }).toList();
@@ -1779,12 +1849,14 @@ class _TeacherProctorDashboardPageState
 // ─────────────────────────────────────────────────────────────
 class ProctorRoomSeatingPage extends StatefulWidget {
   final String schoolId;
-  final ExamSession session;
+  final ExamSession session; // representative session (room info)
+  final List<ExamSession> allSessions; // semua mapel di ruangan ini
 
   const ProctorRoomSeatingPage({
     super.key,
     required this.schoolId,
     required this.session,
+    this.allSessions = const [],
   });
 
   @override
@@ -1797,6 +1869,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
   int _desksPerGroup = 2;
   int _groupsPerRow = 3;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _behaviorStream;
+  late Stream<List<ExamParticipation>> _participationsStream;
 
   late final AnimationController _blinkController;
   late final Animation<Color?> _blinkColorAnimation;
@@ -1808,9 +1881,22 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
     super.initState();
     _desksController = TextEditingController(text: _desksPerGroup.toString());
     _groupsController = TextEditingController(text: _groupsPerRow.toString());
-    _behaviorStream = _behaviorService.getExamBehaviorStream(
+
+    // Ambil semua sesi dalam ruangan (termasuk representative)
+    final sessionIds = {
+      widget.session.id,
+      ...widget.allSessions.map((s) => s.id),
+    }.toList();
+
+    final service = ExamSessionService();
+    _participationsStream = service.getParticipationsForSessions(
       schoolId: widget.schoolId,
-      sessionId: widget.session.id,
+      sessionIds: sessionIds,
+    );
+
+    _behaviorStream = _behaviorService.getExamBehaviorStreamForSessions(
+      schoolId: widget.schoolId,
+      sessionIds: sessionIds,
     );
 
     // Red <-> Amber/Yellow color blinking animation (500ms duration, repeating)
@@ -1846,7 +1932,6 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
             ? Colors.white.withValues(alpha: 0.6)
             : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
         final scaffoldBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
-        final service = ExamSessionService();
 
         return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
@@ -1989,8 +2074,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
               ),
               body: AuthBackground(
                 child: StreamBuilder<List<ExamParticipation>>(
-                  stream: service.getParticipations(
-                      schoolId: widget.schoolId, sessionId: widget.session.id),
+                  stream: _participationsStream,
                   builder: (context, snap) {
                     if (snap.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -2044,8 +2128,91 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                         final rowCount = (maxSeat / colCount).ceil();
                         final seatMap = {for (var p in participations) p.seatNumber: p};
 
+                        // Map sessionId -> subjectName untuk tampilan per kursi
+                        final allSessionsList = [widget.session, ...widget.allSessions];
+                        final subjectBySession = {
+                          for (final s in allSessionsList) s.id: s.subjectName,
+                        };
+
                         return Column(
                           children: [
+                            // ── Header Info ───────────────────────────────────
+                            Container(
+                              margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  // Left: Proctor & Room
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                AppLocalization.isIndonesian
+                                                    ? 'Petugas: ${widget.session.proctorName}'
+                                                    : 'Proctor: ${widget.session.proctorName}',
+                                                style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.room_outlined, size: 14, color: subtitleColor),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              widget.session.roomName.isNotEmpty ? widget.session.roomName : (AppLocalization.isIndonesian ? 'Ruang Ujian' : 'Exam Room'),
+                                              style: TextStyle(color: subtitleColor, fontSize: 11),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Right: Exam Time + Countdown
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            widget.session.slotName,
+                                            style: TextStyle(color: subtitleColor, fontSize: 10, fontWeight: FontWeight.w600),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '${widget.session.startTime} – ${widget.session.endTime}',
+                                            style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      _SessionCountdownWidget(
+                                        session: widget.session,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
                             // ── Stats Bar ──────────────────────────────────────
                             _buildStatsBar(isDark,
                               total: participations.length,
@@ -2096,7 +2263,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                                   const double minCardWidth = 50.0;
                                   final calculatedWidth = (availableWidth - totalAisleWidth - totalCardMargins) / colCount;
                                   final cardWidth = calculatedWidth < minCardWidth ? minCardWidth : calculatedWidth.clamp(50.0, 180.0);
-                                  final cardHeight = (cardWidth * 1.15).clamp(65.0, 210.0);
+                                  final cardHeight = (cardWidth * 1.35).clamp(95.0, 240.0);
 
                                   return SingleChildScrollView(
                                     scrollDirection: Axis.vertical,
@@ -2117,6 +2284,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                                                   final student = seatMap[seatNum];
                                                   final behavior = student != null ? behaviorByStudent[student.studentId] : null;
                                                   final cc = student != null ? cohortColor(student.angkatan) : Colors.grey;
+                                                  final subName = student != null ? (subjectBySession[student.sessionId] ?? widget.session.subjectName) : '';
 
                                                   final card = _buildSeatCard(
                                                     isDark: isDark,
@@ -2128,6 +2296,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                                                     cardWidth: cardWidth,
                                                     cardHeight: cardHeight,
                                                     isFinished: isSessionFinished,
+                                                    subjectName: subName,
                                                   );
 
                                                   // Insert aisle gap after every group of desks
@@ -2232,6 +2401,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
     double cardWidth = 68,
     double cardHeight = 78,
     bool isFinished = false,
+    String subjectName = '',
   }) {
     // Empty slot
     if (student == null) {
@@ -2247,6 +2417,17 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
           style: TextStyle(color: subtitleColor.withValues(alpha: 0.25), fontSize: 7.5))),
       );
     }
+
+    final cleanRoom = student.roomName
+        .toLowerCase()
+        .replaceAll('ruangan', '')
+        .replaceAll('ruang', '')
+        .trim()
+        .toUpperCase();
+    final nomorPeserta = '${student.seatNumber}-$cleanRoom-${student.angkatan}';
+    final sClass = (student.className != null && student.className!.isNotEmpty)
+        ? student.className!
+        : '-';
 
     // Determine status
     final isSubmitted = student.submittedAt != null;
@@ -2331,7 +2512,6 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
     final double badgeHMargin = (4.0 * scale).clamp(4.0, 10.0);
     final double badgeVMargin = (2.0 * scale).clamp(2.0, 5.0);
 
-
     final isKeluar = behavior != null &&
         (behavior['type']?.toString().toLowerCase().contains('keluar') == true) &&
         !isSubmitted;
@@ -2362,12 +2542,43 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text('#', style: TextStyle(fontSize: seatNumSize, fontWeight: FontWeight.bold, color: Colors.white70)),
-                    Text('$seatNum', style: TextStyle(fontSize: seatNumSize, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Expanded(
+                      child: Text(
+                        nomorPeserta,
+                        style: TextStyle(
+                          fontSize: (seatNumSize * 0.9).clamp(7.0, 11.0),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     Icon(statusIcon, size: iconSize, color: Colors.white),
                   ]),
-                  Text(displayName, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: nameSize, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: nameSize, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$sClass • $subjectName',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: (nameSize * 0.8).clamp(7.0, 10.0),
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: badgeHMargin, vertical: badgeVMargin),
                     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(4)),
@@ -2398,11 +2609,43 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('#$seatNum', style: TextStyle(fontSize: seatNumSize, fontWeight: FontWeight.bold, color: seatNumColor)),
+              Expanded(
+                child: Text(
+                  nomorPeserta,
+                  style: TextStyle(
+                    fontSize: (seatNumSize * 0.9).clamp(7.0, 11.0),
+                    fontWeight: FontWeight.bold,
+                    color: seatNumColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               Icon(statusIcon, size: iconSize, color: iconColor),
             ]),
-            Text(displayName, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-              style: TextStyle(fontSize: nameSize, fontWeight: FontWeight.bold, color: textColor)),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: nameSize, fontWeight: FontWeight.bold, color: textColor),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$sClass • $subjectName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: (nameSize * 0.8).clamp(7.0, 10.0),
+                    color: isBelum ? textColor.withValues(alpha: 0.6) : Colors.white70,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
             Container(
               padding: EdgeInsets.symmetric(horizontal: badgeHMargin, vertical: badgeVMargin),
               decoration: BoxDecoration(color: badgeBgColor, borderRadius: BorderRadius.circular(4)),
@@ -2416,7 +2659,10 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
 
   void _showStudentLog(ExamParticipation student, Map<String, dynamic>? behavior, bool isDark, Color subTextColor, {bool isFinished = false}) {
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final hasStartedExam = student.hasStarted || behavior != null;
     final activityLog = behavior?['activityLog'] as List<dynamic>? ?? [];
+    final noteCtrl = TextEditingController();
+    bool isNoteLoaded = false;
     final sortedLog = List<dynamic>.from(activityLog)
       ..sort((a, b) {
         final dA = a['timestamp'] is Timestamp ? (a['timestamp'] as Timestamp).toDate() : DateTime(0);
@@ -2476,14 +2722,14 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                       Expanded(
                         child: student.scannedAt != null
                             ? OutlinedButton.icon(
-                                onPressed: (isCancelling || isAbsenting)
+                                onPressed: (isCancelling || isAbsenting || hasStartedExam)
                                     ? null
                                     : () async {
                                         setSheetState(() => isCancelling = true);
                                         try {
                                           await ExamSessionService().cancelProctorScanAttendance(
                                             schoolId: widget.schoolId,
-                                            sessionId: widget.session.id,
+                                            sessionId: student.sessionId,
                                             studentId: student.studentId,
                                           );
                                           Get.back();
@@ -2502,14 +2748,16 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                                 icon: isCancelling
                                     ? const SizedBox(width: 14, height: 14,
                                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange))
-                                    : const Icon(Icons.close_rounded, size: 16, color: Colors.orange),
+                                     : Icon(hasStartedExam ? Icons.block_rounded : Icons.close_rounded, size: 16, color: hasStartedExam ? Colors.grey : Colors.orange),
                                 label: Text(
                                   isCancelling
                                       ? (AppLocalization.isIndonesian ? 'Memproses...' : 'Processing...')
-                                      : (AppLocalization.isIndonesian ? 'Batalkan Kehadiran' : 'Cancel Attendance'),
-                                  style: const TextStyle(color: Colors.orange)),
+                                      : hasStartedExam
+                                           ? (AppLocalization.isIndonesian ? 'Ujian Sudah Dimulai' : 'Exam Already Started')
+                                           : (AppLocalization.isIndonesian ? 'Batalkan Kehadiran' : 'Cancel Attendance'),
+                                  style: TextStyle(color: hasStartedExam ? Colors.grey : Colors.orange)),
                                 style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Colors.orange),
+                                  side: BorderSide(color: hasStartedExam ? Colors.grey.shade400 : Colors.orange),
                                   padding: const EdgeInsets.symmetric(vertical: 10),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
@@ -2522,7 +2770,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                                         try {
                                           await ExamSessionService().recordProctorScanAttendance(
                                             schoolId: widget.schoolId,
-                                            sessionId: widget.session.id,
+                                            sessionId: student.sessionId,
                                             studentId: student.studentId,
                                           );
                                           Get.back();
@@ -2558,6 +2806,105 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                     ],
                   ),
                 ],
+                const SizedBox(height: 16),
+                FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  future: FirebaseFirestore.instance
+                      .collection('schools')
+                      .doc(widget.schoolId)
+                      .collection('exam_submissions')
+                      .doc('${widget.session.eventId}_${widget.session.subjectId}_${widget.session.classId}_${student.studentId}')
+                      .get(),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.done && !isNoteLoaded) {
+                      final data = snap.data?.data();
+                      noteCtrl.text = data?['proctorNote']?.toString() ?? '';
+                      isNoteLoaded = true;
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          AppLocalization.isIndonesian ? 'Catatan Pengawas (untuk Korektor)' : 'Proctor Note (for Grader)',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: titleColor),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: TextFormField(
+                            controller: noteCtrl,
+                            maxLines: 2,
+                            style: TextStyle(color: titleColor, fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: AppLocalization.isIndonesian
+                                  ? 'Masukkan catatan pelanggaran, sakit, terlambat, dll...'
+                                  : 'Enter notes about violation, sickness, lateness, etc...',
+                              hintStyle: TextStyle(color: subTextColor.withValues(alpha: 0.5), fontSize: 12),
+                              border: InputBorder.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                try {
+                                  final examId = '${widget.session.eventId}_${widget.session.subjectId}_${widget.session.classId}';
+                                  final submissionId = '${examId}_${student.studentId}';
+                                  await FirebaseFirestore.instance
+                                      .collection('schools')
+                                      .doc(widget.schoolId)
+                                      .collection('exam_submissions')
+                                      .doc(submissionId)
+                                      .set({
+                                    'proctorNote': noteCtrl.text.trim(),
+                                    'studentId': student.studentId,
+                                    'studentName': student.studentName,
+                                    'examId': examId,
+                                  }, SetOptions(merge: true));
+                                  Get.snackbar(
+                                    AppLocalization.isIndonesian ? 'Sukses' : 'Success',
+                                    AppLocalization.isIndonesian ? 'Catatan pengawas berhasil disimpan!' : 'Proctor note successfully saved!',
+                                    backgroundColor: const Color(0xFF10B981),
+                                    colorText: Colors.white,
+                                  );
+                                } catch (e) {
+                                  Get.snackbar(
+                                    AppLocalization.isIndonesian ? 'Error' : 'Error',
+                                    e.toString(),
+                                    backgroundColor: Colors.redAccent,
+                                    colorText: Colors.white,
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF8B5CF6),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                              icon: const Icon(Icons.save_rounded, size: 14),
+                              label: Text(
+                                AppLocalization.isIndonesian ? 'Simpan Catatan' : 'Save Note',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
                 const SizedBox(height: 20),
                 Text(AppLocalization.isIndonesian ? 'Riwayat Log Aktivitas' : 'Activity Log History', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: titleColor)),
                 const Divider(height: 16),
@@ -2697,6 +3044,108 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
         ),
       ],
     ));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// _SessionCountdownWidget — Countdown chip yang rebuild secara ISOLASI
+// Hanya widget ini yang rebuild setiap detik, bukan seluruh halaman
+// ─────────────────────────────────────────────────────────────
+class _SessionCountdownWidget extends StatefulWidget {
+  final ExamSession session;
+  const _SessionCountdownWidget({required this.session});
+
+  @override
+  State<_SessionCountdownWidget> createState() => _SessionCountdownWidgetState();
+}
+
+class _SessionCountdownWidgetState extends State<_SessionCountdownWidget> {
+  Timer? _timer;
+  String _text = '--:--:--';
+  Color _color = Colors.green;
+
+  DateTime? _parseTime(String hhmm) {
+    final parts = hhmm.split(':');
+    if (parts.length < 2) return null;
+    final d = widget.session.date;
+    return DateTime(d.year, d.month, d.day, int.tryParse(parts[0]) ?? 0, int.tryParse(parts[1]) ?? 0);
+  }
+
+  void _tick() {
+    final now = DateTime.now();
+    final start = _parseTime(widget.session.startTime);
+    final end = _parseTime(widget.session.endTime);
+    if (start == null || end == null) return;
+
+    String newText;
+    Color newColor;
+    if (now.isBefore(start)) {
+      final diff = start.difference(now);
+      final h = diff.inHours.toString().padLeft(2, '0');
+      final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
+      final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
+      newText = '${AppLocalization.isIndonesian ? 'Mulai dalam' : 'Starts in'} $h:$m:$s';
+      newColor = Colors.orange;
+    } else if (now.isBefore(end)) {
+      final diff = end.difference(now);
+      final h = diff.inHours.toString().padLeft(2, '0');
+      final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
+      final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
+      newText = '${AppLocalization.isIndonesian ? 'Sisa' : 'Remaining'} $h:$m:$s';
+      newColor = diff.inMinutes < 10 ? Colors.redAccent : Colors.green;
+    } else {
+      newText = AppLocalization.isIndonesian ? 'Sesi Selesai' : 'Session Ended';
+      newColor = Colors.grey;
+      _timer?.cancel();
+    }
+
+    if (mounted && (newText != _text || newColor != _color)) {
+      setState(() {
+        _text = newText;
+        _color = newColor;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _tick();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: _color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.timer_rounded, size: 12, color: _color),
+          const SizedBox(width: 5),
+          Text(
+            _text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: _color,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

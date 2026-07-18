@@ -529,6 +529,8 @@ class ExamSessionService {
         if (qDoc.exists && qDoc.data() != null) {
           final qData = qDoc.data()!;
           final questionsList = qData['questions'] as List? ?? [];
+          final shufflePg = qData['shufflePg'] as bool? ?? false;
+          final shuffleEssay = qData['shuffleEssay'] as bool? ?? false;
 
           // Buat ID exam: eventId_subjectId_classId
           final examId = '${eventId}_${subjectId}_$classId';
@@ -560,6 +562,8 @@ class ExamSessionService {
             'status': 'active',
             'questions': questionsList,
             'susulanStudentIds': [],
+            'shufflePg': shufflePg,
+            'shuffleEssay': shuffleEssay,
           });
         }
       }
@@ -1098,6 +1102,44 @@ class ExamSessionService {
             snap.docs.map((d) => ExamParticipation.fromFirestore(d)).toList());
   }
 
+  /// Gabungkan participations dari beberapa sesi (untuk 1 ruangan dengan banyak mapel)
+  Stream<List<ExamParticipation>> getParticipationsForSessions({
+    required String schoolId,
+    required List<String> sessionIds,
+  }) {
+    if (sessionIds.isEmpty) return const Stream.empty();
+    if (sessionIds.length == 1) {
+      return getParticipations(schoolId: schoolId, sessionId: sessionIds.first);
+    }
+
+    final streams = sessionIds
+        .map((id) => getParticipations(schoolId: schoolId, sessionId: id))
+        .toList();
+
+    final controller = StreamController<List<ExamParticipation>>();
+    final latestData = List<List<ExamParticipation>>.filled(streams.length, []);
+    final subs = <StreamSubscription>[];
+
+    for (int i = 0; i < streams.length; i++) {
+      final idx = i;
+      final sub = streams[idx].listen((data) {
+        latestData[idx] = data;
+        if (!controller.isClosed) {
+          controller.add(latestData.expand((x) => x).toList());
+        }
+      }, onError: controller.addError);
+      subs.add(sub);
+    }
+
+    controller.onCancel = () {
+      for (final sub in subs) {
+        sub.cancel();
+      }
+    };
+
+    return controller.stream;
+  }
+
   /// Cek apakah murid memiliki minimal satu jadwal ujian (terdaftar di participations)
   Future<bool> hasAnyActiveExamSchedule({
     required String schoolId,
@@ -1185,6 +1227,7 @@ class ExamSessionService {
           'nama': data['nama'] ?? '',
           'nis': data['nis'] ?? '',
           'angkatan': (data['angkatan'] ?? '').toString().trim(),
+          'className': data['className'] ?? '',
         };
       }));
     }
@@ -1238,6 +1281,7 @@ class ExamSessionService {
             seatNumber: seat,
             roomName: room.name,
             angkatan: picked['angkatan'] as String,
+            className: picked['className'] as String?,
           ));
         }
       }
@@ -1272,6 +1316,8 @@ class ExamSessionService {
     required String subjectId,
     required List<Map<String, dynamic>> questionsList,
     String? gradeLevel,
+    bool shufflePg = false,
+    bool shuffleEssay = false,
   }) async {
     // 1. Ambil detail event
     final eventDoc = await _eventsRef(schoolId).doc(eventId).get();
@@ -1417,6 +1463,8 @@ class ExamSessionService {
         'status': 'active',
         'questions': questionsList,
         'susulanStudentIds': [],
+        'shufflePg': shufflePg,
+        'shuffleEssay': shuffleEssay,
       });
     }
   }

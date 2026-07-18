@@ -15,6 +15,7 @@ class ExamSubmission {
   final DateTime submittedAt;
   final String tahunAjaran;
   final String semester;
+  final String? proctorNote;
 
   ExamSubmission({
     required this.id,
@@ -31,6 +32,7 @@ class ExamSubmission {
     required this.submittedAt,
     required this.tahunAjaran,
     required this.semester,
+    this.proctorNote,
   });
 
   factory ExamSubmission.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -59,6 +61,7 @@ class ExamSubmission {
       submittedAt: (data['submittedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       tahunAjaran: data['tahunAjaran'] ?? '',
       semester: data['semester'] ?? '',
+      proctorNote: data['proctorNote'] as String?,
     );
   }
 
@@ -77,6 +80,7 @@ class ExamSubmission {
       'submittedAt': Timestamp.fromDate(submittedAt),
       'tahunAjaran': tahunAjaran,
       'semester': semester,
+      if (proctorNote != null) 'proctorNote': proctorNote,
     };
   }
 }

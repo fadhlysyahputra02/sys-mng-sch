@@ -324,6 +324,30 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                         widget.exam.title,
                                         style: TextStyle(fontSize: 12, color: subTextColor),
                                       ),
+                                      if (widget.submission.proctorNote != null &&
+                                          widget.submission.proctorNote!.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.redAccent.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.2)),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.info_outline_rounded, size: 14, color: Colors.redAccent),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  '${AppLocalization.isIndonesian ? 'Catatan Pengawas' : 'Proctor Note'}: ${widget.submission.proctorNote}',
+                                                  style: const TextStyle(fontSize: 11, color: Colors.redAccent, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),

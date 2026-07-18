@@ -175,7 +175,7 @@ class ExamService {
     );
 
     // 1. Simpan dokumen submission pengerjaan ujian
-    await _submissionsRef(schoolId).doc(submissionId).set(submission.toFirestore());
+    await _submissionsRef(schoolId).doc(submissionId).set(submission.toFirestore(), SetOptions(merge: true));
 
     // 2. Jika diaktifkan dan sudah selesai dinilai (tidak ada essay), otomatis sinkronisasikan nilai ke Buku Nilai (/grades)
     if (exam.syncToGrades && isGraded) {
@@ -330,6 +330,44 @@ class ExamService {
           },
         });
       }
+    }
+
+    // 5. Kirim push notifikasi personal ke murid
+    try {
+      final studentDoc = await _firestore
+          .collection('schools')
+          .doc(schoolId)
+          .collection('students')
+          .doc(submission.studentId)
+          .get();
+      final studentUid = studentDoc.data()?['uid'] as String?;
+      if (studentUid != null && studentUid.isNotEmpty) {
+        final language = studentDoc.data()?['language'] as String? ?? 'id';
+        final isEnglish = language == 'en';
+        final title = isEnglish ? 'Exam Grading Completed' : 'Hasil Koreksi Ujian';
+        final content = isEnglish
+            ? 'Your score for ${exam.subjectName} has been updated to ${finalScore.toInt()}'
+            : 'Nilai kamu dengan mapel ${exam.subjectName} sudah diupdate dengan nilai ${finalScore.toInt()}';
+
+        await _firestore
+            .collection('schools')
+            .doc(schoolId)
+            .collection('notifications')
+            .add({
+          'title': title,
+          'content': content,
+          'targetType': 'personal',
+          'targetId': studentUid,
+          'senderId': exam.teacherId,
+          'senderName': exam.teacherName,
+          'senderRole': 'teacher',
+          'category': 'exam',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      // Don't crash the main grading flow if push notification fails
+      print('Gagal mengirim push notifikasi koreksi ujian: $e');
     }
   }
 

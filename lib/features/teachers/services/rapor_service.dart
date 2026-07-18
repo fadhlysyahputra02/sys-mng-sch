@@ -7,6 +7,20 @@ class RaporService {
   CollectionReference<Map<String, dynamic>> _reportsRef(String schoolId) =>
       _firestore.collection('schools').doc(schoolId).collection('student_reports');
 
+  /// Mendapatkan referensi dokumen pengaturan PDF Rapor
+  DocumentReference<Map<String, dynamic>> _settingsRef(String schoolId) =>
+      _firestore.collection('schools').doc(schoolId).collection('rapor_settings').doc('config');
+
+  /// Menyimpan pengaturan PDF Rapor
+  Future<void> saveRaporPdfSettings(String schoolId, Map<String, dynamic> settingsMap) async {
+    await _settingsRef(schoolId).set(settingsMap, SetOptions(merge: true));
+  }
+
+  /// Mengambil pengaturan PDF Rapor
+  Future<DocumentSnapshot<Map<String, dynamic>>> getRaporPdfSettings(String schoolId) async {
+    return await _settingsRef(schoolId).get();
+  }
+
   /// Menyimpan data kustom rapor siswa
   Future<void> saveStudentReport({
     required String schoolId,

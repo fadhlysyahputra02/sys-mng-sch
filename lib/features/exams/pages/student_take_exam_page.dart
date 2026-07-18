@@ -1,14 +1,17 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/localization/app_localization.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../students/data/student_service.dart';
 import '../models/exam_model.dart';
 import '../services/exam_service.dart';
 import 'package:is_lock_screen2/is_lock_screen2.dart';
 import '../services/exam_behavior_service.dart';
+import '../services/exam_session_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
@@ -51,21 +54,63 @@ class StudentTakeExamPage extends StatefulWidget {
 class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsBindingObserver {
   final _examService = ExamService();
   final _behaviorService = ExamBehaviorService();
+  final _studentService = StudentService();
 
   bool _hasStarted = false;
   int _currentQuestionIndex = 0;
   final Map<String, int> _selectedAnswers = {}; // Map questionId -> optionIndex
   final Map<String, String> _essayAnswers = {}; // Map questionId -> essayAnswerText
-  final ScrollController _questionNavScrollCtrl = ScrollController();
+  final ScrollController _pgNavScrollCtrl = ScrollController();
+  final ScrollController _essayNavScrollCtrl = ScrollController();
+  List<ExamQuestion> _questions = [];
 
   int _secondsRemaining = 0;
   Timer? _timer;
   bool _isSubmitting = false;
 
+  // Cache untuk behavior_records (kontrol aktifitas guru)
+  String? _cachedScheduleId;
+  String? _cachedSubjectNameForBehavior;
+
+  String _tahunAjaran = '';
+  String _semester = '';
+
+  Future<void> _loadSchoolMetadata() async {
+    try {
+      if (widget.schoolId != null) {
+        final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).get();
+        if (schoolDoc.exists && schoolDoc.data() != null) {
+          final data = schoolDoc.data()!;
+          if (mounted) {
+            setState(() {
+              _tahunAjaran = data['tahunAjaran']?.toString() ?? '';
+              _semester = data['semester']?.toString() ?? '';
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading school metadata: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    final studentId = widget.studentDocId ?? SessionService.currentUser?.uid ?? 'unknown_student';
+    final pgQuestions = widget.exam.questions.where((q) => q.type != 'essay').toList();
+    final essayQuestions = widget.exam.questions.where((q) => q.type == 'essay').toList();
+
+    if (widget.exam.shufflePg) {
+      pgQuestions.shuffle(Random(studentId.hashCode));
+    }
+    if (widget.exam.shuffleEssay) {
+      essayQuestions.shuffle(Random(studentId.hashCode + 1));
+    }
+
+    _questions = [...pgQuestions, ...essayQuestions];
     SessionService.isTakingExam = true;
+    _loadSchoolMetadata();
     final defaultSeconds = widget.exam.durationMinutes * 60;
     int calculatedSeconds = defaultSeconds;
 
@@ -187,9 +232,87 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
     }
   }
 
+  String? _lastReportedType;
+
+  /// Resolusi scheduleId aktif dari class_schedules agar bisa dipakai untuk menulis
+  /// ke behavior_records (halaman Kontrol Aktifitas guru) saat murid sedang ujian.
+  Future<void> _loadScheduleInfoForBehavior() async {
+    try {
+      if (widget.schoolId == null) return;
+      final user = SessionService.currentUser;
+      if (user == null) return;
+      final studentId = widget.studentDocId ?? user.uid;
+
+      // Cari dokumen behavior_records yang sudah ada milik murid ini
+      // agar kita memperbarui dokumen yang SAMA yang sedang ditonton oleh guru.
+      // Urutkan client-side untuk menghindari kebutuhan composite index.
+      final behaviorSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId!)
+          .collection('behavior_records')
+          .where('studentId', isEqualTo: studentId)
+          .limit(10)
+          .get();
+
+      if (behaviorSnap.docs.isNotEmpty) {
+        // Ambil dokumen dengan timestamp paling baru (client-side sort)
+        final sorted = behaviorSnap.docs.toList()
+          ..sort((a, b) {
+            final aTs = (a.data()['timestamp'] as Timestamp?)?.seconds ?? 0;
+            final bTs = (b.data()['timestamp'] as Timestamp?)?.seconds ?? 0;
+            return bTs.compareTo(aTs);
+          });
+        final data = sorted.first.data();
+        _cachedScheduleId = data['scheduleId'] as String?;
+        _cachedSubjectNameForBehavior = data['subjectName'] as String?;
+        debugPrint('_loadScheduleInfoForBehavior: found scheduleId=$_cachedScheduleId subjectName=$_cachedSubjectNameForBehavior');
+      }
+
+      // Fallback jika tidak ada behavior_records sebelumnya (murid belum absen)
+      _cachedScheduleId ??= 'exam_${widget.exam.id}';
+      _cachedSubjectNameForBehavior ??= widget.exam.subjectName;
+    } catch (e) {
+      debugPrint('_loadScheduleInfoForBehavior error: $e');
+      _cachedScheduleId = 'exam_${widget.exam.id}';
+      _cachedSubjectNameForBehavior = widget.exam.subjectName;
+    }
+  }
+
+  /// Menulis status ke behavior_records agar tampil di halaman Kontrol Aktifitas guru.
+  /// Dipanggil paralel dengan _reportStatus (exam_behavior_records).
+  Future<void> _reportDashboardBehavior(String type, String description) async {
+    try {
+      if (widget.schoolId == null) return;
+      final user = SessionService.currentUser;
+      if (user == null) return;
+      final studentId = widget.studentDocId ?? user.uid;
+      final scheduleId = _cachedScheduleId ?? 'exam_${widget.exam.id}';
+      final subjectName = _cachedSubjectNameForBehavior ?? widget.exam.subjectName;
+
+      await _studentService.reportBehaviorViolation(
+        schoolId: widget.schoolId!,
+        studentId: studentId,
+        studentName: user.nama,
+        className: widget.exam.className,
+        scheduleId: scheduleId,
+        subjectName: subjectName,
+        type: type,
+        description: description,
+        tahunAjaran: _tahunAjaran,
+        semester: _semester,
+      );
+    } catch (e) {
+      debugPrint('_reportDashboardBehavior error: $e');
+    }
+  }
+
   Future<void> _reportStatus(String type, String description) async {
     if (widget.sessionId == null || widget.schoolId == null) return;
-    final user = SessionService.currentUser!;
+    if (_lastReportedType == type) return;
+    _lastReportedType = type;
+
+    final user = SessionService.currentUser;
+    if (user == null) return;
     final studentId = widget.studentDocId ?? user.uid;
     final studentName = user.nama;
     final className = widget.exam.className;
@@ -197,12 +320,8 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
     final roomName = widget.roomName ?? 'Ruang Ujian';
     final seatNumber = widget.seatNumber ?? 0;
 
-    // Fetch school metadata for tahunAjaran and semester
-    final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).get();
-    final schoolData = schoolDoc.data() ?? {};
-    final tahunAjaran = schoolData['tahunAjaran']?.toString() ?? '';
-    final semester = schoolData['semester']?.toString() ?? '';
-
+    // Gunakan metadata yang sudah di-cache saat initState (tidak fetch ulang ke Firestore)
+    // agar bisa selesai sebelum OS menghentikan proses async saat app di-background.
     await _behaviorService.reportExamBehavior(
       schoolId: widget.schoolId!,
       studentId: studentId,
@@ -214,51 +333,72 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
       seatNumber: seatNumber,
       type: type,
       description: description,
-      tahunAjaran: tahunAjaran,
-      semester: semester,
+      tahunAjaran: _tahunAjaran,
+      semester: _semester,
     );
   }
 
-  Future<void> _deleteBehaviorRecord() async {
-    if (widget.sessionId == null || widget.schoolId == null) return;
-    final user = SessionService.currentUser!;
-    final studentId = widget.studentDocId ?? user.uid;
-    await _behaviorService.deleteStudentExamBehavior(
-      schoolId: widget.schoolId!,
-      studentId: studentId,
-      sessionId: widget.sessionId!,
-    );
-  }
+
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (!_hasStarted || _isSubmitting) return;
 
-    if (state == AppLifecycleState.inactive) {
-      await Future.delayed(const Duration(milliseconds: 500));
+    if (state == AppLifecycleState.resumed) {
+      // Murid kembali ke aplikasi — update kedua koleksi
+      _reportStatus('Standby', 'Murid kembali mengerjakan ujian');
+      _reportDashboardBehavior('Standby', 'Murid kembali mengerjakan ujian (Ujian Online)');
+    } else if (state == AppLifecycleState.paused) {
+      // Android: murid keluar dari aplikasi — langsung tulis ke kedua koleksi
+      _reportStatus('Keluar', 'Murid keluar dari aplikasi ujian (Home/Recent)');
+      _reportDashboardBehavior(
+        'Meninggalkan Layar Absensi',
+        'Murid terdeteksi meninggalkan aplikasi saat mengerjakan ujian online ${widget.exam.subjectName}.',
+      );
+    } else if (state == AppLifecycleState.inactive) {
+      // Bisa lock-screen, notif panel, atau perpindahan app
+      await Future.delayed(const Duration(milliseconds: 300));
       bool isLocked = false;
       try {
         final locked = await isLockScreen();
-        if (locked == true) {
-          isLocked = true;
-        }
+        if (locked == true) isLocked = true;
       } catch (_) {}
 
       if (isLocked) {
         _reportStatus('Screen Off', 'Layar murid terkunci atau mati');
+        _reportDashboardBehavior(
+          'Layar Mati / Device Terkunci',
+          'Device murid mati atau layar terkunci saat mengerjakan ujian online ${widget.exam.subjectName}.',
+        );
       }
-    } else if (state == AppLifecycleState.paused) {
-      _reportStatus('Keluar', 'Murid keluar dari aplikasi ujian (Home/Recent)');
-    } else if (state == AppLifecycleState.resumed) {
-      _reportStatus('Standby', 'Murid kembali mengerjakan ujian');
+      // Jika tidak terkunci, tunggu state paused yang pasti datang berikutnya
     }
   }
 
-  void _startExam() {
+  Future<void> _startExam() async {
     setState(() {
       _hasStarted = true;
     });
+    // Tunggu sampai scheduleId di-cache sebelum menulis ke behavior_records
+    await _loadScheduleInfoForBehavior();
     _reportStatus('Standby', 'Murid mulai mengerjakan ujian');
+    _reportDashboardBehavior('Standby', 'Murid mulai mengerjakan ujian online ${widget.exam.subjectName}');
+
+    // Mark as started in exam session participations collection
+    try {
+      final user = SessionService.currentUser;
+      if (user != null && widget.schoolId != null && widget.sessionId != null) {
+        final studentId = widget.studentDocId ?? user.uid;
+        await ExamSessionService().markStudentStarted(
+          schoolId: widget.schoolId!,
+          sessionId: widget.sessionId!,
+          studentId: studentId,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error marking student started in firestore: $e');
+    }
+
     if (_secondsRemaining <= 0) {
       _autoSubmit();
     } else {
@@ -312,9 +452,6 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
         essayAnswers: _essayAnswers,
       );
 
-      // Hapus behavior record saat ujian dikumpulkan
-      await _deleteBehaviorRecord();
-
       // Update submittedAt di participations (denah tempat duduk)
       if (widget.sessionId != null) {
         await FirebaseFirestore.instance
@@ -346,7 +483,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
 
   Future<void> _submitExamManual() async {
     int answeredCount = 0;
-    for (final q in widget.exam.questions) {
+    for (final q in _questions) {
       if (q.type == 'essay') {
         if (_essayAnswers[q.id]?.trim().isNotEmpty == true) {
           answeredCount++;
@@ -357,7 +494,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
         }
       }
     }
-    final unansweredCount = widget.exam.questions.length - answeredCount;
+    final unansweredCount = _questions.length - answeredCount;
     final isDark = AuthBackground.isDarkMode.value;
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
@@ -407,9 +544,6 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
           essayAnswers: _essayAnswers,
         );
 
-        // Hapus behavior record saat ujian dikumpulkan
-        await _deleteBehaviorRecord();
-
         // Update submittedAt di participations (denah tempat duduk)
         if (widget.sessionId != null) {
           await FirebaseFirestore.instance
@@ -445,6 +579,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
     if (!_hasStarted) return true;
     final isDark = AuthBackground.isDarkMode.value;
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+    final contentColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.8);
 
     final bool? exit = await showDialog<bool>(
       context: context,
@@ -452,14 +587,17 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           title: Text('Keluar Ujian', style: TextStyle(color: titleColor, fontWeight: FontWeight.bold)),
-          content: const Text(
+          content: Text(
             'Anda sedang berada di tengah ujian. Jika Anda keluar sekarang, jawaban Anda saat ini akan langsung diserahkan otomatis.',
-            style: TextStyle(height: 1.4),
+            style: TextStyle(height: 1.4, color: contentColor),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Lanjutkan Ujian', style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Lanjutkan Ujian',
+                style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
@@ -483,18 +621,96 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
     SessionService.isTakingExam = false;
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
-    _questionNavScrollCtrl.dispose();
+    _pgNavScrollCtrl.dispose();
+    _essayNavScrollCtrl.dispose();
     super.dispose();
   }
 
-  void _scrollNavToIndex(int index) {
-    // Each chip is about 40px wide; auto-scroll so the active chip is visible
-    final offset = (index * 42.0) - 80;
-    _questionNavScrollCtrl.animateTo(
-      offset.clamp(0.0, _questionNavScrollCtrl.position.maxScrollExtent),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+  Widget _buildNavItem(int idx, Color titleColor, Color cardBgColor, Color cardBorderColor) {
+    final q = _questions[idx];
+    final isAnswered = q.type == 'essay'
+        ? (_essayAnswers[q.id]?.trim().isNotEmpty == true)
+        : _selectedAnswers.containsKey(q.id);
+    final isCurrent = idx == _currentQuestionIndex;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() => _currentQuestionIndex = idx);
+        _scrollNavToIndex(idx);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(right: 6),
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: isCurrent
+              ? const Color(0xFF8B5CF6)
+              : isAnswered
+                  ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                  : cardBgColor,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isCurrent
+                ? const Color(0xFF8B5CF6)
+                : isAnswered
+                    ? const Color(0xFF10B981)
+                    : cardBorderColor,
+            width: isCurrent ? 2 : 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            '${idx + 1}',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: isCurrent
+                  ? Colors.white
+                  : isAnswered
+                      ? const Color(0xFF10B981)
+                      : titleColor,
+            ),
+          ),
+        ),
+      ),
     );
+  }
+
+  void _scrollNavToIndex(int index) {
+    if (_questions.isEmpty || index < 0 || index >= _questions.length) return;
+    
+    final pgIndices = <int>[];
+    final essayIndices = <int>[];
+    for (int i = 0; i < _questions.length; i++) {
+      if (_questions[i].type != 'essay') {
+        pgIndices.add(i);
+      } else {
+        essayIndices.add(i);
+      }
+    }
+
+    if (_questions[index].type != 'essay') {
+      final pgIdx = pgIndices.indexOf(index);
+      if (pgIdx != -1 && _pgNavScrollCtrl.hasClients) {
+        final offset = (pgIdx * 42.0) - 80;
+        _pgNavScrollCtrl.animateTo(
+          offset.clamp(0.0, _pgNavScrollCtrl.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    } else {
+      final essayIdx = essayIndices.indexOf(index);
+      if (essayIdx != -1 && _essayNavScrollCtrl.hasClients) {
+        final offset = (essayIdx * 42.0) - 80;
+        _essayNavScrollCtrl.animateTo(
+          offset.clamp(0.0, _essayNavScrollCtrl.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    }
   }
 
   @override
@@ -547,12 +763,22 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
             );
           }
 
-          final totalQuestions = widget.exam.questions.length;
-          final currentQuestion = widget.exam.questions[_currentQuestionIndex];
+          final totalQuestions = _questions.length;
+          final currentQuestion = _questions[_currentQuestionIndex];
           final selectedOption = _selectedAnswers[currentQuestion.id];
-          final progress = (widget.exam.questions.isEmpty)
+          final progress = (_questions.isEmpty)
               ? 0.0
               : (_currentQuestionIndex + 1) / totalQuestions;
+
+          final pgIndices = <int>[];
+          final essayIndices = <int>[];
+          for (int i = 0; i < totalQuestions; i++) {
+            if (_questions[i].type != 'essay') {
+              pgIndices.add(i);
+            } else {
+              essayIndices.add(i);
+            }
+          }
 
           return Scaffold(
             body: AuthBackground(
@@ -574,10 +800,37 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
                                   'Soal ${_currentQuestionIndex + 1} dari $totalQuestions',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: titleColor),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  currentQuestion.type == 'essay' ? 'Essay' : 'Pilihan Ganda',
-                                  style: TextStyle(fontSize: 12, color: const Color(0xFF8B5CF6), fontWeight: FontWeight.bold),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: (currentQuestion.type == 'essay'
+                                                ? const Color(0xFFEC4899)
+                                                : const Color(0xFF8B5CF6))
+                                            .withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: (currentQuestion.type == 'essay'
+                                                  ? const Color(0xFFEC4899)
+                                                  : const Color(0xFF8B5CF6))
+                                              .withValues(alpha: 0.2),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        currentQuestion.type == 'essay' ? 'ESSAY' : 'PILIHAN GANDA',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: currentQuestion.type == 'essay'
+                                              ? const Color(0xFFEC4899)
+                                              : const Color(0xFF8B5CF6),
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -624,62 +877,81 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
                       const SizedBox(height: 12),
 
                        // Question Number Navigation Grid
-                       SizedBox(
-                         height: 38,
-                         child: ListView.builder(
-                           controller: _questionNavScrollCtrl,
-                           scrollDirection: Axis.horizontal,
-                           itemCount: totalQuestions,
-                           itemBuilder: (ctx, idx) {
-                             final q = widget.exam.questions[idx];
-                             final isAnswered = q.type == 'essay'
-                                 ? (_essayAnswers[q.id]?.trim().isNotEmpty == true)
-                                 : _selectedAnswers.containsKey(q.id);
-                             final isCurrent = idx == _currentQuestionIndex;
-                             return GestureDetector(
-                               onTap: () {
-                                 setState(() => _currentQuestionIndex = idx);
-                                 _scrollNavToIndex(idx);
-                               },
-                               child: AnimatedContainer(
-                                 duration: const Duration(milliseconds: 200),
-                                 margin: const EdgeInsets.only(right: 6),
-                                 width: 36,
-                                 height: 36,
-                                 decoration: BoxDecoration(
-                                   color: isCurrent
-                                       ? const Color(0xFF8B5CF6)
-                                       : isAnswered
-                                           ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                                           : cardBgColor,
-                                   shape: BoxShape.circle,
-                                   border: Border.all(
-                                     color: isCurrent
-                                         ? const Color(0xFF8B5CF6)
-                                         : isAnswered
-                                             ? const Color(0xFF10B981)
-                                             : cardBorderColor,
-                                     width: isCurrent ? 2 : 1,
+                       Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                           if (pgIndices.isNotEmpty) ...[
+                             Row(
+                               children: [
+                                 Container(
+                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                   decoration: BoxDecoration(
+                                     color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                     borderRadius: BorderRadius.circular(6),
                                    ),
-                                 ),
-                                 child: Center(
                                    child: Text(
-                                     '${idx + 1}',
+                                     'PILIHAN GANDA',
                                      style: TextStyle(
-                                       fontSize: 11,
+                                       fontSize: 9,
                                        fontWeight: FontWeight.bold,
-                                       color: isCurrent
-                                           ? Colors.white
-                                           : isAnswered
-                                               ? const Color(0xFF10B981)
-                                               : titleColor,
+                                       color: const Color(0xFF8B5CF6),
+                                       letterSpacing: 0.5,
                                      ),
                                    ),
                                  ),
+                               ],
+                             ),
+                             const SizedBox(height: 6),
+                             SizedBox(
+                               height: 38,
+                               child: ListView.builder(
+                                 controller: _pgNavScrollCtrl,
+                                 scrollDirection: Axis.horizontal,
+                                 itemCount: pgIndices.length,
+                                 itemBuilder: (ctx, subIdx) {
+                                   final idx = pgIndices[subIdx];
+                                   return _buildNavItem(idx, titleColor, cardBgColor, cardBorderColor);
+                                 },
                                ),
-                             );
-                           },
-                         ),
+                             ),
+                           ],
+                           if (pgIndices.isNotEmpty && essayIndices.isNotEmpty) const SizedBox(height: 12),
+                           if (essayIndices.isNotEmpty) ...[
+                             Row(
+                               children: [
+                                 Container(
+                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                   decoration: BoxDecoration(
+                                     color: const Color(0xFFEC4899).withValues(alpha: 0.1),
+                                     borderRadius: BorderRadius.circular(6),
+                                   ),
+                                   child: Text(
+                                     'ESSAY',
+                                     style: TextStyle(
+                                       fontSize: 9,
+                                       fontWeight: FontWeight.bold,
+                                       color: const Color(0xFFEC4899),
+                                       letterSpacing: 0.5,
+                                     ),
+                                   ),
+                                 ),
+                               ],
+                             ),
+                             const SizedBox(height: 6),
+                             SizedBox(
+                               height: 38,
+                               child: ListView.builder(
+                                 controller: _essayNavScrollCtrl,
+                                 scrollDirection: Axis.horizontal,
+                                 itemCount: essayIndices.length,
+                                 itemBuilder: (ctx, subIdx) {
+                                   final idx = essayIndices[subIdx];
+                                   return _buildNavItem(idx, titleColor, cardBgColor, cardBorderColor);
+                                 },
+                               ),
+                             ),
+                           ],
+                         ],
                        ),
                        const SizedBox(height: 20),
  
@@ -867,9 +1139,9 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
 
   Widget _buildInstructionScreen(
       bool isDark, Color titleColor, Color subTextColor, Color cardBgColor, Color cardBorderColor) {
-    final totalQuestions = widget.exam.questions.length;
-    final pgCount = widget.exam.questions.where((q) => q.type == 'multiple_choice' || q.type == '').length;
-    final essayCount = widget.exam.questions.where((q) => q.type == 'essay').length;
+    final totalQuestions = _questions.length;
+    final pgCount = _questions.where((q) => q.type == 'multiple_choice' || q.type == '').length;
+    final essayCount = _questions.where((q) => q.type == 'essay').length;
 
     String questionComposition = '';
     if (pgCount > 0 && essayCount > 0) {

@@ -251,8 +251,6 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                             final studentData = studentDoc.data();
                             final name = studentData['nama'] ?? 'Murid';
                             final nis = studentData['nis'] ?? '-';
-                            final gender = studentData['jenisKelamin'] ?? 'L';
-
                             // Cek status rapor secara realtime dari Firestore student_reports subcollection
                             final cleanYear = _tahunAjaran.replaceAll('/', '-');
                             final reportDocId = '${studentId}_${cleanYear}_$_activeSemester';
@@ -271,108 +269,126 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                                     ? (AppLocalization.isIndonesian ? 'Sudah Diisi' : 'Filled')
                                     : (AppLocalization.isIndonesian ? 'Belum Lengkap' : 'Incomplete');
 
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  decoration: BoxDecoration(
-                                    color: cardBgColor,
-                                    borderRadius: BorderRadius.circular(24),
-                                    border: Border.all(color: cardBorderColor),
-                                    boxShadow: isDark ? [] : [
-                                      BoxShadow(
-                                        color: shadowColor,
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
+                                return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                                  future: FirebaseFirestore.instance
+                                      .collection('schools')
+                                      .doc(widget.schoolId)
+                                      .collection('students')
+                                      .doc(studentId)
+                                      .get(),
+                                  builder: (context, studentSnap) {
+                                    String resolvedGender = 'L';
+                                    if (studentSnap.hasData && studentSnap.data!.exists) {
+                                      final sData = studentSnap.data!.data();
+                                      if (sData != null) {
+                                        resolvedGender = sData['gender'] ?? sData['jenisKelamin'] ?? 'L';
+                                      }
+                                    }
+
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 16),
+                                      decoration: BoxDecoration(
+                                        color: cardBgColor,
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(color: cardBorderColor),
+                                        boxShadow: isDark ? [] : [
+                                          BoxShadow(
+                                            color: shadowColor,
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: () {
-                                        Get.to(() => TeacherRaporDetailPage(
-                                              schoolId: widget.schoolId,
-                                              classId: widget.classId,
-                                              className: widget.className,
-                                              teacherId: widget.teacherId,
-                                              studentId: studentId,
-                                              studentName: name,
-                                              studentNis: nis,
-                                            ));
-                                      },
-                                      borderRadius: BorderRadius.circular(24),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(20),
-                                        child: Row(
-                                          children: [
-                                            // Avatar Bulat
-                                            CircleAvatar(
-                                              radius: 24,
-                                              backgroundColor: isDark 
-                                                  ? Colors.white.withValues(alpha: 0.1) 
-                                                  : const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                                              child: Text(
-                                                name.isNotEmpty ? name[0].toUpperCase() : 'M',
-                                                style: TextStyle(
-                                                  color: isDark ? Colors.white : const Color(0xFF8B5CF6),
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 16),
-                                            // Informasi Murid
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    name,
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () {
+                                            Get.to(() => TeacherRaporDetailPage(
+                                                  schoolId: widget.schoolId,
+                                                  classId: widget.classId,
+                                                  className: widget.className,
+                                                  teacherId: widget.teacherId,
+                                                  studentId: studentId,
+                                                  studentName: name,
+                                                  studentNis: nis,
+                                                ));
+                                          },
+                                          borderRadius: BorderRadius.circular(24),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(20),
+                                            child: Row(
+                                              children: [
+                                                // Avatar Bulat
+                                                CircleAvatar(
+                                                  radius: 24,
+                                                  backgroundColor: isDark 
+                                                      ? Colors.white.withValues(alpha: 0.1) 
+                                                      : const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                                  child: Text(
+                                                    name.isNotEmpty ? name[0].toUpperCase() : 'M',
                                                     style: TextStyle(
-                                                      color: titleColor,
-                                                      fontSize: 16,
+                                                      color: isDark ? Colors.white : const Color(0xFF8B5CF6),
                                                       fontWeight: FontWeight.bold,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    'NIS: $nis • Gender: $gender',
-                                                    style: TextStyle(
-                                                      color: subTextColor,
-                                                      fontSize: 12,
+                                                      fontSize: 18,
                                                     ),
                                                   ),
-                                                ],
-                                              ),
-                                            ),
-                                            // Badge Status Rapor
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                              decoration: BoxDecoration(
-                                                color: statusColor.withValues(alpha: 0.15),
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                statusText,
-                                                style: TextStyle(
-                                                  color: statusColor,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 10,
                                                 ),
-                                              ),
+                                                const SizedBox(width: 16),
+                                                // Informasi Murid
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        name,
+                                                        style: TextStyle(
+                                                          color: titleColor,
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Text(
+                                                        'NIS: $nis • Gender: $resolvedGender',
+                                                        style: TextStyle(
+                                                          color: subTextColor,
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                // Badge Status Rapor
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    color: statusColor.withValues(alpha: 0.15),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: Text(
+                                                    statusText,
+                                                    style: TextStyle(
+                                                      color: statusColor,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Icon(
+                                                  Icons.arrow_forward_ios_rounded,
+                                                  color: iconColor.withValues(alpha: 0.4),
+                                                  size: 14,
+                                                ),
+                                              ],
                                             ),
-                                            const SizedBox(width: 8),
-                                            Icon(
-                                              Icons.arrow_forward_ios_rounded,
-                                              color: iconColor.withValues(alpha: 0.4),
-                                              size: 14,
-                                            ),
-                                          ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 );
                               },
                             );

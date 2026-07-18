@@ -738,14 +738,77 @@ class AdminExamEventListPage extends StatelessWidget {
         }
         break;
       case 'finish':
-        await service.updateExamEventStatus(schoolId, event.id, 'Finished');
-        Get.snackbar(
-            AppLocalization.isIndonesian ? 'Selesai' : 'Success',
-            AppLocalization.isIndonesian ? 'Event "${event.title}" ditandai selesai' : 'Event "${event.title}" marked as finished',
-            backgroundColor: const Color(0xFF64748B),
-            colorText: Colors.white,
-            snackPosition: SnackPosition.TOP,
-            margin: const EdgeInsets.all(16));
+        final today = DateTime.now();
+        final normalizedToday = DateTime(today.year, today.month, today.day);
+        final normalizedEndDate = DateTime(event.endDate.year, event.endDate.month, event.endDate.day);
+        final isBeforeEnd = normalizedToday.isBefore(normalizedEndDate);
+
+        bool proceed = true;
+        if (isBeforeEnd) {
+          final isDark = AuthBackground.isDarkMode.value;
+          final confirm = await Get.dialog<bool>(
+            AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF1A1730) : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  const Icon(Icons.warning_rounded, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppLocalization.isIndonesian ? 'Akhiri Event?' : 'End Event?',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content: Text(
+                AppLocalization.isIndonesian
+                    ? 'Jadwal event belum selesai (berakhir pada ${DateFormat('dd MMMM yyyy', 'id').format(event.endDate)}). Apakah Anda yakin ingin mengakhiri event ini sekarang?'
+                    : 'The event schedule is not finished yet (ends on ${DateFormat('dd MMMM yyyy').format(event.endDate)}). Are you sure you want to end this event now?',
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black87,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Get.back(result: false),
+                  child: Text(
+                    AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
+                    style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => Get.back(result: true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Text(AppLocalization.isIndonesian ? 'Ya, Akhiri' : 'Yes, End'),
+                ),
+              ],
+            ),
+          );
+          if (confirm != true) {
+            proceed = false;
+          }
+        }
+
+        if (proceed) {
+          await service.updateExamEventStatus(schoolId, event.id, 'Finished');
+          Get.snackbar(
+              AppLocalization.isIndonesian ? 'Selesai' : 'Success',
+              AppLocalization.isIndonesian ? 'Event "${event.title}" ditandai selesai' : 'Event "${event.title}" marked as finished',
+              backgroundColor: const Color(0xFF64748B),
+              colorText: Colors.white,
+              snackPosition: SnackPosition.TOP,
+              margin: const EdgeInsets.all(16));
+        }
         break;
       case 'archive':
         await service.updateExamEventStatus(schoolId, event.id, 'Archived');
