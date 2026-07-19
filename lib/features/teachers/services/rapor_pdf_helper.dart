@@ -484,8 +484,8 @@ class RaporPdfHelper {
               width: 0.5,
             ),
             columnWidths: {
-              for (int i = 0; i < activeSettings.legendColWidths.length; i++)
-                i: pw.FractionColumnWidth(activeSettings.legendColWidths[i]),
+              0: pw.FractionColumnWidth((activeSettings.legendColWidths.isNotEmpty && activeSettings.legendColWidths[0] > 0.05) ? activeSettings.legendColWidths[0] : 0.6),
+              1: pw.FractionColumnWidth((activeSettings.legendColWidths.length > 1 && activeSettings.legendColWidths[1] > 0.05) ? activeSettings.legendColWidths[1] : 0.4),
             },
             children: [
               pw.TableRow(
@@ -570,8 +570,8 @@ class RaporPdfHelper {
               width: 0.5,
             ),
             columnWidths: {
-              for (int i = 0; i < activeSettings.attendanceColWidths.length; i++)
-                i: pw.FractionColumnWidth(activeSettings.attendanceColWidths[i]),
+              0: pw.FractionColumnWidth((activeSettings.attendanceColWidths.isNotEmpty && activeSettings.attendanceColWidths[0] > 0.05) ? activeSettings.attendanceColWidths[0] : 0.7),
+              1: pw.FractionColumnWidth((activeSettings.attendanceColWidths.length > 1 && activeSettings.attendanceColWidths[1] > 0.05) ? activeSettings.attendanceColWidths[1] : 0.3),
             },
             children: [
               pw.TableRow(
@@ -723,44 +723,51 @@ class RaporPdfHelper {
     y['academic'] = currentBottom + getGap(lastAboveAcademic, 'academic');
     final double academicBottom = y['academic']! + (actualHeights['academic'] ?? 11) * 11.0;
 
-    // 4. Parallel Left and Right Columns Y
-    // Left column: legend
-    double legendBottom = academicBottom;
-    if (activeSettings.showPredikat) {
-      y['legend'] = academicBottom + getGap('academic', 'legend');
-      legendBottom = y['legend']! + (actualHeights['legend'] ?? 11) * 11.0;
-    }
+    // 4. Calculate Y coordinates for non-academic elements based on grid differences
+    final int academicEndGrid = (activeSettings.elementPositions['academic']?[1] ?? 20) +
+        (activeSettings.elementPositions['academic']?[3] ?? 11);
 
-    // Right column: attendance and notes
-    double rightBottom = academicBottom;
-    if (activeSettings.showAttendance) {
-      y['attendance'] = academicBottom + getGap('academic', 'attendance');
-      rightBottom = y['attendance']! + (actualHeights['attendance'] ?? 5) * 11.0;
-    }
-    if (activeSettings.showNotes) {
-      final double gapAbove = activeSettings.showAttendance ? getGap('attendance', 'notes') : getGap('academic', 'notes');
-      y['notes'] = rightBottom + gapAbove;
-      rightBottom = y['notes']! + (actualHeights['notes'] ?? 5) * 11.0;
-    }
-
-    // 5. Signature Y coordinates — each sig element is positioned independently based on elementPositions
-    final double maxMiddleBottom = (legendBottom > rightBottom) ? legendBottom : rightBottom;
-    final int maxOriginalMiddleEnd = () {
-      int legendEnd = (activeSettings.elementPositions['legend']?[1] ?? 32) + (activeSettings.elementPositions['legend']?[3] ?? 11);
-      int notesEnd = (activeSettings.elementPositions['notes']?[1] ?? 38) + (activeSettings.elementPositions['notes']?[3] ?? 5);
-      return legendEnd > notesEnd ? legendEnd : notesEnd;
-    }();
-
-    // For each sig element, Y = maxMiddleBottom + offset based on their grid row relative to maxOriginalMiddleEnd
-    for (final sigKey in ['sig_date', 'sig_ortu', 'sig_wali', 'sig_kepsek']) {
-      if (activeSettings.elementPositions.containsKey(sigKey)) {
-        final int sigGridY = activeSettings.elementPositions[sigKey]![1];
-        final double sigGap = (sigGridY > maxOriginalMiddleEnd)
-            ? (sigGridY - maxOriginalMiddleEnd).toDouble() * 11.0
-            : 0.0;
-        y[sigKey] = maxMiddleBottom + sigGap;
+    final nonFlowKeys = ['legend', 'attendance', 'notes', 'sig_date', 'sig_ortu', 'sig_wali', 'sig_kepsek'];
+    for (final key in nonFlowKeys) {
+      if (activeSettings.elementPositions.containsKey(key)) {
+        final int gridY = activeSettings.elementPositions[key]![1];
+        final int gridDeltaY = gridY - academicEndGrid;
+        // Use 11.0 as the row height in PDF layout
+        y[key] = academicBottom + (gridDeltaY.toDouble() * 11.0);
+      } else {
+        y[key] = academicBottom;
       }
     }
+
+    // Resolve overlaps: sort elements by Y and push down if they overlap horizontally
+    final List<String> sortedNonFlow = nonFlowKeys.where((k) => activeSettings.elementPositions.containsKey(k)).toList();
+    sortedNonFlow.sort((a, b) => y[a]!.compareTo(y[b]!));
+
+    for (int i = 0; i < sortedNonFlow.length; i++) {
+      final keyB = sortedNonFlow[i];
+      final posB = activeSettings.elementPositions[keyB]!;
+      final int startColB = posB[0];
+      final int endColB = posB[0] + posB[2];
+
+      for (int j = 0; j < i; j++) {
+        final keyA = sortedNonFlow[j];
+        final posA = activeSettings.elementPositions[keyA]!;
+        final int startColA = posA[0];
+        final int endColA = posA[0] + posA[2];
+
+        // Check if column spans overlap
+        final bool colsOverlap = (startColB < endColA && endColB > startColA);
+        if (colsOverlap) {
+          final double heightA = (actualHeights[keyA] ?? posA[3]).toDouble() * 11.0 +
+              ((keyA == 'sig_ortu' || keyA == 'sig_wali' || keyA == 'sig_kepsek') ? 45.0 : 0.0);
+          final double minYB = y[keyA]! + heightA + 8.0; // 8.0 points minimum gap
+          if (y[keyB]! < minYB) {
+            y[keyB] = minYB;
+          }
+        }
+      }
+    }
+
 
     // Sort visible keys by calculated Y coordinate so we page-split sequentially
     visibleKeys.sort((a, b) => y[a]!.compareTo(y[b]!));
@@ -825,85 +832,80 @@ class RaporPdfHelper {
                 pageChildren.add(sections['academic']!);
                 pageChildren.add(pw.SizedBox(height: gapAfter));
                 processedKeys.add('academic');
-              } else if (key == 'legend' || key == 'attendance' || key == 'notes') {
-                final bool hasLegend = pageKeys.contains('legend') && activeSettings.showPredikat;
-                final bool hasAttendance = pageKeys.contains('attendance') && activeSettings.showAttendance;
-                final bool hasNotes = pageKeys.contains('notes') && activeSettings.showNotes;
+              } else if (key == 'legend' || key == 'attendance' || key == 'notes' ||
+                         key == 'sig_date' || key == 'sig_ortu' || key == 'sig_wali' || key == 'sig_kepsek') {
+                // Group all non-flow elements on this page and render using Stack
+                final pageAbs = pageKeys.where((k) => (k == 'legend' || k == 'attendance' || k == 'notes' ||
+                    k == 'sig_date' || k == 'sig_ortu' || k == 'sig_wali' || k == 'sig_kepsek') && !processedKeys.contains(k)).toList();
 
-                pageChildren.add(
-                  pw.Row(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      if (hasLegend)
-                        pw.Expanded(
-                          flex: 5,
-                          child: sections['legend']!,
-                        ),
-                      if (hasLegend && (hasAttendance || hasNotes))
-                        pw.SizedBox(width: 15),
-                      if (hasAttendance || hasNotes)
-                        pw.Expanded(
-                          flex: 6,
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              if (hasAttendance) ...[
-                                sections['attendance']!,
-                                pw.SizedBox(height: 10),
-                              ],
-                              if (hasNotes)
-                                sections['notes']!,
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                );
+                if (pageAbs.isNotEmpty) {
+                  final defaultPos = {
+                    'kop': [0, 0, 12, 8],
+                    'info': [0, 9, 12, 3],
+                    'attitude': [0, 14, 12, 5],
+                    'academic': [0, 20, 12, 11],
+                    'legend': [0, 32, 5, 11],
+                    'attendance': [6, 32, 6, 5],
+                    'notes': [6, 38, 6, 5],
+                    'sig_date': [6, 44, 6, 2],
+                    'sig_ortu': [0, 46, 4, 5],
+                    'sig_wali': [4, 46, 4, 5],
+                    'sig_kepsek': [8, 46, 4, 5],
+                  };
 
-                pageChildren.add(pw.SizedBox(height: gapAfter));
+                  double minY = 9999.0;
+                  double maxY = 0.0;
+                  for (final absKey in pageAbs) {
+                    final posRaw = activeSettings.elementPositions[absKey] ?? defaultPos[absKey] ?? [0, 32, 6, 5];
+                    // Only guard truly invalid (0 or negative) values
+                    final int defH = defaultPos[absKey]?[3] ?? 5;
+                    final int hGrid = posRaw[3] <= 0 ? defH : posRaw[3];
 
-                if (hasLegend) processedKeys.add('legend');
-                if (hasAttendance) processedKeys.add('attendance');
-                if (hasNotes) processedKeys.add('notes');
-              } else if (key == 'sig_date' || key == 'sig_ortu' || key == 'sig_wali' || key == 'sig_kepsek') {
-                // Group all signature elements on this page and render using Stack
-                final pageSigs = pageKeys.where((k) => (k == 'sig_date' || k == 'sig_ortu' || k == 'sig_wali' || k == 'sig_kepsek') && !processedKeys.contains(k)).toList();
-                if (pageSigs.isNotEmpty) {
-                  int minY = 9999;
-                  int maxY = 0;
-                  for (final sigKey in pageSigs) {
-                    final pos = activeSettings.elementPositions[sigKey] ?? [0, 44, 4, 5];
-                    final int startY = pos[1];
-                    final int endY = pos[1] + pos[3];
+                    final double startY = y[absKey]!;
+                    final double endY = startY +
+                        (actualHeights[absKey] ?? hGrid).toDouble() * 11.0 +
+                        ((absKey == 'sig_ortu' || absKey == 'sig_wali' || absKey == 'sig_kepsek') ? 45.0 : 0.0);
                     if (startY < minY) minY = startY;
                     if (endY > maxY) maxY = endY;
                   }
 
-                  final double groupHeight = (maxY - minY).toDouble() * 11.0 + 45.0;
+                  final double groupHeight = maxY - minY;
                   final double printableWidth = pageFormat.availableWidth;
 
                   final List<pw.Widget> stackedWidgets = [];
-                  for (final sigKey in pageSigs) {
-                    final pos = activeSettings.elementPositions[sigKey] ?? [0, 44, 4, 5];
-                    final double left = (pos[0].toDouble() / 12.0) * printableWidth;
-                    final double top = (pos[1] - minY).toDouble() * 11.0;
-                    final double w = (pos[2].toDouble() / 12.0) * printableWidth;
-                    final double h = pos[3].toDouble() * 11.0 + 45.0;
+                  for (final absKey in pageAbs) {
+                    // Use the exact stored position from Firestore (elementPositions),
+                    // falling back to the default template only if the value is truly invalid
+                    final posRaw = activeSettings.elementPositions[absKey] ?? defaultPos[absKey] ?? [0, 32, 6, 5];
+                    final int defW = defaultPos[absKey]?[2] ?? 6;
+                    final int defH = defaultPos[absKey]?[3] ?? 5;
+                    // Only override if value is 0 or negative (truly corrupt)
+                    final int wGrid = posRaw[2] <= 0 ? defW : posRaw[2];
+                    final int hGrid = posRaw[3] <= 0 ? defH : posRaw[3];
+
+                    final double left = (posRaw[0].toDouble() / 12.0) * printableWidth;
+                    final double top = y[absKey]! - minY;
+                    final double w = (wGrid.toDouble() / 12.0) * printableWidth;
+                    // For signature cols, keep both width + height; for content sections
+                    // only constrain width so content height renders naturally without clipping
+                    final bool isSigCol = (absKey == 'sig_ortu' || absKey == 'sig_wali' || absKey == 'sig_kepsek' || absKey == 'sig_date');
+                    final double h = (actualHeights[absKey] ?? hGrid).toDouble() * 11.0 +
+                        ((absKey == 'sig_ortu' || absKey == 'sig_wali' || absKey == 'sig_kepsek') ? 45.0 : 0.0);
 
                     stackedWidgets.add(
                       pw.Positioned(
                         left: left,
                         top: top,
-                        child: pw.SizedBox(
-                          width: w,
-                          height: h,
-                          child: pw.Container(
-                            width: w,
-                            height: h,
-                            alignment: pw.Alignment.topCenter,
-                            child: sections[sigKey]!,
-                          ),
-                        ),
+                        child: isSigCol
+                          ? pw.SizedBox(
+                              width: w,
+                              height: h,
+                              child: sections[absKey]!,
+                            )
+                          : pw.SizedBox(
+                              width: w,
+                              child: sections[absKey]!,
+                            ),
                       ),
                     );
                   }
@@ -919,7 +921,7 @@ class RaporPdfHelper {
                   );
 
                   pageChildren.add(pw.SizedBox(height: gapAfter));
-                  processedKeys.addAll(pageSigs);
+                  processedKeys.addAll(pageAbs);
                 }
               }
             }
@@ -1033,6 +1035,7 @@ class RaporPdfHelper {
               padding: const pw.EdgeInsets.symmetric(vertical: 4),
               child: pw.Text(
                 title,
+                maxLines: 1,
                 style: pw.TextStyle(
                   fontSize: fontSize ?? 10,
                   fontWeight: pw.FontWeight.bold,
