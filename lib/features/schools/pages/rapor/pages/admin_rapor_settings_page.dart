@@ -193,9 +193,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
               showNotes: _settings.showNotes,
               kepsekName: _kepsekNameController.text,
               kepsekNip: _kepsekNipController.text,
-              ttdKepsekPosition: _settings.ttdKepsekPosition,
-              ttdWaliPosition: _settings.ttdWaliPosition,
-              ttdOrtuPosition: _settings.ttdOrtuPosition,
               fontSize: _settings.fontSize,
               primaryColorHex: _settings.primaryColorHex,
               secondaryColorHex: _settings.secondaryColorHex,
@@ -218,9 +215,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
               showNotes: _settings.showNotes,
               kepsekName: _kepsekNameController.text,
               kepsekNip: _kepsekNipController.text,
-              ttdKepsekPosition: _settings.ttdKepsekPosition,
-              ttdWaliPosition: _settings.ttdWaliPosition,
-              ttdOrtuPosition: _settings.ttdOrtuPosition,
               fontSize: _settings.fontSize,
               primaryColorHex: _settings.primaryColorHex,
               secondaryColorHex: _settings.secondaryColorHex,
@@ -252,9 +246,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
         showNotes: _settings.showNotes,
         kepsekName: _kepsekNameController.text,
         kepsekNip: _kepsekNipController.text,
-        ttdKepsekPosition: _settings.ttdKepsekPosition,
-        ttdWaliPosition: _settings.ttdWaliPosition,
-        ttdOrtuPosition: _settings.ttdOrtuPosition,
         fontSize: _settings.fontSize,
         primaryColorHex: _settings.primaryColorHex,
         secondaryColorHex: _settings.secondaryColorHex,
@@ -737,7 +728,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
         children: [
           _previewSectionHeader('B. PENILAIAN AKADEMIK', primaryColor),
           const SizedBox(height: 4),
-          _buildResizablePreviewTable(
+          _ResizablePreviewTable(
             headers: const ['No', 'Mata Pelajaran', 'KKM', 'Nilai', 'Predikat', 'Deskripsi Pencapaian'],
             rows: const [
               ['1', 'Bahasa Indonesia', '75', '82', 'B', 'Sudah baik dalam memahami teks.'],
@@ -762,7 +753,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
         children: [
           _previewSectionHeader('KETERANGAN PREDIKAT', primaryColor),
           const SizedBox(height: 4),
-          _buildResizablePreviewTable(
+          _ResizablePreviewTable(
             headers: const ['Rentang Nilai', 'Predikat'],
             rows: const [
               ['95 - 100', 'A+'],
@@ -792,7 +783,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
         children: [
           _previewSectionHeader('C. KETIDAKHADIRAN', primaryColor),
           const SizedBox(height: 4),
-          _buildResizablePreviewTable(
+          _ResizablePreviewTable(
             headers: const ['Alasan Absensi', 'Jumlah'],
             rows: const [
               ['1. Sakit (S)', '0 hari'],
@@ -830,27 +821,31 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           ),
         ],
       ),
-      'signatures': Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (_settings.ttdOrtuPosition != 'none')
-            _previewSignatureCol('Orang Tua/Wali Murid,', '', '')
-          else
-            const SizedBox(),
-          if (_settings.ttdWaliPosition != 'none')
-            _previewSignatureCol('Wali Kelas,', 'Ahmad Fauzan, S.Pd', '')
-          else
-            const SizedBox(),
-          if (_settings.ttdKepsekPosition != 'none')
-            _previewSignatureCol(
-              'Kepala Sekolah,',
-              _kepsekNameController.text.isNotEmpty ? _kepsekNameController.text : 'Dra. Hj. Siti Aminah, M.Pd',
-              _kepsekNipController.text.isNotEmpty ? 'NIP. ${_kepsekNipController.text}' : 'NIP. 196504151990032001',
-            )
-          else
-            const SizedBox(),
-        ],
+      'sig_date': Text(
+        _settings.sigDateText.isNotEmpty
+            ? _settings.sigDateText
+            : 'Kota, ${DateTime.now().day} Juli ${DateTime.now().year}',
+        style: const TextStyle(fontSize: 8, color: Colors.black87),
+        textAlign: TextAlign.center,
+      ),
+      'sig_ortu': _buildSigColPreview(
+        title: 'Orang Tua/Wali Murid,',
+        name: '',
+        nip: '',
+      ),
+      'sig_wali': _buildSigColPreview(
+        title: 'Wali Kelas,',
+        name: 'Ahmad Fauzan, S.Pd',
+        nip: '',
+      ),
+      'sig_kepsek': _buildSigColPreview(
+        title: 'Kepala Sekolah,',
+        name: _kepsekNameController.text.isNotEmpty
+            ? _kepsekNameController.text
+            : 'Dra. Hj. Siti Aminah, M.Pd',
+        nip: _kepsekNipController.text.isNotEmpty
+            ? 'NIP. ${_kepsekNipController.text}'
+            : 'NIP. 196504151990032001',
       ),
     };
 
@@ -888,7 +883,10 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           _buildGridElement('legend', sections['legend']!, isVisible: _settings.showPredikat),
           _buildGridElement('attendance', sections['attendance']!, isVisible: _settings.showAttendance),
           _buildGridElement('notes', sections['notes']!, isVisible: _settings.showNotes),
-          _buildGridElement('signatures', sections['signatures']!, isVisible: true),
+          _buildGridElement('sig_date', sections['sig_date']!, isVisible: _settings.showSigDate),
+          _buildGridElement('sig_ortu', sections['sig_ortu']!, isVisible: _settings.showSigOrtu),
+          _buildGridElement('sig_wali', sections['sig_wali']!, isVisible: _settings.showSigWali),
+          _buildGridElement('sig_kepsek', sections['sig_kepsek']!, isVisible: _settings.showSigKepsek),
         ],
       ),
     );
@@ -988,38 +986,45 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     );
   }
 
-  Widget _previewSignatureCol(String title, String name, String nip) {
+  Widget _buildSigColPreview({
+    required String title,
+    required String name,
+    required String nip,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Malang, ${DateTime.now().day} Juli ${DateTime.now().year}',
-          style: const TextStyle(fontSize: 8, color: Colors.black87),
+          title,
+          style: const TextStyle(
+            fontSize: 8,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+          textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 4),
-        Text(title,
-            style: const TextStyle(
-                fontSize: 8,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87)),
-        const SizedBox(height: 48),
+        const SizedBox(height: 36),
         Container(
-          width: 120,
+          width: 100,
           height: 0.5,
           color: Colors.black54,
         ),
         const SizedBox(height: 3),
         Text(
-          name,
+          name.isNotEmpty ? name : ' ',
           style: const TextStyle(
-              fontSize: 8,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87),
+            fontSize: 8,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
           textAlign: TextAlign.center,
         ),
-        if (nip.isNotEmpty)
-          Text(nip,
-              style: const TextStyle(fontSize: 7.5, color: Colors.black54)),
+        Text(
+          nip.isNotEmpty ? nip : ' ',
+          style: const TextStyle(fontSize: 7.5, color: Colors.black54),
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }
@@ -1198,6 +1203,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   });
                 },
                 child: Container(
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: isDraggingThis
@@ -1209,6 +1215,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   ),
                   child: child,
                 ),
+
               ),
               if (_hoveredId == id || isDraggingThis)
                 Positioned(
@@ -1389,133 +1396,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     );
   }
 
-  Widget _buildResizablePreviewTable({
-    required List<String> headers,
-    required List<List<String>> rows,
-    required Color primaryColor,
-    required List<double> widths,
-    required ValueChanged<List<double>> onWidthsChanged,
-  }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final totalWidth = constraints.maxWidth;
-        return Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300, width: 0.5),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                color: primaryColor.withValues(alpha: 0.08),
-                child: Row(
-                  children: List.generate(headers.length * 2 - 1, (index) {
-                    if (index.isOdd) {
-                      final colIndex = index ~/ 2;
-                      return GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onHorizontalDragUpdate: (details) {
-                          if (totalWidth > 0) {
-                            final double dw = details.primaryDelta! / totalWidth;
-                            final newWidths = List<double>.from(widths);
-                            final double leftVal = newWidths[colIndex];
-                            final double rightVal = newWidths[colIndex + 1];
-                            newWidths[colIndex] = (leftVal + dw).clamp(0.04, 0.9);
-                            newWidths[colIndex + 1] = (rightVal - dw).clamp(0.04, 0.9);
-                            final double sum = newWidths.reduce((a, b) => a + b);
-                            for (int k = 0; k < newWidths.length; k++) {
-                              newWidths[k] /= sum;
-                            }
-                            onWidthsChanged(newWidths);
-                          }
-                        },
-                        child: MouseRegion(
-                          cursor: SystemMouseCursors.resizeLeftRight,
-                          child: Container(
-                            width: 12,
-                            height: 18,
-                            alignment: Alignment.center,
-                            child: Container(
-                              width: 1.5,
-                              height: 10,
-                              color: const Color(0xFF3B82F6).withValues(alpha: 0.5),
-                            ),
-                          ),
-                        ),
-                      );
-                    } else {
-                      final colIndex = index ~/ 2;
-                      final w = widths[colIndex];
-                      return Expanded(
-                        flex: (w * 10000).round(),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                          alignment: Alignment.center,
-                          child: Text(
-                            headers[colIndex],
-                            style: TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                              color: primaryColor,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      );
-                    }
-                  }),
-                ),
-              ),
-              const Divider(height: 0.5, thickness: 0.5, color: Colors.grey),
-              ...rows.map((row) {
-                return Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade300, width: 0.5),
-                    ),
-                  ),
-                  child: Row(
-                    children: List.generate(row.length * 2 - 1, (index) {
-                      if (index.isOdd) {
-                        return Container(
-                          width: 12,
-                          alignment: Alignment.center,
-                          child: Container(
-                            width: 0.5,
-                            height: 14,
-                            color: Colors.grey.shade300,
-                          ),
-                        );
-                      } else {
-                        final colIndex = index ~/ 2;
-                        final w = widths[colIndex];
-                        return Expanded(
-                          flex: (w * 10000).round(),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                            alignment: Alignment.center,
-                            child: Text(
-                              row[colIndex],
-                              style: const TextStyle(fontSize: 8, color: Colors.black87),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        );
-                      }
-                    }),
-                  ),
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
-  }
+
 
   // 2. Header / Kop Surat Section
   Widget _buildHeaderSection(bool isDark, Color cardBg, Color cardBorder, Color inputFill, Color titleColor, Color subText) {
@@ -1790,9 +1671,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   showNotes: _settings.showNotes,
                   kepsekName: _kepsekNameController.text,
                   kepsekNip: _kepsekNipController.text,
-                  ttdKepsekPosition: _settings.ttdKepsekPosition,
-                  ttdWaliPosition: _settings.ttdWaliPosition,
-                  ttdOrtuPosition: _settings.ttdOrtuPosition,
                   fontSize: _settings.fontSize,
                   primaryColorHex: _settings.primaryColorHex,
                   secondaryColorHex: _settings.secondaryColorHex,
@@ -1828,9 +1706,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   showNotes: _settings.showNotes,
                   kepsekName: _kepsekNameController.text,
                   kepsekNip: _kepsekNipController.text,
-                  ttdKepsekPosition: _settings.ttdKepsekPosition,
-                  ttdWaliPosition: _settings.ttdWaliPosition,
-                  ttdOrtuPosition: _settings.ttdOrtuPosition,
                   fontSize: _settings.fontSize,
                   primaryColorHex: _settings.primaryColorHex,
                   secondaryColorHex: _settings.secondaryColorHex,
@@ -1883,9 +1758,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                       showNotes: _settings.showNotes,
                       kepsekName: _kepsekNameController.text,
                       kepsekNip: _kepsekNipController.text,
-                      ttdKepsekPosition: _settings.ttdKepsekPosition,
-                      ttdWaliPosition: _settings.ttdWaliPosition,
-                      ttdOrtuPosition: _settings.ttdOrtuPosition,
                       fontSize: _settings.fontSize,
                       primaryColorHex: _settings.primaryColorHex,
                       secondaryColorHex: _settings.secondaryColorHex,
@@ -2026,9 +1898,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   showNotes: _settings.showNotes,
                   kepsekName: _kepsekNameController.text,
                   kepsekNip: _kepsekNipController.text,
-                  ttdKepsekPosition: _settings.ttdKepsekPosition,
-                  ttdWaliPosition: _settings.ttdWaliPosition,
-                  ttdOrtuPosition: _settings.ttdOrtuPosition,
                   fontSize: _settings.fontSize,
                   primaryColorHex: _settings.primaryColorHex,
                   secondaryColorHex: _settings.secondaryColorHex,
@@ -2059,9 +1928,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   showNotes: _settings.showNotes,
                   kepsekName: _kepsekNameController.text,
                   kepsekNip: _kepsekNipController.text,
-                  ttdKepsekPosition: _settings.ttdKepsekPosition,
-                  ttdWaliPosition: _settings.ttdWaliPosition,
-                  ttdOrtuPosition: _settings.ttdOrtuPosition,
                   fontSize: _settings.fontSize,
                   primaryColorHex: _settings.primaryColorHex,
                   secondaryColorHex: _settings.secondaryColorHex,
@@ -2092,9 +1958,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   showNotes: _settings.showNotes,
                   kepsekName: _kepsekNameController.text,
                   kepsekNip: _kepsekNipController.text,
-                  ttdKepsekPosition: _settings.ttdKepsekPosition,
-                  ttdWaliPosition: _settings.ttdWaliPosition,
-                  ttdOrtuPosition: _settings.ttdOrtuPosition,
                   fontSize: _settings.fontSize,
                   primaryColorHex: _settings.primaryColorHex,
                   secondaryColorHex: _settings.secondaryColorHex,
@@ -2125,9 +1988,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   showNotes: val,
                   kepsekName: _kepsekNameController.text,
                   kepsekNip: _kepsekNipController.text,
-                  ttdKepsekPosition: _settings.ttdKepsekPosition,
-                  ttdWaliPosition: _settings.ttdWaliPosition,
-                  ttdOrtuPosition: _settings.ttdOrtuPosition,
                   fontSize: _settings.fontSize,
                   primaryColorHex: _settings.primaryColorHex,
                   secondaryColorHex: _settings.secondaryColorHex,
@@ -2168,13 +2028,20 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.assignment_ind_rounded, color: Colors.blue, size: 20),
+              const Icon(Icons.assignment_ind_rounded, color: Colors.blue, size: 20),
               const SizedBox(width: 8),
               Text(
                 AppLocalization.isIndonesian ? 'Tanda Tangan & Pejabat' : 'Signature & Officers',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: titleColor),
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            AppLocalization.isIndonesian
+                ? 'Posisi setiap elemen tanda tangan dapat diatur bebas dengan drag-and-drop pada preview di atas.'
+                : 'Each signature element position can be freely set by drag-and-drop on the preview above.',
+            style: TextStyle(fontSize: 11, color: subText),
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -2194,122 +2061,58 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
             titleColor: titleColor,
             subText: subText,
           ),
+          const SizedBox(height: 12),
+          TextField(
+            decoration: InputDecoration(
+              labelText: AppLocalization.isIndonesian ? 'Teks Tanggal (mis: Malang)' : 'Date Text (e.g.: Malang)',
+              hintText: AppLocalization.isIndonesian
+                  ? 'Kosongkan untuk otomatis (Kota, DD Bulan YYYY)'
+                  : 'Leave empty for auto (City, DD Month YYYY)',
+              labelStyle: const TextStyle(fontSize: 12),
+              fillColor: inputFill,
+              filled: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+            onChanged: (val) {
+              setState(() {
+                _settings = _settings.copyWith(sigDateText: val.trim());
+              });
+            },
+            controller: TextEditingController(text: _settings.sigDateText)
+              ..selection = TextSelection.fromPosition(
+                  TextPosition(offset: _settings.sigDateText.length)),
+          ),
           const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 8),
           Text(
-            AppLocalization.isIndonesian ? 'Posisi Tanda Tangan' : 'Signature Positions',
+            AppLocalization.isIndonesian ? 'Tampilkan Elemen Tanda Tangan' : 'Show Signature Elements',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           ),
-          const SizedBox(height: 12),
-          _buildDropdownPosition(
-            label: AppLocalization.isIndonesian ? 'Tanda Tangan Orang Tua' : 'Parent Signature',
-            value: _settings.ttdOrtuPosition,
-            onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  _settings = RaporPdfSettings(
-                    headerTitle: _titleController.text,
-                    headerSubtitle: _subtitleController.text,
-                    schoolName: _schoolNameController.text,
-                    schoolAddress: _addressController.text,
-                    schoolPhone: _phoneController.text,
-                    logoLeftBase64: _settings.logoLeftBase64,
-                    logoRightBase64: _settings.logoRightBase64,
-                    showLogoLeft: _settings.showLogoLeft,
-                    showLogoRight: _settings.showLogoRight,
-                    showWatermark: _settings.showWatermark,
-                    showSpiritualAttitude: _settings.showSpiritualAttitude,
-                    showPredikat: _settings.showPredikat,
-                    showAttendance: _settings.showAttendance,
-                    showNotes: _settings.showNotes,
-                    kepsekName: _kepsekNameController.text,
-                    kepsekNip: _kepsekNipController.text,
-                    ttdKepsekPosition: _settings.ttdKepsekPosition,
-                    ttdWaliPosition: _settings.ttdWaliPosition,
-                    ttdOrtuPosition: val,
-                    fontSize: _settings.fontSize,
-                    primaryColorHex: _settings.primaryColorHex,
-                    secondaryColorHex: _settings.secondaryColorHex,
-                  );
-                });
-              }
-            },
-            inputFill: inputFill,
+          const SizedBox(height: 8),
+          _buildSigToggle(
+            label: AppLocalization.isIndonesian ? 'Tanggal / Kota' : 'Date / City',
+            value: _settings.showSigDate,
+            onChanged: (v) => setState(() => _settings = _settings.copyWith(showSigDate: v)),
             isDark: isDark,
           ),
-          const SizedBox(height: 12),
-          _buildDropdownPosition(
-            label: AppLocalization.isIndonesian ? 'Tanda Tangan Wali Kelas' : 'Homeroom Teacher Signature',
-            value: _settings.ttdWaliPosition,
-            onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  _settings = RaporPdfSettings(
-                    headerTitle: _titleController.text,
-                    headerSubtitle: _subtitleController.text,
-                    schoolName: _schoolNameController.text,
-                    schoolAddress: _addressController.text,
-                    schoolPhone: _phoneController.text,
-                    logoLeftBase64: _settings.logoLeftBase64,
-                    logoRightBase64: _settings.logoRightBase64,
-                    showLogoLeft: _settings.showLogoLeft,
-                    showLogoRight: _settings.showLogoRight,
-                    showWatermark: _settings.showWatermark,
-                    showSpiritualAttitude: _settings.showSpiritualAttitude,
-                    showPredikat: _settings.showPredikat,
-                    showAttendance: _settings.showAttendance,
-                    showNotes: _settings.showNotes,
-                    kepsekName: _kepsekNameController.text,
-                    kepsekNip: _kepsekNipController.text,
-                    ttdKepsekPosition: _settings.ttdKepsekPosition,
-                    ttdWaliPosition: val,
-                    ttdOrtuPosition: _settings.ttdOrtuPosition,
-                    fontSize: _settings.fontSize,
-                    primaryColorHex: _settings.primaryColorHex,
-                    secondaryColorHex: _settings.secondaryColorHex,
-                  );
-                });
-              }
-            },
-            inputFill: inputFill,
+          _buildSigToggle(
+            label: AppLocalization.isIndonesian ? 'Orang Tua / Wali Murid' : 'Parent / Guardian',
+            value: _settings.showSigOrtu,
+            onChanged: (v) => setState(() => _settings = _settings.copyWith(showSigOrtu: v)),
             isDark: isDark,
           ),
-          const SizedBox(height: 12),
-          _buildDropdownPosition(
-            label: AppLocalization.isIndonesian ? 'Tanda Tangan Kepala Sekolah' : 'Headmaster Signature',
-            value: _settings.ttdKepsekPosition,
-            onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  _settings = RaporPdfSettings(
-                    headerTitle: _titleController.text,
-                    headerSubtitle: _subtitleController.text,
-                    schoolName: _schoolNameController.text,
-                    schoolAddress: _addressController.text,
-                    schoolPhone: _phoneController.text,
-                    logoLeftBase64: _settings.logoLeftBase64,
-                    logoRightBase64: _settings.logoRightBase64,
-                    showLogoLeft: _settings.showLogoLeft,
-                    showLogoRight: _settings.showLogoRight,
-                    showWatermark: _settings.showWatermark,
-                    showSpiritualAttitude: _settings.showSpiritualAttitude,
-                    showPredikat: _settings.showPredikat,
-                    showAttendance: _settings.showAttendance,
-                    showNotes: _settings.showNotes,
-                    kepsekName: _kepsekNameController.text,
-                    kepsekNip: _kepsekNipController.text,
-                    ttdKepsekPosition: val,
-                    ttdWaliPosition: _settings.ttdWaliPosition,
-                    ttdOrtuPosition: _settings.ttdOrtuPosition,
-                    fontSize: _settings.fontSize,
-                    primaryColorHex: _settings.primaryColorHex,
-                    secondaryColorHex: _settings.secondaryColorHex,
-                  );
-                });
-              }
-            },
-            inputFill: inputFill,
+          _buildSigToggle(
+            label: AppLocalization.isIndonesian ? 'Wali Kelas' : 'Homeroom Teacher',
+            value: _settings.showSigWali,
+            onChanged: (v) => setState(() => _settings = _settings.copyWith(showSigWali: v)),
+            isDark: isDark,
+          ),
+          _buildSigToggle(
+            label: AppLocalization.isIndonesian ? 'Kepala Sekolah' : 'Headmaster',
+            value: _settings.showSigKepsek,
+            onChanged: (v) => setState(() => _settings = _settings.copyWith(showSigKepsek: v)),
             isDark: isDark,
           ),
         ],
@@ -2317,34 +2120,29 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     );
   }
 
-  Widget _buildDropdownPosition({
+  Widget _buildSigToggle({
     required String label,
-    required String value,
-    required ValueChanged<String?> onChanged,
-    required Color inputFill,
+    required bool value,
+    required ValueChanged<bool> onChanged,
     required bool isDark,
   }) {
-    return DropdownButtonFormField<String>(
-      isExpanded: true,
-      value: value,
-      dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(fontSize: 12),
-        fillColor: inputFill,
-        filled: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 13)),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: Colors.blue,
+          ),
+        ],
       ),
-      items: const [
-        DropdownMenuItem<String>(value: 'left', child: Text('Kiri (Left)')),
-        DropdownMenuItem<String>(value: 'center', child: Text('Tengah (Center)')),
-        DropdownMenuItem<String>(value: 'right', child: Text('Kanan (Right)')),
-        DropdownMenuItem<String>(value: 'none', child: Text('Sembunyikan (Hide)')),
-      ],
-      onChanged: onChanged,
     );
   }
+
+
 
   // 6. Theme and Font styling Section
   Widget _buildStyleSection(bool isDark, Color cardBg, Color cardBorder, Color titleColor, Color subText) {
@@ -2401,9 +2199,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                       showNotes: _settings.showNotes,
                       kepsekName: _kepsekNameController.text,
                       kepsekNip: _kepsekNipController.text,
-                      ttdKepsekPosition: _settings.ttdKepsekPosition,
-                      ttdWaliPosition: _settings.ttdWaliPosition,
-                      ttdOrtuPosition: _settings.ttdOrtuPosition,
                       fontSize: _settings.fontSize,
                       primaryColorHex: theme['primary']!,
                       secondaryColorHex: theme['secondary']!,
@@ -2481,9 +2276,6 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                         showNotes: _settings.showNotes,
                         kepsekName: _kepsekNameController.text,
                         kepsekNip: _kepsekNipController.text,
-                        ttdKepsekPosition: _settings.ttdKepsekPosition,
-                        ttdWaliPosition: _settings.ttdWaliPosition,
-                        ttdOrtuPosition: _settings.ttdOrtuPosition,
                         fontSize: val,
                         primaryColorHex: _settings.primaryColorHex,
                         secondaryColorHex: _settings.secondaryColorHex,
@@ -2521,6 +2313,177 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
+    );
+  }
+}
+
+class _ResizablePreviewTable extends StatefulWidget {
+  final List<String> headers;
+  final List<List<String>> rows;
+  final Color primaryColor;
+  final List<double> widths;
+  final ValueChanged<List<double>> onWidthsChanged;
+
+  const _ResizablePreviewTable({
+    required this.headers,
+    required this.rows,
+    required this.primaryColor,
+    required this.widths,
+    required this.onWidthsChanged,
+  });
+
+  @override
+  _ResizablePreviewTableState createState() => _ResizablePreviewTableState();
+}
+
+class _ResizablePreviewTableState extends State<_ResizablePreviewTable> {
+  late List<double> _localWidths;
+
+  @override
+  void initState() {
+    super.initState();
+    _localWidths = List<double>.from(widget.widths);
+  }
+
+  @override
+  void didUpdateWidget(_ResizablePreviewTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.widths != oldWidget.widths || !_listsEqual(widget.widths, _localWidths)) {
+      _localWidths = List<double>.from(widget.widths);
+    }
+  }
+
+  bool _listsEqual(List<double> a, List<double> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final totalWidth = constraints.maxWidth;
+        return Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300, width: 0.5),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                color: widget.primaryColor.withValues(alpha: 0.08),
+                child: Row(
+                  children: List.generate(widget.headers.length * 2 - 1, (index) {
+                    if (index.isOdd) {
+                      final colIndex = index ~/ 2;
+                      return GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onHorizontalDragUpdate: (details) {
+                          if (totalWidth > 0) {
+                            final double dw = details.primaryDelta! / totalWidth;
+                            setState(() {
+                              final double leftVal = _localWidths[colIndex];
+                              final double rightVal = _localWidths[colIndex + 1];
+                              _localWidths[colIndex] = (leftVal + dw).clamp(0.04, 0.9);
+                              _localWidths[colIndex + 1] = (rightVal - dw).clamp(0.04, 0.9);
+                              final double sum = _localWidths.reduce((a, b) => a + b);
+                              for (int k = 0; k < _localWidths.length; k++) {
+                                _localWidths[k] /= sum;
+                              }
+                            });
+                          }
+                        },
+                        onHorizontalDragEnd: (_) {
+                          widget.onWidthsChanged(_localWidths);
+                        },
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.resizeLeftRight,
+                          child: Container(
+                            width: 12,
+                            height: 18,
+                            alignment: Alignment.center,
+                            child: Container(
+                              width: 1.5,
+                              height: 10,
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                      );
+                    } else {
+                      final colIndex = index ~/ 2;
+                      final w = _localWidths[colIndex];
+                      return Expanded(
+                        flex: (w * 10000).round(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                          alignment: Alignment.center,
+                          child: Text(
+                            widget.headers[colIndex],
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              color: widget.primaryColor,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      );
+                    }
+                  }),
+                ),
+              ),
+              const Divider(height: 0.5, thickness: 0.5, color: Colors.grey),
+              ...widget.rows.map((row) {
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade300, width: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    children: List.generate(row.length * 2 - 1, (index) {
+                      if (index.isOdd) {
+                        return Container(
+                          width: 12,
+                          alignment: Alignment.center,
+                          child: Container(
+                            width: 0.5,
+                            height: 14,
+                            color: Colors.grey.shade300,
+                          ),
+                        );
+                      } else {
+                        final colIndex = index ~/ 2;
+                        final w = _localWidths[colIndex];
+                        return Expanded(
+                          flex: (w * 10000).round(),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                            alignment: Alignment.center,
+                            child: Text(
+                              row[colIndex],
+                              style: const TextStyle(fontSize: 8, color: Colors.black87),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        );
+                      }
+                    }),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 }

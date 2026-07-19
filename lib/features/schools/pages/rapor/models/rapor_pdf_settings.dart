@@ -15,9 +15,16 @@ class RaporPdfSettings {
   final bool showNotes;
   final String kepsekName;
   final String kepsekNip;
-  final String ttdKepsekPosition; // 'left', 'center', 'right', 'none'
-  final String ttdWaliPosition;   // 'left', 'center', 'right', 'none'
-  final String ttdOrtuPosition;   // 'left', 'center', 'right', 'none'
+
+  // Independent signature element toggles
+  final bool showSigOrtu;
+  final bool showSigWali;
+  final bool showSigKepsek;
+  final bool showSigDate;
+
+  // Custom date text prefix e.g. "Malang" (if empty, uses school city)
+  final String sigDateText;
+
   final int fontSize;
   final String primaryColorHex;
   final String secondaryColorHex;
@@ -65,9 +72,11 @@ class RaporPdfSettings {
     required this.showNotes,
     required this.kepsekName,
     required this.kepsekNip,
-    required this.ttdKepsekPosition,
-    required this.ttdWaliPosition,
-    required this.ttdOrtuPosition,
+    this.showSigOrtu = true,
+    this.showSigWali = true,
+    this.showSigKepsek = true,
+    this.showSigDate = true,
+    this.sigDateText = '',
     required this.fontSize,
     required this.primaryColorHex,
     required this.secondaryColorHex,
@@ -98,7 +107,10 @@ class RaporPdfSettings {
       'legend': [0, 32, 5, 11],
       'attendance': [6, 32, 6, 5],
       'notes': [6, 38, 6, 5],
-      'signatures': [0, 44, 12, 6],
+      'sig_date': [6, 44, 6, 2],
+      'sig_ortu': [0, 46, 4, 5],
+      'sig_wali': [4, 46, 4, 5],
+      'sig_kepsek': [8, 46, 4, 5],
     },
   });
 
@@ -120,9 +132,11 @@ class RaporPdfSettings {
       showNotes: true,
       kepsekName: '',
       kepsekNip: '',
-      ttdKepsekPosition: 'right',
-      ttdWaliPosition: 'right',
-      ttdOrtuPosition: 'left',
+      showSigOrtu: true,
+      showSigWali: true,
+      showSigKepsek: true,
+      showSigDate: true,
+      sigDateText: '',
       fontSize: 9,
       primaryColorHex: '#1E1B4B',
       secondaryColorHex: '#4B5563',
@@ -149,6 +163,24 @@ class RaporPdfSettings {
   }
 
   factory RaporPdfSettings.fromMap(Map<String, dynamic> map, String defaultSchoolName) {
+    Map<String, List<int>>? parsedPositions = (map['elementPositions'] as Map?)?.map(
+      (k, v) => MapEntry(k.toString(), (v as List).map((e) => (e as num).toInt()).toList()),
+    );
+
+    // Migration: if old 'signatures' key exists but new sig_ keys don't, derive defaults
+    if (parsedPositions != null &&
+        parsedPositions.containsKey('signatures') &&
+        !parsedPositions.containsKey('sig_ortu')) {
+      final sigPos = parsedPositions['signatures']!;
+      final int baseY = sigPos.length > 1 ? sigPos[1] : 44;
+      parsedPositions = Map<String, List<int>>.from(parsedPositions)
+        ..remove('signatures')
+        ..['sig_date'] = [6, baseY, 6, 2]
+        ..['sig_ortu'] = [0, baseY + 2, 4, 5]
+        ..['sig_wali'] = [4, baseY + 2, 4, 5]
+        ..['sig_kepsek'] = [8, baseY + 2, 4, 5];
+    }
+
     return RaporPdfSettings(
       headerTitle: map['headerTitle']?.toString() ?? 'LAPORAN HASIL BELAJAR (RAPOR)',
       headerSubtitle: map['headerSubtitle']?.toString() ?? 'KEMENTERIAN PENDIDIKAN, KEBUDAYAAN, RISET, DAN TEKNOLOGI',
@@ -166,9 +198,11 @@ class RaporPdfSettings {
       showNotes: map['showNotes'] as bool? ?? true,
       kepsekName: map['kepsekName']?.toString() ?? '',
       kepsekNip: map['kepsekNip']?.toString() ?? '',
-      ttdKepsekPosition: map['ttdKepsekPosition']?.toString() ?? 'right',
-      ttdWaliPosition: map['ttdWaliPosition']?.toString() ?? 'right',
-      ttdOrtuPosition: map['ttdOrtuPosition']?.toString() ?? 'left',
+      showSigOrtu: map['showSigOrtu'] as bool? ?? true,
+      showSigWali: map['showSigWali'] as bool? ?? true,
+      showSigKepsek: map['showSigKepsek'] as bool? ?? true,
+      showSigDate: map['showSigDate'] as bool? ?? true,
+      sigDateText: map['sigDateText']?.toString() ?? '',
       fontSize: map['fontSize'] as int? ?? 9,
       primaryColorHex: map['primaryColorHex']?.toString() ?? '#1E1B4B',
       secondaryColorHex: map['secondaryColorHex']?.toString() ?? '#4B5563',
@@ -195,9 +229,7 @@ class RaporPdfSettings {
           const [0.6, 0.4],
       attendanceColWidths: (map['attendanceColWidths'] as List?)?.map((e) => (e as num).toDouble()).toList() ??
           const [0.7, 0.3],
-      elementPositions: (map['elementPositions'] as Map?)?.map(
-            (k, v) => MapEntry(k.toString(), (v as List).map((e) => (e as num).toInt()).toList()),
-          ) ??
+      elementPositions: parsedPositions ??
           const {
             'kop': [0, 0, 12, 8],
             'info': [0, 9, 12, 3],
@@ -206,7 +238,10 @@ class RaporPdfSettings {
             'legend': [0, 32, 5, 11],
             'attendance': [6, 32, 6, 5],
             'notes': [6, 38, 6, 5],
-            'signatures': [0, 44, 12, 6],
+            'sig_date': [6, 44, 6, 2],
+            'sig_ortu': [0, 46, 4, 5],
+            'sig_wali': [4, 46, 4, 5],
+            'sig_kepsek': [8, 46, 4, 5],
           },
     );
   }
@@ -229,9 +264,11 @@ class RaporPdfSettings {
       'showNotes': showNotes,
       'kepsekName': kepsekName,
       'kepsekNip': kepsekNip,
-      'ttdKepsekPosition': ttdKepsekPosition,
-      'ttdWaliPosition': ttdWaliPosition,
-      'ttdOrtuPosition': ttdOrtuPosition,
+      'showSigOrtu': showSigOrtu,
+      'showSigWali': showSigWali,
+      'showSigKepsek': showSigKepsek,
+      'showSigDate': showSigDate,
+      'sigDateText': sigDateText,
       'fontSize': fontSize,
       'primaryColorHex': primaryColorHex,
       'secondaryColorHex': secondaryColorHex,
@@ -275,9 +312,11 @@ class RaporPdfSettings {
     bool? showNotes,
     String? kepsekName,
     String? kepsekNip,
-    String? ttdKepsekPosition,
-    String? ttdWaliPosition,
-    String? ttdOrtuPosition,
+    bool? showSigOrtu,
+    bool? showSigWali,
+    bool? showSigKepsek,
+    bool? showSigDate,
+    String? sigDateText,
     int? fontSize,
     String? primaryColorHex,
     String? secondaryColorHex,
@@ -319,9 +358,11 @@ class RaporPdfSettings {
       showNotes: showNotes ?? this.showNotes,
       kepsekName: kepsekName ?? this.kepsekName,
       kepsekNip: kepsekNip ?? this.kepsekNip,
-      ttdKepsekPosition: ttdKepsekPosition ?? this.ttdKepsekPosition,
-      ttdWaliPosition: ttdWaliPosition ?? this.ttdWaliPosition,
-      ttdOrtuPosition: ttdOrtuPosition ?? this.ttdOrtuPosition,
+      showSigOrtu: showSigOrtu ?? this.showSigOrtu,
+      showSigWali: showSigWali ?? this.showSigWali,
+      showSigKepsek: showSigKepsek ?? this.showSigKepsek,
+      showSigDate: showSigDate ?? this.showSigDate,
+      sigDateText: sigDateText ?? this.sigDateText,
       fontSize: fontSize ?? this.fontSize,
       primaryColorHex: primaryColorHex ?? this.primaryColorHex,
       secondaryColorHex: secondaryColorHex ?? this.secondaryColorHex,

@@ -137,7 +137,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
         _schoolLogoBase64 = schoolData['logoBase64'] as String?;
       }
 
-      // 2. Ambil semua data lainnya secara paralel (Guru, Absensi, Laporan tersimpan, Mapel, Bobot, Deskripsi)
+      // 2. Ambil semua data lainnya secara paralel (Guru, Absensi, Laporan tersimpan, Mapel, Bobot, Deskripsi, Kelas)
       final results = await Future.wait([
         FirebaseFirestore.instance
             .collection('schools')
@@ -176,6 +176,12 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
           tahunAjaran: _tahunAjaran,
           semester: _activeSemester,
         ),
+        FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('classes')
+            .doc(widget.classId)
+            .get(),
       ]);
       
       final teacherDoc = results[0] as DocumentSnapshot<Map<String, dynamic>>;
@@ -184,11 +190,16 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       final subjectsSnapshot = results[3] as QuerySnapshot<Map<String, dynamic>>;
       final weightsSnapshot = results[4] as QuerySnapshot<Map<String, dynamic>>;
       final descMapData = results[5] as Map<String, String>;
+      final classDoc = results[6] as DocumentSnapshot<Map<String, dynamic>>;
 
       if (teacherDoc.exists) {
         _teacherName = teacherDoc.data()?['nama'] ?? 'Wali Kelas';
         _teacherUserId = teacherDoc.data()?['uid']?.toString();
       }
+
+      // Ambil kuota mapel kelas untuk menyaring mapel yang tidak terdaftar di kelas ini
+      final Map<String, dynamic> subjectQuotas = classDoc.exists ? (classDoc.data()?['subjectQuotas'] as Map<String, dynamic>? ?? {}) : {};
+      final Set<String> classSubjectIds = subjectQuotas.keys.toSet();
 
       // Simpan data mapel
       _subjectIdToName.clear();
@@ -196,6 +207,12 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
       for (final sDoc in subjectsSnapshot.docs) {
         final data = sDoc.data();
         final id = data['subjectId']?.toString() ?? sDoc.id;
+        
+        // Saring hanya mapel yang ada di kelas ini
+        if (classSubjectIds.isNotEmpty && !classSubjectIds.contains(id)) {
+          continue;
+        }
+
         final name = data['namaMapel']?.toString() ?? 'Mapel';
         final kkmVal = data['kkm'] is int ? data['kkm'] as int : (int.tryParse(data['kkm']?.toString() ?? '75') ?? 75);
         _subjectIdToName[id] = name;
