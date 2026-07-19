@@ -29,7 +29,25 @@ class RaporPdfHelper {
   }) {
     final pdf = pw.Document();
 
-    final activeSettings = settings ?? RaporPdfSettings.defaultSettings(schoolName);
+    var activeSettings = settings ?? RaporPdfSettings.defaultSettings(schoolName);
+
+    // Migration logic for older databases where Kop height is < 8 or Info starts before row 9
+    final positions = Map<String, List<int>>.from(activeSettings.elementPositions);
+    final int oldKopHeight = positions['kop'] != null ? positions['kop']![3] : 6;
+    final int oldInfoStart = positions['info'] != null ? positions['info']![1] : 7;
+
+    if (oldKopHeight < 8 || oldInfoStart < 9) {
+      positions['kop'] = [0, 0, 12, 8];
+      positions['info'] = [0, 9, 12, 3];
+      positions['attitude'] = [0, 14, 12, 5];
+      positions['academic'] = [0, 20, 12, 11];
+      positions['legend'] = [0, 32, 5, 11];
+      positions['attendance'] = [6, 32, 6, 5];
+      positions['notes'] = [6, 38, 6, 5];
+      positions['signatures'] = [0, 44, 12, 6];
+      
+      activeSettings = activeSettings.copyWith(elementPositions: positions);
+    }
 
     int parseHexColor(String hex) {
       try {
@@ -269,9 +287,9 @@ class RaporPdfHelper {
                           pw.Text(
                             activeSettings.headerTitle.toUpperCase(),
                             style: pw.TextStyle(
-                              fontSize: fSize + 3,
-                              fontWeight: pw.FontWeight.bold,
-                              color: primaryColor,
+                              fontSize: activeSettings.titleFontSize.toDouble(),
+                              fontWeight: activeSettings.titleIsBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+                              color: PdfColor(primaryColor.red, primaryColor.green, primaryColor.blue, activeSettings.titleOpacity),
                             ),
                             textAlign: pw.TextAlign.center,
                           ),
@@ -280,8 +298,9 @@ class RaporPdfHelper {
                             pw.Text(
                               activeSettings.headerSubtitle.toUpperCase(),
                               style: pw.TextStyle(
-                                  fontSize: fSize - 1,
-                                  color: secondaryColor,
+                                  fontSize: activeSettings.subtitleFontSize.toDouble(),
+                                  fontWeight: activeSettings.subtitleIsBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+                                  color: PdfColor(primaryColor.red, primaryColor.green, primaryColor.blue, activeSettings.subtitleOpacity),
                                 ),
                               textAlign: pw.TextAlign.center,
                             ),
@@ -290,9 +309,9 @@ class RaporPdfHelper {
                           pw.Text(
                             activeSettings.schoolName.toUpperCase(),
                             style: pw.TextStyle(
-                              fontSize: fSize + 1,
-                              fontWeight: pw.FontWeight.bold,
-                              color: secondaryColor,
+                              fontSize: activeSettings.schoolNameFontSize.toDouble(),
+                              fontWeight: activeSettings.schoolNameIsBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+                              color: PdfColor(primaryColor.red, primaryColor.green, primaryColor.blue, activeSettings.schoolNameOpacity),
                             ),
                             textAlign: pw.TextAlign.center,
                           ),
@@ -301,8 +320,9 @@ class RaporPdfHelper {
                             pw.Text(
                               activeSettings.schoolAddress,
                               style: pw.TextStyle(
-                                fontSize: fSize - 1.5,
-                                color: secondaryColor,
+                                fontSize: activeSettings.addressFontSize.toDouble(),
+                                fontWeight: activeSettings.addressIsBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+                                color: PdfColor(primaryColor.red, primaryColor.green, primaryColor.blue, activeSettings.addressOpacity),
                               ),
                               textAlign: pw.TextAlign.center,
                             ),
@@ -312,8 +332,9 @@ class RaporPdfHelper {
                             pw.Text(
                               activeSettings.schoolPhone,
                               style: pw.TextStyle(
-                                fontSize: fSize - 1.5,
-                                color: secondaryColor,
+                                fontSize: activeSettings.phoneFontSize.toDouble(),
+                                fontWeight: activeSettings.phoneIsBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+                                color: PdfColor(primaryColor.red, primaryColor.green, primaryColor.blue, activeSettings.phoneOpacity),
                               ),
                               textAlign: pw.TextAlign.center,
                             ),
@@ -347,28 +368,28 @@ class RaporPdfHelper {
                     ],
                   ),
                 ),
+                pw.SizedBox(height: 8),
+                pw.Align(
+                  alignment: pw.Alignment.center,
+                  child: pw.Text(
+                    'LAPORAN PENILAIAN HASIL BELAJAR SISWA',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: primaryColor,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
               ],
             ),
-            'info': pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            'info': pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    infoRow(AppLocalization.isIndonesian ? 'Nama Siswa' : 'Student Name', studentName),
-                    infoRow(AppLocalization.isIndonesian ? 'NISN / NIS' : 'Student ID / NISN', studentNis),
-                    infoRow(AppLocalization.isIndonesian ? 'Sekolah' : 'School', schoolName),
-                  ],
-                ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    infoRow(AppLocalization.isIndonesian ? 'Kelas' : 'Class', className),
-                    infoRow(AppLocalization.isIndonesian ? 'Semester' : 'Semester', AppLocalization.isIndonesian ? semester : semester.replaceAll('Ganjil', 'Odd').replaceAll('Genap', 'Even')),
-                    infoRow(AppLocalization.isIndonesian ? 'Tahun Ajaran' : 'Academic Year', yearInfo),
-                  ],
-                ),
+                infoRow(AppLocalization.isIndonesian ? 'Nama Siswa' : 'Student Name', studentName),
+                infoRow(AppLocalization.isIndonesian ? 'NISN / NIS' : 'Student ID / NISN', studentNis),
+                infoRow(AppLocalization.isIndonesian ? 'Kelas' : 'Class', className),
+                infoRow(AppLocalization.isIndonesian ? 'Sekolah' : 'School', schoolName),
               ],
             ),
             'attitude': pw.Column(
@@ -762,8 +783,11 @@ class RaporPdfHelper {
           addPositioned('signatures', sections['signatures']!, true);
 
           return [
-            pw.Stack(
-              children: stackChildren,
+            pw.SizedBox(
+              height: 720,
+              child: pw.Stack(
+                children: stackChildren,
+              ),
             ),
           ];
         },

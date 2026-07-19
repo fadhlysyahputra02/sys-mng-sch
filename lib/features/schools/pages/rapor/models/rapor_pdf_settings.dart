@@ -22,6 +22,26 @@ class RaporPdfSettings {
   final String primaryColorHex;
   final String secondaryColorHex;
 
+  final int titleFontSize;
+  final double titleOpacity;
+  final bool titleIsBold;
+
+  final int subtitleFontSize;
+  final double subtitleOpacity;
+  final bool subtitleIsBold;
+
+  final int schoolNameFontSize;
+  final double schoolNameOpacity;
+  final bool schoolNameIsBold;
+
+  final int addressFontSize;
+  final double addressOpacity;
+  final bool addressIsBold;
+
+  final int phoneFontSize;
+  final double phoneOpacity;
+  final bool phoneIsBold;
+
   final List<String> sectionOrder;
   final List<double> academicColWidths;
   final List<double> legendColWidths;
@@ -51,19 +71,34 @@ class RaporPdfSettings {
     required this.fontSize,
     required this.primaryColorHex,
     required this.secondaryColorHex,
+    this.titleFontSize = 13,
+    this.titleOpacity = 1.0,
+    this.titleIsBold = true,
+    this.subtitleFontSize = 10,
+    this.subtitleOpacity = 1.0,
+    this.subtitleIsBold = false,
+    this.schoolNameFontSize = 11,
+    this.schoolNameOpacity = 1.0,
+    this.schoolNameIsBold = true,
+    this.addressFontSize = 9,
+    this.addressOpacity = 1.0,
+    this.addressIsBold = false,
+    this.phoneFontSize = 9,
+    this.phoneOpacity = 1.0,
+    this.phoneIsBold = false,
     this.sectionOrder = const ['kop', 'info', 'attitude', 'academic', 'bottom_row', 'signatures'],
     this.academicColWidths = const [0.05, 0.25, 0.1, 0.1, 0.1, 0.4],
     this.legendColWidths = const [0.6, 0.4],
     this.attendanceColWidths = const [0.7, 0.3],
     this.elementPositions = const {
-      'kop': [0, 0, 12, 6],
-      'info': [0, 7, 12, 3],
-      'attitude': [0, 11, 12, 5],
-      'academic': [0, 17, 12, 11],
-      'legend': [0, 29, 5, 11],
-      'attendance': [6, 29, 6, 5],
-      'notes': [6, 35, 6, 5],
-      'signatures': [0, 41, 12, 6],
+      'kop': [0, 0, 12, 8],
+      'info': [0, 9, 12, 3],
+      'attitude': [0, 14, 12, 5],
+      'academic': [0, 20, 12, 11],
+      'legend': [0, 32, 5, 11],
+      'attendance': [6, 32, 6, 5],
+      'notes': [6, 38, 6, 5],
+      'signatures': [0, 44, 12, 6],
     },
   });
 
@@ -91,6 +126,21 @@ class RaporPdfSettings {
       fontSize: 9,
       primaryColorHex: '#1E1B4B',
       secondaryColorHex: '#4B5563',
+      titleFontSize: 13,
+      titleOpacity: 1.0,
+      titleIsBold: true,
+      subtitleFontSize: 10,
+      subtitleOpacity: 1.0,
+      subtitleIsBold: false,
+      schoolNameFontSize: 11,
+      schoolNameOpacity: 1.0,
+      schoolNameIsBold: true,
+      addressFontSize: 9,
+      addressOpacity: 1.0,
+      addressIsBold: false,
+      phoneFontSize: 9,
+      phoneOpacity: 1.0,
+      phoneIsBold: false,
       sectionOrder: const ['kop', 'info', 'attitude', 'academic', 'bottom_row', 'signatures'],
       academicColWidths: const [0.05, 0.25, 0.1, 0.1, 0.1, 0.4],
       legendColWidths: const [0.6, 0.4],
@@ -122,6 +172,21 @@ class RaporPdfSettings {
       fontSize: map['fontSize'] as int? ?? 9,
       primaryColorHex: map['primaryColorHex']?.toString() ?? '#1E1B4B',
       secondaryColorHex: map['secondaryColorHex']?.toString() ?? '#4B5563',
+      titleFontSize: map['titleFontSize'] as int? ?? 13,
+      titleOpacity: (map['titleOpacity'] as num?)?.toDouble() ?? 1.0,
+      titleIsBold: map['titleIsBold'] as bool? ?? true,
+      subtitleFontSize: map['subtitleFontSize'] as int? ?? 10,
+      subtitleOpacity: (map['subtitleOpacity'] as num?)?.toDouble() ?? 1.0,
+      subtitleIsBold: map['subtitleIsBold'] as bool? ?? false,
+      schoolNameFontSize: map['schoolNameFontSize'] as int? ?? 11,
+      schoolNameOpacity: (map['schoolNameOpacity'] as num?)?.toDouble() ?? 1.0,
+      schoolNameIsBold: map['schoolNameIsBold'] as bool? ?? true,
+      addressFontSize: map['addressFontSize'] as int? ?? 9,
+      addressOpacity: (map['addressOpacity'] as num?)?.toDouble() ?? 1.0,
+      addressIsBold: map['addressIsBold'] as bool? ?? false,
+      phoneFontSize: map['phoneFontSize'] as int? ?? 9,
+      phoneOpacity: (map['phoneOpacity'] as num?)?.toDouble() ?? 1.0,
+      phoneIsBold: map['phoneIsBold'] as bool? ?? false,
       sectionOrder: (map['sectionOrder'] as List?)?.map((e) => e.toString()).toList() ??
           const ['kop', 'info', 'attitude', 'academic', 'bottom_row', 'signatures'],
       academicColWidths: (map['academicColWidths'] as List?)?.map((e) => (e as num).toDouble()).toList() ??
@@ -134,14 +199,14 @@ class RaporPdfSettings {
             (k, v) => MapEntry(k.toString(), (v as List).map((e) => (e as num).toInt()).toList()),
           ) ??
           const {
-            'kop': [0, 0, 12, 6],
-            'info': [0, 7, 12, 3],
-            'attitude': [0, 11, 12, 5],
-            'academic': [0, 17, 12, 11],
-            'legend': [0, 29, 5, 11],
-            'attendance': [6, 29, 6, 5],
-            'notes': [6, 35, 6, 5],
-            'signatures': [0, 41, 12, 6],
+            'kop': [0, 0, 12, 8],
+            'info': [0, 9, 12, 3],
+            'attitude': [0, 14, 12, 5],
+            'academic': [0, 20, 12, 11],
+            'legend': [0, 32, 5, 11],
+            'attendance': [6, 32, 6, 5],
+            'notes': [6, 38, 6, 5],
+            'signatures': [0, 44, 12, 6],
           },
     );
   }
@@ -170,6 +235,21 @@ class RaporPdfSettings {
       'fontSize': fontSize,
       'primaryColorHex': primaryColorHex,
       'secondaryColorHex': secondaryColorHex,
+      'titleFontSize': titleFontSize,
+      'titleOpacity': titleOpacity,
+      'titleIsBold': titleIsBold,
+      'subtitleFontSize': subtitleFontSize,
+      'subtitleOpacity': subtitleOpacity,
+      'subtitleIsBold': subtitleIsBold,
+      'schoolNameFontSize': schoolNameFontSize,
+      'schoolNameOpacity': schoolNameOpacity,
+      'schoolNameIsBold': schoolNameIsBold,
+      'addressFontSize': addressFontSize,
+      'addressOpacity': addressOpacity,
+      'addressIsBold': addressIsBold,
+      'phoneFontSize': phoneFontSize,
+      'phoneOpacity': phoneOpacity,
+      'phoneIsBold': phoneIsBold,
       'sectionOrder': sectionOrder,
       'academicColWidths': academicColWidths,
       'legendColWidths': legendColWidths,
@@ -201,6 +281,21 @@ class RaporPdfSettings {
     int? fontSize,
     String? primaryColorHex,
     String? secondaryColorHex,
+    int? titleFontSize,
+    double? titleOpacity,
+    bool? titleIsBold,
+    int? subtitleFontSize,
+    double? subtitleOpacity,
+    bool? subtitleIsBold,
+    int? schoolNameFontSize,
+    double? schoolNameOpacity,
+    bool? schoolNameIsBold,
+    int? addressFontSize,
+    double? addressOpacity,
+    bool? addressIsBold,
+    int? phoneFontSize,
+    double? phoneOpacity,
+    bool? phoneIsBold,
     List<String>? sectionOrder,
     List<double>? academicColWidths,
     List<double>? legendColWidths,
@@ -230,6 +325,21 @@ class RaporPdfSettings {
       fontSize: fontSize ?? this.fontSize,
       primaryColorHex: primaryColorHex ?? this.primaryColorHex,
       secondaryColorHex: secondaryColorHex ?? this.secondaryColorHex,
+      titleFontSize: titleFontSize ?? this.titleFontSize,
+      titleOpacity: titleOpacity ?? this.titleOpacity,
+      titleIsBold: titleIsBold ?? this.titleIsBold,
+      subtitleFontSize: subtitleFontSize ?? this.subtitleFontSize,
+      subtitleOpacity: subtitleOpacity ?? this.subtitleOpacity,
+      subtitleIsBold: subtitleIsBold ?? this.subtitleIsBold,
+      schoolNameFontSize: schoolNameFontSize ?? this.schoolNameFontSize,
+      schoolNameOpacity: schoolNameOpacity ?? this.schoolNameOpacity,
+      schoolNameIsBold: schoolNameIsBold ?? this.schoolNameIsBold,
+      addressFontSize: addressFontSize ?? this.addressFontSize,
+      addressOpacity: addressOpacity ?? this.addressOpacity,
+      addressIsBold: addressIsBold ?? this.addressIsBold,
+      phoneFontSize: phoneFontSize ?? this.phoneFontSize,
+      phoneOpacity: phoneOpacity ?? this.phoneOpacity,
+      phoneIsBold: phoneIsBold ?? this.phoneIsBold,
       sectionOrder: sectionOrder ?? this.sectionOrder,
       academicColWidths: academicColWidths ?? this.academicColWidths,
       legendColWidths: legendColWidths ?? this.legendColWidths,

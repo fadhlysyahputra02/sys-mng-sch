@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -28,6 +29,8 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
   bool _isSaving = false;
 
   late RaporPdfSettings _settings;
+  String _schoolTahunAjaran = '';
+  String _schoolSemester = '';
 
   Uint8List? get _logoLeftBytes {
     if (_settings.logoLeftBase64 == null) return null;
@@ -65,6 +68,8 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
   String? _hoveredId;
   String? _draggingId;
   bool _isResizing = false;
+  double _currentScale = 1.0;
+  double _zoomFactor = 1.0;
 
   // Controllers
   final _titleController = TextEditingController();
@@ -106,9 +111,37 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     try {
       final snap = await _raporService.getRaporPdfSettings(widget.schoolId);
       if (snap.exists && snap.data() != null) {
-        _settings = RaporPdfSettings.fromMap(snap.data()!, widget.defaultSchoolName);
+        var loadedSettings = RaporPdfSettings.fromMap(snap.data()!, widget.defaultSchoolName);
+        final positions = Map<String, List<int>>.from(loadedSettings.elementPositions);
+        final int oldKopHeight = positions['kop'] != null ? positions['kop']![3] : 6;
+        final int oldInfoStart = positions['info'] != null ? positions['info']![1] : 7;
+
+        if (oldKopHeight < 8 || oldInfoStart < 9) {
+          positions['kop'] = [0, 0, 12, 8];
+          positions['info'] = [0, 9, 12, 3];
+          positions['attitude'] = [0, 14, 12, 5];
+          positions['academic'] = [0, 20, 12, 11];
+          positions['legend'] = [0, 32, 5, 11];
+          positions['attendance'] = [6, 32, 6, 5];
+          positions['notes'] = [6, 38, 6, 5];
+          positions['signatures'] = [0, 44, 12, 6];
+          
+          loadedSettings = loadedSettings.copyWith(elementPositions: positions);
+        }
+        _settings = loadedSettings;
       } else {
         _settings = RaporPdfSettings.defaultSettings(widget.defaultSchoolName);
+      }
+
+      // Fetch school info
+      final schoolSnap = await FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).get();
+      if (schoolSnap.exists && schoolSnap.data() != null) {
+        final schoolData = schoolSnap.data()!;
+        _schoolTahunAjaran = schoolData['tahunAjaran']?.toString() ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
+        _schoolSemester = schoolData['semester']?.toString() ?? 'Semester 1';
+      } else {
+        _schoolTahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
+        _schoolSemester = 'Semester 1';
       }
 
       // Initialize controllers
@@ -122,6 +155,8 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     } catch (e) {
       _showSnack('Gagal memuat pengaturan: $e');
       _settings = RaporPdfSettings.defaultSettings(widget.defaultSchoolName);
+      _schoolTahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
+      _schoolSemester = 'Semester 1';
     } finally {
       setState(() => _isLoading = false);
     }
@@ -230,29 +265,14 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
   Future<void> _saveSettings() async {
     setState(() => _isSaving = true);
     try {
-      final updatedSettings = RaporPdfSettings(
+      final updatedSettings = _settings.copyWith(
         headerTitle: _titleController.text.trim(),
         headerSubtitle: _subtitleController.text.trim(),
         schoolName: _schoolNameController.text.trim(),
         schoolAddress: _addressController.text.trim(),
         schoolPhone: _phoneController.text.trim(),
-        logoLeftBase64: _settings.logoLeftBase64,
-        logoRightBase64: _settings.logoRightBase64,
-        showLogoLeft: _settings.showLogoLeft,
-        showLogoRight: _settings.showLogoRight,
-        showWatermark: _settings.showWatermark,
-        showSpiritualAttitude: _settings.showSpiritualAttitude,
-        showPredikat: _settings.showPredikat,
-        showAttendance: _settings.showAttendance,
-        showNotes: _settings.showNotes,
         kepsekName: _kepsekNameController.text.trim(),
         kepsekNip: _kepsekNipController.text.trim(),
-        ttdKepsekPosition: _settings.ttdKepsekPosition,
-        ttdWaliPosition: _settings.ttdWaliPosition,
-        ttdOrtuPosition: _settings.ttdOrtuPosition,
-        fontSize: _settings.fontSize,
-        primaryColorHex: _settings.primaryColorHex,
-        secondaryColorHex: _settings.secondaryColorHex,
       );
 
       await _raporService.saveRaporPdfSettings(widget.schoolId, updatedSettings.toMap());
@@ -401,31 +421,152 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
             ],
           ),
           const SizedBox(height: 12),
-          // A4 preview box using LayoutBuilder + Transform.scale
           LayoutBuilder(
             builder: (context, constraints) {
-              // A4 dimensions in pixels at 96dpi: 794 x 1123
               const double a4W = 794.0;
               const double a4H = 1123.0;
-              final double scale = constraints.maxWidth / a4W;
+              final double fitScale = constraints.maxWidth / a4W;
+              final double scale = fitScale * _zoomFactor;
+              final double scaledW = a4W * scale;
               final double scaledH = a4H * scale;
 
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  width: constraints.maxWidth,
-                  height: scaledH,
-                  child: FittedBox(
-                    fit: BoxFit.fill,
-                    child: SizedBox(
-                      width: a4W,
-                      height: a4H,
-                      child: _buildA4Content(primaryColor, secondaryColor),
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && _currentScale != scale) {
+                  setState(() {
+                    _currentScale = scale;
+                  });
+                }
+              });
+
+              return Column(
+                children: [
+                  Container(
+                    height: 550, // Fixed height viewport!
+                    width: constraints.maxWidth,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.black.withValues(alpha: 0.2) : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Container(
+                            alignment: Alignment.center,
+                            width: scaledW > constraints.maxWidth ? scaledW : constraints.maxWidth,
+                            height: scaledH > 550 ? scaledH : 550,
+                            padding: const EdgeInsets.all(24),
+                            child: Center(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  width: scaledW,
+                                  height: scaledH,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.08),
+                                        blurRadius: 16,
+                                        spreadRadius: 2,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: FittedBox(
+                                    fit: BoxFit.fill,
+                                    child: SizedBox(
+                                      width: a4W,
+                                      height: a4H,
+                                      child: _buildA4Content(primaryColor, secondaryColor),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               );
             },
+          ),
+          const SizedBox(height: 16),
+          // Zoom / Scaling Controls below the preview sheet (now fully stationary!)
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.zoom_out, size: 18),
+                    onPressed: _zoomFactor > 0.5
+                        ? () => setState(() => _zoomFactor = (_zoomFactor - 0.1).clamp(0.5, 1.5))
+                        : null,
+                    tooltip: 'Zoom Out',
+                  ),
+                  SizedBox(
+                    width: 150,
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 2,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                      ),
+                      child: Slider(
+                        value: _zoomFactor,
+                        min: 0.5,
+                        max: 1.5,
+                        divisions: 10,
+                        onChanged: (val) {
+                          setState(() {
+                            _zoomFactor = val;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.zoom_in, size: 18),
+                    onPressed: _zoomFactor < 1.5
+                        ? () => setState(() => _zoomFactor = (_zoomFactor + 0.1).clamp(0.5, 1.5))
+                        : null,
+                    tooltip: 'Zoom In',
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${(_zoomFactor * 100).round()}%',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () => setState(() => _zoomFactor = 1.0),
+                    child: const Text('Fit', style: TextStyle(fontSize: 11)),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -466,12 +607,12 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   children: [
                     Text(
                       _titleController.text.isEmpty
-                          ? 'LAPORAN HASIL BELAJAR'
+                          ? 'PEMERINTAH KOTA MALANG'
                           : _titleController.text.toUpperCase(),
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: primaryColor,
+                        fontSize: _settings.titleFontSize.toDouble(),
+                        fontWeight: _settings.titleIsBold ? FontWeight.bold : FontWeight.normal,
+                        color: primaryColor.withValues(alpha: _settings.titleOpacity),
                         letterSpacing: 0.5,
                       ),
                       textAlign: TextAlign.center,
@@ -480,7 +621,11 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                       const SizedBox(height: 2),
                       Text(
                         _subtitleController.text.toUpperCase(),
-                        style: TextStyle(fontSize: 10, color: secondaryColor),
+                        style: TextStyle(
+                          fontSize: _settings.subtitleFontSize.toDouble(),
+                          fontWeight: _settings.subtitleIsBold ? FontWeight.bold : FontWeight.normal,
+                          color: primaryColor.withValues(alpha: _settings.subtitleOpacity),
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -490,9 +635,9 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                           ? 'NAMA SEKOLAH'
                           : _schoolNameController.text.toUpperCase(),
                       style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: secondaryColor,
+                        fontSize: _settings.schoolNameFontSize.toDouble(),
+                        fontWeight: _settings.schoolNameIsBold ? FontWeight.bold : FontWeight.normal,
+                        color: primaryColor.withValues(alpha: _settings.schoolNameOpacity),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -500,16 +645,26 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                       const SizedBox(height: 2),
                       Text(
                         _addressController.text,
-                        style: TextStyle(fontSize: 9, color: secondaryColor),
+                        style: TextStyle(
+                          fontSize: _settings.addressFontSize.toDouble(),
+                          fontWeight: _settings.addressIsBold ? FontWeight.bold : FontWeight.normal,
+                          color: primaryColor.withValues(alpha: _settings.addressOpacity),
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
-                    if (_phoneController.text.isNotEmpty)
+                    if (_phoneController.text.isNotEmpty) ...[
+                      const SizedBox(height: 2),
                       Text(
                         _phoneController.text,
-                        style: TextStyle(fontSize: 9, color: secondaryColor),
+                        style: TextStyle(
+                          fontSize: _settings.phoneFontSize.toDouble(),
+                          fontWeight: _settings.phoneIsBold ? FontWeight.bold : FontWeight.normal,
+                          color: primaryColor.withValues(alpha: _settings.phoneOpacity),
+                        ),
                         textAlign: TextAlign.center,
                       ),
+                    ],
                   ],
                 ),
               ),
@@ -537,31 +692,26 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           const SizedBox(height: 6),
           Container(height: 2, color: primaryColor),
           Container(height: 0.5, color: primaryColor.withValues(alpha: 0.4)),
+          const SizedBox(height: 12),
+          Text(
+            'LAPORAN PENILAIAN HASIL BELAJAR SISWA\n(SEMESTER ${_schoolSemester.toUpperCase()} TAHUN AJARAN $_schoolTahunAjaran)',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: primaryColor,
+              letterSpacing: 0.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
-      'info': Row(
+      'info': Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _previewInfoRow('Nama Siswa', 'Budi Wijaya'),
-                _previewInfoRow('NISN / NIS', '109823472'),
-                _previewInfoRow('Sekolah', _schoolNameController.text.isEmpty ? 'NAMA SEKOLAH' : _schoolNameController.text),
-              ],
-            ),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _previewInfoRow('Kelas', 'X IPA 1'),
-                _previewInfoRow('Semester', 'Semester 1'),
-                _previewInfoRow('Tahun Ajaran', '2024/2025'),
-              ],
-            ),
-          ),
+          _previewInfoRow('Nama Siswa', 'Fadhly Syahputra'),
+          _previewInfoRow('NISN / NIS', '202110370311419 / 1419'),
+          _previewInfoRow('Kelas', 'X IPA 1'),
+          _previewInfoRow('Sekolah', _schoolNameController.text.isEmpty ? 'NAMA SEKOLAH' : _schoolNameController.text),
         ],
       ),
       'attitude': Column(
@@ -983,162 +1133,250 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
         onExit: (_) => setState(() => _hoveredId = null),
         child: Container(
           padding: const EdgeInsets.all(24),
-          color: Colors.transparent,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: isDraggingThis
-                        ? Colors.blue.shade500
-                        : (_hoveredId == id ? Colors.blue.shade300 : Colors.transparent),
-                    width: 1.5,
+              // Element body draggable detector
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanStart: (details) {
+                  final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
+                  if (renderBox != null) {
+                    final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
+                    final localPos = Offset(
+                      (details.globalPosition.dx - canvasGlobalPos.dx) / _currentScale,
+                      (details.globalPosition.dy - canvasGlobalPos.dy) / _currentScale,
+                    );
+                    final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
+                    setState(() {
+                      _draggingId = id;
+                      _isResizing = false;
+                      _dragStartPos = localPos;
+                      _dragStartGridX = currentPos[0];
+                      _dragStartGridY = currentPos[1];
+                      _tempLeft = 56.0 + currentPos[0] * colWidth;
+                      _tempTop = 40.0 + currentPos[1] * rowHeight;
+                    });
+                  }
+                },
+                onPanUpdate: (details) {
+                  final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
+                  if (renderBox != null) {
+                    final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
+                    final localPos = Offset(
+                      (details.globalPosition.dx - canvasGlobalPos.dx) / _currentScale,
+                      (details.globalPosition.dy - canvasGlobalPos.dy) / _currentScale,
+                    );
+                    _onElementDrag(id, localPos);
+                  }
+                },
+                onPanEnd: (_) {
+                  if (_tempLeft == null || _tempTop == null) return;
+                  final snapGridX = ((_tempLeft! - 56.0) / colWidth).round();
+                  final snapGridY = ((_tempTop! - 40.0) / rowHeight).round();
+
+                  final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
+                  final int w = currentPos[2];
+                  final int h = currentPos[3];
+
+                  final updatedPositions = Map<String, List<int>>.from(_settings.elementPositions);
+                  updatedPositions[id] = [
+                    snapGridX.clamp(0, 12 - w),
+                    snapGridY.clamp(0, 70 - h),
+                    w,
+                    h
+                  ];
+
+                  setState(() {
+                    _settings = _settings.copyWith(elementPositions: updatedPositions);
+                    _draggingId = null;
+                    _dragStartPos = null;
+                    _dragStartGridX = null;
+                    _dragStartGridY = null;
+                    _tempLeft = null;
+                    _tempTop = null;
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isDraggingThis
+                          ? Colors.blue.shade500
+                          : (_hoveredId == id ? Colors.blue.shade300 : Colors.transparent),
+                      width: 1.5,
+                    ),
+                    color: isDraggingThis ? Colors.blue.shade50.withValues(alpha: 0.15) : Colors.transparent,
                   ),
-                  color: isDraggingThis ? Colors.blue.shade50.withValues(alpha: 0.15) : null,
+                  child: child,
                 ),
-                child: child,
               ),
               if (_hoveredId == id || isDraggingThis)
                 Positioned(
-                  top: -24,
-                  left: -24,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onPanStart: (details) {
-                      final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
-                      if (renderBox != null) {
-                        final localPos = renderBox.globalToLocal(details.globalPosition);
-                        final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
-                        setState(() {
-                          _draggingId = id;
-                          _isResizing = false;
-                          _dragStartPos = localPos;
-                          _dragStartGridX = currentPos[0];
-                          _dragStartGridY = currentPos[1];
-                          _tempLeft = 56.0 + currentPos[0] * colWidth;
-                          _tempTop = 40.0 + currentPos[1] * rowHeight;
-                        });
-                      }
-                    },
-                    onPanUpdate: (details) {
-                      final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
-                      if (renderBox != null) {
-                        final localPos = renderBox.globalToLocal(details.globalPosition);
-                        _onElementDrag(id, localPos);
-                      }
-                    },
-                    onPanEnd: (_) {
-                      final snapGridX = ((_tempLeft! - 56.0) / colWidth).round();
-                      final snapGridY = ((_tempTop! - 40.0) / rowHeight).round();
-
-                      final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
-                      final int w = currentPos[2];
-                      final int h = currentPos[3];
-
-                      final updatedPositions = Map<String, List<int>>.from(_settings.elementPositions);
-                      updatedPositions[id] = [
-                        snapGridX.clamp(0, 12 - w),
-                        snapGridY.clamp(0, 70 - h),
-                        w,
-                        h
-                      ];
-
-                      setState(() {
-                        _settings = _settings.copyWith(elementPositions: updatedPositions);
-                        _draggingId = null;
-                        _dragStartPos = null;
-                        _dragStartGridX = null;
-                        _dragStartGridY = null;
-                        _tempLeft = null;
-                        _tempTop = null;
-                      });
-                    },
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.grab,
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        color: Colors.transparent,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF3B82F6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.open_with, size: 12, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              if (_hoveredId == id || isDraggingThis)
-                Positioned(
-                  right: -26,
-                  top: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: GestureDetector(
+                  top: -16,
+                  left: -16,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.grab,
+                    child: Listener(
                       behavior: HitTestBehavior.opaque,
-                      onPanStart: (details) {
+                      onPointerDown: (details) {
                         final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
                         if (renderBox != null) {
-                          final localPos = renderBox.globalToLocal(details.globalPosition);
+                          final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
+                          final localPos = Offset(
+                            (details.position.dx - canvasGlobalPos.dx) / _currentScale,
+                            (details.position.dy - canvasGlobalPos.dy) / _currentScale,
+                          );
                           final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
                           setState(() {
                             _draggingId = id;
-                            _isResizing = true;
+                            _isResizing = false;
                             _dragStartPos = localPos;
-                            _dragStartGridW = currentPos[2];
-                            _tempWidth = currentPos[2] * colWidth;
+                            _dragStartGridX = currentPos[0];
+                            _dragStartGridY = currentPos[1];
+                            _tempLeft = 56.0 + currentPos[0] * colWidth;
+                            _tempTop = 40.0 + currentPos[1] * rowHeight;
                           });
                         }
                       },
-                      onPanUpdate: (details) {
+                      onPointerMove: (details) {
                         final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
                         if (renderBox != null) {
-                          final localPos = renderBox.globalToLocal(details.globalPosition);
-                          _onElementResize(id, localPos);
+                          final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
+                          final localPos = Offset(
+                            (details.position.dx - canvasGlobalPos.dx) / _currentScale,
+                            (details.position.dy - canvasGlobalPos.dy) / _currentScale,
+                          );
+                          _onElementDrag(id, localPos);
                         }
                       },
-                      onPanEnd: (_) {
-                        final snapGridW = (_tempWidth! / colWidth).round();
+                      onPointerUp: (details) {
+                        if (_tempLeft == null || _tempTop == null) return;
+                        final snapGridX = ((_tempLeft! - 56.0) / colWidth).round();
+                        final snapGridY = ((_tempTop! - 40.0) / rowHeight).round();
 
                         final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
-                        final int startCol = currentPos[0];
-                        final int row = currentPos[1];
+                        final int w = currentPos[2];
                         final int h = currentPos[3];
 
                         final updatedPositions = Map<String, List<int>>.from(_settings.elementPositions);
                         updatedPositions[id] = [
-                          startCol,
-                          row,
-                          snapGridW.clamp(1, 12 - startCol),
+                          snapGridX.clamp(0, 12 - w),
+                          snapGridY.clamp(0, 70 - h),
+                          w,
                           h
                         ];
 
                         setState(() {
                           _settings = _settings.copyWith(elementPositions: updatedPositions);
                           _draggingId = null;
-                          _isResizing = false;
                           _dragStartPos = null;
-                          _dragStartGridW = null;
-                          _tempWidth = null;
+                          _dragStartGridX = null;
+                          _dragStartGridY = null;
+                          _tempLeft = null;
+                          _tempTop = null;
                         });
                       },
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.resizeLeftRight,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                          color: Colors.transparent,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF3B82F6),
-                              shape: BoxShape.circle,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF3B82F6),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
                             ),
-                            child: const Icon(Icons.swap_horiz, size: 12, color: Colors.white),
+                          ],
+                        ),
+                        child: const Icon(Icons.open_with, size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              if (_hoveredId == id || isDraggingThis)
+                Positioned(
+                  right: -16,
+                  top: 0,
+                  bottom: 0,
+                  width: 32,
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.grab,
+                      child: Listener(
+                        behavior: HitTestBehavior.opaque,
+                        onPointerDown: (details) {
+                          final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
+                          if (renderBox != null) {
+                            final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
+                            final localPos = Offset(
+                              (details.position.dx - canvasGlobalPos.dx) / _currentScale,
+                              (details.position.dy - canvasGlobalPos.dy) / _currentScale,
+                            );
+                            final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
+                            setState(() {
+                              _draggingId = id;
+                              _isResizing = true;
+                              _dragStartPos = localPos;
+                              _dragStartGridW = currentPos[2];
+                              _tempWidth = currentPos[2] * colWidth;
+                            });
+                          }
+                        },
+                        onPointerMove: (details) {
+                          final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
+                          if (renderBox != null) {
+                            final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
+                            final localPos = Offset(
+                              (details.position.dx - canvasGlobalPos.dx) / _currentScale,
+                              (details.position.dy - canvasGlobalPos.dy) / _currentScale,
+                            );
+                            _onElementResize(id, localPos);
+                          }
+                        },
+                        onPointerUp: (details) {
+                          if (_tempWidth == null) return;
+                          final snapGridW = (_tempWidth! / colWidth).round();
+
+                          final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
+                          final int startCol = currentPos[0];
+                          final int row = currentPos[1];
+                          final int h = currentPos[3];
+
+                          final updatedPositions = Map<String, List<int>>.from(_settings.elementPositions);
+                          updatedPositions[id] = [
+                            startCol,
+                            row,
+                            snapGridW.clamp(1, 12 - startCol),
+                            h
+                          ];
+
+                          setState(() {
+                            _settings = _settings.copyWith(elementPositions: updatedPositions);
+                            _draggingId = null;
+                            _isResizing = false;
+                            _dragStartPos = null;
+                            _dragStartGridW = null;
+                            _tempWidth = null;
+                          });
+                        },
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF3B82F6),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
                           ),
+                          child: const Icon(Icons.swap_horiz, size: 16, color: Colors.white),
                         ),
                       ),
                     ),
@@ -1310,7 +1548,17 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
             titleColor: titleColor,
             subText: subText,
           ),
-          const SizedBox(height: 12),
+          _buildFieldStyleSettings(
+            label: AppLocalization.isIndonesian ? 'Judul' : 'Title',
+            fontSize: _settings.titleFontSize,
+            opacity: _settings.titleOpacity,
+            isBold: _settings.titleIsBold,
+            onFontSizeChanged: (val) => setState(() => _settings = _settings.copyWith(titleFontSize: val)),
+            onOpacityChanged: (val) => setState(() => _settings = _settings.copyWith(titleOpacity: val)),
+            onBoldChanged: (val) => setState(() => _settings = _settings.copyWith(titleIsBold: val)),
+            titleColor: titleColor,
+            subText: subText,
+          ),
           _buildTextField(
             controller: _subtitleController,
             label: AppLocalization.isIndonesian ? 'Sub-Judul / Instansi Atas' : 'Subtitle / Top Institution',
@@ -1319,7 +1567,17 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
             titleColor: titleColor,
             subText: subText,
           ),
-          const SizedBox(height: 12),
+          _buildFieldStyleSettings(
+            label: AppLocalization.isIndonesian ? 'Sub-Judul' : 'Subtitle',
+            fontSize: _settings.subtitleFontSize,
+            opacity: _settings.subtitleOpacity,
+            isBold: _settings.subtitleIsBold,
+            onFontSizeChanged: (val) => setState(() => _settings = _settings.copyWith(subtitleFontSize: val)),
+            onOpacityChanged: (val) => setState(() => _settings = _settings.copyWith(subtitleOpacity: val)),
+            onBoldChanged: (val) => setState(() => _settings = _settings.copyWith(subtitleIsBold: val)),
+            titleColor: titleColor,
+            subText: subText,
+          ),
           _buildTextField(
             controller: _schoolNameController,
             label: AppLocalization.isIndonesian ? 'Nama Sekolah (Custom)' : 'School Name (Custom)',
@@ -1328,7 +1586,17 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
             titleColor: titleColor,
             subText: subText,
           ),
-          const SizedBox(height: 12),
+          _buildFieldStyleSettings(
+            label: AppLocalization.isIndonesian ? 'Nama Sekolah' : 'School Name',
+            fontSize: _settings.schoolNameFontSize,
+            opacity: _settings.schoolNameOpacity,
+            isBold: _settings.schoolNameIsBold,
+            onFontSizeChanged: (val) => setState(() => _settings = _settings.copyWith(schoolNameFontSize: val)),
+            onOpacityChanged: (val) => setState(() => _settings = _settings.copyWith(schoolNameOpacity: val)),
+            onBoldChanged: (val) => setState(() => _settings = _settings.copyWith(schoolNameIsBold: val)),
+            titleColor: titleColor,
+            subText: subText,
+          ),
           _buildTextField(
             controller: _addressController,
             label: AppLocalization.isIndonesian ? 'Alamat Sekolah' : 'School Address',
@@ -1337,7 +1605,17 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
             titleColor: titleColor,
             subText: subText,
           ),
-          const SizedBox(height: 12),
+          _buildFieldStyleSettings(
+            label: AppLocalization.isIndonesian ? 'Alamat' : 'Address',
+            fontSize: _settings.addressFontSize,
+            opacity: _settings.addressOpacity,
+            isBold: _settings.addressIsBold,
+            onFontSizeChanged: (val) => setState(() => _settings = _settings.copyWith(addressFontSize: val)),
+            onOpacityChanged: (val) => setState(() => _settings = _settings.copyWith(addressOpacity: val)),
+            onBoldChanged: (val) => setState(() => _settings = _settings.copyWith(addressIsBold: val)),
+            titleColor: titleColor,
+            subText: subText,
+          ),
           _buildTextField(
             controller: _phoneController,
             label: AppLocalization.isIndonesian ? 'Telepon / Website Sekolah' : 'School Phone / Website',
@@ -1345,6 +1623,120 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
             inputFill: inputFill,
             titleColor: titleColor,
             subText: subText,
+          ),
+          _buildFieldStyleSettings(
+            label: AppLocalization.isIndonesian ? 'Telepon' : 'Phone',
+            fontSize: _settings.phoneFontSize,
+            opacity: _settings.phoneOpacity,
+            isBold: _settings.phoneIsBold,
+            onFontSizeChanged: (val) => setState(() => _settings = _settings.copyWith(phoneFontSize: val)),
+            onOpacityChanged: (val) => setState(() => _settings = _settings.copyWith(phoneOpacity: val)),
+            onBoldChanged: (val) => setState(() => _settings = _settings.copyWith(phoneIsBold: val)),
+            titleColor: titleColor,
+            subText: subText,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFieldStyleSettings({
+    required String label,
+    required int fontSize,
+    required double opacity,
+    required bool isBold,
+    required ValueChanged<int> onFontSizeChanged,
+    required ValueChanged<double> onOpacityChanged,
+    required ValueChanged<bool> onBoldChanged,
+    required Color titleColor,
+    required Color subText,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(top: 6, bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                AppLocalization.isIndonesian ? 'Gaya: $label' : 'Style: $label',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: subText),
+              ),
+              Row(
+                children: [
+                  Text(
+                    AppLocalization.isIndonesian ? 'Tebal (Bold)' : 'Bold',
+                    style: TextStyle(fontSize: 11, color: subText),
+                  ),
+                  const SizedBox(width: 4),
+                  Transform.scale(
+                    scale: 0.75,
+                    child: Switch(
+                      value: isBold,
+                      activeColor: Colors.purple.shade400,
+                      onChanged: onBoldChanged,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppLocalization.isIndonesian
+                          ? 'Ukuran Font: $fontSize pt'
+                          : 'Font Size: $fontSize pt',
+                      style: TextStyle(fontSize: 11, color: subText),
+                    ),
+                    Slider(
+                      value: fontSize.toDouble(),
+                      min: 6,
+                      max: 24,
+                      divisions: 18,
+                      activeColor: Colors.purple.shade400,
+                      inactiveColor: Colors.purple.shade100,
+                      onChanged: (val) => onFontSizeChanged(val.toInt()),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppLocalization.isIndonesian
+                          ? 'Opasitas: ${(opacity * 100).round()}%'
+                          : 'Opacity: ${(opacity * 100).round()}%',
+                      style: TextStyle(fontSize: 11, color: subText),
+                    ),
+                    Slider(
+                      value: opacity,
+                      min: 0.1,
+                      max: 1.0,
+                      divisions: 9,
+                      activeColor: Colors.purple.shade400,
+                      inactiveColor: Colors.purple.shade100,
+                      onChanged: onOpacityChanged,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

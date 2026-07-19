@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/localization/app_localization.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../exams/models/exam_event_model.dart';
 
 class TeacherAttendancePreviewPage extends StatefulWidget {
   final String teacherName;
@@ -13,6 +14,7 @@ class TeacherAttendancePreviewPage extends StatefulWidget {
   final String schoolName;
   final String tahunAjaran;
   final String semester;
+  final List<ExamEvent> examEvents;
 
   const TeacherAttendancePreviewPage({
     super.key,
@@ -26,6 +28,7 @@ class TeacherAttendancePreviewPage extends StatefulWidget {
     required this.schoolName,
     required this.tahunAjaran,
     required this.semester,
+    this.examEvents = const [],
   });
 
   @override
@@ -164,6 +167,20 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
 
           if (isScheduled) {
             final recordList = studentRecords.where((r) => r['date']?.toString() == dateStr).toList();
+
+            // Check if date falls within any exam event
+            String? examTypeOnDay;
+            for (final exam in widget.examEvents) {
+              final localStart = exam.startDate.toLocal();
+              final localEnd = exam.endDate.toLocal();
+              final eStart = DateTime(localStart.year, localStart.month, localStart.day);
+              final eEnd = DateTime(localEnd.year, localEnd.month, localEnd.day);
+              if (!date.isBefore(eStart) && !date.isAfter(eEnd)) {
+                examTypeOnDay = exam.examType.isNotEmpty ? exam.examType : 'Ujian';
+                break;
+              }
+            }
+
             if (recordList.isNotEmpty) {
               final status = (recordList.first['status'] ?? '').toString().toLowerCase();
               if (status == 'izin') {
@@ -171,13 +188,17 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
               } else if (status == 'sakit') {
                 dailyAttendance[d] = 'S';
               } else if (status == 'alpa' || status == 'absen') {
-                dailyAttendance[d] = 'A';
+                if (examTypeOnDay != null) {
+                  dailyAttendance[d] = examTypeOnDay;
+                } else {
+                  dailyAttendance[d] = 'A';
+                }
               } else {
                 dailyAttendance[d] = 'H';
                 totalHadirForGrid++;
               }
             } else {
-              dailyAttendance[d] = '-';
+              dailyAttendance[d] = examTypeOnDay ?? '-';
             }
           } else {
             dailyAttendance[d] = null;
@@ -443,6 +464,17 @@ class _TeacherAttendancePreviewPageState extends State<TeacherAttendancePreviewP
                       content = const Text('A', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold));
                     } else if (status == '-') {
                       content = const Text('-', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold));
+                    } else if (status != null && status.length > 1) {
+                      // Exam type label (e.g. UTS, UAS)
+                      cellBg = const Color(0xFF8B5CF6).withValues(alpha: 0.15);
+                      content = Text(
+                        status,
+                        style: const TextStyle(
+                          color: Color(0xFF8B5CF6),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 8,
+                        ),
+                      );
                     } else {
                       cellBg = isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF1F5F9);
                       content = const SizedBox.shrink();

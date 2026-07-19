@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../authentication/widgets/auth_background.dart';
 import '../data/student_admin_service.dart';
+import 'edit_student_admin_page.dart';
 
 class StudentDetailPage extends StatefulWidget {
   final Map<String, dynamic> student;
@@ -75,253 +76,19 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     student = Map<String, dynamic>.from(widget.student);
   }
 
-  void _showEditDialog() {
-    final formKey = GlobalKey<FormState>();
-    final namaController = TextEditingController(text: student['nama']);
-    final nisController = TextEditingController(text: student['nis']);
-    final alamatController = TextEditingController(text: student['alamat']);
-    final tanggalLahirController = TextEditingController(text: student['tanggalLahir'] ?? '');
-    final angkatanController = TextEditingController(text: student['angkatan'] ?? '');
-    String? selectedGender = (student['gender'] == 'Laki-laki' || student['gender'] == 'Perempuan') ? student['gender'] : null;
-    final isDark = AuthBackground.isDarkMode.value;
-    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
-    final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            bool isLoading = false;
-
-            return AlertDialog(
-              backgroundColor: dialogBg,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: BorderSide(color: borderColor, width: 1.5),
-              ),
-              contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-              content: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Edit Data Murid',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDialogField(
-                        controller: namaController,
-                        label: 'Nama Murid',
-                        icon: Icons.person_outline_rounded,
-                        capitalization: TextCapitalization.words,
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDialogField(
-                        controller: nisController,
-                        label: 'NIS',
-                        icon: Icons.badge_outlined,
-                        keyboardType: TextInputType.number,
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'NIS wajib diisi' : null,
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: borderColor),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        child: DropdownButtonFormField<String>(
-                          value: selectedGender,
-                          decoration: InputDecoration(
-                            labelText: 'Jenis Kelamin',
-                            labelStyle: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65)),
-                            prefixIcon: Icon(Icons.wc_rounded, color: isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65), size: 20),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          ),
-                          dropdownColor: dialogBg,
-                          style: TextStyle(color: textColor, fontSize: 15),
-                          items: ['Laki-laki', 'Perempuan'].map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                          onChanged: (newValue) {
-                            setStateDialog(() {
-                              selectedGender = newValue;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDialogField(
-                        controller: alamatController,
-                        label: 'Alamat',
-                        icon: Icons.home_outlined,
-                        capitalization: TextCapitalization.sentences,
-                      ),
-                      const SizedBox(height: 12),
-                      GestureDetector(
-                        onTap: () async {
-                          final pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime(2010),
-                            firstDate: DateTime(1990),
-                            lastDate: DateTime.now(),
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: ColorScheme.fromSeed(
-                                    seedColor: const Color(0xFF0EA5E9),
-                                    brightness: isDark ? Brightness.dark : Brightness.light,
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (pickedDate != null) {
-                            tanggalLahirController.text = "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
-                          }
-                        },
-                        child: AbsorbPointer(
-                          child: _buildDialogField(
-                            controller: tanggalLahirController,
-                            label: 'Tanggal Lahir',
-                            icon: Icons.calendar_month_rounded,
-                            validator: (v) => (v == null || v.trim().isEmpty) ? 'Tanggal lahir wajib diisi' : null,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDialogField(
-                        controller: angkatanController,
-                        label: 'Angkatan Masuk (Tahun)',
-                        icon: Icons.calendar_today_rounded,
-                        keyboardType: TextInputType.number,
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'Angkatan wajib diisi';
-                          if (int.tryParse(v.trim()) == null) return 'Angkatan harus berupa tahun (angka)';
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              actions: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          side: BorderSide(color: borderColor),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text('Batal', style: TextStyle(color: textColor)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: StatefulBuilder(
-                        builder: (context, setSaveState) {
-                          return ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0EA5E9),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            onPressed: isLoading ? null : () async {
-                              if (!formKey.currentState!.validate()) return;
-
-                              final newNama = namaController.text.trim();
-                              final newNis = nisController.text.trim();
-                              final newAlamat = alamatController.text.trim();
-                              final newGender = selectedGender ?? '';
-                              final newTanggalLahir = tanggalLahirController.text.trim();
-                              final newAngkatan = angkatanController.text.trim();
-
-                              setSaveState(() => isLoading = true);
-                              try {
-                                await _studentService.updateStudent(
-                                  studentId: student['studentId'],
-                                  nama: newNama,
-                                  nis: newNis,
-                                  gender: newGender,
-                                  alamat: newAlamat,
-                                  tanggalLahir: newTanggalLahir,
-                                  angkatan: newAngkatan,
-                                );
-
-                                setState(() {
-                                  student['nama'] = newNama;
-                                  student['nis'] = newNis;
-                                  student['gender'] = newGender;
-                                  student['alamat'] = newAlamat;
-                                  student['tanggalLahir'] = newTanggalLahir;
-                                  student['angkatan'] = newAngkatan;
-                                });
-
-                                if (ctx.mounted) {
-                                  Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Data murid berhasil diperbarui')),
-                                  );
-                                }
-                              } catch (e) {
-                                setSaveState(() => isLoading = false);
-                                if (ctx.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(e.toString().replaceAll('Exception: ', '')),
-                                      backgroundColor: const Color(0xFFEF4444),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            child: isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        );
-      },
+  void _navigateToEditPage() async {
+    final updatedStudent = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditStudentAdminPage(student: student),
+      ),
     );
+
+    if (updatedStudent != null) {
+      setState(() {
+        student = updatedStudent as Map<String, dynamic>;
+      });
+    }
   }
 
   void _showDeleteDialog() {
@@ -715,40 +482,74 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     }
   }
 
-  Widget _buildDialogField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextCapitalization capitalization = TextCapitalization.none,
-    TextInputType keyboardType = TextInputType.text,
-    String? Function(String?)? validator,
-  }) {
-    final isDark = AuthBackground.isDarkMode.value;
-    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
-    final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
-    final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
-
+  Widget _buildDetailSection(String title, IconData icon, List<Widget> children, Color textColor, Color borderColor, Color bgColor) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: cardBgColor,
-        borderRadius: BorderRadius.circular(14),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor),
       ),
-      child: TextFormField(
-        controller: controller,
-        style: TextStyle(color: textColor),
-        textCapitalization: capitalization,
-        keyboardType: keyboardType,
-        validator: validator,
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: subTextColor),
-          prefixIcon: Icon(icon, color: subTextColor, size: 20),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          errorStyle: const TextStyle(fontSize: 11),
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: const Color(0xFF6366F1)),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: Colors.black12),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String? value, Color textColor, Color subTextColor) {
+    final displayValue = (value == null || value.trim().isEmpty) ? '-' : value;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: TextStyle(color: subTextColor, fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: Text(
+              displayValue,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -769,7 +570,6 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
         final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
         final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04);
         final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
-        final dividerColor = isDark ? Colors.white.withValues(alpha: 0.07) : Colors.black.withValues(alpha: 0.05);
 
         return Scaffold(
           body: AuthBackground(
@@ -806,7 +606,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                             tooltip: 'Edit Murid',
                             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                             padding: EdgeInsets.zero,
-                            onPressed: _showEditDialog,
+                            onPressed: _navigateToEditPage,
                           ),
                         ),
                         // Delete button
@@ -838,9 +638,9 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // ── Profile Card ────────────────────────────────────────
+                        // ── Profile Card ────────────────────────────────────────
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
@@ -848,6 +648,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
                             boxShadow: [
                               BoxShadow(
                                 color: const Color(0xFF0EA5E9).withValues(alpha: 0.35),
@@ -856,322 +657,281 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                               ),
                             ],
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Avatar
-                              GestureDetector(
-                                onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
-                                child: Stack(
-                                  alignment: Alignment.bottomRight,
-                                  children: [
-                                    Container(
-                                      width: 66,
-                                      height: 66,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(18),
-                                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(16),
-                                        child: student['fotoBase64'] != null && student['fotoBase64'].toString().isNotEmpty
-                                            ? Image.memory(
-                                                base64Decode(student['fotoBase64']),
-                                                fit: BoxFit.cover,
-                                              )
-                                            : Center(
-                                                child: Text(
-                                                  inisial,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 28,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                      ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: Stack(
+                              children: [
+                                // Decoration circles
+                                Positioned(
+                                  top: -40,
+                                  right: -20,
+                                  child: Container(
+                                    width: 130,
+                                    height: 130,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white.withValues(alpha: 0.1),
                                     ),
-                                    Container(
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      padding: const EdgeInsets.all(4),
-                                      child: _isUploadingFoto
-                                          ? const SizedBox(
-                                              width: 10,
-                                              height: 10,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 1.5,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0EA5E9)),
-                                              ),
-                                            )
-                                          : const Icon(
-                                              Icons.camera_alt_rounded,
-                                              size: 10,
-                                              color: Color(0xFF0EA5E9),
-                                            ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 18),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      nama,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
-                                        color: Colors.white,
-                                        letterSpacing: 0.3,
-                                      ),
+                                Positioned(
+                                  bottom: -30,
+                                  right: 60,
+                                  child: Container(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white.withValues(alpha: 0.1),
                                     ),
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.badge_outlined, size: 14, color: Colors.white.withValues(alpha: 0.7)),
-                                        const SizedBox(width: 5),
-                                        Text(
-                                          'NIS: ${student['nis'] ?? '-'}',
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.8),
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    // Badges row
-                                    Wrap(
-                                      spacing: 6,
-                                      children: [
-                                        // Status registrasi
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: isRegistered
-                                                ? Colors.white.withValues(alpha: 0.25)
-                                                : Colors.orange.withValues(alpha: 0.3),
-                                            borderRadius: BorderRadius.circular(20),
-                                            border: Border.all(
-                                              color: isRegistered
-                                                  ? Colors.white.withValues(alpha: 0.4)
-                                                  : Colors.orange.withValues(alpha: 0.5),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                isRegistered ? Icons.verified_rounded : Icons.pending_rounded,
-                                                size: 11,
-                                                color: Colors.white,
+                                  ),
+                                ),
+                                // Content
+                                Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Avatar
+                                      GestureDetector(
+                                        onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
+                                        child: Stack(
+                                          alignment: Alignment.bottomRight,
+                                          children: [
+                                            Container(
+                                              width: 66,
+                                              height: 66,
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(alpha: 0.2),
+                                                borderRadius: BorderRadius.circular(18),
+                                                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
                                               ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                isRegistered ? 'Terdaftar' : 'Belum Registrasi',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
+                                              child: ClipRRect(
+                                                borderRadius: BorderRadius.circular(16),
+                                                child: student['fotoBase64'] != null && student['fotoBase64'].toString().isNotEmpty
+                                                    ? Image.memory(
+                                                        base64Decode(student['fotoBase64']),
+                                                        fit: BoxFit.cover,
+                                                      )
+                                                    : Center(
+                                                        child: Text(
+                                                          inisial,
+                                                          style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 28,
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                              ),
+                                            ),
+                                            Container(
+                                              decoration: const BoxDecoration(
+                                                color: Colors.white,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              padding: const EdgeInsets.all(4),
+                                              child: _isUploadingFoto
+                                                  ? const SizedBox(
+                                                      width: 10,
+                                                      height: 10,
+                                                      child: CircularProgressIndicator(
+                                                        strokeWidth: 1.5,
+                                                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0EA5E9)),
+                                                      ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.camera_alt_rounded,
+                                                      size: 10,
+                                                      color: Color(0xFF0EA5E9),
+                                                    ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 18),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              nama,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 20,
+                                                color: Colors.white,
+                                                letterSpacing: 0.3,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.badge_outlined, size: 14, color: Colors.white.withValues(alpha: 0.7)),
+                                                const SizedBox(width: 5),
+                                                Text(
+                                                  'NIS: ${student['nis'] ?? '-'}',
+                                                  style: TextStyle(
+                                                    color: Colors.white.withValues(alpha: 0.8),
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w500,
                                                   ),
                                                 ),
                                               ],
                                             ),
-                                          ),
-                                          if (student['lulus'] == true) ...[
-                                            const SizedBox(width: 6),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF6366F1).withValues(alpha: 0.35),
-                                                borderRadius: BorderRadius.circular(20),
-                                                border: Border.all(
-                                                  color: const Color(0xFF6366F1).withValues(alpha: 0.5),
-                                                ),
-                                              ),
-                                              child: const Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    Icons.school_rounded,
-                                                    size: 11,
-                                                    color: Colors.white,
+                                            const SizedBox(height: 10),
+                                            // Badges row
+                                            Wrap(
+                                              spacing: 6,
+                                              children: [
+                                                // Status registrasi
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: isRegistered
+                                                        ? Colors.white.withValues(alpha: 0.25)
+                                                        : Colors.orange.withValues(alpha: 0.3),
+                                                    borderRadius: BorderRadius.circular(20),
+                                                    border: Border.all(
+                                                      color: isRegistered
+                                                          ? Colors.white.withValues(alpha: 0.4)
+                                                          : Colors.orange.withValues(alpha: 0.5),
+                                                    ),
                                                   ),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    'Lulus (Alumni)',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.bold,
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        isRegistered ? Icons.verified_rounded : Icons.pending_rounded,
+                                                        size: 11,
+                                                        color: Colors.white,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        isRegistered ? 'Terdaftar' : 'Belum Registrasi',
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                if (student['lulus'] == true) ...[
+                                                  const SizedBox(width: 6),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                                                      borderRadius: BorderRadius.circular(20),
+                                                      border: Border.all(
+                                                        color: const Color(0xFF6366F1).withValues(alpha: 0.5),
+                                                      ),
+                                                    ),
+                                                    child: const Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(
+                                                          Icons.school_rounded,
+                                                          size: 11,
+                                                          color: Colors.white,
+                                                        ),
+                                                        SizedBox(width: 4),
+                                                        Text(
+                                                          'Lulus (Alumni)',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
                                                 ],
-                                              ),
+                                              ],
                                             ),
                                           ],
-                                        ],
-                                    ),
-                                  ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
 
-                        const SizedBox(height: 28),
-
-                        // ── Section Header ───────────────────────────────────────
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.3)),
-                              ),
-                              child: const Icon(Icons.info_outline_rounded, color: Color(0xFF0EA5E9), size: 18),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Informasi Akademik',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
+                        // ── Section Data Pribadi ───────────────────────────────────────
+                        _buildDetailSection(
+                          'Data Pribadi & Akademik',
+                          Icons.person_outline_rounded,
+                          [
+                            _buildInfoRow('NISN', student['nisn']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Kelas', hasClass ? className : 'Belum ditentukan', textColor, subTextColor),
+                            _buildInfoRow('Jenis Kelamin', student['gender']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Tempat Lahir', student['tempatLahir']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Tanggal Lahir', student['tanggalLahir']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Agama', student['agama']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Kewarganegaraan', student['kewarganegaraan']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Alamat', student['alamat']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('No. HP', student['noHp']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Angkatan', student['angkatan']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Jalur Masuk', student['jalurMasuk']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Tanggal Diterima', student['tanggalDiterima']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Email', student['email']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Status Keaktifan', student['lulus'] == true ? 'Alumni (Lulus)' : (isAktif ? 'Aktif' : 'Tidak Aktif'), textColor, subTextColor),
                           ],
+                          textColor,
+                          borderColor,
+                          cardBgColor,
                         ),
 
-                        const SizedBox(height: 14),
+                        // ── Section Data Ayah ───────────────────────────────────────
+                        _buildDetailSection(
+                          'Data Ayah',
+                          Icons.person_outline_rounded,
+                          [
+                            _buildInfoRow('Nama Ayah', student['namaAyah']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('NIK Ayah', student['nikAyah']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Pekerjaan', student['pekerjaanAyah']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Pendidikan', student['pendidikanAyah']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('No. HP', student['noHpAyah']?.toString(), textColor, subTextColor),
+                          ],
+                          textColor,
+                          borderColor,
+                          cardBgColor,
+                        ),
 
-                        // ── Info Cards ───────────────────────────────────────────
-                        Container(
-                          decoration: BoxDecoration(
-                            color: cardBgColor,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: borderColor),
-                            boxShadow: isDark
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.15),
-                                      blurRadius: 14,
-                                      offset: const Offset(0, 5),
-                                    ),
-                                  ]
-                                : [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.04),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                          ),
-                          child: Column(
-                            children: [
-                              // Kelas
-                              _infoTile(
-                                icon: Icons.class_outlined,
-                                iconColor: const Color(0xFF6366F1),
-                                label: 'Kelas',
-                                value: hasClass ? className : 'Belum ditentukan',
-                                valueColor: hasClass ? textColor : subTextColor.withValues(alpha: 0.5),
-                                textColor: textColor,
-                                subTextColor: subTextColor,
-                                showDivider: true,
-                                dividerColor: dividerColor,
-                              ),
-                              // Jenis Kelamin
-                              _infoTile(
-                                icon: Icons.wc_rounded,
-                                iconColor: const Color(0xFF8B5CF6),
-                                label: 'Jenis Kelamin',
-                                value: (student['gender'] ?? '').toString().isEmpty ? '-' : student['gender'],
-                                valueColor: textColor,
-                                textColor: textColor,
-                                subTextColor: subTextColor,
-                                showDivider: true,
-                                dividerColor: dividerColor,
-                              ),
-                              // Alamat
-                              _infoTile(
-                                icon: Icons.home_outlined,
-                                iconColor: const Color(0xFFF59E0B),
-                                label: 'Alamat',
-                                value: (student['alamat'] ?? '').toString().isEmpty ? '-' : student['alamat'],
-                                valueColor: textColor,
-                                textColor: textColor,
-                                subTextColor: subTextColor,
-                                showDivider: true,
-                                dividerColor: dividerColor,
-                              ),
-                              // Tanggal Lahir
-                              _infoTile(
-                                icon: Icons.calendar_month_rounded,
-                                iconColor: const Color(0xFFEC4899),
-                                label: 'Tanggal Lahir',
-                                value: (student['tanggalLahir'] ?? '').toString().isEmpty ? '-' : student['tanggalLahir'],
-                                valueColor: textColor,
-                                textColor: textColor,
-                                subTextColor: subTextColor,
-                                showDivider: true,
-                                dividerColor: dividerColor,
-                              ),
-                              // Angkatan
-                              _infoTile(
-                                icon: Icons.calendar_today_rounded,
-                                iconColor: const Color(0xFF10B981),
-                                label: 'Angkatan',
-                                value: (student['angkatan'] ?? '').toString().isEmpty ? '-' : student['angkatan'],
-                                valueColor: textColor,
-                                textColor: textColor,
-                                subTextColor: subTextColor,
-                                showDivider: true,
-                                dividerColor: dividerColor,
-                              ),
-                              // Email
-                              _infoTile(
-                                icon: Icons.email_outlined,
-                                iconColor: const Color(0xFF0EA5E9),
-                                label: 'Email',
-                                value: (student['email'] ?? '').toString().isEmpty ? '-' : student['email'],
-                                valueColor: textColor,
-                                textColor: textColor,
-                                subTextColor: subTextColor,
-                                showDivider: true,
-                                dividerColor: dividerColor,
-                              ),
-                              // Status Keaktifan
-                              _infoTile(
-                                icon: student['lulus'] == true
-                                    ? Icons.school_rounded
-                                    : (isAktif ? Icons.check_circle_outline_rounded : Icons.cancel_outlined),
-                                iconColor: student['lulus'] == true
-                                    ? const Color(0xFF6366F1)
-                                    : (isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
-                                label: 'Status Keaktifan',
-                                value: student['lulus'] == true
-                                    ? 'Alumni (Lulus)'
-                                    : (isAktif ? 'Aktif' : 'Tidak Aktif'),
-                                valueColor: student['lulus'] == true
-                                    ? const Color(0xFF6366F1)
-                                    : (isAktif ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
-                                textColor: textColor,
-                                subTextColor: subTextColor,
-                                showDivider: false,
-                                dividerColor: dividerColor,
-                              ),
-                            ],
-                          ),
+                        // ── Section Data Ibu ───────────────────────────────────────
+                        _buildDetailSection(
+                          'Data Ibu',
+                          Icons.person_outline_rounded,
+                          [
+                            _buildInfoRow('Nama Ibu', student['namaIbu']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('NIK Ibu', student['nikIbu']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Pekerjaan', student['pekerjaanIbu']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Pendidikan', student['pendidikanIbu']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('No. HP', student['noHpIbu']?.toString(), textColor, subTextColor),
+                          ],
+                          textColor,
+                          borderColor,
+                          cardBgColor,
+                        ),
+
+                        // ── Section Data Wali ───────────────────────────────────────
+                        _buildDetailSection(
+                          'Data Wali (Jika Ada)',
+                          Icons.family_restroom_rounded,
+                          [
+                            _buildInfoRow('Nama Wali', student['namaWali']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Hubungan', student['hubunganWali']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('No. HP', student['noHpWali']?.toString(), textColor, subTextColor),
+                            _buildInfoRow('Alamat', student['alamatWali']?.toString(), textColor, subTextColor),
+                          ],
+                          textColor,
+                          borderColor,
+                          cardBgColor,
                         ),
 
                         const SizedBox(height: 24),
@@ -1211,72 +971,6 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _infoTile({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required String value,
-    required Color textColor,
-    required Color subTextColor,
-    Color? valueColor,
-    required bool showDivider,
-    required Color dividerColor,
-  }) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: iconColor.withValues(alpha: 0.25)),
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: subTextColor,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: valueColor ?? textColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (showDivider)
-          Divider(
-            height: 1,
-            indent: 70,
-            endIndent: 16,
-            color: dividerColor,
-          ),
-      ],
     );
   }
 }

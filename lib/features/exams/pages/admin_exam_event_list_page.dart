@@ -741,10 +741,10 @@ class AdminExamEventListPage extends StatelessWidget {
         final today = DateTime.now();
         final normalizedToday = DateTime(today.year, today.month, today.day);
         final normalizedEndDate = DateTime(event.endDate.year, event.endDate.month, event.endDate.day);
-        final isBeforeEnd = normalizedToday.isBefore(normalizedEndDate);
+        final isOngoing = !normalizedToday.isAfter(normalizedEndDate);
 
         bool proceed = true;
-        if (isBeforeEnd) {
+        if (isOngoing) {
           final isDark = AuthBackground.isDarkMode.value;
           final confirm = await Get.dialog<bool>(
             AlertDialog(

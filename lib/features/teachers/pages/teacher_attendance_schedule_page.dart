@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../../core/localization/app_localization.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../exams/models/exam_event_model.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 import '../../students/data/student_service.dart';
 import '../services/attendance_pdf_helper.dart';
@@ -573,6 +574,22 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
         return;
       }
 
+      // Fetch exam events that overlap with selected month
+      final examEventsSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(user.schoolId)
+          .collection('exam_events')
+          .get();
+
+      final startOfMonth = DateTime(start.year, start.month, 1);
+      final endOfMonth = DateTime(start.year, start.month + 1, 1);
+
+      final examEvents = examEventsSnap.docs.map((d) => ExamEvent.fromFirestore(d)).where((e) {
+        final eStart = DateTime(e.startDate.toLocal().year, e.startDate.toLocal().month, e.startDate.toLocal().day);
+        final eEnd = DateTime(e.endDate.toLocal().year, e.endDate.toLocal().month, e.endDate.toLocal().day);
+        return eStart.isBefore(endOfMonth) && eEnd.isAfter(startOfMonth.subtract(const Duration(days: 1)));
+      }).toList();
+
       if (isPreview) {
         Get.to(() => TeacherAttendancePreviewPage(
           teacherName: teacherName,
@@ -585,6 +602,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
           schoolName: schoolName,
           tahunAjaran: recordTahunAjaran,
           semester: recordSemester,
+          examEvents: examEvents,
         ));
       } else {
         // Panggil PDF Helper untuk generate rekap gabungan dengan jadwal guru saja
@@ -599,6 +617,7 @@ class _TeacherAttendanceSchedulePageState extends State<TeacherAttendanceSchedul
           schoolName: schoolName,
           tahunAjaran: recordTahunAjaran,
           semester: recordSemester,
+          examEvents: examEvents,
         );
       }
 

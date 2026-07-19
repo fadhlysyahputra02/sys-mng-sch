@@ -1955,10 +1955,6 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                       AppLocalization.isIndonesian ? 'Denah & Monitor Ruang' : 'Seating Plan & Monitor',
                       style: TextStyle(color: titleColor, fontSize: 15, fontWeight: FontWeight.bold),
                     ),
-                    Text(
-                      widget.session.roomName.isNotEmpty ? widget.session.roomName : (AppLocalization.isIndonesian ? 'Ruang Ujian' : 'Exam Room'),
-                      style: TextStyle(color: subtitleColor, fontSize: 11),
-                    ),
                   ],
                 ),
                 backgroundColor: scaffoldBg,
@@ -2418,13 +2414,11 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
       );
     }
 
-    final cleanRoom = student.roomName
-        .toLowerCase()
-        .replaceAll('ruangan', '')
-        .replaceAll('ruang', '')
-        .trim()
-        .toUpperCase();
-    final nomorPeserta = '${student.seatNumber}-$cleanRoom-${student.angkatan}';
+    final nomorPeserta = ExamUtils.buildExamNumber(
+      roomName: student.roomName,
+      seatNumber: student.seatNumber,
+      angkatan: student.angkatan,
+    );
     final sClass = (student.className != null && student.className!.isNotEmpty)
         ? student.className!
         : '-';
@@ -2807,12 +2801,20 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                   ),
                 ],
                 const SizedBox(height: 16),
-                FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                  future: FirebaseFirestore.instance
-                      .collection('schools')
-                      .doc(widget.schoolId)
-                      .collection('exam_submissions')
-                      .doc('${widget.session.eventId}_${widget.session.subjectId}_${widget.session.classId}_${student.studentId}')
+                Builder(
+                  builder: (context) {
+                    final studentSession = widget.allSessions.firstWhere(
+                      (s) => s.id == student.sessionId,
+                      orElse: () => widget.session,
+                    );
+                    final examId = '${studentSession.eventId}_${studentSession.subjectId}_${studentSession.classId}';
+                    
+                    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      future: FirebaseFirestore.instance
+                          .collection('schools')
+                          .doc(widget.schoolId)
+                          .collection('exam_submissions')
+                          .doc('${examId}_${student.studentId}')
                       .get(),
                   builder: (context, snap) {
                     if (snap.connectionState == ConnectionState.done && !isNoteLoaded) {
@@ -2858,7 +2860,11 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                             ElevatedButton.icon(
                               onPressed: () async {
                                 try {
-                                  final examId = '${widget.session.eventId}_${widget.session.subjectId}_${widget.session.classId}';
+                                  final studentSession = widget.allSessions.firstWhere(
+                                    (s) => s.id == student.sessionId,
+                                    orElse: () => widget.session,
+                                  );
+                                  final examId = '${studentSession.eventId}_${studentSession.subjectId}_${studentSession.classId}';
                                   final submissionId = '${examId}_${student.studentId}';
                                   await FirebaseFirestore.instance
                                       .collection('schools')
@@ -2904,7 +2910,9 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                       ],
                     );
                   },
-                ),
+                    ); // end FutureBuilder
+                  }, // end Builder builder function
+                ), // end Builder
                 const SizedBox(height: 20),
                 Text(AppLocalization.isIndonesian ? 'Riwayat Log Aktivitas' : 'Activity Log History', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: titleColor)),
                 const Divider(height: 16),

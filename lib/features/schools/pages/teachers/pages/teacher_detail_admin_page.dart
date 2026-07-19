@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../authentication/widgets/auth_background.dart';
 import '../../../../teachers/pages/teacher_daily_attendance_page.dart';
+import 'edit_teacher_admin_page.dart';
 import 'teacher_subject_admin_page.dart';
 
 class TeacherDetailPage extends StatefulWidget {
@@ -75,260 +76,20 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
     teacher = Map<String, dynamic>.from(widget.teacher);
   }
 
-  void _showEditDialog() {
-    final nameController = TextEditingController(text: teacher['nama']);
-    final nipController = TextEditingController(text: teacher['nip'] ?? '');
-    final isDark = AuthBackground.isDarkMode.value;
-    final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final subTextColor = isDark ? Colors.white.withValues(alpha: 0.55) : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
-    final cardBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
-    final borderColor = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
-    final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        String? errorMessage;
-        bool isLoading = false;
-
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return AlertDialog(
-              backgroundColor: dialogBg,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: BorderSide(color: borderColor, width: 1.5),
-              ),
-              contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Edit Data Guru',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: cardBgColor,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: TextField(
-                      controller: nameController,
-                      style: TextStyle(color: textColor),
-                      textCapitalization: TextCapitalization.words,
-                      enabled: !isLoading,
-                      decoration: InputDecoration(
-                        labelText: 'Nama Baru',
-                        labelStyle: TextStyle(color: subTextColor),
-                        prefixIcon: Icon(Icons.person_outline_rounded, color: subTextColor),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: cardBgColor,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: TextField(
-                      controller: nipController,
-                      style: TextStyle(color: textColor),
-                      keyboardType: TextInputType.number,
-                      enabled: !isLoading,
-                      decoration: InputDecoration(
-                        labelText: 'NIP Baru',
-                        labelStyle: TextStyle(color: subTextColor),
-                        prefixIcon: Icon(Icons.badge_outlined, color: subTextColor),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
-                    ),
-                  ),
-                  if (errorMessage != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              errorMessage!,
-                              style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w500),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              actions: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          side: BorderSide(color: borderColor),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: isLoading ? null : () => Navigator.pop(ctx),
-                        child: Text('Batal', style: TextStyle(color: textColor)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6366F1),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: isLoading
-                            ? null
-                            : () async {
-                                final newName = nameController.text.trim();
-                                final newNip = nipController.text.trim();
-
-                                setModalState(() {
-                                  errorMessage = null;
-                                });
-
-                                if (newName.isEmpty) {
-                                  setModalState(() {
-                                    errorMessage = 'Nama tidak boleh kosong';
-                                  });
-                                  return;
-                                }
-
-                                if (newNip.isEmpty) {
-                                  setModalState(() {
-                                    errorMessage = 'NIP tidak boleh kosong';
-                                  });
-                                  return;
-                                }
-
-                                final messenger = ScaffoldMessenger.of(context);
-
-                                setModalState(() {
-                                  isLoading = true;
-                                });
-
-                                try {
-                                  // Query as string NIP
-                                  final existingString = await FirebaseFirestore.instance
-                                      .collection('schools')
-                                      .doc(teacher['schoolId'])
-                                      .collection('teachers')
-                                      .where('nip', isEqualTo: newNip)
-                                      .get();
-
-                                  // Query as integer NIP (if parseable)
-                                  final parsedNipInt = int.tryParse(newNip);
-                                  final existingIntDocs = parsedNipInt != null
-                                      ? (await FirebaseFirestore.instance
-                                          .collection('schools')
-                                          .doc(teacher['schoolId'])
-                                          .collection('teachers')
-                                          .where('nip', isEqualTo: parsedNipInt)
-                                          .get()).docs
-                                      : <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-
-                                  final allMatches = [
-                                    ...existingString.docs,
-                                    ...existingIntDocs,
-                                  ];
-
-                                  // Filter out current teacher using teacherId
-                                  final otherMatches = allMatches.where((doc) {
-                                    final data = doc.data();
-                                    return data['teacherId'] != teacher['teacherId'];
-                                  }).toList();
-
-                                  if (otherMatches.isNotEmpty) {
-                                    final existingName = otherMatches.first.data()['nama'] ?? 'Guru Lain';
-                                    setModalState(() {
-                                      errorMessage = 'NIP sudah terdaftar atas nama "$existingName"';
-                                      isLoading = false;
-                                    });
-                                    return;
-                                  }
-
-                                  await FirebaseFirestore.instance
-                                      .collection('schools')
-                                      .doc(teacher['schoolId'])
-                                      .collection('teachers')
-                                      .doc(teacher['teacherId'])
-                                      .update({
-                                    'nama': newName,
-                                    'nip': newNip,
-                                  });
-
-                                  setState(() {
-                                    teacher['nama'] = newName;
-                                    teacher['nip'] = newNip;
-                                  });
-
-                                  if (context.mounted) {
-                                    Navigator.pop(ctx);
-                                    messenger.showSnackBar(
-                                      const SnackBar(content: Text('Data guru berhasil diubah')),
-                                    );
-                                  }
-                                } catch (e) {
-                                  setModalState(() {
-                                    errorMessage = 'Gagal menyimpan data: $e';
-                                    isLoading = false;
-                                  });
-                                }
-                              },
-                        child: isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        );
-      },
+  Future<void> _navigateToEditPage() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditTeacherAdminPage(teacher: teacher),
+      ),
     );
+    if (result != null && mounted) {
+      setState(() {
+        teacher = result;
+      });
+    }
   }
+
 
   void _showDeleteDialog() {
     final isDark = AuthBackground.isDarkMode.value;
@@ -499,6 +260,78 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildDetailSection(String title, IconData icon, List<Widget> children, Color textColor, Color borderColor, Color bgColor) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: const Color(0xFF6366F1)),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: Colors.black12),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String? value, Color textColor, Color subTextColor) {
+    final displayValue = (value == null || value.trim().isEmpty) ? '-' : value;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: TextStyle(color: subTextColor, fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: Text(
+              displayValue,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -941,7 +774,7 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                             tooltip: 'Edit Guru',
                             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                             padding: EdgeInsets.zero,
-                            onPressed: _showEditDialog,
+                            onPressed: _navigateToEditPage,
                           ),
                         ),
                         // Delete button
@@ -976,7 +809,6 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                         // ── Profile Card ─────────────────────────────────────
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
@@ -984,6 +816,7 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
                             boxShadow: [
                               BoxShadow(
                                 color: const Color(0xFF6366F1).withValues(alpha: 0.35),
@@ -992,164 +825,201 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                               ),
                             ],
                           ),
-                          child: Row(
-                            children: [
-                              // Avatar
-                              GestureDetector(
-                                onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
-                                child: Stack(
-                                  alignment: Alignment.bottomRight,
-                                  children: [
-                                    Container(
-                                      width: 66,
-                                      height: 66,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(18),
-                                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(16),
-                                        child: teacher['fotoBase64'] != null && teacher['fotoBase64'].toString().isNotEmpty
-                                            ? Image.memory(
-                                                base64Decode(teacher['fotoBase64']),
-                                                fit: BoxFit.cover,
-                                              )
-                                            : Center(
-                                                child: Text(
-                                                  inisial,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 28,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                      ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: Stack(
+                              children: [
+                                // Decoration circles
+                                Positioned(
+                                  top: -40,
+                                  right: -20,
+                                  child: Container(
+                                    width: 130,
+                                    height: 130,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white.withValues(alpha: 0.1),
                                     ),
-                                    Container(
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      padding: const EdgeInsets.all(4),
-                                      child: _isUploadingFoto
-                                          ? const SizedBox(
-                                              width: 10,
-                                              height: 10,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 1.5,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
-                                              ),
-                                            )
-                                          : const Icon(
-                                              Icons.camera_alt_rounded,
-                                              size: 10,
-                                              color: Color(0xFF6366F1),
-                                            ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 18),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      nama,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
-                                        color: Colors.white,
-                                        letterSpacing: 0.3,
-                                      ),
+                                Positioned(
+                                  bottom: -30,
+                                  right: 60,
+                                  child: Container(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white.withValues(alpha: 0.1),
                                     ),
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.badge_outlined, size: 14, color: Colors.white.withValues(alpha: 0.7)),
-                                        const SizedBox(width: 5),
-                                        Text(
-                                          'NIP: ${teacher['nip'] ?? '-'}',
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.8),
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    // Status badges
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 4,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: isRegistered
-                                                ? Colors.white.withValues(alpha: 0.25)
-                                                : Colors.orange.withValues(alpha: 0.3),
-                                            borderRadius: BorderRadius.circular(20),
-                                            border: Border.all(
-                                              color: isRegistered
-                                                  ? Colors.white.withValues(alpha: 0.4)
-                                                  : Colors.orange.withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                // Content
+                                Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Avatar
+                                      GestureDetector(
+                                        onTap: _isUploadingFoto ? null : _pickAndUploadFoto,
+                                        child: Stack(
+                                          alignment: Alignment.bottomRight,
+                                          children: [
+                                            Container(
+                                              width: 66,
+                                              height: 66,
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(alpha: 0.2),
+                                                borderRadius: BorderRadius.circular(18),
+                                                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                                              ),
+                                              child: ClipRRect(
+                                                borderRadius: BorderRadius.circular(16),
+                                                child: teacher['fotoBase64'] != null && teacher['fotoBase64'].toString().isNotEmpty
+                                                    ? Image.memory(
+                                                        base64Decode(teacher['fotoBase64']),
+                                                        fit: BoxFit.cover,
+                                                      )
+                                                    : Center(
+                                                        child: Text(
+                                                          inisial,
+                                                          style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 28,
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                              ),
                                             ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                isRegistered ? Icons.verified_rounded : Icons.pending_rounded,
-                                                size: 11,
+                                            Container(
+                                              decoration: const BoxDecoration(
                                                 color: Colors.white,
+                                                shape: BoxShape.circle,
                                               ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                isRegistered ? 'Terdaftar' : 'Belum Registrasi',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        // Badge nonaktif
-                                        if (!(teacher['isActive'] ?? true))
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.red.withValues(alpha: 0.3),
-                                              borderRadius: BorderRadius.circular(20),
-                                              border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
+                                              padding: const EdgeInsets.all(4),
+                                              child: _isUploadingFoto
+                                                  ? const SizedBox(
+                                                      width: 10,
+                                                      height: 10,
+                                                      child: CircularProgressIndicator(
+                                                        strokeWidth: 1.5,
+                                                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                                                      ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.camera_alt_rounded,
+                                                      size: 10,
+                                                      color: Color(0xFF6366F1),
+                                                    ),
                                             ),
-                                            child: const Row(
-                                              mainAxisSize: MainAxisSize.min,
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 18),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              nama,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 20,
+                                                color: Colors.white,
+                                                letterSpacing: 0.3,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Row(
                                               children: [
-                                                Icon(Icons.block_rounded, size: 11, color: Colors.white),
-                                                SizedBox(width: 4),
+                                                Icon(Icons.badge_outlined, size: 14, color: Colors.white.withValues(alpha: 0.7)),
+                                                const SizedBox(width: 5),
                                                 Text(
-                                                  'Nonaktif',
+                                                  'NIP: ${teacher['nip'] ?? '-'}',
                                                   style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white.withValues(alpha: 0.8),
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w500,
                                                   ),
                                                 ),
                                               ],
                                             ),
-                                          ),
-                                      ],
-                                    ),
-                                  ],
+                                            const SizedBox(height: 10),
+                                            // Status badges
+                                            Wrap(
+                                              spacing: 6,
+                                              runSpacing: 4,
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: isRegistered
+                                                        ? Colors.white.withValues(alpha: 0.25)
+                                                        : Colors.orange.withValues(alpha: 0.3),
+                                                    borderRadius: BorderRadius.circular(20),
+                                                    border: Border.all(
+                                                      color: isRegistered
+                                                          ? Colors.white.withValues(alpha: 0.4)
+                                                          : Colors.orange.withValues(alpha: 0.5),
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        isRegistered ? Icons.verified_rounded : Icons.pending_rounded,
+                                                        size: 11,
+                                                        color: Colors.white,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        isRegistered ? 'Terdaftar' : 'Belum Registrasi',
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                // Badge nonaktif
+                                                if (!(teacher['isActive'] ?? true))
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.red.withValues(alpha: 0.3),
+                                                      borderRadius: BorderRadius.circular(20),
+                                                      border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
+                                                    ),
+                                                    child: const Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(Icons.block_rounded, size: 11, color: Colors.white),
+                                                        SizedBox(width: 4),
+                                                        Text(
+                                                          'Nonaktif',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
 
@@ -1361,6 +1231,109 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
                               );
                             },
                           ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // ── Informasi Lengkap Guru ───────────────────────────
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                              ),
+                              child: const Icon(Icons.person_search_rounded, color: Color(0xFF6366F1), size: 18),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Informasi Lengkap',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+
+                        _buildDetailSection(
+                          'Data Pribadi',
+                          Icons.person_outline_rounded,
+                          [
+                            _buildInfoRow('Nama Lengkap', teacher['nama'], textColor, subTextColor),
+                            _buildInfoRow('NIP', teacher['nip'], textColor, subTextColor),
+                            _buildInfoRow('NUPTK', teacher['nuptk'], textColor, subTextColor),
+                            _buildInfoRow('No. Pegawai', teacher['noPegawai'], textColor, subTextColor),
+                            _buildInfoRow('Gelar Depan', teacher['gelarDepan'], textColor, subTextColor),
+                            _buildInfoRow('Gelar Belakang', teacher['gelarBelakang'], textColor, subTextColor),
+                            _buildInfoRow('Jenis Kelamin', teacher['gender'], textColor, subTextColor),
+                            _buildInfoRow('Tempat Lahir', teacher['tempatLahir'], textColor, subTextColor),
+                            _buildInfoRow('Tanggal Lahir', teacher['tanggalLahir'], textColor, subTextColor),
+                            _buildInfoRow('Agama', teacher['agama'], textColor, subTextColor),
+                            _buildInfoRow('Status Nikah', teacher['statusPernikahan'], textColor, subTextColor),
+                            _buildInfoRow('Kewarganegaraan', teacher['kewarganegaraan'], textColor, subTextColor),
+                            _buildInfoRow('Gol. Darah', teacher['golonganDarah'], textColor, subTextColor),
+                            _buildInfoRow('Alamat', teacher['alamat'], textColor, subTextColor),
+                            _buildInfoRow('No. HP', teacher['noHp'], textColor, subTextColor),
+                            _buildInfoRow('Kontak Darurat', teacher['kontakDarurat'], textColor, subTextColor),
+                          ],
+                          textColor,
+                          borderColor,
+                          cardBgColor,
+                        ),
+
+                        _buildDetailSection(
+                          'Data Identitas',
+                          Icons.badge_outlined,
+                          [
+                            _buildInfoRow('NIK', teacher['nik'], textColor, subTextColor),
+                            _buildInfoRow('NPWP', teacher['npwp'], textColor, subTextColor),
+                            _buildInfoRow('BPJS Kesehatan', teacher['bpjsKesehatan'], textColor, subTextColor),
+                            _buildInfoRow('BPJS Naker', teacher['bpjsKetenagakerjaan'], textColor, subTextColor),
+                            _buildInfoRow('Nomor KK', teacher['nomorKk'], textColor, subTextColor),
+                            _buildInfoRow('No. Rekening', teacher['nomorRekening'], textColor, subTextColor),
+                            _buildInfoRow('Nama Bank', teacher['namaBank'], textColor, subTextColor),
+                          ],
+                          textColor,
+                          borderColor,
+                          cardBgColor,
+                        ),
+
+                        _buildDetailSection(
+                          'Data Kepegawaian',
+                          Icons.work_outline_rounded,
+                          [
+                            _buildInfoRow('Status Guru', teacher['statusGuru'], textColor, subTextColor),
+                            _buildInfoRow('Jabatan', teacher['jabatan'], textColor, subTextColor),
+                            _buildInfoRow('Pangkat/Gol', teacher['pangkatGolongan'], textColor, subTextColor),
+                            _buildInfoRow('TMT', teacher['tmt'], textColor, subTextColor),
+                            _buildInfoRow('Tgl Bergabung', teacher['tanggalBergabung'], textColor, subTextColor),
+                            _buildInfoRow('Masa Kerja', teacher['masaKerja'], textColor, subTextColor),
+                          ],
+                          textColor,
+                          borderColor,
+                          cardBgColor,
+                        ),
+
+                        _buildDetailSection(
+                          'Data Akademik',
+                          Icons.school_outlined,
+                          [
+                            _buildInfoRow('Pend. Terakhir', teacher['pendidikanTerakhir'], textColor, subTextColor),
+                            _buildInfoRow('Jurusan', teacher['jurusan'], textColor, subTextColor),
+                            _buildInfoRow('Universitas', teacher['universitas'], textColor, subTextColor),
+                            _buildInfoRow('Tahun Lulus', teacher['tahunLulus'], textColor, subTextColor),
+                            _buildInfoRow('Sertifikasi', teacher['sertifikasiGuru'], textColor, subTextColor),
+                            _buildInfoRow('Bid. Sertifikasi', teacher['bidangSertifikasi'], textColor, subTextColor),
+                          ],
+                          textColor,
+                          borderColor,
+                          cardBgColor,
                         ),
 
                         const SizedBox(height: 12),

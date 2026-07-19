@@ -24,11 +24,55 @@ class StudentListPage extends StatefulWidget {
 class _StudentListPageState extends State<StudentListPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  int? _sortColumnIndex;
+  bool _sortAscending = true;
+  int? _selectedRowIndex;
+  late Stream<QuerySnapshot> _studentsStream;
+
+  String? _filterKelas;
+  String? _filterAngkatan;
+  String? _filterAgama;
+  String? _filterJalurMasuk;
+  bool? _filterStatusRegister;
+  String? _filterTempatLahir;
+
+  DateTime? _lastTapTime;
+  int? _lastTapRowIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _studentsStream = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('students')
+        .snapshots();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _navigateToDetail(BuildContext context, Map<String, dynamic> student) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => StudentDetailPage(student: student)),
+    );
+  }
+
+  String _normalizeText(String? val) {
+    if (val == null || val.trim().isEmpty || val == '-') return '-';
+    return val.trim().split(' ').map((w) => w.isNotEmpty ? w[0].toUpperCase() + w.substring(1).toLowerCase() : '').join(' ');
+  }
+
+  DataCell _doubleTapCell(String text, VoidCallback onTap, VoidCallback onDoubleTap) {
+    return DataCell(
+      Text(text),
+      onTap: onTap,
+      onDoubleTap: onDoubleTap,
+    );
   }
 
   @override
@@ -198,11 +242,7 @@ class _StudentListPageState extends State<StudentListPage> {
                     // Body
                     Expanded(
                       child: StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('schools')
-                            .doc(widget.schoolId)
-                            .collection('students')
-                            .snapshots(),
+                        stream: _studentsStream,
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
                             return Center(
@@ -237,34 +277,19 @@ class _StudentListPageState extends State<StudentListPage> {
 
                           var docs = snapshot.data?.docs ?? [];
                           
+                          List<String> kelasOptions = [];
+                          List<String> angkatanOptions = [];
+                          List<String> agamaOptions = [];
+                          List<String> jalurMasukOptions = [];
+                          List<String> tempatLahirOptions = [];
+
                           if (docs.isNotEmpty) {
-                            docs.sort((a, b) {
-                              final dataA = a.data() as Map<String, dynamic>;
-                              final dataB = b.data() as Map<String, dynamic>;
-                              final nameA = (dataA['nama'] ?? '').toString().toLowerCase();
-                              final nameB = (dataB['nama'] ?? '').toString().toLowerCase();
-                              
-                              // Natural sort comparison
-                              final regExp = RegExp(r'(\d+|\D+)');
-                              final aMatches = regExp.allMatches(nameA).map((m) => m.group(0)!).toList();
-                              final bMatches = regExp.allMatches(nameB).map((m) => m.group(0)!).toList();
+                            kelasOptions = docs.map((d) => _normalizeText((d.data() as Map<String, dynamic>)['className']?.toString())).toSet().where((e) => e != '-').toList()..sort();
+                            angkatanOptions = docs.map((d) => _normalizeText((d.data() as Map<String, dynamic>)['angkatan']?.toString())).toSet().where((e) => e != '-').toList()..sort();
+                            agamaOptions = docs.map((d) => _normalizeText((d.data() as Map<String, dynamic>)['agama']?.toString())).toSet().where((e) => e != '-').toList()..sort();
+                            jalurMasukOptions = docs.map((d) => _normalizeText((d.data() as Map<String, dynamic>)['jalurMasuk']?.toString())).toSet().where((e) => e != '-').toList()..sort();
+                            tempatLahirOptions = docs.map((d) => _normalizeText((d.data() as Map<String, dynamic>)['tempatLahir']?.toString())).toSet().where((e) => e != '-').toList()..sort();
 
-                              for (int i = 0; i < aMatches.length && i < bMatches.length; i++) {
-                                final aPart = aMatches[i];
-                                final bPart = bMatches[i];
-                                final aInt = int.tryParse(aPart);
-                                final bInt = int.tryParse(bPart);
-
-                                if (aInt != null && bInt != null) {
-                                  if (aInt != bInt) return aInt.compareTo(bInt);
-                                } else {
-                                  final comp = aPart.compareTo(bPart);
-                                  if (comp != 0) return comp;
-                                }
-                              }
-                              return aMatches.length.compareTo(bMatches.length);
-                            });
-                            
                             if (_searchQuery.isNotEmpty) {
                               docs = docs.where((doc) {
                                 final data = doc.data() as Map<String, dynamic>;
@@ -273,6 +298,74 @@ class _StudentListPageState extends State<StudentListPage> {
                                 return nama.contains(_searchQuery) || nis.contains(_searchQuery);
                               }).toList();
                             }
+
+                            if (_filterKelas != null) {
+                              docs = docs.where((doc) => _normalizeText(((doc.data() as Map<String, dynamic>)['className']?.toString())) == _filterKelas).toList();
+                            }
+                            if (_filterAngkatan != null) {
+                              docs = docs.where((doc) => _normalizeText(((doc.data() as Map<String, dynamic>)['angkatan']?.toString())) == _filterAngkatan).toList();
+                            }
+                            if (_filterAgama != null) {
+                              docs = docs.where((doc) => _normalizeText(((doc.data() as Map<String, dynamic>)['agama']?.toString())) == _filterAgama).toList();
+                            }
+                            if (_filterJalurMasuk != null) {
+                              docs = docs.where((doc) => _normalizeText(((doc.data() as Map<String, dynamic>)['jalurMasuk']?.toString())) == _filterJalurMasuk).toList();
+                            }
+                            if (_filterTempatLahir != null) {
+                              docs = docs.where((doc) => _normalizeText(((doc.data() as Map<String, dynamic>)['tempatLahir']?.toString())) == _filterTempatLahir).toList();
+                            }
+                            if (_filterStatusRegister != null) {
+                              docs = docs.where((doc) => ((doc.data() as Map<String, dynamic>)['sudahRegister'] ?? false) == _filterStatusRegister).toList();
+                            }
+
+                            docs.sort((a, b) {
+                              final dataA = a.data() as Map<String, dynamic>;
+                              final dataB = b.data() as Map<String, dynamic>;
+
+                              dynamic valA;
+                              dynamic valB;
+
+                              switch (_sortColumnIndex) {
+                                case 0: valA = dataA['nama']; valB = dataB['nama']; break;
+                                case 1: valA = dataA['nis']; valB = dataB['nis']; break;
+                                case 2: valA = dataA['className']; valB = dataB['className']; break;
+                                case 3: valA = dataA['angkatan']; valB = dataB['angkatan']; break;
+                                case 4: valA = dataA['agama']; valB = dataB['agama']; break;
+                                case 5: valA = dataA['tempatLahir']; valB = dataB['tempatLahir']; break;
+                                case 6: valA = dataA['tanggalLahir']; valB = dataB['tanggalLahir']; break;
+                                case 7: valA = dataA['jalurMasuk']; valB = dataB['jalurMasuk']; break;
+                                case 8: valA = dataA['sudahRegister']; valB = dataB['sudahRegister']; break;
+                                default: valA = dataA['nama']; valB = dataB['nama']; break;
+                              }
+
+                              final strA = (valA ?? '').toString().toLowerCase();
+                              final strB = (valB ?? '').toString().toLowerCase();
+
+                              if (_sortColumnIndex == null || _sortColumnIndex == 0) {
+                                final regExp = RegExp(r'(\d+|\D+)');
+                                final aMatches = regExp.allMatches(strA).map((m) => m.group(0)!).toList();
+                                final bMatches = regExp.allMatches(strB).map((m) => m.group(0)!).toList();
+
+                                for (int i = 0; i < aMatches.length && i < bMatches.length; i++) {
+                                  final aPart = aMatches[i];
+                                  final bPart = bMatches[i];
+                                  final aInt = int.tryParse(aPart);
+                                  final bInt = int.tryParse(bPart);
+
+                                  if (aInt != null && bInt != null) {
+                                    if (aInt != bInt) return _sortAscending ? aInt.compareTo(bInt) : bInt.compareTo(aInt);
+                                  } else {
+                                    final comp = aPart.compareTo(bPart);
+                                    if (comp != 0) return _sortAscending ? comp : -comp;
+                                  }
+                                }
+                                return _sortAscending 
+                                    ? aMatches.length.compareTo(bMatches.length)
+                                    : bMatches.length.compareTo(aMatches.length);
+                              } else {
+                                return _sortAscending ? strA.compareTo(strB) : strB.compareTo(strA);
+                              }
+                            });
                           }
 
                           if (docs.isEmpty) {
@@ -308,167 +401,311 @@ class _StudentListPageState extends State<StudentListPage> {
                             );
                           }
 
-                          return ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                            itemCount: docs.length,
-                            itemBuilder: (context, index) {
-                              final student = docs[index].data() as Map<String, dynamic>;
-                              final bool isRegistered = student['sudahRegister'] ?? false;
+                          void onSort(int columnIndex, bool ascending) {
+                            setState(() {
+                              _sortColumnIndex = columnIndex;
+                              _sortAscending = ascending;
+                            });
+                          }
 
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                decoration: BoxDecoration(
-                                  color: cardBg,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: borderCol),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                          Widget buildSortIcon(int index) {
+                            final isSorted = _sortColumnIndex == index;
+                            return InkWell(
+                              onTap: () => onSort(index, isSorted ? !_sortAscending : true),
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 4.0),
+                                child: Icon(
+                                  isSorted && !_sortAscending ? Icons.arrow_drop_down : Icons.arrow_drop_up,
+                                  size: 20,
+                                  color: isSorted ? const Color(0xFF0EA5E9) : mutedColor,
                                 ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(20),
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => StudentDetailPage(student: student),
-                                        ),
-                                      );
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Row(
-                                        children: [
-                                          // Avatar
-                                          Container(
-                                            width: 50,
-                                            height: 50,
-                                            decoration: BoxDecoration(
-                                              gradient: const LinearGradient(
-                                                colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                              ),
-                                              borderRadius: BorderRadius.circular(14),
+                              ),
+                            );
+                          }
+
+                          Widget buildTextHeader(String title, int index) {
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(title, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                buildSortIcon(index),
+                              ],
+                            );
+                          }
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: cardBg,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: borderCol),
+                                  ),
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.vertical,
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Theme(
+                                        data: Theme.of(context).copyWith(
+                                          dataTableTheme: DataTableThemeData(
+                                            headingTextStyle: TextStyle(
+                                              color: textColor,
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                            child: const Icon(Icons.school_rounded, color: Colors.white, size: 26),
+                                            dataTextStyle: TextStyle(
+                                              color: textColor,
+                                            ),
                                           ),
-                                          const SizedBox(width: 14),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  student['nama'] ?? '-',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 15,
-                                                    color: textColor,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 5),
-                                                Row(
-                                                  children: [
-                                                    Icon(Icons.badge_outlined, size: 13, color: mutedColor),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      '${AppLocalization.nisLabel}${student['nis'] ?? '-'}',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: subtitleColor,
-                                                        fontWeight: FontWeight.w500,
-                                                      ),
+                                        ),
+                                        child: DataTable(
+                                          showCheckboxColumn: false,
+                                          headingRowColor: WidgetStateProperty.all(
+                                            isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                                          ),
+                                          columns: [
+                                            DataColumn(label: buildTextHeader('Nama', 0)),
+                                            DataColumn(label: buildTextHeader('NIS', 1)),
+                                            DataColumn(
+                                              label: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  DropdownButtonHideUnderline(
+                                                    child: DropdownButton<String>(
+                                                      hint: Text('Kelas', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                      value: _filterKelas,
+                                                      dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                      style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                      icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                      items: [
+                                                        DropdownMenuItem(value: null, child: Text('Semua Kelas')),
+                                                        ...kelasOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                      ],
+                                                      onChanged: (val) => setState(() => _filterKelas = val),
                                                     ),
-                                                  ],
-                                                ),
-                                                if ((student['email'] ?? '').toString().isNotEmpty) ...[
-                                                  const SizedBox(height: 3),
-                                                  Row(
-                                                    children: [
-                                                      Icon(Icons.mail_outline_rounded, size: 13, color: mutedColor),
-                                                      const SizedBox(width: 4),
-                                                      Expanded(
-                                                        child: Text(
-                                                          student['email'],
-                                                          overflow: TextOverflow.ellipsis,
-                                                          style: TextStyle(
-                                                            fontSize: 12,
-                                                            color: subtitleColor.withValues(alpha: 0.8),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
                                                   ),
+                                                  buildSortIcon(2),
                                                 ],
-                                                const SizedBox(height: 8),
-                                                Wrap(
-                                                  spacing: 6,
-                                                  runSpacing: 4,
-                                                  children: [
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                                      decoration: BoxDecoration(
-                                                        color: isRegistered
-                                                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                                                            : const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                                                        borderRadius: BorderRadius.circular(20),
-                                                        border: Border.all(
-                                                          color: isRegistered
-                                                              ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                                                              : const Color(0xFFF59E0B).withValues(alpha: 0.4),
-                                                        ),
+                                              ),
+                                            ),
+                                            DataColumn(
+                                              label: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  DropdownButtonHideUnderline(
+                                                    child: DropdownButton<String>(
+                                                      hint: Text('Angkatan', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                      value: _filterAngkatan,
+                                                      dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                      style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                      icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                      items: [
+                                                        DropdownMenuItem(value: null, child: Text('Semua Angkatan')),
+                                                        ...angkatanOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                      ],
+                                                      onChanged: (val) => setState(() => _filterAngkatan = val),
+                                                    ),
+                                                  ),
+                                                  buildSortIcon(3),
+                                                ],
+                                              ),
+                                            ),
+                                            DataColumn(
+                                              label: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  DropdownButtonHideUnderline(
+                                                    child: DropdownButton<String>(
+                                                      hint: Text('Agama', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                      value: _filterAgama,
+                                                      dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                      style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                      icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                      items: [
+                                                        DropdownMenuItem(value: null, child: Text('Semua Agama')),
+                                                        ...agamaOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                      ],
+                                                      onChanged: (val) => setState(() => _filterAgama = val),
+                                                    ),
+                                                  ),
+                                                  buildSortIcon(4),
+                                                ],
+                                              ),
+                                            ),
+                                            DataColumn(
+                                              label: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  DropdownButtonHideUnderline(
+                                                    child: DropdownButton<String>(
+                                                      hint: Text('Tempat Lahir', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                      value: _filterTempatLahir,
+                                                      dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                      style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                      icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                      items: [
+                                                        DropdownMenuItem(value: null, child: Text('Semua Tempat')),
+                                                        ...tempatLahirOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                      ],
+                                                      onChanged: (val) => setState(() => _filterTempatLahir = val),
+                                                    ),
+                                                  ),
+                                                  buildSortIcon(5),
+                                                ],
+                                              ),
+                                            ),
+                                            DataColumn(label: buildTextHeader('Tanggal Lahir', 6)),
+                                            DataColumn(
+                                              label: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  DropdownButtonHideUnderline(
+                                                    child: DropdownButton<String>(
+                                                      hint: Text('Jalur Masuk', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                      value: _filterJalurMasuk,
+                                                      dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                      style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                      icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                      items: [
+                                                        DropdownMenuItem(value: null, child: Text('Semua Jalur')),
+                                                        ...jalurMasukOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                      ],
+                                                      onChanged: (val) => setState(() => _filterJalurMasuk = val),
+                                                    ),
+                                                  ),
+                                                  buildSortIcon(7),
+                                                ],
+                                              ),
+                                            ),
+                                            DataColumn(
+                                              label: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  DropdownButtonHideUnderline(
+                                                    child: DropdownButton<bool>(
+                                                      hint: Text('Status Register', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                      value: _filterStatusRegister,
+                                                      dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                      style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                      icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                      items: const [
+                                                        DropdownMenuItem(value: null, child: Text('Semua Status')),
+                                                        DropdownMenuItem(value: true, child: Text('Register')),
+                                                        DropdownMenuItem(value: false, child: Text('Belum Register')),
+                                                      ],
+                                                      onChanged: (val) => setState(() => _filterStatusRegister = val),
+                                                    ),
+                                                  ),
+                                                  buildSortIcon(8),
+                                                ],
+                                              ),
+                                            ),
+                                            const DataColumn(label: Text('Aksi')),
+                                          ],
+                                          rows: List<DataRow>.generate(docs.length, (index) {
+                                            final doc = docs[index];
+                                            final student = doc.data() as Map<String, dynamic>;
+                                            final bool isRegistered = student['sudahRegister'] ?? false;
+                                            final isSelected = _selectedRowIndex == index;
+
+                                            return DataRow(
+                                              selected: isSelected,
+                                              onSelectChanged: (_) {
+                                                final now = DateTime.now();
+                                                if (_lastTapRowIndex == index && _lastTapTime != null) {
+                                                  if (now.difference(_lastTapTime!) < const Duration(milliseconds: 400)) {
+                                                    _lastTapTime = null;
+                                                    setState(() => _selectedRowIndex = null);
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) => StudentDetailPage(student: student),
                                                       ),
-                                                      child: Text(
-                                                        isRegistered ? AppLocalization.registeredStatus : AppLocalization.notRegisteredStatus,
-                                                        style: TextStyle(
-                                                          color: isRegistered ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                                                          fontSize: 10,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
+                                                    );
+                                                    return;
+                                                  }
+                                                }
+                                                _lastTapTime = now;
+                                                _lastTapRowIndex = index;
+
+                                                setState(() {
+                                                  _selectedRowIndex = index;
+                                                });
+                                              },
+                                              color: WidgetStateProperty.resolveWith<Color?>((states) {
+                                                if (states.contains(WidgetState.selected)) {
+                                                  return (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1);
+                                                }
+                                                return null;
+                                              }),
+                                              cells: [
+                                                _doubleTapCell(student['nama'] ?? '-', () => setState(() => _selectedRowIndex = index), () => _navigateToDetail(context, student)),
+                                                _doubleTapCell(student['nis'] ?? '-', () => setState(() => _selectedRowIndex = index), () => _navigateToDetail(context, student)),
+                                                _doubleTapCell(_normalizeText(student['className']?.toString()), () => setState(() => _selectedRowIndex = index), () => _navigateToDetail(context, student)),
+                                                _doubleTapCell(_normalizeText(student['angkatan']?.toString()), () => setState(() => _selectedRowIndex = index), () => _navigateToDetail(context, student)),
+                                                _doubleTapCell(_normalizeText(student['agama']?.toString()), () => setState(() => _selectedRowIndex = index), () => _navigateToDetail(context, student)),
+                                                _doubleTapCell(_normalizeText(student['tempatLahir']?.toString()), () => setState(() => _selectedRowIndex = index), () => _navigateToDetail(context, student)),
+                                                _doubleTapCell(student['tanggalLahir'] ?? '-', () => setState(() => _selectedRowIndex = index), () => _navigateToDetail(context, student)),
+                                                _doubleTapCell(_normalizeText(student['jalurMasuk']?.toString()), () => setState(() => _selectedRowIndex = index), () => _navigateToDetail(context, student)),
+                                                DataCell(
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: isRegistered
+                                                          ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                                          : const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                                      borderRadius: BorderRadius.circular(20),
+                                                    ),
+                                                    child: Text(
+                                                      isRegistered ? AppLocalization.registeredStatus : AppLocalization.notRegisteredStatus,
+                                                      style: TextStyle(
+                                                        color: isRegistered ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.bold,
                                                       ),
                                                     ),
-                                                    if (student['lulus'] == true)
-                                                      Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                                        decoration: BoxDecoration(
-                                                          color: const Color(0xFF6366F1).withValues(alpha: 0.15),
-                                                          borderRadius: BorderRadius.circular(20),
-                                                          border: Border.all(
-                                                            color: const Color(0xFF6366F1).withValues(alpha: 0.4),
-                                                          ),
+                                                  ),
+                                                ),
+                                                DataCell(
+                                                  IconButton(
+                                                    icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                                    color: mutedColor,
+                                                    onPressed: () {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (_) => StudentDetailPage(student: student),
                                                         ),
-                                                        child: Text(
-                                                          AppLocalization.alumniStatus,
-                                                          style: const TextStyle(
-                                                            color: Color(0xFF6366F1),
-                                                            fontSize: 10,
-                                                            fontWeight: FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                  ],
+                                                      );
+                                                    },
+                                                  ),
                                                 ),
                                               ],
-                                            ),
-                                          ),
-                                          Icon(
-                                            Icons.arrow_forward_ios_rounded,
-                                            size: 14,
-                                            color: mutedColor,
-                                          ),
-                                        ],
+                                            );
+                                          }),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                                child: Text(
+                                  _selectedRowIndex != null
+                                      ? '${_selectedRowIndex! + 1}/${docs.length}'
+                                      : '0/${docs.length}',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),
@@ -591,19 +828,23 @@ class _StudentListPageState extends State<StudentListPage> {
               ),
               const SizedBox(height: 16),
               Text(
-                AppLocalization.excelGuideSubtitle,
+                'Panduan Pengisian Kolom',
                 style: TextStyle(color: subtitleColor, fontSize: 13, fontWeight: FontWeight.bold),
               ),
+              const SizedBox(height: 4),
+              _buildGuideItem('Format file harus .xlsx atau .xls.', subtitleColor),
+              _buildGuideItem('Baris pertama adalah header, data diisi mulai dari baris berikutnya.', subtitleColor),
               const SizedBox(height: 8),
-              _buildGuideItem(AppLocalization.excelGuideFormat, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideHeader, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideColName, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideStudentNis, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideGender, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideAddress, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideStudentDob, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideStudentBatch, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideStudentNisUnique, subtitleColor),
+              _buildGuideChip('Kolom Wajib Diisi', const Color(0xFFEF4444), subtitleColor),
+              const SizedBox(height: 4),
+              _buildGuideItem('Nama Lengkap, NIS, Jenis Kelamin (L/P), Tempat Lahir, Tanggal Lahir (DD-MM-YYYY), Agama, Alamat, Tahun Angkatan.', subtitleColor),
+              const SizedBox(height: 8),
+              _buildGuideChip('Kolom Opsional', const Color(0xFF0EA5E9), subtitleColor),
+              const SizedBox(height: 4),
+              _buildGuideItem('NISN, Kewarganegaraan, Nomor HP, Jalur Masuk, Tanggal Diterima, serta seluruh data Ayah, Ibu, dan Wali.', subtitleColor),
+              const SizedBox(height: 8),
+              _buildGuideItem('NIS harus unik dan tidak boleh terdaftar dua kali dalam satu file maupun di database.', subtitleColor),
+              _buildGuideItem('Gunakan tombol "Unduh Template" di bawah untuk mendapatkan format file yang benar.', subtitleColor),
             ],
           ),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -721,11 +962,37 @@ class _StudentListPageState extends State<StudentListPage> {
     );
   }
 
+  Widget _buildGuideChip(String label, Color color, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            color == const Color(0xFFEF4444) ? Icons.star_rounded : Icons.info_outline_rounded,
+            color: color,
+            size: 13,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showPremiumDialog(BuildContext context) {
     final isDark = AuthBackground.isDarkMode.value;
     final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.7);
-    final mutedColor = isDark ? Colors.white38 : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
+    final mutedColor = isDark ? Colors.white : const Color(0xFF1E1B4B).withValues(alpha: 0.4);
     final dialogBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
     final dialogBorder = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFF1E1B4B).withValues(alpha: 0.08);
 

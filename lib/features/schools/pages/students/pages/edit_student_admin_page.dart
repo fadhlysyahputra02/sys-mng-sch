@@ -3,28 +3,28 @@ import '../../../../authentication/widgets/auth_background.dart';
 import '../data/student_admin_service.dart';
 import 'package:sys_mng_school/core/localization/app_localization.dart';
 
-class AddStudentPage extends StatefulWidget {
-  final String schoolId;
+class EditStudentAdminPage extends StatefulWidget {
+  final Map<String, dynamic> student;
 
-  const AddStudentPage({super.key, required this.schoolId});
+  const EditStudentAdminPage({super.key, required this.student});
 
   @override
-  State<AddStudentPage> createState() => _AddStudentPageState();
+  State<EditStudentAdminPage> createState() => _EditStudentAdminPageState();
 }
 
-class _AddStudentPageState extends State<AddStudentPage> {
+class _EditStudentAdminPageState extends State<EditStudentAdminPage> {
   final _formKey = GlobalKey<FormState>();
 
   // Data Pribadi
-  final namaController = TextEditingController();
-  final nisController = TextEditingController();
-  final nisnController = TextEditingController();
-  final tempatLahirController = TextEditingController();
-  final addressController = TextEditingController();
-  final tanggalLahirController = TextEditingController();
-  final angkatanController = TextEditingController();
-  final noHpController = TextEditingController();
-  final tanggalDiterimaController = TextEditingController();
+  late TextEditingController namaController;
+  late TextEditingController nisController;
+  late TextEditingController nisnController;
+  late TextEditingController tempatLahirController;
+  late TextEditingController addressController;
+  late TextEditingController tanggalLahirController;
+  late TextEditingController angkatanController;
+  late TextEditingController noHpController;
+  late TextEditingController tanggalDiterimaController;
 
   String? _selectedGender;
   String? _selectedAgama;
@@ -32,24 +32,24 @@ class _AddStudentPageState extends State<AddStudentPage> {
   String? _selectedJalurMasuk;
 
   // Data Ayah
-  final namaAyahController = TextEditingController();
-  final nikAyahController = TextEditingController();
-  final pekerjaanAyahController = TextEditingController();
-  final pendidikanAyahController = TextEditingController();
-  final noHpAyahController = TextEditingController();
+  late TextEditingController namaAyahController;
+  late TextEditingController nikAyahController;
+  late TextEditingController pekerjaanAyahController;
+  late TextEditingController pendidikanAyahController;
+  late TextEditingController noHpAyahController;
 
   // Data Ibu
-  final namaIbuController = TextEditingController();
-  final nikIbuController = TextEditingController();
-  final pekerjaanIbuController = TextEditingController();
-  final pendidikanIbuController = TextEditingController();
-  final noHpIbuController = TextEditingController();
+  late TextEditingController namaIbuController;
+  late TextEditingController nikIbuController;
+  late TextEditingController pekerjaanIbuController;
+  late TextEditingController pendidikanIbuController;
+  late TextEditingController noHpIbuController;
 
   // Data Wali
-  final namaWaliController = TextEditingController();
-  final hubunganWaliController = TextEditingController();
-  final noHpWaliController = TextEditingController();
-  final alamatWaliController = TextEditingController();
+  late TextEditingController namaWaliController;
+  late TextEditingController hubunganWaliController;
+  late TextEditingController noHpWaliController;
+  late TextEditingController alamatWaliController;
 
   bool isLoading = false;
 
@@ -57,16 +57,63 @@ class _AddStudentPageState extends State<AddStudentPage> {
   final List<String> kewarganegaraanOptions = ['WNI', 'WNA'];
   final List<String> jalurMasukOptions = ['Zonasi', 'Prestasi', 'Afirmasi', 'Pindah Tugas', 'Umum/Reguler'];
 
-  Future<void> saveStudent() async {
+  @override
+  void initState() {
+    super.initState();
+    final student = widget.student;
+
+    namaController = TextEditingController(text: student['nama'] ?? '');
+    nisController = TextEditingController(text: student['nis'] ?? '');
+    nisnController = TextEditingController(text: student['nisn'] ?? '');
+    tempatLahirController = TextEditingController(text: student['tempatLahir'] ?? '');
+    addressController = TextEditingController(text: student['alamat'] ?? '');
+    tanggalLahirController = TextEditingController(text: student['tanggalLahir'] ?? '');
+    angkatanController = TextEditingController(text: student['angkatan'] ?? '');
+    noHpController = TextEditingController(text: student['noHp'] ?? '');
+    tanggalDiterimaController = TextEditingController(text: student['tanggalDiterima'] ?? '');
+
+    _selectedGender = (student['gender'] == 'Laki-laki' || student['gender'] == 'Perempuan') ? student['gender'] : null;
+    _selectedAgama = agamaOptions.contains(student['agama']) ? student['agama'] : null;
+    _selectedKewarganegaraan = kewarganegaraanOptions.contains(student['kewarganegaraan']) ? student['kewarganegaraan'] : null;
+    _selectedJalurMasuk = jalurMasukOptions.contains(student['jalurMasuk']) ? student['jalurMasuk'] : null;
+
+    namaAyahController = TextEditingController(text: student['namaAyah'] ?? '');
+    nikAyahController = TextEditingController(text: student['nikAyah'] ?? '');
+    pekerjaanAyahController = TextEditingController(text: student['pekerjaanAyah'] ?? '');
+    pendidikanAyahController = TextEditingController(text: student['pendidikanAyah'] ?? '');
+    noHpAyahController = TextEditingController(text: student['noHpAyah'] ?? '');
+
+    namaIbuController = TextEditingController(text: student['namaIbu'] ?? '');
+    nikIbuController = TextEditingController(text: student['nikIbu'] ?? '');
+    pekerjaanIbuController = TextEditingController(text: student['pekerjaanIbu'] ?? '');
+    pendidikanIbuController = TextEditingController(text: student['pendidikanIbu'] ?? '');
+    noHpIbuController = TextEditingController(text: student['noHpIbu'] ?? '');
+
+    namaWaliController = TextEditingController(text: student['namaWali'] ?? '');
+    hubunganWaliController = TextEditingController(text: student['hubunganWali'] ?? '');
+    noHpWaliController = TextEditingController(text: student['noHpWali'] ?? '');
+    alamatWaliController = TextEditingController(text: student['alamatWali'] ?? '');
+  }
+
+  Future<void> updateStudent() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final studentId = widget.student['studentId'] as String? ?? '';
+    if (studentId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: studentId tidak ditemukan. Tidak dapat menyimpan.')),
+      );
+      return;
+    }
 
     try {
       setState(() {
         isLoading = true;
       });
 
-      await StudentService().createStudent(
-        schoolId: widget.schoolId,
+      debugPrint('Updating student ID: $studentId');
+      await StudentService().updateStudent(
+        studentId: studentId,
         nis: nisController.text.trim(),
         nama: namaController.text.trim(),
         gender: _selectedGender ?? '',
@@ -99,22 +146,46 @@ class _AddStudentPageState extends State<AddStudentPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalization.isIndonesian ? 'Murid berhasil ditambahkan' : 'Student successfully added')),
+        SnackBar(content: Text(AppLocalization.isIndonesian ? 'Data murid berhasil diperbarui' : 'Student data successfully updated')),
       );
 
-      Navigator.pop(context);
+      // Return the updated data so the detail page can reflect it
+      Navigator.pop(context, {
+        ...widget.student,
+        'nis': nisController.text.trim(),
+        'nama': namaController.text.trim(),
+        'gender': _selectedGender ?? '',
+        'alamat': addressController.text.trim(),
+        'tanggalLahir': tanggalLahirController.text.trim(),
+        'angkatan': angkatanController.text.trim(),
+        'nisn': nisnController.text.trim(),
+        'tempatLahir': tempatLahirController.text.trim(),
+        'agama': _selectedAgama,
+        'kewarganegaraan': _selectedKewarganegaraan,
+        'noHp': noHpController.text.trim(),
+        'jalurMasuk': _selectedJalurMasuk,
+        'tanggalDiterima': tanggalDiterimaController.text.trim(),
+        'namaAyah': namaAyahController.text.trim(),
+        'nikAyah': nikAyahController.text.trim(),
+        'pekerjaanAyah': pekerjaanAyahController.text.trim(),
+        'pendidikanAyah': pendidikanAyahController.text.trim(),
+        'noHpAyah': noHpAyahController.text.trim(),
+        'namaIbu': namaIbuController.text.trim(),
+        'nikIbu': nikIbuController.text.trim(),
+        'pekerjaanIbu': pekerjaanIbuController.text.trim(),
+        'pendidikanIbu': pendidikanIbuController.text.trim(),
+        'noHpIbu': noHpIbuController.text.trim(),
+        'namaWali': namaWaliController.text.trim(),
+        'hubunganWali': hubunganWaliController.text.trim(),
+        'noHpWali': noHpWaliController.text.trim(),
+        'alamatWali': alamatWaliController.text.trim(),
+      });
     } catch (e) {
       debugPrint(e.toString());
 
       if (mounted) {
         final errorMsg = e.toString().replaceAll('Exception: ', '').replaceAll('Exception ', '');
-        if (errorMsg.contains('Kuota murid')) {
-          final match = RegExp(r'\((.*?)\)').firstMatch(errorMsg);
-          final quotaVal = match != null ? int.tryParse(match.group(1) ?? '0') ?? 0 : 0;
-          _showQuotaFullDialog(context: context, userType: 'Murid', quota: quotaVal);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
-        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
       }
     } finally {
       if (mounted) {
@@ -123,134 +194,6 @@ class _AddStudentPageState extends State<AddStudentPage> {
         });
       }
     }
-  }
-
-  void _showQuotaFullDialog({
-    required BuildContext context,
-    required String userType,
-    required int quota,
-  }) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subTextColor = isDark
-            ? Colors.white70
-            : const Color(0xFF1E1B4B).withOpacity(0.65);
-        final translatedUserType = AppLocalization.isIndonesian
-            ? userType
-            : (userType == 'Murid' ? 'Student' : userType);
-
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          backgroundColor: isDark ? const Color(0xFF151026) : Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Icon badge
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.lock_outline_rounded,
-                    color: Color(0xFFEF4444),
-                    size: 44,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Title
-                Text(
-                  AppLocalization.isIndonesian
-                      ? 'Batas Kuota $translatedUserType Tercapai'
-                      : '$translatedUserType Quota Limit Reached',
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-
-                // Quota capacity pill
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: const Color(0xFFEF4444).withOpacity(0.3),
-                    ),
-                  ),
-                  child: Text(
-                    AppLocalization.isIndonesian
-                        ? 'Kapasitas: $quota $translatedUserType Aktif'
-                        : 'Capacity: $quota Active $translatedUserType',
-                    style: const TextStyle(
-                      color: Color(0xFFEF4444),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Description
-                Text(
-                  AppLocalization.isIndonesian
-                      ? 'Sekolah Anda telah mencapai batas maksimal pengguna $translatedUserType yang ditetapkan oleh Super Admin. Pendaftaran $translatedUserType baru tidak dapat dilakukan saat ini.'
-                      : 'Your school has reached the maximum user limit for $translatedUserType set by the Super Admin. New $translatedUserType registration cannot be completed at this time.',
-                  style: TextStyle(
-                    color: subTextColor,
-                    fontSize: 13,
-                    height: 1.6,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-
-                // Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEF4444).withOpacity(0.1),
-                      foregroundColor: const Color(0xFFEF4444),
-                      shadowColor: Colors.transparent,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(
-                          color: const Color(0xFFEF4444).withOpacity(0.3),
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      AppLocalization.isIndonesian ? 'Mengerti' : 'Understood',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -335,7 +278,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            AppLocalization.isIndonesian ? 'Tambah Murid' : 'Add Student',
+                            AppLocalization.isIndonesian ? 'Edit Data Murid' : 'Edit Student Data',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                           ),
                         ),
@@ -352,49 +295,6 @@ class _AddStudentPageState extends State<AddStudentPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: 8),
-
-                          // Header card
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: cardBgColor,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: borderColor),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: const Icon(Icons.groups_rounded, color: Colors.white, size: 28),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        AppLocalization.isIndonesian ? 'Registrasi Murid Baru' : 'New Student Registration',
-                                        style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        AppLocalization.isIndonesian ? 'Masukkan detail identitas siswa di bawah ini.' : 'Enter student identity details below.',
-                                        style: TextStyle(color: subTextColor, fontSize: 11),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                           
                           _buildSectionHeader(AppLocalization.isIndonesian ? 'Data Pribadi' : 'Personal Data', textColor),
 
@@ -643,48 +543,62 @@ class _AddStudentPageState extends State<AddStudentPage> {
                           const SizedBox(height: 16),
                           _buildField(controller: alamatWaliController, label: 'Alamat Wali', icon: Icons.home_outlined, maxLines: 2, isDark: isDark, textColor: textColor, subTextColor: subTextColor, cardBgColor: cardBgColor, borderColor: borderColor),
 
-                          const SizedBox(height: 32),
-
-                          // Button
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF0EA5E9).withValues(alpha: 0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                              onPressed: isLoading ? null : saveStudent,
-                              child: isLoading
-                                  ? const SizedBox(
-                                      height: 24,
-                                      width: 24,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                                    )
-                                  : Text(
-                                      AppLocalization.isIndonesian ? 'Simpan Data' : 'Save Data',
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                                    ),
-                            ),
-                          ),
+                          const SizedBox(height: 16),
                         ],
                       ),
                     ),
                   ),
                 ),
               ],
+            ),
+          ),
+          bottomNavigationBar: SafeArea(
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0EA5E9).withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: isLoading ? null : updateStudent,
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : Text(
+                          AppLocalization.isIndonesian ? 'Simpan Perubahan' : 'Save Changes',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                ),
+              ),
             ),
           ),
         );

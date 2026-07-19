@@ -3,54 +3,54 @@ import 'package:flutter/material.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import 'package:sys_mng_school/core/localization/app_localization.dart';
 
-class AddTeacherPage extends StatefulWidget {
-  final String schoolId;
+class EditTeacherAdminPage extends StatefulWidget {
+  final Map<String, dynamic> teacher;
 
-  const AddTeacherPage({super.key, required this.schoolId});
+  const EditTeacherAdminPage({super.key, required this.teacher});
 
   @override
-  State<AddTeacherPage> createState() => _AddTeacherPageState();
+  State<EditTeacherAdminPage> createState() => _EditTeacherAdminPageState();
 }
 
-class _AddTeacherPageState extends State<AddTeacherPage> {
+class _EditTeacherAdminPageState extends State<EditTeacherAdminPage> {
   final _formKey = GlobalKey<FormState>();
 
   // Data Pribadi
-  final namaController = TextEditingController();
-  final nipController = TextEditingController();
-  final nuptKController = TextEditingController();
-  final noPegawaiController = TextEditingController();
-  final gelarDepanController = TextEditingController();
-  final gelarBelakangController = TextEditingController();
-  final tempatLahirController = TextEditingController();
-  final tanggalLahirController = TextEditingController();
-  final alamatController = TextEditingController();
-  final noHpController = TextEditingController();
-  final kontakDaruratController = TextEditingController();
+  late TextEditingController namaController;
+  late TextEditingController nipController;
+  late TextEditingController nuptKController;
+  late TextEditingController noPegawaiController;
+  late TextEditingController gelarDepanController;
+  late TextEditingController gelarBelakangController;
+  late TextEditingController tempatLahirController;
+  late TextEditingController tanggalLahirController;
+  late TextEditingController alamatController;
+  late TextEditingController noHpController;
+  late TextEditingController kontakDaruratController;
 
   // Data Identitas
-  final nikController = TextEditingController();
-  final npwpController = TextEditingController();
-  final bpjsKesehatanController = TextEditingController();
-  final bpjsKetenagakerjaanController = TextEditingController();
-  final nomorKkController = TextEditingController();
-  final nomorRekeningController = TextEditingController();
-  final namaBankController = TextEditingController();
+  late TextEditingController nikController;
+  late TextEditingController npwpController;
+  late TextEditingController bpjsKesehatanController;
+  late TextEditingController bpjsKetenagakerjaanController;
+  late TextEditingController nomorKkController;
+  late TextEditingController nomorRekeningController;
+  late TextEditingController namaBankController;
 
   // Data Kepegawaian
-  final jabatanController = TextEditingController();
-  final pangkatGolonganController = TextEditingController();
-  final tmtController = TextEditingController();
-  final tanggalBergabungController = TextEditingController();
-  final masaKerjaController = TextEditingController();
+  late TextEditingController jabatanController;
+  late TextEditingController pangkatGolonganController;
+  late TextEditingController tmtController;
+  late TextEditingController tanggalBergabungController;
+  late TextEditingController masaKerjaController;
 
   // Data Akademik
-  final pendidikanTerakhirController = TextEditingController();
-  final jurusanController = TextEditingController();
-  final universitasController = TextEditingController();
-  final tahunLulusController = TextEditingController();
-  final sertifikasiGuruController = TextEditingController();
-  final bidangSertifikasiController = TextEditingController();
+  late TextEditingController pendidikanTerakhirController;
+  late TextEditingController jurusanController;
+  late TextEditingController universitasController;
+  late TextEditingController tahunLulusController;
+  late TextEditingController sertifikasiGuruController;
+  late TextEditingController bidangSertifikasiController;
 
   String? _selectedGender;
   String? _selectedAgama;
@@ -68,98 +68,92 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
   bool isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    final t = widget.teacher;
+    namaController = TextEditingController(text: t['nama'] ?? '');
+    nipController = TextEditingController(text: t['nip'] ?? '');
+    nuptKController = TextEditingController(text: t['nuptk'] ?? '');
+    noPegawaiController = TextEditingController(text: t['noPegawai'] ?? '');
+    gelarDepanController = TextEditingController(text: t['gelarDepan'] ?? '');
+    gelarBelakangController = TextEditingController(text: t['gelarBelakang'] ?? '');
+    tempatLahirController = TextEditingController(text: t['tempatLahir'] ?? '');
+    tanggalLahirController = TextEditingController(text: t['tanggalLahir'] ?? '');
+    alamatController = TextEditingController(text: t['alamat'] ?? '');
+    noHpController = TextEditingController(text: t['noHp'] ?? '');
+    kontakDaruratController = TextEditingController(text: t['kontakDarurat'] ?? '');
+    nikController = TextEditingController(text: t['nik'] ?? '');
+    npwpController = TextEditingController(text: t['npwp'] ?? '');
+    bpjsKesehatanController = TextEditingController(text: t['bpjsKesehatan'] ?? '');
+    bpjsKetenagakerjaanController = TextEditingController(text: t['bpjsKetenagakerjaan'] ?? '');
+    nomorKkController = TextEditingController(text: t['nomorKk'] ?? '');
+    nomorRekeningController = TextEditingController(text: t['nomorRekening'] ?? '');
+    namaBankController = TextEditingController(text: t['namaBank'] ?? '');
+    jabatanController = TextEditingController(text: t['jabatan'] ?? '');
+    pangkatGolonganController = TextEditingController(text: t['pangkatGolongan'] ?? '');
+    tmtController = TextEditingController(text: t['tmt'] ?? '');
+    tanggalBergabungController = TextEditingController(text: t['tanggalBergabung'] ?? '');
+    masaKerjaController = TextEditingController(text: t['masaKerja'] ?? '');
+    pendidikanTerakhirController = TextEditingController(text: t['pendidikanTerakhir'] ?? '');
+    jurusanController = TextEditingController(text: t['jurusan'] ?? '');
+    universitasController = TextEditingController(text: t['universitas'] ?? '');
+    tahunLulusController = TextEditingController(text: t['tahunLulus'] ?? '');
+    sertifikasiGuruController = TextEditingController(text: t['sertifikasiGuru'] ?? '');
+    bidangSertifikasiController = TextEditingController(text: t['bidangSertifikasi'] ?? '');
+
+    _selectedGender = (t['gender'] == 'Laki-laki' || t['gender'] == 'Perempuan') ? t['gender'] : null;
+    _selectedAgama = agamaOptions.contains(t['agama']) ? t['agama'] : null;
+    _selectedKewarganegaraan = kewarganegaraanOptions.contains(t['kewarganegaraan']) ? t['kewarganegaraan'] : null;
+    _selectedStatusPernikahan = statusPernikahanOptions.contains(t['statusPernikahan']) ? t['statusPernikahan'] : null;
+    _selectedGolonganDarah = golonganDarahOptions.contains(t['golonganDarah']) ? t['golonganDarah'] : null;
+    _selectedStatusGuru = statusGuruOptions.contains(t['statusGuru']) ? t['statusGuru'] : null;
+  }
+
+  @override
   void dispose() {
-    namaController.dispose();
-    nipController.dispose();
-    nuptKController.dispose();
-    noPegawaiController.dispose();
-    gelarDepanController.dispose();
-    gelarBelakangController.dispose();
-    tempatLahirController.dispose();
-    tanggalLahirController.dispose();
-    alamatController.dispose();
-    noHpController.dispose();
-    kontakDaruratController.dispose();
-    nikController.dispose();
-    npwpController.dispose();
-    bpjsKesehatanController.dispose();
-    bpjsKetenagakerjaanController.dispose();
-    nomorKkController.dispose();
-    nomorRekeningController.dispose();
-    namaBankController.dispose();
-    jabatanController.dispose();
-    pangkatGolonganController.dispose();
-    tmtController.dispose();
-    tanggalBergabungController.dispose();
-    masaKerjaController.dispose();
-    pendidikanTerakhirController.dispose();
-    jurusanController.dispose();
-    universitasController.dispose();
-    tahunLulusController.dispose();
-    sertifikasiGuruController.dispose();
-    bidangSertifikasiController.dispose();
+    namaController.dispose(); nipController.dispose(); nuptKController.dispose();
+    noPegawaiController.dispose(); gelarDepanController.dispose(); gelarBelakangController.dispose();
+    tempatLahirController.dispose(); tanggalLahirController.dispose(); alamatController.dispose();
+    noHpController.dispose(); kontakDaruratController.dispose(); nikController.dispose();
+    npwpController.dispose(); bpjsKesehatanController.dispose(); bpjsKetenagakerjaanController.dispose();
+    nomorKkController.dispose(); nomorRekeningController.dispose(); namaBankController.dispose();
+    jabatanController.dispose(); pangkatGolonganController.dispose(); tmtController.dispose();
+    tanggalBergabungController.dispose(); masaKerjaController.dispose();
+    pendidikanTerakhirController.dispose(); jurusanController.dispose(); universitasController.dispose();
+    tahunLulusController.dispose(); sertifikasiGuruController.dispose(); bidangSertifikasiController.dispose();
     super.dispose();
   }
 
-  Future<void> saveTeacher() async {
+  Future<void> updateTeacher() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final teacherId = widget.teacher['teacherId'] as String? ?? '';
+    if (teacherId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: teacherId tidak ditemukan.')));
+      return;
+    }
 
     try {
       setState(() => isLoading = true);
 
-      final nip = nipController.text.trim();
+      final schoolId = widget.teacher['schoolId'] as String? ?? '';
+      final newNip = nipController.text.trim();
 
-      // Cek kuota guru
-      final schoolDoc = await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .get();
-      if (schoolDoc.exists) {
-        final teacherQuota = schoolDoc.data()?['teacherQuota'] as int?;
-        if (teacherQuota != null && teacherQuota > 0) {
-          final countSnap = await FirebaseFirestore.instance
-              .collection('schools')
-              .doc(widget.schoolId)
-              .collection('teachers')
-              .count()
-              .get();
-          if ((countSnap.count ?? 0) >= teacherQuota) {
-            if (mounted) _showQuotaFullDialog(context: context, userType: 'Guru', quota: teacherQuota);
-            return;
-          }
-        }
-      }
-
-      // Cek NIP duplikat
+      // Cek NIP duplikat (abaikan jika milik guru ini sendiri)
       final existing = await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .collection('teachers')
-          .where('nip', isEqualTo: nip)
-          .get();
-      if (existing.docs.isNotEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalization.isIndonesian ? 'NIP sudah terdaftar!' : 'NIP already registered!')),
-          );
+          .collection('schools').doc(schoolId).collection('teachers')
+          .where('nip', isEqualTo: newNip).get();
+      for (final doc in existing.docs) {
+        if (doc.id != teacherId) {
+          throw Exception('NIP $newNip sudah digunakan oleh guru lain.');
         }
-        return;
       }
 
-      final doc = FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .collection('teachers')
-          .doc();
-
-      await doc.set({
-        'teacherId': doc.id,
-        'schoolId': widget.schoolId,
-        'uid': '',
-        'email': '',
-        // Data Pribadi
+      await FirebaseFirestore.instance
+          .collection('schools').doc(schoolId).collection('teachers').doc(teacherId)
+          .update({
         'nama': namaController.text.trim(),
-        'nip': nip,
+        'nip': newNip,
         'nuptk': nuptKController.text.trim(),
         'noPegawai': noPegawaiController.text.trim(),
         'gelarDepan': gelarDepanController.text.trim(),
@@ -174,7 +168,6 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
         'alamat': alamatController.text.trim(),
         'noHp': noHpController.text.trim(),
         'kontakDarurat': kontakDaruratController.text.trim(),
-        // Data Identitas
         'nik': nikController.text.trim(),
         'npwp': npwpController.text.trim(),
         'bpjsKesehatan': bpjsKesehatanController.text.trim(),
@@ -182,36 +175,68 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
         'nomorKk': nomorKkController.text.trim(),
         'nomorRekening': nomorRekeningController.text.trim(),
         'namaBank': namaBankController.text.trim(),
-        // Data Kepegawaian
         'statusGuru': _selectedStatusGuru ?? '',
         'jabatan': jabatanController.text.trim(),
         'pangkatGolongan': pangkatGolonganController.text.trim(),
         'tmt': tmtController.text.trim(),
         'tanggalBergabung': tanggalBergabungController.text.trim(),
         'masaKerja': masaKerjaController.text.trim(),
-        // Data Akademik
         'pendidikanTerakhir': pendidikanTerakhirController.text.trim(),
         'jurusan': jurusanController.text.trim(),
         'universitas': universitasController.text.trim(),
         'tahunLulus': tahunLulusController.text.trim(),
         'sertifikasiGuru': sertifikasiGuruController.text.trim(),
         'bidangSertifikasi': bidangSertifikasiController.text.trim(),
-        'aktif': true,
-        'sudahRegister': false,
-        'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalization.isIndonesian ? 'Data guru berhasil disimpan!' : 'Teacher data saved!')),
+        SnackBar(content: Text(AppLocalization.isIndonesian ? 'Data guru berhasil diperbarui!' : 'Teacher data updated!')),
       );
-      Navigator.pop(context);
+
+      Navigator.pop(context, {
+        ...widget.teacher,
+        'nama': namaController.text.trim(),
+        'nip': newNip,
+        'nuptk': nuptKController.text.trim(),
+        'noPegawai': noPegawaiController.text.trim(),
+        'gelarDepan': gelarDepanController.text.trim(),
+        'gelarBelakang': gelarBelakangController.text.trim(),
+        'gender': _selectedGender ?? '',
+        'tempatLahir': tempatLahirController.text.trim(),
+        'tanggalLahir': tanggalLahirController.text.trim(),
+        'agama': _selectedAgama ?? '',
+        'statusPernikahan': _selectedStatusPernikahan ?? '',
+        'kewarganegaraan': _selectedKewarganegaraan ?? '',
+        'golonganDarah': _selectedGolonganDarah ?? '',
+        'alamat': alamatController.text.trim(),
+        'noHp': noHpController.text.trim(),
+        'kontakDarurat': kontakDaruratController.text.trim(),
+        'nik': nikController.text.trim(),
+        'npwp': npwpController.text.trim(),
+        'bpjsKesehatan': bpjsKesehatanController.text.trim(),
+        'bpjsKetenagakerjaan': bpjsKetenagakerjaanController.text.trim(),
+        'nomorKk': nomorKkController.text.trim(),
+        'nomorRekening': nomorRekeningController.text.trim(),
+        'namaBank': namaBankController.text.trim(),
+        'statusGuru': _selectedStatusGuru ?? '',
+        'jabatan': jabatanController.text.trim(),
+        'pangkatGolongan': pangkatGolonganController.text.trim(),
+        'tmt': tmtController.text.trim(),
+        'tanggalBergabung': tanggalBergabungController.text.trim(),
+        'masaKerja': masaKerjaController.text.trim(),
+        'pendidikanTerakhir': pendidikanTerakhirController.text.trim(),
+        'jurusan': jurusanController.text.trim(),
+        'universitas': universitasController.text.trim(),
+        'tahunLulus': tahunLulusController.text.trim(),
+        'sertifikasiGuru': sertifikasiGuruController.text.trim(),
+        'bidangSertifikasi': bidangSertifikasiController.text.trim(),
+      });
     } catch (e) {
       debugPrint(e.toString());
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalization.isIndonesian ? "Terjadi kesalahan" : "An error occurred"}: $e')),
-        );
+        final msg = e.toString().replaceAll('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     } finally {
       if (mounted) setState(() => isLoading = false);
@@ -238,17 +263,9 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                     padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
                     child: Row(
                       children: [
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
-                        ),
+                        IconButton(onPressed: () => Navigator.pop(context), icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20)),
                         const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            AppLocalization.isIndonesian ? 'Tambah Guru' : 'Add Teacher',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-                          ),
-                        ),
+                        Expanded(child: Text(AppLocalization.isIndonesian ? 'Edit Data Guru' : 'Edit Teacher Data', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor))),
                       ],
                     ),
                   ),
@@ -262,56 +279,13 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: 8),
-                          // Header card
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: cardBgColor,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: borderColor),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: const Icon(Icons.person_rounded, color: Colors.white, size: 28),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        AppLocalization.isIndonesian ? 'Registrasi Guru Baru' : 'New Teacher Registration',
-                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        AppLocalization.isIndonesian
-                                            ? 'Guru terdaftar dapat login menggunakan NIP ini.'
-                                            : 'Registered teachers can log in using this NIP.',
-                                        style: TextStyle(fontSize: 12, color: subTextColor),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
 
                           // ── SECTION 1: DATA PRIBADI ──
                           _buildSectionHeader('Data Pribadi', textColor),
                           _buildField(controller: namaController, label: 'Nama Lengkap *', icon: Icons.person_outline_rounded, isDark: isDark, textColor: textColor, subTextColor: subTextColor, cardBgColor: cardBgColor, borderColor: borderColor,
                             validator: (v) => (v == null || v.isEmpty) ? 'Nama wajib diisi' : null),
                           const SizedBox(height: 14),
-                          _buildField(controller: nipController, label: 'NIP (Nomor Induk Pegawai) *', icon: Icons.badge_outlined, isDark: isDark, textColor: textColor, subTextColor: subTextColor, cardBgColor: cardBgColor, borderColor: borderColor,
+                          _buildField(controller: nipController, label: 'NIP *', icon: Icons.badge_outlined, isDark: isDark, textColor: textColor, subTextColor: subTextColor, cardBgColor: cardBgColor, borderColor: borderColor,
                             validator: (v) => (v == null || v.isEmpty) ? 'NIP wajib diisi' : null),
                           const SizedBox(height: 14),
                           _buildField(controller: nuptKController, label: 'NUPTK', icon: Icons.numbers_rounded, isDark: isDark, textColor: textColor, subTextColor: subTextColor, cardBgColor: cardBgColor, borderColor: borderColor),
@@ -388,7 +362,7 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                           const SizedBox(height: 14),
                           _buildField(controller: tanggalBergabungController, label: 'Tanggal Bergabung (dd-MM-yyyy)', icon: Icons.calendar_today_outlined, isDark: isDark, textColor: textColor, subTextColor: subTextColor, cardBgColor: cardBgColor, borderColor: borderColor, keyboardType: TextInputType.datetime),
                           const SizedBox(height: 14),
-                          _buildField(controller: masaKerjaController, label: 'Masa Kerja (misal: 5 tahun)', icon: Icons.timer_outlined, isDark: isDark, textColor: textColor, subTextColor: subTextColor, cardBgColor: cardBgColor, borderColor: borderColor),
+                          _buildField(controller: masaKerjaController, label: 'Masa Kerja', icon: Icons.timer_outlined, isDark: isDark, textColor: textColor, subTextColor: subTextColor, cardBgColor: cardBgColor, borderColor: borderColor),
 
                           // ── SECTION 4: DATA AKADEMIK ──
                           _buildSectionHeader('Data Akademik', textColor),
@@ -418,9 +392,7 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF0F0C20) : Colors.white,
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, -4)),
-                ],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, -4))],
               ),
               child: Container(
                 decoration: BoxDecoration(
@@ -430,18 +402,14 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
                 ),
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
+                    backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
                     minimumSize: const Size.fromHeight(52),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  onPressed: isLoading ? null : saveTeacher,
+                  onPressed: isLoading ? null : updateTeacher,
                   child: isLoading
                       ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                      : Text(
-                          AppLocalization.isIndonesian ? 'Simpan Data' : 'Save Data',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
+                      : Text(AppLocalization.isIndonesian ? 'Simpan Perubahan' : 'Save Changes', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
             ),
@@ -465,29 +433,18 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
   }
 
   Widget _buildField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    required bool isDark,
-    required Color textColor,
-    required Color subTextColor,
-    required Color cardBgColor,
-    required Color borderColor,
-    int maxLines = 1,
-    String? Function(String?)? validator,
+    required TextEditingController controller, required String label, required IconData icon,
+    TextInputType? keyboardType, required bool isDark, required Color textColor,
+    required Color subTextColor, required Color cardBgColor, required Color borderColor,
+    int maxLines = 1, String? Function(String?)? validator,
   }) {
     return Container(
       decoration: BoxDecoration(color: cardBgColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: borderColor)),
       child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        validator: validator,
-        maxLines: maxLines,
+        controller: controller, keyboardType: keyboardType, validator: validator, maxLines: maxLines,
         style: TextStyle(color: textColor, fontSize: 15),
         decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: subTextColor, fontSize: 14),
+          labelText: label, labelStyle: TextStyle(color: subTextColor, fontSize: 14),
           prefixIcon: Icon(icon, color: const Color(0xFF6366F1), size: 20),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 12 : 16),
@@ -497,76 +454,21 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
   }
 
   Widget _buildDropdown({
-    required String? value,
-    required List<String> items,
-    required String label,
-    required IconData icon,
-    required bool isDark,
-    required Color textColor,
-    required Color subTextColor,
-    required Color cardBgColor,
-    required Color borderColor,
-    required void Function(String?) onChanged,
-    String? Function(String?)? validator,
+    required String? value, required List<String> items, required String label, required IconData icon,
+    required bool isDark, required Color textColor, required Color subTextColor,
+    required Color cardBgColor, required Color borderColor,
+    required void Function(String?) onChanged, String? Function(String?)? validator,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(color: cardBgColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: borderColor)),
       child: DropdownButtonFormField<String>(
-        value: value,
-        style: TextStyle(color: textColor, fontSize: 15),
+        value: value, style: TextStyle(color: textColor, fontSize: 15),
         dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: subTextColor, fontSize: 14),
-          prefixIcon: Icon(icon, color: const Color(0xFF6366F1), size: 20),
-          border: InputBorder.none,
-        ),
+        decoration: InputDecoration(labelText: label, labelStyle: TextStyle(color: subTextColor, fontSize: 14), prefixIcon: Icon(icon, color: const Color(0xFF6366F1), size: 20), border: InputBorder.none),
         items: items.map((item) => DropdownMenuItem(value: item, child: Text(item, style: TextStyle(color: textColor)))).toList(),
-        onChanged: onChanged,
-        validator: validator,
+        onChanged: onChanged, validator: validator,
       ),
-    );
-  }
-
-  void _showQuotaFullDialog({required BuildContext context, required String userType, required int quota}) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subTextColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withValues(alpha: 0.65);
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          backgroundColor: isDark ? const Color(0xFF151026) : Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: const Color(0xFFEF4444).withValues(alpha: 0.12), shape: BoxShape.circle),
-                  child: const Icon(Icons.lock_outline_rounded, color: Color(0xFFEF4444), size: 44)),
-                const SizedBox(height: 20),
-                Text('Batas Kuota Guru Tercapai', style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(color: const Color(0xFFEF4444).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(30), border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3))),
-                  child: Text('Kapasitas: $quota Guru', style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w600, fontSize: 13))),
-                const SizedBox(height: 16),
-                Text('Sekolah Anda telah mencapai batas maksimal guru. Minta Super Admin untuk meningkatkan kuota.', style: TextStyle(color: subTextColor, fontSize: 13, height: 1.6), textAlign: TextAlign.center),
-                const SizedBox(height: 24),
-                SizedBox(width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.1), foregroundColor: const Color(0xFFEF4444), shadowColor: Colors.transparent, elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: const Color(0xFFEF4444).withValues(alpha: 0.3))), padding: const EdgeInsets.symmetric(vertical: 14)),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Mengerti', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  )),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

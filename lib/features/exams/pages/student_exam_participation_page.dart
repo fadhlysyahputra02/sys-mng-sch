@@ -961,9 +961,20 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('R: $roomName', style: TextStyle(color: widget.subtitleColor, fontSize: 12)),
+                          Text('R: $roomName', style: TextStyle(color: widget.subtitleColor, fontSize: 11)),
                           if (seatNumber > 0)
-                            Text('K: $seatNumber', style: TextStyle(color: widget.subtitleColor, fontSize: 12)),
+                            Text(
+                              'No. Ujian:\n${ExamUtils.buildExamNumber(
+                                roomName: roomName,
+                                seatNumber: seatNumber,
+                                angkatan: _studentAngkatan ?? '',
+                              )}',
+                              style: TextStyle(
+                                color: widget.subtitleColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                         ],
                       ),
               ),

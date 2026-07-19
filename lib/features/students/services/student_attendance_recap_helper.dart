@@ -1,3 +1,5 @@
+import '../../exams/models/exam_event_model.dart';
+
 class SubjectAttendanceRecap {
   final String subjectName;
   final String className;
@@ -54,6 +56,7 @@ class StudentAttendanceRecapHelper {
     required int month,
     required List<Map<String, dynamic>> schedules,
     required List<Map<String, dynamic>> records,
+    List<ExamEvent> examEvents = const [],
   }) {
     final daysInMonth = DateTime(year, month + 1, 0).day;
     final cleanClassName = className.trim().toLowerCase();
@@ -127,9 +130,28 @@ class StudentAttendanceRecapHelper {
         final dayRecords =
             subjectRecords.where((r) => (r['date'] ?? '').toString() == dateStr);
 
+        // Check if the current date falls within any exam event
+        String? examTypeOnThisDay;
+        for (final exam in examEvents) {
+          // Normalize to local midnight to prevent timezone shift issues
+          final localStart = exam.startDate.toLocal();
+          final localEnd = exam.endDate.toLocal();
+          final eStart = DateTime(localStart.year, localStart.month, localStart.day);
+          final eEnd = DateTime(localEnd.year, localEnd.month, localEnd.day);
+          // date is already local midnight (DateTime(year, month, d))
+          if (!date.isBefore(eStart) && !date.isAfter(eEnd)) {
+            examTypeOnThisDay = exam.examType.isNotEmpty ? exam.examType : 'Ujian';
+            break;
+          }
+        }
+
         if (dayRecords.isEmpty) {
-          dailyAttendance[d] = '-';
-          totalAlpa++;
+          if (examTypeOnThisDay != null) {
+            dailyAttendance[d] = examTypeOnThisDay;
+          } else {
+            dailyAttendance[d] = '-';
+            totalAlpa++;
+          }
           continue;
         }
 
@@ -146,8 +168,12 @@ class StudentAttendanceRecapHelper {
         } else if (status == 'alpa' ||
             status == 'absen' ||
             status == 'alpha') {
-          dailyAttendance[d] = 'A';
-          totalAlpa++;
+          if (examTypeOnThisDay != null) {
+            dailyAttendance[d] = examTypeOnThisDay;
+          } else {
+            dailyAttendance[d] = 'A';
+            totalAlpa++;
+          }
         } else {
           dailyAttendance[d] = 'H';
           totalHadir++;

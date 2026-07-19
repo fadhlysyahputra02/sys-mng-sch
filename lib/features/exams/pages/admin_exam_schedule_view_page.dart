@@ -167,7 +167,7 @@ class _AdminExamScheduleViewPageState
                             if (event != null) ...[
                               const SizedBox(width: 8),
                               GestureDetector(
-                                onTap: () => _printSchedule(),
+                                onTap: () => _showPrintOptions(),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 5),
@@ -349,6 +349,633 @@ class _AdminExamScheduleViewPageState
 );
   }
 
+
+  void _showPrintOptions() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = AuthBackground.isDarkMode.value;
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E2D) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Pilih Format Cetak',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close_rounded,
+                          color: isDark ? Colors.white60 : Colors.grey.shade600),
+                      onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _buildPrintOptionTile(
+                  icon: Icons.assignment_ind_rounded,
+                  title: 'Jadwal Pengawas (Per Ruangan)',
+                  subtitle: 'Format jadwal untuk pengawas dengan info ruangan.',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _printSchedule();
+                  },
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 8),
+                _buildPrintOptionTile(
+                  icon: Icons.class_rounded,
+                  title: 'Jadwal Ujian (Per Kelas)',
+                  subtitle: 'Format jadwal ujian untuk dibagikan ke murid.',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _printSchedulePerClass();
+                  },
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 8),
+                _buildPrintOptionTile(
+                  icon: Icons.checklist_rtl_rounded,
+                  title: 'Daftar Murid (Per-Ruangan)',
+                  subtitle: 'Daftar absensi murid per ruangan untuk sesi ujian.',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _printRoomRoster();
+                  },
+                  isDark: isDark,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPrintOptionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isDark ? Colors.white12 : Colors.grey.shade200,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: const Color(0xFF6366F1), size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white54 : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                color: isDark ? Colors.white38 : Colors.grey.shade400),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _printSchedulePerClass() async {
+    final sessions = _cachedSessions;
+    final event = _cachedEvent;
+
+    if (sessions.isEmpty || event == null) {
+      Get.snackbar('Perhatian', 'Tidak ada sesi jadwal untuk dicetak.',
+          backgroundColor: const Color(0xFFF59E0B), colorText: Colors.white);
+      return;
+    }
+
+    final doc = pw.Document();
+
+    const PdfColor accent    = PdfColor.fromInt(0xFF5C6BC0);
+    const PdfColor rowEvenBg = PdfColor.fromInt(0xFFF8F9FA);
+    const PdfColor border    = PdfColor.fromInt(0xFFDEE2E6);
+    const double fontSize    = 8.0;
+
+    // ── Group sessions strictly by individual className (split by comma) ──
+    final Map<String, List<ExamSession>> byClass = {};
+    for (final s in sessions) {
+      final parts = s.className
+          .split(',')
+          .map((c) => c.trim())
+          .where((c) => c.isNotEmpty)
+          .toList();
+      for (final cls in parts) {
+        byClass.putIfAbsent(cls, () => []).add(s);
+      }
+    }
+
+    final sortedClasses = byClass.keys.toList()..sort();
+
+    for (final className in sortedClasses) {
+      final classSessions = List<ExamSession>.from(byClass[className]!)
+        ..sort((a, b) {
+          final d = a.date.compareTo(b.date);
+          return d != 0 ? d : a.startTime.compareTo(b.startTime);
+        });
+
+      // Group by date (yyyy-MM-dd)
+      final Map<String, List<ExamSession>> byDate = {};
+      for (final s in classSessions) {
+        final k = DateFormat('yyyy-MM-dd').format(s.date);
+        byDate.putIfAbsent(k, () => []).add(s);
+      }
+      final sortedDates = byDate.keys.toList()..sort();
+
+      final List<pw.TableRow> tableRows = [];
+
+      // Add Header Row
+      tableRows.add(
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: accent),
+          children: [
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: pw.Text('No',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white)),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: pw.Text('Hari / Tanggal',
+                  style: pw.TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white)),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: pw.Text('Sesi & Waktu',
+                  style: pw.TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white)),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: pw.Text('Mata Pelajaran',
+                  style: pw.TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white)),
+            ),
+          ],
+        ),
+      );
+
+      int dayNo = 0;
+      for (final dateKey in sortedDates) {
+        dayNo++;
+        final daySessions = byDate[dateKey]!;
+        final dateStr =
+            DateFormat('EEEE, dd MMM yyyy', 'id').format(DateTime.parse(dateKey));
+        final rowBg = dayNo.isEven ? rowEvenBg : PdfColors.white;
+
+        // Build list of widgets for Sesi & Waktu and Mata Pelajaran
+        final List<pw.Widget> slotWidgets = [];
+        final List<pw.Widget> subjectWidgets = [];
+
+        for (int si = 0; si < daySessions.length; si++) {
+          final s = daySessions[si];
+          final slotStr = '${s.slotName} (${s.startTime} - ${s.endTime})';
+
+          slotWidgets.add(
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              child: pw.Text(slotStr,
+                  style: const pw.TextStyle(fontSize: fontSize, color: PdfColors.black)),
+            ),
+          );
+
+          if (si < daySessions.length - 1) {
+            slotWidgets.add(
+              pw.Container(
+                height: 0.5,
+                color: border,
+              ),
+            );
+          }
+
+          subjectWidgets.add(
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              child: pw.Text(s.subjectName,
+                  style: pw.TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.black)),
+            ),
+          );
+
+          if (si < daySessions.length - 1) {
+            subjectWidgets.add(
+              pw.Container(
+                height: 0.5,
+                color: border,
+              ),
+            );
+          }
+        }
+
+        tableRows.add(
+          pw.TableRow(
+            decoration: pw.BoxDecoration(color: rowBg),
+            verticalAlignment: pw.TableCellVerticalAlignment.middle,
+            children: [
+              // No
+              pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                child: pw.Text('$dayNo',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(fontSize: fontSize, color: PdfColors.grey800)),
+              ),
+              // Hari / Tanggal
+              pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                child: pw.Text(dateStr,
+                    style: const pw.TextStyle(fontSize: fontSize, color: PdfColors.black)),
+              ),
+              // Sesi & Waktu (stacked vertically)
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: slotWidgets,
+              ),
+              // Mata Pelajaran (stacked vertically)
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: subjectWidgets,
+              ),
+            ],
+          ),
+        );
+      }
+
+      final String capturedClass = className;
+      final List<pw.TableRow> capturedTableRows = List.from(tableRows);
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          header: (_) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Center(
+                  child: pw.Text('JADWAL UJIAN SEMESTER',
+                      style: pw.TextStyle(
+                          fontSize: 13, fontWeight: pw.FontWeight.bold))),
+              pw.Center(
+                  child: pw.Text(event.title,
+                      style: pw.TextStyle(
+                          fontSize: 10, fontWeight: pw.FontWeight.bold))),
+              pw.SizedBox(height: 10),
+              pw.Row(children: [
+                pw.SizedBox(
+                    width: 80,
+                    child: pw.Text('Kelas',
+                        style: const pw.TextStyle(fontSize: 9))),
+                pw.Text(': $capturedClass',
+                    style: pw.TextStyle(
+                        fontSize: 9, fontWeight: pw.FontWeight.bold)),
+              ]),
+              pw.SizedBox(height: 10),
+            ],
+          ),
+          footer: (ctx) => pw.Column(children: [
+            pw.Divider(color: border, thickness: 0.5),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Dicetak: ${DateFormat('dd MMM yyyy, HH:mm', 'id').format(DateTime.now())}',
+                  style: const pw.TextStyle(
+                      fontSize: 6.5, color: PdfColors.grey500),
+                ),
+                pw.Text(
+                  'Jadwal Ujian – $capturedClass  |  Hal ${ctx.pageNumber}',
+                  style: const pw.TextStyle(
+                      fontSize: 6.5, color: PdfColors.grey500),
+                ),
+              ],
+            ),
+          ]),
+          build: (_) => [
+            pw.Table(
+              border: pw.TableBorder.all(color: border, width: 0.8),
+              columnWidths: const {
+                0: pw.FixedColumnWidth(28),
+                1: pw.FlexColumnWidth(4),
+                2: pw.FlexColumnWidth(4),
+                3: pw.FlexColumnWidth(6),
+              },
+              children: capturedTableRows,
+            ),
+          ],
+        ),
+      );
+    }
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => doc.save(),
+      name: '${event.title.replaceAll(' ', '_')}_Jadwal_Per_Kelas.pdf',
+    );
+  }
+
+
+  Future<void> _printRoomRoster() async {
+    final sessions = _cachedSessions;
+    final event = _cachedEvent;
+    final schoolId = SessionService.currentUser?.schoolId;
+
+    if (sessions.isEmpty || event == null || schoolId == null) {
+      Get.snackbar(
+        'Perhatian',
+        'Tidak ada sesi jadwal atau data sekolah tidak ditemukan.',
+        backgroundColor: const Color(0xFFF59E0B),
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    // Show loading dialog
+    Get.dialog(
+      const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF8B5CF6),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+
+    final doc = pw.Document();
+
+    const PdfColor accentColor = PdfColor.fromInt(0xFF5C6BC0);
+    const PdfColor rowEven = PdfColor.fromInt(0xFFF8F9FA);
+    const PdfColor borderColor = PdfColor.fromInt(0xFFDEE2E6);
+    const double fontSize = 8.0;
+
+    final sortedRooms = event.rooms.map((r) => r.name).toList()..sort();
+    final Map<String, Map<String, ExamParticipation>> studentsByRoom = {};
+    
+    for (final roomName in sortedRooms) {
+      studentsByRoom[roomName] = {};
+    }
+
+    try {
+      final db = FirebaseFirestore.instance;
+      for (final s in sessions) {
+        final partsSnap = await db
+            .collection('schools')
+            .doc(schoolId)
+            .collection('exam_sessions')
+            .doc(s.id)
+            .collection('participations')
+            .get();
+
+        for (final docSnap in partsSnap.docs) {
+          final p = ExamParticipation.fromFirestore(docSnap);
+          if (studentsByRoom.containsKey(p.roomName)) {
+            studentsByRoom[p.roomName]![p.studentId] = p;
+          }
+        }
+      }
+    } catch (e) {
+      Get.back(); // close loading indicator
+      Get.snackbar('Error', 'Gagal memuat data murid dari database: $e');
+      return;
+    }
+
+    Get.back(); // close loading indicator after successful fetch
+
+    for (final roomName in sortedRooms) {
+      final roomStudents = studentsByRoom[roomName]!.values.toList()
+        ..sort((a, b) => a.seatNumber.compareTo(b.seatNumber));
+        
+      if (roomStudents.isEmpty) continue;
+      
+      final List<pw.TableRow> tableRows = [];
+
+      // Table Header Row
+      tableRows.add(
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: accentColor),
+          children: [
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: pw.Text('No Kursi',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white)),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: pw.Text('Nomor Ujian',
+                  style: pw.TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white)),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: pw.Text('Nama Murid',
+                  style: pw.TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white)),
+            ),
+          ],
+        ),
+      );
+
+      int rowIdx = 0;
+      for (final student in roomStudents) {
+        rowIdx++;
+        final rowBg = rowIdx.isEven ? rowEven : PdfColors.white;
+        final examNumber = ExamUtils.buildExamNumber(
+          roomName: roomName,
+          seatNumber: student.seatNumber,
+          angkatan: student.angkatan,
+        );
+        
+        tableRows.add(
+          pw.TableRow(
+            decoration: pw.BoxDecoration(color: rowBg),
+            verticalAlignment: pw.TableCellVerticalAlignment.middle,
+            children: [
+              // No Kursi
+              pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                child: pw.Text('${student.seatNumber}',
+                    textAlign: pw.TextAlign.center,
+                    style: const pw.TextStyle(fontSize: fontSize, color: PdfColors.grey800)),
+              ),
+              // Nomor Ujian
+              pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                child: pw.Text(examNumber,
+                    style: const pw.TextStyle(fontSize: fontSize, color: PdfColors.black)),
+              ),
+              // Nama Murid
+              pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                child: pw.Text(student.studentName,
+                    style: pw.TextStyle(
+                        fontSize: fontSize,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.black)),
+              ),
+            ],
+          ),
+        );
+      }
+
+      final String capturedRoomName = roomName;
+      final List<pw.TableRow> capturedTableRows = List.from(tableRows);
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          header: (_) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Center(
+                child: pw.Text(
+                  'DAFTAR MURID RUANG UJIAN',
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.Center(
+                child: pw.Text(
+                  event.title,
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Row(
+                children: [
+                  pw.SizedBox(width: 80, child: pw.Text('Ruangan', style: const pw.TextStyle(fontSize: 9))),
+                  pw.Text(': $capturedRoomName', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                ]
+              ),
+              pw.SizedBox(height: 12),
+            ],
+          ),
+          footer: (ctx) => pw.Column(
+            children: [
+              pw.Divider(color: borderColor, thickness: 0.5),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Dicetak: ${DateFormat('dd MMM yyyy, HH:mm', 'id').format(DateTime.now())}',
+                    style: const pw.TextStyle(
+                        fontSize: 6.5, color: PdfColors.grey500),
+                  ),
+                  pw.Text(
+                    'Daftar Murid – $capturedRoomName  |  Hal ${ctx.pageNumber}',
+                    style: const pw.TextStyle(
+                        fontSize: 6.5, color: PdfColors.grey500),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          build: (_) => [
+            pw.Table(
+              border: pw.TableBorder.all(color: borderColor, width: 0.8),
+              columnWidths: const {
+                0: pw.FixedColumnWidth(55), // No Kursi width
+                1: pw.FlexColumnWidth(4),
+                2: pw.FlexColumnWidth(8),
+              },
+              children: capturedTableRows,
+            ),
+          ],
+        ),
+      );
+    }
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => doc.save(),
+      name: '${event.title.replaceAll(' ', '_')}_Daftar_Murid_Per_Ruangan.pdf',
+    );
+  }
+
   Future<void> _printSchedule() async {
     final sessions = _cachedSessions;
     final event = _cachedEvent;
@@ -431,7 +1058,7 @@ class _AdminExamScheduleViewPageState
           child: pw.Row(children: [
             hdrFixed('No', 22),
             hdrFixed('Ruangan', 54),
-            hdrFlex('Kelas : Mata Pelajaran  (Pembuat Soal)', 3),
+            hdrFlex('Kelas : Mata Pelajaran', 3),
             hdrFlex('Pengawas', 2),
           ]),
         ),
@@ -477,14 +1104,7 @@ class _AdminExamScheduleViewPageState
           final hasProctor   = sampleRoom.proctorId.isNotEmpty;
 
           final subjectLines = roomSessions.map((s) {
-            final cfg = event?.subjectConfigs
-                .where((c) => c.subjectId == s.subjectId);
-            final author = (cfg != null &&
-                    cfg.isNotEmpty &&
-                    cfg.first.authorTeacherNames.isNotEmpty)
-                ? cfg.first.authorTeacherNames.join(', ')
-                : '-';
-            return '${s.className} : ${s.subjectName}   (Pembuat: $author)';
+            return '${s.className} : ${s.subjectName}';
           }).join('\n');
 
           tableRows.add(

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/localization/app_localization.dart';
 
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
+import '../../exams/models/exam_event_model.dart';
 import '../data/student_service.dart';
 import '../services/student_attendance_recap_helper.dart';
 
@@ -48,6 +49,7 @@ class _MonthlyAttendanceTableSectionState
   late List<DateTime> _monthOptions;
   String? _resolvedClassName;
   bool _isResolvingClass = false;
+  List<ExamEvent> _examEvents = [];
 
   @override
   void initState() {
@@ -84,25 +86,42 @@ class _MonthlyAttendanceTableSectionState
           .doc(enrollmentId)
           .get();
 
+      String resolvedClass;
       if (doc.exists) {
-        if (mounted) {
-          setState(() {
-            _resolvedClassName = doc.data()?['className']?.toString() ?? widget.className;
-            _isResolvingClass = false;
-          });
-        }
+        resolvedClass = doc.data()?['className']?.toString() ?? widget.className;
       } else {
-        if (mounted) {
-          setState(() {
-            _resolvedClassName = widget.className;
-            _isResolvingClass = false;
-          });
-        }
+        resolvedClass = widget.className;
       }
-    } catch (_) {
+
+      final examSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('exam_events')
+          .get();
+
+      final startOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+      final endOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
+
+      final fetchedExamEvents = examSnap.docs.map((d) => ExamEvent.fromFirestore(d)).where((e) {
+        // Normalize to local midnight to avoid timezone shift issues
+        final eStart = DateTime(e.startDate.toLocal().year, e.startDate.toLocal().month, e.startDate.toLocal().day);
+        final eEnd = DateTime(e.endDate.toLocal().year, e.endDate.toLocal().month, e.endDate.toLocal().day);
+        return eStart.isBefore(endOfMonth) && eEnd.isAfter(startOfMonth.subtract(const Duration(days: 1)));
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _resolvedClassName = resolvedClass;
+          _examEvents = fetchedExamEvents;
+          _isResolvingClass = false;
+        });
+      }
+    } catch (e, st) {
+      debugPrint('[MonthlyAttendance] Error resolving class/exam events: $e\n$st');
       if (mounted) {
         setState(() {
           _resolvedClassName = widget.className;
+          _examEvents = [];
           _isResolvingClass = false;
         });
       }
@@ -252,6 +271,7 @@ class _MonthlyAttendanceTableSectionState
                             month: _selectedMonth.month,
                             schedules: schedules,
                             records: records,
+                            examEvents: _examEvents,
                           );
 
                           if (recaps.isEmpty) {
@@ -617,6 +637,10 @@ class _MonthlyAttendanceTableSectionState
         content = const Text('-',
             style: TextStyle(
                 color: Color(0xFFEF4444), fontWeight: FontWeight.bold));
+      } else if (status != null && status.length > 1) {
+        content = Text(status,
+            style: TextStyle(
+                color: widget.textColor, fontWeight: FontWeight.bold, fontSize: 8));
       } else {
         cellBg = widget.isDark
             ? Colors.white.withValues(alpha: 0.03)

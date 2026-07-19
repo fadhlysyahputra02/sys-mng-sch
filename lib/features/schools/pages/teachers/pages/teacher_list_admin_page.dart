@@ -24,11 +24,98 @@ class TeacherListPage extends StatefulWidget {
 class _TeacherListPageState extends State<TeacherListPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  int? _sortColumnIndex;
+  bool _sortAscending = true;
+  int? _selectedRowIndex;
+  late Stream<QuerySnapshot> _teachersStream;
+
+  String? _filterStatusGuru;
+  String? _filterJabatan;
+  String? _filterAgama;
+  bool? _filterStatusRegister;
+  String? _filterTempatLahir;
+  String? _filterMapel;
+  String? _filterPendidikanTerakhir;
+
+
+  // Cache wali kelas: teacherId -> namaKelas
+  Map<String, String> _waliKelasMap = {};
+  // Cache mapel: teacherId -> joined subject names
+  Map<String, String> _mapelMap = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _teachersStream = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('teachers')
+        .snapshots();
+    _loadWaliKelasMap();
+    _loadMapelMap();
+  }
+
+  Future<void> _loadWaliKelasMap() async {
+    final classSnap = await FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('classes')
+        .get();
+    final map = <String, String>{};
+    for (final doc in classSnap.docs) {
+      final data = doc.data();
+      final teacherId = data['teacherId'] as String?;
+      final namaKelas = data['namaKelas'] as String?;
+      if (teacherId != null && namaKelas != null) {
+        map[teacherId] = namaKelas;
+      }
+    }
+    if (mounted) setState(() => _waliKelasMap = map);
+  }
+
+  Future<void> _loadMapelMap() async {
+    final subjectSnap = await FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('teacher_subjects')
+        .get();
+    final map = <String, List<String>>{};
+    for (final doc in subjectSnap.docs) {
+      final data = doc.data();
+      final teacherId = data['teacherId'] as String?;
+      final subjectName = data['subjectName'] as String?;
+      if (teacherId != null && subjectName != null) {
+        map.putIfAbsent(teacherId, () => []).add(subjectName);
+      }
+    }
+    final joined = map.map((k, v) => MapEntry(k, v.join(', ')));
+    if (mounted) setState(() => _mapelMap = joined);
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _navigateToDetail(BuildContext context, Map<String, dynamic> guru) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => TeacherDetailPage(teacher: guru)),
+    );
+  }
+
+  String _normalizeText(String? val) {
+    if (val == null || val.trim().isEmpty || val == '-') return '-';
+    return val.trim().split(' ').map((w) => w.isNotEmpty ? w[0].toUpperCase() + w.substring(1).toLowerCase() : '').join(' ');
+  }
+
+  DataCell _doubleTapCell(String text, VoidCallback onTap, VoidCallback onDoubleTap) {
+    return DataCell(
+      Text(text),
+      onTap: onTap,
+      onDoubleTap: onDoubleTap,
+    );
   }
 
   @override
@@ -206,11 +293,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                 // Body
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('schools')
-                        .doc(widget.schoolId)
-                        .collection('teachers')
-                        .snapshots(),
+                    stream: _teachersStream,
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         return Center(
@@ -244,43 +327,130 @@ class _TeacherListPageState extends State<TeacherListPage> {
                       }
 
                       var docs = snapshot.data?.docs ?? [];
-                      
+
+                      // --- Extract filter options from raw docs ---
+                      List<String> statusGuruOptions = [];
+                      List<String> jabatanOptions = [];
+                      List<String> agamaOptions = [];
+                      List<String> tempatLahirOptions = [];
+                      List<String> mapelOptions = [];
+                      List<String> pendidikanTerakhirOptions = [];
+
                       if (docs.isNotEmpty) {
+                        statusGuruOptions = docs
+                            .map((d) => _normalizeText((d.data() as Map<String, dynamic>)['statusGuru']?.toString()))
+                            .where((e) => e != '-')
+                            .toSet()
+                            .toList()
+                          ..sort();
+                        jabatanOptions = docs
+                            .map((d) => _normalizeText((d.data() as Map<String, dynamic>)['jabatan']?.toString()))
+                            .where((e) => e != '-')
+                            .toSet()
+                            .toList()
+                          ..sort();
+                        agamaOptions = docs
+                            .map((d) => _normalizeText((d.data() as Map<String, dynamic>)['agama']?.toString()))
+                            .where((e) => e != '-')
+                            .toSet()
+                            .toList()
+                          ..sort();
+                        tempatLahirOptions = docs
+                            .map((d) => _normalizeText((d.data() as Map<String, dynamic>)['tempatLahir']?.toString()))
+                            .where((e) => e != '-')
+                            .toSet()
+                            .toList()
+                          ..sort();
+                        mapelOptions = _mapelMap.values
+                            .expand((m) => m.split(', '))
+                            .map((e) => _normalizeText(e))
+                            .where((e) => e != '-')
+                            .toSet()
+                            .toList()
+                          ..sort();
+                        pendidikanTerakhirOptions = docs
+                            .map((d) => _normalizeText((d.data() as Map<String, dynamic>)['pendidikanTerakhir']?.toString()))
+                            .where((e) => e != '-')
+                            .toSet()
+                            .toList()
+                          ..sort();
+                      }
+
+                      // --- Sorting ---
+                      if (docs.isNotEmpty && _sortColumnIndex != null) {
+                        docs = List.from(docs);
                         docs.sort((a, b) {
                           final dataA = a.data() as Map<String, dynamic>;
                           final dataB = b.data() as Map<String, dynamic>;
-                          final nameA = (dataA['nama'] ?? '').toString().toLowerCase();
-                          final nameB = (dataB['nama'] ?? '').toString().toLowerCase();
-                          
-                          // Natural sort comparison
-                          final regExp = RegExp(r'(\d+|\D+)');
-                          final aMatches = regExp.allMatches(nameA).map((m) => m.group(0)!).toList();
-                          final bMatches = regExp.allMatches(nameB).map((m) => m.group(0)!).toList();
-
-                          for (int i = 0; i < aMatches.length && i < bMatches.length; i++) {
-                            final aPart = aMatches[i];
-                            final bPart = bMatches[i];
-                            final aInt = int.tryParse(aPart);
-                            final bInt = int.tryParse(bPart);
-
-                            if (aInt != null && bInt != null) {
-                              if (aInt != bInt) return aInt.compareTo(bInt);
-                            } else {
-                              final comp = aPart.compareTo(bPart);
-                              if (comp != 0) return comp;
-                            }
+                          dynamic valA, valB;
+                          switch (_sortColumnIndex) {
+                            case 0: valA = dataA['nama']; valB = dataB['nama']; break;
+                            case 1: valA = dataA['nip']; valB = dataB['nip']; break;
+                            case 2:
+                              valA = _waliKelasMap[a.id] ?? '';
+                              valB = _waliKelasMap[b.id] ?? '';
+                              break;
+                            case 3:
+                              valA = _mapelMap[a.id] ?? '';
+                              valB = _mapelMap[b.id] ?? '';
+                              break;
+                            case 4: valA = dataA['tempatLahir']; valB = dataB['tempatLahir']; break;
+                            case 5: valA = dataA['tanggalLahir']; valB = dataB['tanggalLahir']; break;
+                            case 6: valA = dataA['agama']; valB = dataB['agama']; break;
+                            case 7: valA = dataA['statusGuru']; valB = dataB['statusGuru']; break;
+                            case 8: valA = dataA['jabatan']; valB = dataB['jabatan']; break;
+                            case 9: valA = dataA['tanggalBergabung']; valB = dataB['tanggalBergabung']; break;
+                            case 10: valA = dataA['masaKerja']; valB = dataB['masaKerja']; break;
+                            case 11: valA = dataA['pendidikanTerakhir']; valB = dataB['pendidikanTerakhir']; break;
+                            case 12: valA = (dataA['sudahRegister'] ?? false) ? 'Register' : 'Belum'; valB = (dataB['sudahRegister'] ?? false) ? 'Register' : 'Belum'; break;
+                            default: valA = dataA['nama']; valB = dataB['nama'];
                           }
-                          return aMatches.length.compareTo(bMatches.length);
+                          final cmp = (valA ?? '').toString().compareTo((valB ?? '').toString());
+                          return _sortAscending ? cmp : -cmp;
                         });
-                        
-                        if (_searchQuery.isNotEmpty) {
-                          docs = docs.where((doc) {
-                            final data = doc.data() as Map<String, dynamic>;
-                            final nama = (data['nama'] ?? '').toString().toLowerCase();
-                            final nip = (data['nip'] ?? '').toString().toLowerCase();
-                            return nama.contains(_searchQuery) || nip.contains(_searchQuery);
-                          }).toList();
-                        }
+                      } else if (docs.isNotEmpty) {
+                        docs = List.from(docs);
+                        docs.sort((a, b) {
+                          final nameA = ((a.data() as Map<String, dynamic>)['nama'] ?? '').toString().toLowerCase();
+                          final nameB = ((b.data() as Map<String, dynamic>)['nama'] ?? '').toString().toLowerCase();
+                          return nameA.compareTo(nameB);
+                        });
+                      }
+
+                      // --- Search ---
+                      if (_searchQuery.isNotEmpty) {
+                        docs = docs.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final nama = (data['nama'] ?? '').toString().toLowerCase();
+                          final nip = (data['nip'] ?? '').toString().toLowerCase();
+                          return nama.contains(_searchQuery) || nip.contains(_searchQuery);
+                        }).toList();
+                      }
+
+                      // --- Filters ---
+                      if (_filterStatusGuru != null) {
+                        docs = docs.where((doc) => _normalizeText(((doc.data() as Map<String, dynamic>)['statusGuru']?.toString())) == _filterStatusGuru).toList();
+                      }
+                      if (_filterJabatan != null) {
+                        docs = docs.where((doc) => _normalizeText(((doc.data() as Map<String, dynamic>)['jabatan']?.toString())) == _filterJabatan).toList();
+                      }
+                      if (_filterAgama != null) {
+                        docs = docs.where((doc) => _normalizeText(((doc.data() as Map<String, dynamic>)['agama']?.toString())) == _filterAgama).toList();
+                      }
+                      if (_filterStatusRegister != null) {
+                        docs = docs.where((doc) => ((doc.data() as Map<String, dynamic>)['sudahRegister'] ?? false) == _filterStatusRegister).toList();
+                      }
+                      if (_filterTempatLahir != null) {
+                        docs = docs.where((doc) => _normalizeText(((doc.data() as Map<String, dynamic>)['tempatLahir']?.toString())) == _filterTempatLahir).toList();
+                      }
+                      if (_filterMapel != null) {
+                        docs = docs.where((doc) {
+                          final mapel = _mapelMap[doc.id] ?? '';
+                          return mapel.split(', ').map((e) => _normalizeText(e)).contains(_filterMapel!);
+                        }).toList();
+                      }
+                      if (_filterPendidikanTerakhir != null) {
+                        docs = docs.where((doc) => _normalizeText(((doc.data() as Map<String, dynamic>)['pendidikanTerakhir']?.toString())) == _filterPendidikanTerakhir).toList();
                       }
 
                       if (docs.isEmpty) {
@@ -319,142 +489,325 @@ class _TeacherListPageState extends State<TeacherListPage> {
                         );
                       }
 
-                      return ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                        itemCount: docs.length,
-                        itemBuilder: (context, index) {
-                          final guru = docs[index].data() as Map<String, dynamic>;
-                          final bool isRegistered = guru['sudahRegister'] ?? false;
+                      void onSort(int columnIndex, bool ascending) {
+                        setState(() {
+                          _sortColumnIndex = columnIndex;
+                          _sortAscending = ascending;
+                        });
+                      }
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: cardBg,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: borderCol),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                      Widget buildSortIcon(int index) {
+                        final isSorted = _sortColumnIndex == index;
+                        return InkWell(
+                          onTap: () => onSort(index, isSorted ? !_sortAscending : true),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 4.0),
+                            child: Icon(
+                              isSorted && !_sortAscending ? Icons.arrow_drop_down : Icons.arrow_drop_up,
+                              size: 20,
+                              color: isSorted ? const Color(0xFF0EA5E9) : mutedColor,
                             ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(20),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => TeacherDetailPage(teacher: guru),
-                                    ),
-                                  );
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Row(
-                                    children: [
-                                      // Avatar
-                                      Container(
-                                        width: 50,
-                                        height: 50,
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                          borderRadius: BorderRadius.circular(14),
+                          ),
+                        );
+                      }
+
+                      Widget buildTextHeader(String title, int index) {
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(title, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                            buildSortIcon(index),
+                          ],
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: cardBg,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: borderCol),
+                              ),
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.vertical,
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Theme(
+                                    data: Theme.of(context).copyWith(
+                                      dataTableTheme: DataTableThemeData(
+                                        headingTextStyle: TextStyle(
+                                          color: textColor,
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                        child: const Icon(Icons.person_rounded, color: Colors.white, size: 26),
+                                        dataTextStyle: TextStyle(color: textColor),
                                       ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              guru['nama'] ?? '-',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 15,
-                                                color: textColor,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 5),
-                                            Row(
-                                              children: [
-                                                Icon(Icons.badge_outlined, size: 13, color: mutedColor),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  '${AppLocalization.nipLabel}${guru['nip'] ?? '-'}',
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: subtitleColor,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
+                                    ),
+                                    child: DataTable(
+                                      showCheckboxColumn: false,
+                                      headingRowColor: WidgetStateProperty.all(
+                                        isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                                      ),
+                                      columns: [
+                                        DataColumn(label: buildTextHeader('Nama', 0)),
+                                        DataColumn(label: buildTextHeader('NIP', 1)),
+                                        DataColumn(label: buildTextHeader('Wali Kelas', 2)),
+                                        DataColumn(
+                                          label: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              DropdownButtonHideUnderline(
+                                                child: DropdownButton<String>(
+                                                  hint: Text('Mapel', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                  value: _filterMapel,
+                                                  dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                  style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                  icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                  items: [
+                                                    const DropdownMenuItem(value: null, child: Text('Semua Mapel')),
+                                                    ...mapelOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                  ],
+                                                  onChanged: (val) => setState(() => _filterMapel = val),
                                                 ),
-                                              ],
-                                            ),
-                                            if ((guru['email'] ?? '').toString().isNotEmpty) ...[
-                                              const SizedBox(height: 3),
-                                              Row(
-                                                children: [
-                                                  Icon(Icons.mail_outline_rounded, size: 13, color: mutedColor),
-                                                  const SizedBox(width: 4),
-                                                  Expanded(
-                                                    child: Text(
-                                                      guru['email'],
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: subtitleColor.withValues(alpha: 0.8),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
                                               ),
+                                              buildSortIcon(3),
                                             ],
-                                            const SizedBox(height: 8),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                              decoration: BoxDecoration(
-                                                color: isRegistered
-                                                    ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                                                    : const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                                                borderRadius: BorderRadius.circular(20),
-                                                border: Border.all(
-                                                  color: isRegistered
-                                                      ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                                                      : const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              DropdownButtonHideUnderline(
+                                                child: DropdownButton<String>(
+                                                  hint: Text('Tempat Lahir', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                  value: _filterTempatLahir,
+                                                  dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                  style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                  icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                  items: [
+                                                    const DropdownMenuItem(value: null, child: Text('Semua Tempat')),
+                                                    ...tempatLahirOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                  ],
+                                                  onChanged: (val) => setState(() => _filterTempatLahir = val),
                                                 ),
                                               ),
-                                              child: Text(
-                                                isRegistered ? AppLocalization.registeredStatus : AppLocalization.notRegisteredStatus,
-                                                style: TextStyle(
-                                                  color: isRegistered ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
+                                              buildSortIcon(4),
+                                            ],
+                                          ),
+                                        ),
+                                        DataColumn(label: buildTextHeader('Tanggal Lahir', 5)),
+                                        DataColumn(
+                                          label: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              DropdownButtonHideUnderline(
+                                                child: DropdownButton<String>(
+                                                  hint: Text('Agama', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                  value: _filterAgama,
+                                                  dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                  style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                  icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                  items: [
+                                                    const DropdownMenuItem(value: null, child: Text('Semua Agama')),
+                                                    ...agamaOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                  ],
+                                                  onChanged: (val) => setState(() => _filterAgama = val),
                                                 ),
+                                              ),
+                                              buildSortIcon(6),
+                                            ],
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              DropdownButtonHideUnderline(
+                                                child: DropdownButton<String>(
+                                                  hint: Text('Status Guru', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                  value: _filterStatusGuru,
+                                                  dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                  style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                  icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                  items: [
+                                                    const DropdownMenuItem(value: null, child: Text('Semua Status')),
+                                                    ...statusGuruOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                  ],
+                                                  onChanged: (val) => setState(() => _filterStatusGuru = val),
+                                                ),
+                                              ),
+                                              buildSortIcon(7),
+                                            ],
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              DropdownButtonHideUnderline(
+                                                child: DropdownButton<String>(
+                                                  hint: Text('Jabatan', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                  value: _filterJabatan,
+                                                  dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                  style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                  icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                  items: [
+                                                    const DropdownMenuItem(value: null, child: Text('Semua Jabatan')),
+                                                    ...jabatanOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                  ],
+                                                  onChanged: (val) => setState(() => _filterJabatan = val),
+                                                ),
+                                              ),
+                                              buildSortIcon(8),
+                                            ],
+                                          ),
+                                        ),
+                                        DataColumn(label: buildTextHeader('Tgl Bergabung', 9)),
+                                        DataColumn(label: buildTextHeader('Masa Kerja', 10)),
+                                        DataColumn(
+                                          label: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              DropdownButtonHideUnderline(
+                                                child: DropdownButton<String>(
+                                                  hint: Text('Pendidikan', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                  value: _filterPendidikanTerakhir,
+                                                  dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                  style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                  icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                  items: [
+                                                    const DropdownMenuItem(value: null, child: Text('Semua Pendidikan')),
+                                                    ...pendidikanTerakhirOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+                                                  ],
+                                                  onChanged: (val) => setState(() => _filterPendidikanTerakhir = val),
+                                                ),
+                                              ),
+                                              buildSortIcon(11),
+                                            ],
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              DropdownButtonHideUnderline(
+                                                child: DropdownButton<bool>(
+                                                  hint: Text('Status Register', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                                  value: _filterStatusRegister,
+                                                  dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                                                  style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                                  icon: Icon(Icons.filter_list_rounded, size: 16, color: textColor),
+                                                  items: const [
+                                                    DropdownMenuItem(value: null, child: Text('Semua Status')),
+                                                    DropdownMenuItem(value: true, child: Text('Register')),
+                                                    DropdownMenuItem(value: false, child: Text('Belum Register')),
+                                                  ],
+                                                  onChanged: (val) => setState(() => _filterStatusRegister = val),
+                                                ),
+                                              ),
+                                              buildSortIcon(12),
+                                            ],
+                                          ),
+                                        ),
+                                        const DataColumn(label: Text('Aksi')),
+                                      ],
+                                      rows: List<DataRow>.generate(docs.length, (index) {
+                                        final doc = docs[index];
+                                        final guru = doc.data() as Map<String, dynamic>;
+                                        final bool isRegistered = guru['sudahRegister'] ?? false;
+                                        final isSelected = _selectedRowIndex == index;
+                                        final waliKelas = _waliKelasMap[doc.id] ?? '-';
+
+                                        return DataRow(
+                                          selected: isSelected,
+                                          onSelectChanged: (_) {
+                                            setState(() => _selectedRowIndex = index);
+                                          },
+                                          color: WidgetStateProperty.resolveWith<Color?>((states) {
+                                            if (states.contains(WidgetState.selected)) {
+                                              return const Color(0xFF8B5CF6).withValues(alpha: 0.15);
+                                            }
+                                            return null;
+                                          }),
+                                          cells: [
+                                            _doubleTapCell(guru['nama'] ?? '-', () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(guru['nip'] ?? '-', () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(waliKelas, () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(_normalizeText(_mapelMap[doc.id]), () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(_normalizeText(guru['tempatLahir']?.toString()), () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(guru['tanggalLahir'] ?? '-', () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(_normalizeText(guru['agama']?.toString()), () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(_normalizeText(guru['statusGuru']?.toString()), () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(_normalizeText(guru['jabatan']?.toString()), () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(guru['tanggalBergabung'] ?? '-', () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(guru['masaKerja'] ?? '-', () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            _doubleTapCell(_normalizeText(guru['pendidikanTerakhir']?.toString()), () => setState(() => _selectedRowIndex = index), () { _navigateToDetail(context, guru); }),
+                                            DataCell(
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: isRegistered
+                                                      ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                                      : const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(20),
+                                                  border: Border.all(
+                                                    color: isRegistered
+                                                        ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                                                        : const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  isRegistered ? AppLocalization.registeredStatus : AppLocalization.notRegisteredStatus,
+                                                  style: TextStyle(
+                                                    color: isRegistered ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(
+                                              IconButton(
+                                                icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                                color: mutedColor,
+                                                onPressed: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (_) => TeacherDetailPage(teacher: guru),
+                                                    ),
+                                                  );
+                                                },
                                               ),
                                             ),
                                           ],
-                                        ),
-                                      ),
-                                      Icon(
-                                        Icons.arrow_forward_ios_rounded,
-                                        size: 14,
-                                        color: mutedColor,
-                                      ),
-                                    ],
+                                        );
+                                      }),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          );
-                        },
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                            child: Text(
+                              _selectedRowIndex != null
+                                  ? '${_selectedRowIndex! + 1}/${docs.length}'
+                                  : '0/${docs.length}',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -581,13 +934,26 @@ class _TeacherListPageState extends State<TeacherListPage> {
                 style: TextStyle(color: subtitleColor, fontSize: 13, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              _buildGuideItem(AppLocalization.excelGuideFormat, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideHeader, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideColName, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideTeacherNip, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideGender, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideAddress, subtitleColor),
-              _buildGuideItem(AppLocalization.excelGuideTeacherNipUnique, subtitleColor),
+              _buildGuideItem('Format file: Excel (.xlsx). Jangan ubah format atau urutan kolom.', subtitleColor),
+              _buildGuideItem('Baris 1-5 adalah judul & header. Isi data mulai dari BARIS 6.', subtitleColor),
+              const SizedBox(height: 8),
+              Text('Kolom WAJIB (35 kolom total):', style: TextStyle(color: subtitleColor, fontSize: 13, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              _buildGuideItem('A: Nama Lengkap  |  B: NIP  |  G: Jenis Kelamin', subtitleColor),
+              _buildGuideItem('H: Tempat Lahir  |  I: Tanggal Lahir (dd-MM-yyyy)', subtitleColor),
+              _buildGuideItem('J: Agama  |  L: Kewarganegaraan', subtitleColor),
+              _buildGuideItem('O: Nomor HP  |  Q: NIK  |  U: Nomor KK', subtitleColor),
+              _buildGuideItem('AD: Pendidikan Terakhir', subtitleColor),
+              const SizedBox(height: 6),
+              Text('Kolom Dropdown (gunakan pilihan yang tersedia):', style: TextStyle(color: subtitleColor, fontSize: 13, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              _buildGuideItem('G (Jenis Kelamin): Laki-laki / Perempuan', subtitleColor),
+              _buildGuideItem('J (Agama): Islam / Kristen / Katolik / Hindu / Buddha / Konghucu', subtitleColor),
+              _buildGuideItem('K (Status Pernikahan): Belum Menikah / Menikah / Duda/Janda', subtitleColor),
+              _buildGuideItem('L (Kewarganegaraan): WNI / WNA', subtitleColor),
+              _buildGuideItem('M (Golongan Darah): A, B, AB, O (dengan atau tanpa +/-)', subtitleColor),
+              _buildGuideItem('X (Status Guru): Tetap / Honorer / PPPK / PNS / Kontrak', subtitleColor),
+              _buildGuideItem('NIP duplikat (di file maupun database) akan ditolak otomatis.', subtitleColor),
             ],
           ),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

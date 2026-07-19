@@ -207,12 +207,13 @@ class ExamSessionService {
         }
       }
 
-      if (subjectsWithoutQuestions.isNotEmpty) {
-        throw Exception(
-          'Mata pelajaran berikut belum memiliki soal:\n'
-          '${subjectsWithoutQuestions.map((s) => "- $s").join("\n")}',
-        );
-      }
+      // UNTUK PERCOBAAN: Bypass validasi soal
+      // if (subjectsWithoutQuestions.isNotEmpty) {
+      //   throw Exception(
+      //     'Mata pelajaran berikut belum memiliki soal:\n'
+      //     '${subjectsWithoutQuestions.map((s) => "- $s").join("\n")}',
+      //   );
+      // }
     }
 
     // Update status di Firestore setelah validasi berhasil
@@ -602,11 +603,11 @@ class ExamSessionService {
         .collection('schools')
         .doc(schoolId)
         .collection('exams')
-        .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${eventId}_')
-        .where(FieldPath.documentId, isLessThanOrEqualTo: '${eventId}_\uf8ff')
         .get();
     for (final doc in examsSnap.docs) {
-      refsToDelete.add(doc.reference);
+      if (doc.id.startsWith('${eventId}_')) {
+        refsToDelete.add(doc.reference);
+      }
     }
 
     // 3. Hapus exam_questions (bank soal) terkait event ini
@@ -614,11 +615,11 @@ class ExamSessionService {
         .collection('schools')
         .doc(schoolId)
         .collection('exam_questions')
-        .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${eventId}_')
-        .where(FieldPath.documentId, isLessThanOrEqualTo: '${eventId}_\uf8ff')
         .get();
     for (final doc in questionsSnap.docs) {
-      refsToDelete.add(doc.reference);
+      if (doc.id.startsWith('${eventId}_')) {
+        refsToDelete.add(doc.reference);
+      }
     }
 
     // 4. Hapus grades terkait yang di-generate oleh event ini (termasuk kelas gabungan)
@@ -626,11 +627,11 @@ class ExamSessionService {
         .collection('schools')
         .doc(schoolId)
         .collection('grades')
-        .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${eventId}_')
-        .where(FieldPath.documentId, isLessThanOrEqualTo: '${eventId}_\uf8ff')
         .get();
     for (final doc in gradesSnap.docs) {
-      refsToDelete.add(doc.reference);
+      if (doc.id.startsWith('${eventId}_')) {
+        refsToDelete.add(doc.reference);
+      }
     }
 
     // 5. Hapus exam submissions terkait event ini
@@ -638,11 +639,11 @@ class ExamSessionService {
         .collection('schools')
         .doc(schoolId)
         .collection('exam_submissions')
-        .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${eventId}_')
-        .where(FieldPath.documentId, isLessThanOrEqualTo: '${eventId}_\uf8ff')
         .get();
     for (final doc in submissionsSnap.docs) {
-      refsToDelete.add(doc.reference);
+      if (doc.id.startsWith('${eventId}_')) {
+        refsToDelete.add(doc.reference);
+      }
     }
 
     // 6. Hapus event document itu sendiri

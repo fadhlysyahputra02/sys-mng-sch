@@ -1,6 +1,7 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../../exams/models/exam_event_model.dart';
 
 class AttendancePdfHelper {
   /// Mengonversi format nama bulan Indonesia
@@ -24,6 +25,7 @@ class AttendancePdfHelper {
     required String schoolName,
     required String tahunAjaran,
     required String semester,
+    List<ExamEvent> examEvents = const [],
   }) async {
     final pdf = pw.Document();
 
@@ -191,6 +193,20 @@ class AttendancePdfHelper {
 
               if (checkInRecordList.isNotEmpty) {
                 final status = (checkInRecordList.first['status'] ?? '').toString().toLowerCase();
+
+                // Check exam event for this day
+                String? examTypeOnDay;
+                for (final exam in examEvents) {
+                  final localStart = exam.startDate.toLocal();
+                  final localEnd = exam.endDate.toLocal();
+                  final eStart = DateTime(localStart.year, localStart.month, localStart.day);
+                  final eEnd = DateTime(localEnd.year, localEnd.month, localEnd.day);
+                  if (!date.isBefore(eStart) && !date.isAfter(eEnd)) {
+                    examTypeOnDay = exam.examType.isNotEmpty ? exam.examType : 'Ujian';
+                    break;
+                  }
+                }
+
                 if (status == 'izin') {
                   rowCells.add(
                     pw.Container(
@@ -206,12 +222,22 @@ class AttendancePdfHelper {
                     ),
                   );
                 } else if (status == 'alpa' || status == 'absen') {
-                  rowCells.add(
-                    pw.Container(
-                      alignment: pw.Alignment.center,
-                      child: pw.Text('A', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFFEF4444))),
-                    ),
-                  );
+                  if (examTypeOnDay != null) {
+                    rowCells.add(
+                      pw.Container(
+                        alignment: pw.Alignment.center,
+                        color: PdfColor.fromInt(0xFFEDE9FE),
+                        child: pw.Text(examTypeOnDay, style: pw.TextStyle(fontSize: 5.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF7C3AED))),
+                      ),
+                    );
+                  } else {
+                    rowCells.add(
+                      pw.Container(
+                        alignment: pw.Alignment.center,
+                        child: pw.Text('A', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFFEF4444))),
+                      ),
+                    );
+                  }
                 } else {
                   rowCells.add(
                     pw.Container(
@@ -226,12 +252,35 @@ class AttendancePdfHelper {
                   presentCount++;
                 }
               } else {
-                rowCells.add(
-                  pw.Container(
-                    alignment: pw.Alignment.center,
-                    child: pw.Text('-', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFFEF4444))),
-                  ),
-                );
+                // No record — check if exam period
+                String? examTypeOnDay;
+                for (final exam in examEvents) {
+                  final localStart = exam.startDate.toLocal();
+                  final localEnd = exam.endDate.toLocal();
+                  final eStart = DateTime(localStart.year, localStart.month, localStart.day);
+                  final eEnd = DateTime(localEnd.year, localEnd.month, localEnd.day);
+                  if (!date.isBefore(eStart) && !date.isAfter(eEnd)) {
+                    examTypeOnDay = exam.examType.isNotEmpty ? exam.examType : 'Ujian';
+                    break;
+                  }
+                }
+
+                if (examTypeOnDay != null) {
+                  rowCells.add(
+                    pw.Container(
+                      alignment: pw.Alignment.center,
+                      color: PdfColor.fromInt(0xFFEDE9FE),
+                      child: pw.Text(examTypeOnDay, style: pw.TextStyle(fontSize: 5.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFF7C3AED))),
+                    ),
+                  );
+                } else {
+                  rowCells.add(
+                    pw.Container(
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('-', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFFEF4444))),
+                    ),
+                  );
+                }
               }
             } else {
               // Not a scheduled day (no class on this day)
@@ -430,6 +479,7 @@ class AttendancePdfHelper {
     required String schoolName,
     required String tahunAjaran,
     required String semester,
+    List<ExamEvent> examEvents = const [],
   }) async {
     final pdf = await _buildPdfDocument(
       teacherName: teacherName,
@@ -442,6 +492,7 @@ class AttendancePdfHelper {
       schoolName: schoolName,
       tahunAjaran: tahunAjaran,
       semester: semester,
+      examEvents: examEvents,
     );
 
     await Printing.layoutPdf(

@@ -1,6 +1,50 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ─────────────────────────────────────────────────────────────
+//  ExamUtils — helper functions shared across all exam pages
+// ─────────────────────────────────────────────────────────────
+class ExamUtils {
+  ExamUtils._();
+
+  /// Standardize exam participant number from any room name format.
+  ///
+  /// Examples:
+  ///   "R01"        → "R01-3-24"
+  ///   "Ruangan 01" → "R01-3-24"
+  ///   "Ruang 01"   → "R01-3-24"
+  ///   "Ruang A"    → "RA-3-24"
+  ///   "Lab IPA"    → "RLabIPA-3-24"  (fallback: no spaces, trimmed)
+  ///
+  /// Format: R<roomCode>-<seatNumber>-<angkatan>
+  static String buildExamNumber({
+    required String roomName,
+    required int seatNumber,
+    required String angkatan,
+  }) {
+    final trimmed = roomName.trim();
+
+    // 1. Try to extract only the digits (e.g. "01") from known prefixes
+    final digitOnly = RegExp(r'(?:ruangan|ruang|r)\s*(\d+)', caseSensitive: false)
+        .firstMatch(trimmed)
+        ?.group(1);
+
+    String roomCode;
+    if (digitOnly != null) {
+      // Pad to at least 2 digits for consistency: "1" → "01", "10" → "10"
+      roomCode = digitOnly.padLeft(2, '0');
+    } else if (trimmed.toUpperCase().startsWith('R') && trimmed.length <= 4) {
+      // Short code like "R01", "RA", "R1" — take as-is after the leading R
+      roomCode = trimmed.substring(1).toUpperCase();
+    } else {
+      // Fallback: remove spaces and use whole name
+      roomCode = trimmed.replaceAll(' ', '');
+    }
+
+    return 'R$roomCode-$seatNumber-$angkatan';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 //  ExamSlot — satu slot waktu harian (Sesi 1, 2, 3, dst.)
 // ─────────────────────────────────────────────────────────────
 class ExamSlot {
@@ -25,6 +69,7 @@ class ExamSlot {
         'endTime': endTime,
       };
 }
+
 
 // ─────────────────────────────────────────────────────────────
 //  ExamSubjectConfig — konfigurasi mapel per event UTS/UAS
