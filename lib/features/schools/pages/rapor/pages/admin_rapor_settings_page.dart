@@ -1231,9 +1231,14 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     if (!isVisible) return const SizedBox();
 
     final pos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
-    final int gridX = pos[0];
+    int gridX = pos[0];
     final int gridY = pos[1];
-    final int gridW = pos[2];
+    // Guard: ensure width is never 0; kop must span at least 10 cols from col 0
+    int gridW = pos[2] <= 0 ? 12 : pos[2];
+    if (id == 'kop' || id == 'info' || id == 'academic') {
+      gridX = 0;
+      gridW = 12;
+    }
 
     final double colWidth = 682.0 / 12.0;
     const double rowHeight = 15.0;

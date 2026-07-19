@@ -768,6 +768,47 @@ class RaporPdfHelper {
       }
     }
 
+    // Smart signature Y-sync:
+    // The overlap resolver can push sig_ortu/sig_wali down (because they overlap legend columns)
+    // but NOT sig_kepsek (different columns), making kepsek appear higher than the others.
+    // Fix: if the user stored all three sigs at the SAME Y (intentional alignment),
+    // force all three to the max resolved Y after the push.
+    // If the user intentionally placed them at DIFFERENT Y values, respect those differences.
+    final sigColKeys = ['sig_ortu', 'sig_wali', 'sig_kepsek']
+        .where((k) => activeSettings.elementPositions.containsKey(k) && y.containsKey(k))
+        .toList();
+    if (sigColKeys.isNotEmpty) {
+      final storedYValues = sigColKeys
+          .map((k) => activeSettings.elementPositions[k]![1])
+          .toSet();
+      if (storedYValues.length == 1) {
+        // All three were stored at the SAME Y → sync after resolver pushes
+        final double maxSigY = sigColKeys.map((k) => y[k]!).reduce((a, b) => a > b ? a : b);
+        for (final k in sigColKeys) {
+          y[k] = maxSigY;
+        }
+        // Ensure sig_date stays above the signature row
+        if (y.containsKey('sig_date') && y['sig_date']! >= maxSigY) {
+          y['sig_date'] = maxSigY - 22.0;
+        }
+      } else {
+        // User intentionally set different Y values — respect stored relative differences,
+        // but still apply the minimum push from the overlap resolver (already done above).
+        // Additionally ensure each sig is pushed down at least as much as the most-pushed
+        // sig that shares its column span with an above element.
+        final double minPushedSigY = sigColKeys.map((k) => y[k]!).reduce((a, b) => a < b ? a : b);
+        // Apply a floor so none can be above the lowest resolved sig Y
+        // (this preserves relative offsets while still applying the resolver floor)
+        for (final k in sigColKeys) {
+          final int storedY = activeSettings.elementPositions[k]![1];
+          final int minStoredY = sigColKeys
+              .map((k2) => activeSettings.elementPositions[k2]![1])
+              .reduce((a, b) => a < b ? a : b);
+          final int relativeOffset = storedY - minStoredY;
+          y[k] = minPushedSigY + relativeOffset * 11.0;
+        }
+      }
+    }
 
     // Sort visible keys by calculated Y coordinate so we page-split sequentially
     visibleKeys.sort((a, b) => y[a]!.compareTo(y[b]!));
