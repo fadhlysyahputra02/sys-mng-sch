@@ -66,6 +66,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
   double? _tempWidth;
 
   String? _hoveredId;
+  String? _selectedId;  // currently selected/clicked element
   String? _draggingId;
   bool _isResizing = false;
   double _currentScale = 1.0;
@@ -504,58 +505,61 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   ),
                 ],
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.zoom_out, size: 18),
-                    onPressed: _zoomFactor > 0.5
-                        ? () => setState(() => _zoomFactor = (_zoomFactor - 0.1).clamp(0.5, 1.5))
-                        : null,
-                    tooltip: 'Zoom Out',
-                  ),
-                  SizedBox(
-                    width: 150,
-                    child: SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        trackHeight: 2,
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                      ),
-                      child: Slider(
-                        value: _zoomFactor,
-                        min: 0.5,
-                        max: 1.5,
-                        divisions: 10,
-                        onChanged: (val) {
-                          setState(() {
-                            _zoomFactor = val;
-                          });
-                        },
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.zoom_out, size: 18),
+                      onPressed: _zoomFactor > 0.5
+                          ? () => setState(() => _zoomFactor = (_zoomFactor - 0.1).clamp(0.5, 1.5))
+                          : null,
+                      tooltip: 'Zoom Out',
+                    ),
+                    SizedBox(
+                      width: 150,
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 2,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                        ),
+                        child: Slider(
+                          value: _zoomFactor,
+                          min: 0.5,
+                          max: 1.5,
+                          divisions: 10,
+                          onChanged: (val) {
+                            setState(() {
+                              _zoomFactor = val;
+                            });
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.zoom_in, size: 18),
-                    onPressed: _zoomFactor < 1.5
-                        ? () => setState(() => _zoomFactor = (_zoomFactor + 0.1).clamp(0.5, 1.5))
-                        : null,
-                    tooltip: 'Zoom In',
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${(_zoomFactor * 100).round()}%',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                    IconButton(
+                      icon: const Icon(Icons.zoom_in, size: 18),
+                      onPressed: _zoomFactor < 1.5
+                          ? () => setState(() => _zoomFactor = (_zoomFactor + 0.1).clamp(0.5, 1.5))
+                          : null,
+                      tooltip: 'Zoom In',
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () => setState(() => _zoomFactor = 1.0),
-                    child: const Text('Fit', style: TextStyle(fontSize: 11)),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Text(
+                      '${(_zoomFactor * 100).round()}%',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () => setState(() => _zoomFactor = 1.0),
+                      child: const Text('Fit', style: TextStyle(fontSize: 11)),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -821,13 +825,21 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           ),
         ],
       ),
-      'sig_date': Text(
-        _settings.sigDateText.isNotEmpty
-            ? _settings.sigDateText
-            : 'Kota, ${DateTime.now().day} Juli ${DateTime.now().year}',
-        style: const TextStyle(fontSize: 8, color: Colors.black87),
-        textAlign: TextAlign.center,
-      ),
+      'sig_date': Builder(builder: (context) {
+        final now = DateTime.now();
+        final bulanList = ['Januari','Februari','Maret','April','Mei','Juni',
+          'Juli','Agustus','September','Oktober','November','Desember'];
+        final formattedDate = '${now.day} ${bulanList[now.month - 1]} ${now.year}';
+        final cityText = _settings.sigDateText.trim();
+        final displayText = cityText.isNotEmpty
+            ? '$cityText, $formattedDate'
+            : 'Kota, $formattedDate';
+        return Text(
+          displayText,
+          style: const TextStyle(fontSize: 8, color: Colors.black87),
+          textAlign: TextAlign.center,
+        );
+      }),
       'sig_ortu': _buildSigColPreview(
         title: 'Orang Tua/Wali Murid,',
         name: '',
@@ -849,47 +861,159 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
       ),
     };
 
-    return Container(
-      key: _a4CanvasKey,
-      width: 794,
-      height: 1123,
-      color: Colors.white,
-      child: Stack(
-        children: [
-          // Watermark
-          if (_settings.showWatermark && _logoRightBytes != null)
-            Positioned.fill(
-              child: Center(
-                child: Opacity(
-                  opacity: 0.06,
-                  child: Image.memory(
-                    _logoRightBytes!,
-                    width: 350,
-                    height: 350,
-                    fit: BoxFit.contain,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (details) {
+        // Hit test to select or deselect an element on tap
+        final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
+        if (renderBox == null) return;
+        final localPos = renderBox.globalToLocal(details.globalPosition) / _currentScale;
+        final hitId = _findElementAtLocal(localPos);
+        setState(() => _selectedId = hitId);
+      },
+      onPanStart: (details) {
+        // Canvas-level body drag: hit-test which element was pressed
+        final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
+        if (renderBox == null) return;
+        final localPos = renderBox.globalToLocal(details.globalPosition) / _currentScale;
+        final hitId = _findElementAtLocal(localPos);
+        if (hitId == null) return;
+        if (_draggingId != null && _draggingId != hitId) return; // handle has priority
+        final currentPos = _settings.elementPositions[hitId] ?? [0, 0, 12, 5];
+        setState(() {
+          _draggingId = hitId;
+          _selectedId = hitId;
+          _isResizing = false;
+          _dragStartPos = localPos;
+          _dragStartGridX = currentPos[0];
+          _dragStartGridY = currentPos[1];
+          _tempLeft = 56.0 + currentPos[0] * (682.0 / 12.0);
+          _tempTop = 40.0 + currentPos[1] * 15.0;
+        });
+      },
+      onPanUpdate: (details) {
+        if (_draggingId == null || _isResizing) return;
+        final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
+        if (renderBox == null) return;
+        final localPos = renderBox.globalToLocal(details.globalPosition) / _currentScale;
+        _onElementDrag(_draggingId!, localPos);
+      },
+      onPanEnd: (_) {
+        if (_draggingId == null || _isResizing) return;
+        if (_tempLeft == null || _tempTop == null) {
+          setState(() { _draggingId = null; _selectedId = null; _dragStartPos = null; });
+          return;
+        }
+        const double colWidth = 682.0 / 12.0;
+        const double rowHeight = 15.0;
+        final snapGridX = ((_tempLeft! - 56.0) / colWidth).round();
+        final snapGridY = ((_tempTop! - 40.0) / rowHeight).round();
+        final id = _draggingId!;
+        final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
+        final int w = currentPos[2];
+        final int h = currentPos[3];
+        final updatedPositions = Map<String, List<int>>.from(_settings.elementPositions);
+        updatedPositions[id] = [
+          snapGridX.clamp(0, 12 - w),
+          snapGridY.clamp(0, 70 - h),
+          w, h
+        ];
+        setState(() {
+          _settings = _settings.copyWith(elementPositions: updatedPositions);
+          _draggingId = null;
+          _selectedId = null;
+          _dragStartPos = null;
+          _dragStartGridX = null;
+          _dragStartGridY = null;
+          _tempLeft = null;
+          _tempTop = null;
+        });
+      },
+      child: Container(
+        key: _a4CanvasKey,
+        width: 794,
+        height: 1123,
+        color: Colors.white,
+        child: Stack(
+          children: [
+            // Watermark
+            if (_settings.showWatermark && _logoRightBytes != null)
+              Positioned.fill(
+                child: Center(
+                  child: Opacity(
+                    opacity: 0.06,
+                    child: Image.memory(
+                      _logoRightBytes!,
+                      width: 350,
+                      height: 350,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ),
-            ),
 
-          // Grid background guidelines while dragging
-          if (_draggingId != null) _buildGridBackground(),
+            // Grid background guidelines while dragging or hovering
+            if (_draggingId != null || _hoveredId != null || _selectedId != null) _buildGridBackground(),
 
-          // Render sections absolutely
-          _buildGridElement('kop', sections['kop']!, isVisible: true),
-          _buildGridElement('info', sections['info']!, isVisible: true),
-          _buildGridElement('attitude', sections['attitude']!, isVisible: _settings.showSpiritualAttitude),
-          _buildGridElement('academic', sections['academic']!, isVisible: true),
-          _buildGridElement('legend', sections['legend']!, isVisible: _settings.showPredikat),
-          _buildGridElement('attendance', sections['attendance']!, isVisible: _settings.showAttendance),
-          _buildGridElement('notes', sections['notes']!, isVisible: _settings.showNotes),
-          _buildGridElement('sig_date', sections['sig_date']!, isVisible: _settings.showSigDate),
-          _buildGridElement('sig_ortu', sections['sig_ortu']!, isVisible: _settings.showSigOrtu),
-          _buildGridElement('sig_wali', sections['sig_wali']!, isVisible: _settings.showSigWali),
-          _buildGridElement('sig_kepsek', sections['sig_kepsek']!, isVisible: _settings.showSigKepsek),
-        ],
+            // Render sections absolutely
+            _buildGridElement('kop', sections['kop']!, isVisible: true),
+            _buildGridElement('info', sections['info']!, isVisible: true),
+            _buildGridElement('attitude', sections['attitude']!, isVisible: _settings.showSpiritualAttitude),
+            _buildGridElement('academic', sections['academic']!, isVisible: true),
+            _buildGridElement('legend', sections['legend']!, isVisible: _settings.showPredikat),
+            _buildGridElement('attendance', sections['attendance']!, isVisible: _settings.showAttendance),
+            _buildGridElement('notes', sections['notes']!, isVisible: _settings.showNotes),
+            _buildGridElement('sig_date', sections['sig_date']!, isVisible: _settings.showSigDate),
+            _buildGridElement('sig_ortu', sections['sig_ortu']!, isVisible: _settings.showSigOrtu),
+            _buildGridElement('sig_wali', sections['sig_wali']!, isVisible: _settings.showSigWali),
+            _buildGridElement('sig_kepsek', sections['sig_kepsek']!, isVisible: _settings.showSigKepsek),
+          ],
+        ),
       ),
     );
+  }
+
+  bool _isElementVisible(String id) {
+    switch (id) {
+      case 'kop': return true;
+      case 'info': return true;
+      case 'attitude': return _settings.showSpiritualAttitude;
+      case 'academic': return true;
+      case 'legend': return _settings.showPredikat;
+      case 'attendance': return _settings.showAttendance;
+      case 'notes': return _settings.showNotes;
+      case 'sig_date': return _settings.showSigDate;
+      case 'sig_ortu': return _settings.showSigOrtu;
+      case 'sig_wali': return _settings.showSigWali;
+      case 'sig_kepsek': return _settings.showSigKepsek;
+      default: return false;
+    }
+  }
+
+  /// Hit-test in canvas-local coordinates (already divided by _currentScale).
+  /// Returns the topmost visible element that contains [localPos], or null.
+  String? _findElementAtLocal(Offset localPos) {
+    const double colWidth = 682.0 / 12.0;
+    const double rowHeight = 15.0;
+    // Check in reverse insertion order so topmost painted elements win
+    final ids = [
+      'sig_kepsek', 'sig_wali', 'sig_ortu', 'sig_date',
+      'notes', 'attendance', 'legend', 'academic', 'attitude', 'info', 'kop',
+    ];
+    for (final id in ids) {
+      if (!_isElementVisible(id)) continue;
+      final pos = _settings.elementPositions[id];
+      if (pos == null) continue;
+      final left = 56.0 + pos[0] * colWidth;
+      final top = 40.0 + pos[1] * rowHeight;
+      final right = left + pos[2] * colWidth;
+      final bottom = top + pos[3] * rowHeight;
+      if (localPos.dx >= left && localPos.dx <= right &&
+          localPos.dy >= top && localPos.dy <= bottom) {
+        return id;
+      }
+    }
+    return null;
   }
 
   Widget _previewInfoRow(String label, String value) {
@@ -1133,109 +1257,48 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
       left: left - 24,
       top: top - 24,
       width: width + 48,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hoveredId = id),
-        onExit: (_) => setState(() => _hoveredId = null),
-        child: Container(
-          padding: const EdgeInsets.all(24),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hoveredId = id),
+          onExit: (_) => setState(() => _hoveredId = null),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // Element body draggable detector
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanStart: (details) {
-                  final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
-                  if (renderBox != null) {
-                    final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
-                    final localPos = Offset(
-                      (details.globalPosition.dx - canvasGlobalPos.dx) / _currentScale,
-                      (details.globalPosition.dy - canvasGlobalPos.dy) / _currentScale,
-                    );
-                    final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
-                    setState(() {
-                      _draggingId = id;
-                      _isResizing = false;
-                      _dragStartPos = localPos;
-                      _dragStartGridX = currentPos[0];
-                      _dragStartGridY = currentPos[1];
-                      _tempLeft = 56.0 + currentPos[0] * colWidth;
-                      _tempTop = 40.0 + currentPos[1] * rowHeight;
-                    });
-                  }
-                },
-                onPanUpdate: (details) {
-                  final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
-                  if (renderBox != null) {
-                    final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
-                    final localPos = Offset(
-                      (details.globalPosition.dx - canvasGlobalPos.dx) / _currentScale,
-                      (details.globalPosition.dy - canvasGlobalPos.dy) / _currentScale,
-                    );
-                    _onElementDrag(id, localPos);
-                  }
-                },
-                onPanEnd: (_) {
-                  if (_tempLeft == null || _tempTop == null) return;
-                  final snapGridX = ((_tempLeft! - 56.0) / colWidth).round();
-                  final snapGridY = ((_tempTop! - 40.0) / rowHeight).round();
-
-                  final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
-                  final int w = currentPos[2];
-                  final int h = currentPos[3];
-
-                  final updatedPositions = Map<String, List<int>>.from(_settings.elementPositions);
-                  updatedPositions[id] = [
-                    snapGridX.clamp(0, 12 - w),
-                    snapGridY.clamp(0, 70 - h),
-                    w,
-                    h
-                  ];
-
-                  setState(() {
-                    _settings = _settings.copyWith(elementPositions: updatedPositions);
-                    _draggingId = null;
-                    _dragStartPos = null;
-                    _dragStartGridX = null;
-                    _dragStartGridY = null;
-                    _tempLeft = null;
-                    _tempTop = null;
-                  });
-                },
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isDraggingThis
-                          ? Colors.blue.shade500
-                          : (_hoveredId == id ? Colors.blue.shade300 : Colors.transparent),
-                      width: 1.5,
-                    ),
-                    color: isDraggingThis ? Colors.blue.shade50.withValues(alpha: 0.15) : Colors.transparent,
+              // Visible element body — no drag Listener here (handled at canvas level)
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isDraggingThis
+                        ? Colors.blue.shade500
+                        : ((_hoveredId == id || _selectedId == id) ? Colors.blue.shade300 : Colors.transparent),
+                    width: 1.5,
                   ),
-                  child: child,
+                  color: isDraggingThis ? Colors.blue.shade50.withValues(alpha: 0.15) : Colors.transparent,
                 ),
-
+                child: child,
               ),
-              if (_hoveredId == id || isDraggingThis)
+              if (_hoveredId == id || isDraggingThis || _selectedId == id)
                 Positioned(
                   top: -16,
                   left: -16,
                   child: MouseRegion(
                     cursor: SystemMouseCursors.grab,
-                    child: Listener(
+                    child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onPointerDown: (details) {
+                      onPanStart: (details) {
                         final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
                         if (renderBox != null) {
                           final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
                           final localPos = Offset(
-                            (details.position.dx - canvasGlobalPos.dx) / _currentScale,
-                            (details.position.dy - canvasGlobalPos.dy) / _currentScale,
+                            (details.globalPosition.dx - canvasGlobalPos.dx) / _currentScale,
+                            (details.globalPosition.dy - canvasGlobalPos.dy) / _currentScale,
                           );
                           final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
                           setState(() {
                             _draggingId = id;
+                            _selectedId = id;
                             _isResizing = false;
                             _dragStartPos = localPos;
                             _dragStartGridX = currentPos[0];
@@ -1245,37 +1308,38 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                           });
                         }
                       },
-                      onPointerMove: (details) {
+                      onPanUpdate: (details) {
+                        if (_draggingId != id) return;
                         final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
                         if (renderBox != null) {
                           final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
                           final localPos = Offset(
-                            (details.position.dx - canvasGlobalPos.dx) / _currentScale,
-                            (details.position.dy - canvasGlobalPos.dy) / _currentScale,
+                            (details.globalPosition.dx - canvasGlobalPos.dx) / _currentScale,
+                            (details.globalPosition.dy - canvasGlobalPos.dy) / _currentScale,
                           );
                           _onElementDrag(id, localPos);
                         }
                       },
-                      onPointerUp: (details) {
-                        if (_tempLeft == null || _tempTop == null) return;
+                      onPanEnd: (_) {
+                        if (_draggingId != id || _tempLeft == null || _tempTop == null) {
+                          setState(() { _draggingId = null; _selectedId = null; });
+                          return;
+                        }
                         final snapGridX = ((_tempLeft! - 56.0) / colWidth).round();
                         final snapGridY = ((_tempTop! - 40.0) / rowHeight).round();
-
                         final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
                         final int w = currentPos[2];
                         final int h = currentPos[3];
-
                         final updatedPositions = Map<String, List<int>>.from(_settings.elementPositions);
                         updatedPositions[id] = [
                           snapGridX.clamp(0, 12 - w),
                           snapGridY.clamp(0, 70 - h),
-                          w,
-                          h
+                          w, h
                         ];
-
                         setState(() {
                           _settings = _settings.copyWith(elementPositions: updatedPositions);
                           _draggingId = null;
+                          _selectedId = null;
                           _dragStartPos = null;
                           _dragStartGridX = null;
                           _dragStartGridY = null;
@@ -1302,7 +1366,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                     ),
                   ),
                 ),
-              if (_hoveredId == id || isDraggingThis)
+              if (_hoveredId == id || isDraggingThis || _selectedId == id)
                 Positioned(
                   right: -16,
                   top: 0,
@@ -1311,20 +1375,21 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   child: Align(
                     alignment: Alignment.center,
                     child: MouseRegion(
-                      cursor: SystemMouseCursors.grab,
-                      child: Listener(
+                      cursor: SystemMouseCursors.resizeLeftRight,
+                      child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onPointerDown: (details) {
+                        onPanStart: (details) {
                           final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
                           if (renderBox != null) {
                             final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
                             final localPos = Offset(
-                              (details.position.dx - canvasGlobalPos.dx) / _currentScale,
-                              (details.position.dy - canvasGlobalPos.dy) / _currentScale,
+                              (details.globalPosition.dx - canvasGlobalPos.dx) / _currentScale,
+                              (details.globalPosition.dy - canvasGlobalPos.dy) / _currentScale,
                             );
                             final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
                             setState(() {
                               _draggingId = id;
+                              _selectedId = id;
                               _isResizing = true;
                               _dragStartPos = localPos;
                               _dragStartGridW = currentPos[2];
@@ -1332,37 +1397,37 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                             });
                           }
                         },
-                        onPointerMove: (details) {
+                        onPanUpdate: (details) {
+                          if (_draggingId != id) return;
                           final RenderBox? renderBox = _a4CanvasKey.currentContext?.findRenderObject() as RenderBox?;
                           if (renderBox != null) {
                             final canvasGlobalPos = renderBox.localToGlobal(Offset.zero);
                             final localPos = Offset(
-                              (details.position.dx - canvasGlobalPos.dx) / _currentScale,
-                              (details.position.dy - canvasGlobalPos.dy) / _currentScale,
+                              (details.globalPosition.dx - canvasGlobalPos.dx) / _currentScale,
+                              (details.globalPosition.dy - canvasGlobalPos.dy) / _currentScale,
                             );
                             _onElementResize(id, localPos);
                           }
                         },
-                        onPointerUp: (details) {
-                          if (_tempWidth == null) return;
+                        onPanEnd: (_) {
+                          if (_draggingId != id || _tempWidth == null) {
+                            setState(() { _draggingId = null; _selectedId = null; _isResizing = false; });
+                            return;
+                          }
                           final snapGridW = (_tempWidth! / colWidth).round();
-
                           final currentPos = _settings.elementPositions[id] ?? [0, 0, 12, 5];
                           final int startCol = currentPos[0];
                           final int row = currentPos[1];
                           final int h = currentPos[3];
-
                           final updatedPositions = Map<String, List<int>>.from(_settings.elementPositions);
                           updatedPositions[id] = [
-                            startCol,
-                            row,
-                            snapGridW.clamp(1, 12 - startCol),
-                            h
+                            startCol, row,
+                            snapGridW.clamp(1, 12 - startCol), h
                           ];
-
                           setState(() {
                             _settings = _settings.copyWith(elementPositions: updatedPositions);
                             _draggingId = null;
+                            _selectedId = null;
                             _isResizing = false;
                             _dragStartPos = null;
                             _dragStartGridW = null;
