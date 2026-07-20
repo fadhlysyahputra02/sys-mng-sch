@@ -566,6 +566,7 @@ class _SchoolAdminRaporPageState extends State<SchoolAdminRaporPage> {
                                                       studentId: studentId,
                                                       studentName: name,
                                                       studentNis: nis,
+                                                      studentNisn: data['nisn'] ?? '-',
                                                     ));
                                               },
                                               borderRadius: BorderRadius.circular(18),

@@ -17,7 +17,7 @@ const nodemailer = require("nodemailer");
  * berdasarkan targetType dari dokumen notifikasi.
  */
 exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{schoolId}/notifications/{notifId}", async (event) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
     const data = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
     const schoolId = event.params.schoolId;
     if (!data) {
@@ -31,7 +31,8 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
     const targetClassId = (_f = data.targetClassId) !== null && _f !== void 0 ? _f : "";
     const senderId = (_g = data.senderId) !== null && _g !== void 0 ? _g : "";
     const senderName = (_h = data.senderName) !== null && _h !== void 0 ? _h : "Sistem";
-    const category = (_j = data.category) !== null && _j !== void 0 ? _j : "";
+    const senderRole = (_j = data.senderRole) !== null && _j !== void 0 ? _j : "";
+    const category = (_k = data.category) !== null && _k !== void 0 ? _k : "";
     console.log(`[onNotificationCreated] schoolId=${schoolId}, targetType=${targetType}, ` +
         `targetId=${targetId}, senderId=${senderId}`);
     // --- Personal Notification ---
@@ -112,7 +113,14 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
     }
     else if (targetType === "kelas") {
         // targetId = classId dari kelas yang dipilih
-        topics = [`school_${schoolId}_class_${targetId}`];
+        if (senderRole === "parent") {
+            // Jika dari orang tua, tujukan ke guru (pengajuan izin)
+            topics = [`school_${schoolId}_class_${targetId}_teacher`];
+        }
+        else {
+            // Jika dari guru/admin/TU, tujukan ke murid/orang tua di kelas tersebut
+            topics = [`school_${schoolId}_class_${targetId}_student`];
+        }
     }
     else if (targetType === "guru") {
         // Kirim ke semua guru di sekolah ini
@@ -121,7 +129,7 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
     else if (targetType === "murid") {
         // Kirim ke topic kelas dari murid tersebut
         const classId = targetClassId || targetId;
-        topics = [`school_${schoolId}_class_${classId}`];
+        topics = [`school_${schoolId}_class_${classId}_student`];
     }
     if (topics.length === 0) {
         console.log("No topics determined. Exiting.");

@@ -14,6 +14,7 @@ class RaporPdfHelper {
     required String teacherName,
     required String studentName,
     required String studentNis,
+    required String studentNisn,
     required String semester,
     required String yearInfo,
     required List<Map<String, dynamic>>
@@ -38,16 +39,19 @@ class RaporPdfHelper {
 
     if (oldKopHeight < 8 || oldInfoStart < 9) {
       positions['kop'] = [0, 0, 12, 8];
-      positions['info'] = [0, 9, 12, 3];
+      positions['info'] = [0, 9, 8, 4];
       positions['attitude'] = [0, 14, 12, 5];
       positions['academic'] = [0, 20, 12, 11];
       positions['legend'] = [0, 32, 5, 11];
       positions['attendance'] = [6, 32, 6, 5];
       positions['notes'] = [6, 38, 6, 5];
       positions['signatures'] = [0, 44, 12, 6];
-      
-      activeSettings = activeSettings.copyWith(elementPositions: positions);
     }
+    // Auto-upgrade info section height if it's less than 4
+    if (positions['info'] != null && positions['info']![3] < 4) {
+      positions['info'] = [positions['info']![0], positions['info']![1], positions['info']![2], 4];
+    }
+    activeSettings = activeSettings.copyWith(elementPositions: positions);
 
     int parseHexColor(String hex) {
       try {
@@ -302,7 +306,7 @@ class RaporPdfHelper {
           pw.Align(
             alignment: pw.Alignment.center,
             child: pw.Text(
-              'LAPORAN PENILAIAN HASIL BELAJAR SISWA',
+              'LAPORAN PENILAIAN HASIL BELAJAR SISWA\n(SEMESTER ${semester.toUpperCase()} TAHUN AJARAN $yearInfo)',
               style: pw.TextStyle(
                 fontSize: 10,
                 fontWeight: pw.FontWeight.bold,
@@ -317,9 +321,9 @@ class RaporPdfHelper {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           infoRow(AppLocalization.isIndonesian ? 'Nama Siswa' : 'Student Name', studentName),
-          infoRow(AppLocalization.isIndonesian ? 'NISN / NIS' : 'Student ID / NISN', studentNis),
+          infoRow('NISN', studentNisn),
+          infoRow('NIS', studentNis),
           infoRow(AppLocalization.isIndonesian ? 'Kelas' : 'Class', className),
-          infoRow(AppLocalization.isIndonesian ? 'Sekolah' : 'School', schoolName),
         ],
       ),
       'attitude': pw.Column(
@@ -712,7 +716,7 @@ class RaporPdfHelper {
     y['info'] = y['kop']! + (actualHeights['kop'] ?? 8) * 11.0 + getGap('kop', 'info');
 
     // 2. Attitude Y
-    double currentBottom = y['info']! + (actualHeights['info'] ?? 3) * 11.0;
+    double currentBottom = y['info']! + (actualHeights['info'] ?? 4) * 11.0;
     if (activeSettings.showSpiritualAttitude) {
       y['attitude'] = currentBottom + getGap('info', 'attitude');
       currentBottom = y['attitude']! + (actualHeights['attitude'] ?? 5) * 11.0;
@@ -882,7 +886,7 @@ class RaporPdfHelper {
                 if (pageAbs.isNotEmpty) {
                   final defaultPos = {
                     'kop': [0, 0, 12, 8],
-                    'info': [0, 9, 12, 3],
+                    'info': [0, 9, 8, 4],
                     'attitude': [0, 14, 12, 5],
                     'academic': [0, 20, 12, 11],
                     'legend': [0, 32, 5, 11],
@@ -1138,6 +1142,7 @@ class RaporPdfHelper {
     required String teacherName,
     required String studentName,
     required String studentNis,
+    required String studentNisn,
     required String semester,
     required String yearInfo,
     required List<Map<String, dynamic>> subjectScores,
@@ -1156,6 +1161,7 @@ class RaporPdfHelper {
       teacherName: teacherName,
       studentName: studentName,
       studentNis: studentNis,
+      studentNisn: studentNisn,
       semester: semester,
       yearInfo: yearInfo,
       subjectScores: subjectScores,

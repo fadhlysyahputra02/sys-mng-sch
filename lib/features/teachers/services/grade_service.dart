@@ -87,6 +87,7 @@ class GradeService {
         'senderId': teacherId,
         'senderName': teacherName,
         'senderRole': 'teacher',
+        'category': 'grade',
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {

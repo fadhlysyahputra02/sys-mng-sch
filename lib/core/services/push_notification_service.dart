@@ -13,6 +13,8 @@ import 'package:sys_mng_school/features/students/pages/student_payment_page.dart
 import 'package:sys_mng_school/features/parent/pages/parent_payment_page.dart';
 import 'package:sys_mng_school/features/exams/pages/student_exam_participation_page.dart';
 import 'package:sys_mng_school/features/exams/pages/teacher_proctor_dashboard_page.dart';
+import 'package:sys_mng_school/features/students/pages/student_grades_page.dart';
+import 'package:sys_mng_school/features/parent/pages/parent_grades_page.dart';
 
 // Helper platform-safe: gunakan defaultTargetPlatform (tidak pakai dart:io Platform)
 // sehingga aman dijalankan di Flutter Web.
@@ -244,7 +246,15 @@ class PushNotificationService {
           if (studentDoc != null && studentDoc.exists) {
             final classId = studentDoc.data()?['classId'] as String?;
             if (classId != null && classId.isNotEmpty) {
-              await _firebaseMessaging.subscribeToTopic('school_${schoolId}_class_$classId');
+              await _firebaseMessaging.subscribeToTopic('school_${schoolId}_class_${classId}_student');
+            }
+          }
+        } else if (user.role == 'parent') {
+          final studentDoc = await StudentService().getStudentDocByParentUid(schoolId, user.uid);
+          if (studentDoc != null && studentDoc.exists) {
+            final classId = studentDoc.data()?['classId'] as String?;
+            if (classId != null && classId.isNotEmpty) {
+              await _firebaseMessaging.subscribeToTopic('school_${schoolId}_class_${classId}_student');
             }
           }
         } else if (user.role == 'teacher') {
@@ -276,7 +286,7 @@ class PushNotificationService {
 
             final allClassIds = {...scheduleClassIds, ...waliClassIds};
             for (final classId in allClassIds) {
-              await _firebaseMessaging.subscribeToTopic('school_${schoolId}_class_$classId');
+              await _firebaseMessaging.subscribeToTopic('school_${schoolId}_class_${classId}_teacher');
             }
           }
         }
@@ -327,7 +337,44 @@ class PushNotificationService {
           if (studentDoc != null && studentDoc.exists) {
             final classId = studentDoc.data()?['classId'] as String?;
             if (classId != null && classId.isNotEmpty) {
-              await _firebaseMessaging.unsubscribeFromTopic('school_${schoolId}_class_$classId');
+              await _firebaseMessaging.unsubscribeFromTopic('school_${schoolId}_class_${classId}_student');
+            }
+          }
+        } else if (user.role == 'parent') {
+          final studentDoc = await StudentService().getStudentDocByParentUid(schoolId, user.uid);
+          if (studentDoc != null && studentDoc.exists) {
+            final classId = studentDoc.data()?['classId'] as String?;
+            if (classId != null && classId.isNotEmpty) {
+              await _firebaseMessaging.unsubscribeFromTopic('school_${schoolId}_class_${classId}_student');
+            }
+          }
+        } else if (user.role == 'teacher') {
+          final teacherDoc = await TeacherService().getTeacherByUid(schoolId, user.uid);
+          if (teacherDoc != null) {
+            final teacherId = teacherDoc.data()['teacherId'] ?? teacherDoc.id;
+            final schedulesSnap = await FirebaseFirestore.instance
+                .collection('schools')
+                .doc(schoolId)
+                .collection('class_schedules')
+                .where('teacherId', isEqualTo: teacherId)
+                .get();
+            final scheduleClassIds = schedulesSnap.docs
+                .map((d) => d.data()['classId'] as String?)
+                .where((id) => id != null && id.isNotEmpty)
+                .cast<String>()
+                .toSet();
+
+            final waliKelasSnap = await FirebaseFirestore.instance
+                .collection('schools')
+                .doc(schoolId)
+                .collection('classes')
+                .where('teacherId', isEqualTo: teacherId)
+                .get();
+            final waliClassIds = waliKelasSnap.docs.map((d) => d.id).toSet();
+
+            final allClassIds = {...scheduleClassIds, ...waliClassIds};
+            for (final classId in allClassIds) {
+              await _firebaseMessaging.unsubscribeFromTopic('school_${schoolId}_class_${classId}_teacher');
             }
           }
         }
@@ -408,6 +455,59 @@ class PushNotificationService {
             final teacherId = teacherDoc.data()?['teacherId'] ?? teacherDoc.id;
             Get.to(() => TeacherProctorDashboardPage(teacherId: teacherId));
             return;
+          }
+        }
+      }
+    } else if (category == 'grade') {
+      final user = SessionService.currentUser;
+      if (user != null) {
+        if (user.role == 'student') {
+          final results = await Future.wait([
+            FirebaseFirestore.instance.collection('schools').doc(user.schoolId).get(),
+            StudentService().getStudentDocByUid(user.schoolId, user.uid),
+          ]);
+          final schoolDoc = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+          final studentDoc = results[1] as DocumentSnapshot<Map<String, dynamic>>?;
+
+          if (studentDoc != null && studentDoc.exists) {
+            final classId = studentDoc.data()?['classId'] as String?;
+            if (classId != null && classId.isNotEmpty) {
+              final schoolData = schoolDoc.data() ?? {};
+              Get.to(() => StudentGradesPage(
+                studentDocId: studentDoc.id,
+                className: studentDoc.data()?['className'] ?? '-',
+                classId: classId,
+                tahunAjaran: schoolData['tahunAjaran'] ?? '-',
+                semester: schoolData['semester'] ?? '-',
+              ));
+              return;
+            }
+          }
+        } else if (user.role == 'parent') {
+          final results = await Future.wait([
+            FirebaseFirestore.instance.collection('schools').doc(user.schoolId).get(),
+            StudentService().getStudentDocByParentUid(user.schoolId, user.uid),
+          ]);
+          final schoolDoc = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+          final studentDoc = results[1] as DocumentSnapshot<Map<String, dynamic>>?;
+
+          if (studentDoc != null && studentDoc.exists) {
+            final classId = studentDoc.data()?['classId'] as String?;
+            if (classId != null && classId.isNotEmpty) {
+              final schoolData = schoolDoc.data() ?? {};
+              Get.to(
+                () => const ParentGradesPage(),
+                arguments: {
+                  'schoolId': user.schoolId,
+                  'studentId': studentDoc.id,
+                  'classId': classId,
+                  'className': studentDoc.data()?['className'] ?? '-',
+                  'tahunAjaran': schoolData['tahunAjaran'] ?? '-',
+                  'semester': schoolData['semester'] ?? '-',
+                },
+              );
+              return;
+            }
           }
         }
       }

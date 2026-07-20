@@ -101,7 +101,7 @@ class RaporPdfSettings {
     this.attendanceColWidths = const [0.7, 0.3],
     this.elementPositions = const {
       'kop': [0, 0, 12, 8],
-      'info': [0, 9, 12, 3],
+      'info': [0, 9, 8, 4],
       'attitude': [0, 14, 12, 5],
       'academic': [0, 20, 12, 11],
       'legend': [0, 32, 5, 11],
@@ -232,7 +232,7 @@ class RaporPdfSettings {
       elementPositions: parsedPositions ??
           const {
             'kop': [0, 0, 12, 8],
-            'info': [0, 9, 12, 3],
+            'info': [0, 9, 8, 4],
             'attitude': [0, 14, 12, 5],
             'academic': [0, 20, 12, 11],
             'legend': [0, 32, 5, 11],

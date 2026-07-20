@@ -17,6 +17,7 @@ class TeacherRaporDetailPage extends StatefulWidget {
   final String studentId;
   final String studentName;
   final String studentNis;
+  final String studentNisn;
 
   const TeacherRaporDetailPage({
     super.key,
@@ -27,6 +28,7 @@ class TeacherRaporDetailPage extends StatefulWidget {
     required this.studentId,
     required this.studentName,
     required this.studentNis,
+    required this.studentNisn,
   });
 
   @override
@@ -458,6 +460,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
         teacherName: _teacherName,
         studentName: widget.studentName,
         studentNis: widget.studentNis,
+        studentNisn: widget.studentNisn,
         semester: _activeSemester,
         yearInfo: _tahunAjaran,
         subjectScores: subjectScores,
@@ -589,7 +592,7 @@ class _TeacherRaporDetailPageState extends State<TeacherRaporDetailPage> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            'NIS: ${widget.studentNis} • Kelas: ${widget.className}',
+                                            'NISN: ${widget.studentNisn} • NIS: ${widget.studentNis} • Kelas: ${widget.className}',
                                             style: TextStyle(fontSize: 13, color: subTextColor),
                                           ),
                                         ],

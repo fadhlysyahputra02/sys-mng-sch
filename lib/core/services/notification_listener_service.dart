@@ -127,7 +127,9 @@ class NotificationListenerService {
             if (targetType == 'umum') {
               isRecipient = true;
             } else if (targetType == 'kelas' && _teacherClassIds.contains(targetId)) {
-              isRecipient = true;
+              if (data['senderRole'] == 'parent') {
+                isRecipient = true;
+              }
             } else if (targetType == 'guru' && (targetId == '' || targetId == _teacherDocId)) {
               isRecipient = true;
             } else if (targetType == 'murid' && _teacherClassIds.contains(targetClassId)) {

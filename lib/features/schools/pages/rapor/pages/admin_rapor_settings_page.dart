@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../../core/localization/app_localization.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import '../../../../teachers/services/rapor_service.dart';
+import '../../../../teachers/services/grade_service.dart';
 import '../models/rapor_pdf_settings.dart';
 
 class AdminRaporSettingsPage extends StatefulWidget {
@@ -25,12 +26,35 @@ class AdminRaporSettingsPage extends StatefulWidget {
 
 class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
   final _raporService = RaporService();
+  final _gradeService = GradeService();
   bool _isLoading = true;
   bool _isSaving = false;
 
   late RaporPdfSettings _settings;
   String _schoolTahunAjaran = '';
   String _schoolSemester = '';
+  Map<String, int> _gradeTemplates = {};
+
+  // Sample student selection state
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _classList = [];
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _studentList = [];
+  String? _selectedSampleClassId;
+  String? _selectedSampleStudentId;
+  bool _isLoadingSampleData = false;
+
+  // Real preview data (null means fallback to mock/static data)
+  String? _sampleStudentName;
+  String? _sampleStudentNis;
+  String? _sampleStudentNisn;
+  String? _sampleClassName;
+  String? _sampleTeacherName;
+  String? _sampleTeacherNip;
+  List<List<String>>? _sampleAcademicRows;
+  List<List<String>>? _sampleAttitudeRows;
+  int? _sampleSakit;
+  int? _sampleIzin;
+  int? _sampleAlpa;
+  String? _sampleCatatanWali;
 
   Uint8List? get _logoLeftBytes {
     if (_settings.logoLeftBase64 == null) return null;
@@ -119,16 +143,19 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
 
         if (oldKopHeight < 8 || oldInfoStart < 9) {
           positions['kop'] = [0, 0, 12, 8];
-          positions['info'] = [0, 9, 12, 3];
+          positions['info'] = [0, 9, 8, 4];
           positions['attitude'] = [0, 14, 12, 5];
           positions['academic'] = [0, 20, 12, 11];
           positions['legend'] = [0, 32, 5, 11];
           positions['attendance'] = [6, 32, 6, 5];
           positions['notes'] = [6, 38, 6, 5];
           positions['signatures'] = [0, 44, 12, 6];
-          
-          loadedSettings = loadedSettings.copyWith(elementPositions: positions);
         }
+        // Auto-upgrade info section height if it's less than 4
+        if (positions['info'] != null && positions['info']![3] < 4) {
+          positions['info'] = [positions['info']![0], positions['info']![1], positions['info']![2], 4];
+        }
+        loadedSettings = loadedSettings.copyWith(elementPositions: positions);
         _settings = loadedSettings;
       } else {
         _settings = RaporPdfSettings.defaultSettings(widget.defaultSchoolName);
@@ -140,10 +167,23 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
         final schoolData = schoolSnap.data()!;
         _schoolTahunAjaran = schoolData['tahunAjaran']?.toString() ?? '${DateTime.now().year}/${DateTime.now().year + 1}';
         _schoolSemester = schoolData['semester']?.toString() ?? 'Semester 1';
+        final temp = schoolData['grade_templates'] as Map<String, dynamic>? ?? {};
+        _gradeTemplates = {};
+        temp.forEach((k, v) {
+          _gradeTemplates[k] = (v as num).toInt();
+        });
       } else {
         _schoolTahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
         _schoolSemester = 'Semester 1';
       }
+
+      // Fetch classes for sample dropdown
+      final classesSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('classes')
+          .get();
+      _classList = classesSnap.docs;
 
       // Initialize controllers
       _titleController.text = _settings.headerTitle;
@@ -160,6 +200,312 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
       _schoolSemester = 'Semester 1';
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _onSampleClassChanged(String? classId) async {
+    if (classId == null) return;
+    setState(() {
+      _selectedSampleClassId = classId;
+      _selectedSampleStudentId = null;
+      _studentList = [];
+      _clearSampleStudentData();
+      _isLoadingSampleData = true;
+    });
+
+    try {
+      final studentsSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('students')
+          .where('classId', isEqualTo: classId)
+          .get();
+      setState(() {
+        _studentList = studentsSnap.docs;
+        _isLoadingSampleData = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching class students: $e');
+      setState(() {
+        _isLoadingSampleData = false;
+      });
+    }
+  }
+
+  void _clearSampleStudentData() {
+    _sampleStudentName = null;
+    _sampleStudentNis = null;
+    _sampleStudentNisn = null;
+    _sampleClassName = null;
+    _sampleTeacherName = null;
+    _sampleTeacherNip = null;
+    _sampleAcademicRows = null;
+    _sampleAttitudeRows = null;
+    _sampleSakit = null;
+    _sampleIzin = null;
+    _sampleAlpa = null;
+    _sampleCatatanWali = null;
+  }
+
+  Future<void> _loadSampleStudentData(String studentId, String classId) async {
+    setState(() {
+      _isLoadingSampleData = true;
+    });
+    try {
+      final cleanYear = _schoolTahunAjaran.replaceAll('/', '-');
+      final cleanYearUnderscore = _schoolTahunAjaran.replaceAll('/', '_');
+      final reportDocId = '${studentId}_${cleanYear}_$_schoolSemester';
+
+      final results = await Future.wait([
+        // 0: Student doc
+        FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).collection('students').doc(studentId).get(),
+        // 1: Class doc
+        FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).collection('classes').doc(classId).get(),
+        // 2: Student Report doc
+        FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).collection('student_reports').doc(reportDocId).get(),
+        // 3: School subjects
+        FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).collection('subjects').get(),
+        // 4: Subject weights
+        FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('subject_weights')
+            .where('classId', isEqualTo: classId)
+            .where('tahunAjaran', isEqualTo: _schoolTahunAjaran)
+            .where('semester', isEqualTo: _schoolSemester)
+            .get(),
+        // 5: Grades
+        FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('grades')
+            .where('classId', isEqualTo: classId)
+            .where('tahunAjaran', isEqualTo: _schoolTahunAjaran)
+            .where('semester', isEqualTo: _schoolSemester)
+            .get(),
+        // 6: Descriptions
+        FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('subject_descriptions')
+            .where('studentId', isEqualTo: studentId)
+            .where('tahunAjaran', isEqualTo: _schoolTahunAjaran)
+            .where('semester', isEqualTo: _schoolSemester)
+            .get(),
+      ]);
+
+      final studentSnap = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+      final classSnap = results[1] as DocumentSnapshot<Map<String, dynamic>>;
+      final reportSnap = results[2] as DocumentSnapshot<Map<String, dynamic>>;
+      final subjectsSnap = results[3] as QuerySnapshot<Map<String, dynamic>>;
+      final weightsSnap = results[4] as QuerySnapshot<Map<String, dynamic>>;
+      final gradesSnap = results[5] as QuerySnapshot<Map<String, dynamic>>;
+      final descSnap = results[6] as QuerySnapshot<Map<String, dynamic>>;
+
+      // Fetch teacher doc
+      Map<String, dynamic>? teacherData;
+      final teacherId = classSnap.data()?['teacherId']?.toString();
+      if (teacherId != null && teacherId.isNotEmpty) {
+        final teacherSnap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('teachers')
+            .doc(teacherId)
+            .get();
+        if (teacherSnap.exists) {
+          teacherData = teacherSnap.data();
+        }
+      }
+
+      // Parse subject quotas
+      final Map<String, dynamic> subjectQuotas = classSnap.exists ? (classSnap.data()?['subjectQuotas'] as Map<String, dynamic>? ?? {}) : {};
+      final Set<String> classSubjectIds = subjectQuotas.keys.toSet();
+
+      // Map of subjectId to subject name & KKM
+      final Map<String, String> subjectIdToName = {};
+      final Map<String, int> subjectIdToKkm = {};
+      for (final sDoc in subjectsSnap.docs) {
+        final data = sDoc.data();
+        final id = data['subjectId']?.toString() ?? sDoc.id;
+        if (classSubjectIds.isNotEmpty && !classSubjectIds.contains(id)) {
+          continue;
+        }
+        subjectIdToName[id] = data['namaMapel']?.toString() ?? 'Mapel';
+        subjectIdToKkm[id] = data['kkm'] is int ? data['kkm'] as int : (int.tryParse(data['kkm']?.toString() ?? '75') ?? 75);
+      }
+
+      // Map of subjectId to Category weights
+      final Map<String, Map<String, double>> subjectWeightsMap = {};
+      for (final wDoc in weightsSnap.docs) {
+        final data = wDoc.data();
+        final sId = data['subjectId']?.toString() ?? '';
+        final wData = data['weights'] as Map<String, dynamic>?;
+        if (sId.isNotEmpty && wData != null) {
+          final Map<String, double> parsed = {};
+          wData.forEach((k, v) {
+            if (v is num) {
+              parsed[k] = v.toDouble();
+            } else if (v != null) {
+              parsed[k] = double.tryParse(v.toString()) ?? 20.0;
+            }
+          });
+          subjectWeightsMap[sId] = parsed;
+        }
+      }
+
+      // Parse descriptions
+      final Map<String, String> descMap = {};
+      for (final dDoc in descSnap.docs) {
+        final data = dDoc.data();
+        final String? sId = data['subjectId'] as String?;
+        final String? desc = data['deskripsi'] as String?;
+        if (sId != null && desc != null) {
+          descMap[sId] = desc;
+        }
+      }
+
+      // Parse grades and calculate final score per subject
+      final Map<String, Map<String, List<Map<String, dynamic>>>> subjectCategoryGrades = {};
+      for (final gDoc in gradesSnap.docs) {
+        final data = gDoc.data();
+        final sId = data['subjectId']?.toString() ?? '';
+        final category = data['category']?.toString() ?? 'Tugas';
+        final scores = data['scores'] as Map<String, dynamic>? ?? {};
+        if (sId.isEmpty) continue;
+
+        subjectCategoryGrades.putIfAbsent(sId, () => {});
+        subjectCategoryGrades[sId]!.putIfAbsent(category, () => []);
+
+        final fallbackKey = '${studentId}_${cleanYearUnderscore}_$_schoolSemester';
+        final detail = scores[studentId] ?? scores[fallbackKey];
+        subjectCategoryGrades[sId]![category]!.add({
+          studentId: detail,
+        });
+      }
+
+      final List<List<String>> academicRows = [];
+      int index = 1;
+      subjectIdToName.forEach((sId, sName) {
+        final catGrades = subjectCategoryGrades[sId] ?? {};
+        final Map<String, double> categoryAverages = {};
+
+        catGrades.forEach((category, listScores) {
+          double sum = 0.0;
+          int count = 0;
+          for (final scores in listScores) {
+            final detail = scores[studentId];
+            if (detail != null && detail is Map) {
+              final scoreVal = (detail['score'] ?? 0.0) as num;
+              sum += scoreVal.toDouble();
+              count++;
+            }
+          }
+          if (count > 0) {
+            categoryAverages[category] = sum / count;
+          }
+        });
+
+        final weights = subjectWeightsMap[sId] ?? {
+          'Tugas': 20.0,
+          'Kuis': 20.0,
+          'Ulangan Harian': 20.0,
+          'UTS': 20.0,
+          'UAS': 20.0,
+        };
+
+        double weightedSum = 0.0;
+        final double totalWeightSum = weights.values.fold(0.0, (total, w) => total + w);
+        categoryAverages.forEach((category, avg) {
+          final w = weights[category] ?? 20.0;
+          weightedSum += avg * w;
+        });
+
+        final double finalScore = totalWeightSum > 0 ? weightedSum / totalWeightSum : 0.0;
+        final String predikat = _getPredikatForScore(finalScore);
+
+        academicRows.add([
+          index.toString(),
+          sName,
+          (subjectIdToKkm[sId] ?? 75).toString(),
+          finalScore.toStringAsFixed(0),
+          predikat,
+          descMap[sId] ?? '-',
+        ]);
+        index++;
+      });
+
+      // Attitude Aspects
+      final List<List<String>> attitudeRows = [];
+      List<dynamic>? savedAspects = reportSnap.data()?['attitudeAspects'] as List<dynamic>?;
+      if (savedAspects != null && savedAspects.isNotEmpty) {
+        for (final aspect in savedAspects) {
+          final m = aspect as Map<String, dynamic>;
+          attitudeRows.add([
+            m['name']?.toString() ?? '',
+            m['predikat']?.toString() ?? 'B',
+            m['deskripsi']?.toString() ?? '',
+          ]);
+        }
+      } else {
+        final spiritualPred = reportSnap.data()?['sikapSpiritualPredikat'] ?? 'B';
+        final spiritualDesc = reportSnap.data()?['sikapSpiritualDeskripsi'] ?? '';
+        final sosialPred = reportSnap.data()?['sikapSosialPredikat'] ?? 'B';
+        final sosialDesc = reportSnap.data()?['sikapSosialDeskripsi'] ?? '';
+        attitudeRows.add(['Spiritual', spiritualPred, spiritualDesc]);
+        attitudeRows.add(['Sosial', sosialPred, sosialDesc]);
+      }
+
+      // Calculate attendance using _raporService
+      final int sakit = reportSnap.data()?['sakit'] ?? 0;
+      final int izin = reportSnap.data()?['izin'] ?? 0;
+      final int alpa = reportSnap.data()?['alpa'] ?? 0;
+      final String catatanWali = reportSnap.data()?['catatanWali'] ?? '';
+
+      setState(() {
+        _sampleStudentName = studentSnap.data()?['nama'] ?? 'Murid';
+        _sampleStudentNis = studentSnap.data()?['nis'] ?? '-';
+        _sampleStudentNisn = studentSnap.data()?['nisn'] ?? '-';
+        _sampleClassName = classSnap.data()?['namaKelas'] ?? 'Kelas';
+        _sampleTeacherName = teacherData?['nama'] ?? 'Wali Kelas';
+        _sampleTeacherNip = teacherData?['nip'] ?? '';
+        _sampleAcademicRows = academicRows;
+        _sampleAttitudeRows = attitudeRows;
+        _sampleSakit = sakit;
+        _sampleIzin = izin;
+        _sampleAlpa = alpa;
+        _sampleCatatanWali = catatanWali;
+        _isLoadingSampleData = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading sample student data: $e');
+      setState(() {
+        _isLoadingSampleData = false;
+      });
+    }
+  }
+
+  String _getPredikatForScore(double scoreVal) {
+    final gt = _gradeTemplates;
+    if (scoreVal >= (gt['aplus'] ?? 95)) {
+      return 'A+';
+    } else if (scoreVal >= (gt['a'] ?? 90)) {
+      return 'A';
+    } else if (scoreVal >= (gt['aminus'] ?? 85)) {
+      return 'A-';
+    } else if (scoreVal >= (gt['bplus'] ?? 80)) {
+      return 'B+';
+    } else if (scoreVal >= (gt['b'] ?? 75)) {
+      return 'B';
+    } else if (scoreVal >= (gt['bminus'] ?? 70)) {
+      return 'B-';
+    } else if (scoreVal >= (gt['cplus'] ?? 65)) {
+      return 'C+';
+    } else if (scoreVal >= (gt['c'] ?? 60)) {
+      return 'C';
+    } else if (scoreVal >= (gt['cminus'] ?? 55)) {
+      return 'C-';
+    } else {
+      return 'D';
     }
   }
 
@@ -360,7 +706,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                _buildPreviewSection(isDark, cardBgColor, cardBorderColor),
+                                _buildPreviewSection(isDark, cardBgColor, cardBorderColor, titleColor, subTextColor),
                                 const SizedBox(height: 24),
                                 _buildHeaderSection(isDark, cardBgColor, cardBorderColor, inputFillColor, titleColor, subTextColor),
                                 const SizedBox(height: 20),
@@ -385,8 +731,10 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     );
   }
 
+
+
   // 1. Live Layout Preview
-  Widget _buildPreviewSection(bool isDark, Color cardBg, Color cardBorder) {
+  Widget _buildPreviewSection(bool isDark, Color cardBg, Color cardBorder, Color titleColor, Color subText) {
     final primaryColor = _parseHexColor(_settings.primaryColorHex);
     final secondaryColor = _parseHexColor(_settings.secondaryColorHex);
 
@@ -408,10 +756,86 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                 AppLocalization.isIndonesian
                     ? 'Preview Tata Letak Rapor (Miniatur A4)'
                     : 'Report Layout Preview (A4 Miniature)',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.03) : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: cardBorder),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedSampleClassId,
+                    hint: Text(
+                      AppLocalization.isIndonesian ? 'Pilih Kelas Sample' : 'Select Sample Class',
+                      style: TextStyle(fontSize: 12, color: subText),
+                    ),
+                    dropdownColor: isDark ? Colors.grey.shade900 : Colors.white,
+                    style: TextStyle(color: titleColor, fontSize: 12),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _classList.map((doc) {
+                      final data = doc.data();
+                      final className = data['namaKelas'] ?? 'Kelas';
+                      return DropdownMenuItem<String>(
+                        value: doc.id,
+                        child: Text(className),
+                      );
+                    }).toList(),
+                    onChanged: _onSampleClassChanged,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedSampleStudentId,
+                    hint: Text(
+                      AppLocalization.isIndonesian ? 'Pilih Murid Sample' : 'Select Sample Student',
+                      style: TextStyle(fontSize: 12, color: subText),
+                    ),
+                    dropdownColor: isDark ? Colors.grey.shade900 : Colors.white,
+                    style: TextStyle(color: titleColor, fontSize: 12),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _studentList.map((doc) {
+                      final data = doc.data();
+                      final studentName = data['nama'] ?? 'Murid';
+                      return DropdownMenuItem<String>(
+                        value: doc.id,
+                        child: Text(studentName),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _selectedSampleStudentId = val;
+                        });
+                        _loadSampleStudentData(val, _selectedSampleClassId!);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_isLoadingSampleData)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: LinearProgressIndicator(),
+            ),
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -703,10 +1127,10 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
       'info': Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _previewInfoRow('Nama Siswa', 'Fadhly Syahputra'),
-          _previewInfoRow('NISN / NIS', '202110370311419 / 1419'),
-          _previewInfoRow('Kelas', 'X IPA 1'),
-          _previewInfoRow('Sekolah', _schoolNameController.text.isEmpty ? 'NAMA SEKOLAH' : _schoolNameController.text),
+          _previewInfoRow('Nama Siswa', _sampleStudentName ?? 'Fadhly Syahputra'),
+          _previewInfoRow('NISN', _sampleStudentNisn ?? '202110370311419'),
+          _previewInfoRow('NIS', _sampleStudentNis ?? '1419'),
+          _previewInfoRow('Kelas', _sampleClassName ?? 'X IPA 1'),
         ],
       ),
       'attitude': Column(
@@ -717,7 +1141,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           const SizedBox(height: 4),
           _previewTable(
             headers: const ['Aspek Sikap', 'Predikat', 'Deskripsi / Keterangan'],
-            rows: const [
+            rows: _sampleAttitudeRows ?? const [
               ['Spiritual', 'B', 'Menunjukkan sikap spiritual yang baik.'],
               ['Sosial', 'B', 'Menunjukkan sikap sosial yang baik.'],
             ],
@@ -734,7 +1158,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           const SizedBox(height: 4),
           _ResizablePreviewTable(
             headers: const ['No', 'Mata Pelajaran', 'KKM', 'Nilai', 'Predikat', 'Deskripsi Pencapaian'],
-            rows: const [
+            rows: _sampleAcademicRows ?? const [
               ['1', 'Bahasa Indonesia', '75', '82', 'B', 'Sudah baik dalam memahami teks.'],
               ['2', 'Matematika', '75', '78', 'B', 'Memahami konsep dasar dengan baik.'],
               ['3', 'Bahasa Inggris', '75', '80', 'B', 'Mampu berkomunikasi dengan baik.'],
@@ -789,10 +1213,10 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           const SizedBox(height: 4),
           _ResizablePreviewTable(
             headers: const ['Alasan Absensi', 'Jumlah'],
-            rows: const [
-              ['1. Sakit (S)', '0 hari'],
-              ['2. Izin (I)', '0 hari'],
-              ['3. Tanpa Keterangan (A)', '0 hari'],
+            rows: [
+              ['1. Sakit (S)', '${_sampleSakit ?? 0} hari'],
+              ['2. Izin (I)', '${_sampleIzin ?? 0} hari'],
+              ['3. Tanpa Keterangan (A)', '${_sampleAlpa ?? 0} hari'],
             ],
             primaryColor: primaryColor,
             widths: _settings.attendanceColWidths,
@@ -819,7 +1243,9 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              'Siswa menunjukkan perkembangan yang baik. Terus semangat dalam belajar!',
+              _sampleCatatanWali != null && _sampleCatatanWali!.isNotEmpty
+                  ? _sampleCatatanWali!
+                  : 'Siswa menunjukkan perkembangan yang baik. Terus semangat dalam belajar!',
               style: TextStyle(fontSize: 8, color: Colors.grey.shade700),
             ),
           ),
@@ -847,8 +1273,8 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
       ),
       'sig_wali': _buildSigColPreview(
         title: 'Wali Kelas,',
-        name: 'Ahmad Fauzan, S.Pd',
-        nip: '',
+        name: _sampleTeacherName ?? 'Ahmad Fauzan, S.Pd',
+        nip: _sampleTeacherNip != null && _sampleTeacherNip!.isNotEmpty ? 'NIP. $_sampleTeacherNip' : '',
       ),
       'sig_kepsek': _buildSigColPreview(
         title: 'Kepala Sekolah,',
@@ -1235,7 +1661,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     final int gridY = pos[1];
     // Guard: ensure width is never 0; kop must span at least 10 cols from col 0
     int gridW = pos[2] <= 0 ? 12 : pos[2];
-    if (id == 'kop' || id == 'info' || id == 'academic') {
+    if (id == 'kop' || id == 'academic') {
       gridX = 0;
       gridW = 12;
     }
@@ -1750,6 +2176,8 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
             onPick: () => _pickLogo(isLeft: true),
             onRemove: () => _removeLogo(isLeft: true),
             isDark: isDark,
+            titleColor: titleColor,
+            subText: subText,
           ),
           const Divider(height: 24),
           // Logo Kanan
@@ -1785,6 +2213,8 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
             onPick: () => _pickLogo(isLeft: false),
             onRemove: () => _removeLogo(isLeft: false),
             isDark: isDark,
+            titleColor: titleColor,
+            subText: subText,
           ),
           const Divider(height: 24),
           // Watermark
@@ -1797,7 +2227,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                   children: [
                     Text(
                       AppLocalization.isIndonesian ? 'Gunakan Watermark Background' : 'Use Background Watermark',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -1851,6 +2281,8 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     required VoidCallback onPick,
     required VoidCallback onRemove,
     required bool isDark,
+    required Color titleColor,
+    required Color subText,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1859,7 +2291,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor)),
               const SizedBox(height: 6),
               Row(
                 children: [
@@ -1873,7 +2305,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                     showLogo
                         ? (AppLocalization.isIndonesian ? 'Ditampilkan' : 'Visible')
                         : (AppLocalization.isIndonesian ? 'Disembunyikan' : 'Hidden'),
-                    style: const TextStyle(fontSize: 12),
+                    style: TextStyle(fontSize: 12, color: subText),
                   ),
                 ],
               ),
@@ -1949,6 +2381,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           _buildToggleRow(
             title: AppLocalization.isIndonesian ? 'Tabel Sikap Spiritual (Bagian A.1)' : 'Spiritual Attitude Table (Part A.1)',
             value: _settings.showSpiritualAttitude,
+            titleColor: titleColor,
             onChanged: (val) {
               setState(() {
                 _settings = RaporPdfSettings(
@@ -1979,6 +2412,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           _buildToggleRow(
             title: AppLocalization.isIndonesian ? 'Tampilkan Keterangan Predikat Nilai' : 'Show Grade Predicate Legend',
             value: _settings.showPredikat,
+            titleColor: titleColor,
             onChanged: (val) {
               setState(() {
                 _settings = RaporPdfSettings(
@@ -2009,6 +2443,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           _buildToggleRow(
             title: AppLocalization.isIndonesian ? 'Rekap Absensi Ketidakhadiran (Bagian C)' : 'Attendance Recap (Part C)',
             value: _settings.showAttendance,
+            titleColor: titleColor,
             onChanged: (val) {
               setState(() {
                 _settings = RaporPdfSettings(
@@ -2039,6 +2474,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           _buildToggleRow(
             title: AppLocalization.isIndonesian ? 'Catatan Wali Kelas (Bagian D)' : 'Homeroom Teacher Notes (Part D)',
             value: _settings.showNotes,
+            titleColor: titleColor,
             onChanged: (val) {
               setState(() {
                 _settings = RaporPdfSettings(
@@ -2070,11 +2506,21 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     );
   }
 
-  Widget _buildToggleRow({required String title, required bool value, required ValueChanged<bool> onChanged}) {
+  Widget _buildToggleRow({
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    required Color titleColor,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13))),
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: titleColor),
+          ),
+        ),
         Switch(
           value: value,
           onChanged: onChanged,
@@ -2133,12 +2579,14 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           ),
           const SizedBox(height: 12),
           TextField(
+            style: TextStyle(color: titleColor, fontSize: 13),
             decoration: InputDecoration(
               labelText: AppLocalization.isIndonesian ? 'Teks Tanggal (mis: Malang)' : 'Date Text (e.g.: Malang)',
+              labelStyle: TextStyle(color: subText, fontSize: 12),
               hintText: AppLocalization.isIndonesian
                   ? 'Kosongkan untuk otomatis (Kota, DD Bulan YYYY)'
                   : 'Leave empty for auto (City, DD Month YYYY)',
-              labelStyle: const TextStyle(fontSize: 12),
+              hintStyle: TextStyle(color: subText.withOpacity(0.5), fontSize: 12),
               fillColor: inputFill,
               filled: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -2158,32 +2606,32 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           const SizedBox(height: 8),
           Text(
             AppLocalization.isIndonesian ? 'Tampilkan Elemen Tanda Tangan' : 'Show Signature Elements',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: titleColor),
           ),
           const SizedBox(height: 8),
           _buildSigToggle(
             label: AppLocalization.isIndonesian ? 'Tanggal / Kota' : 'Date / City',
             value: _settings.showSigDate,
             onChanged: (v) => setState(() => _settings = _settings.copyWith(showSigDate: v)),
-            isDark: isDark,
+            titleColor: titleColor,
           ),
           _buildSigToggle(
             label: AppLocalization.isIndonesian ? 'Orang Tua / Wali Murid' : 'Parent / Guardian',
             value: _settings.showSigOrtu,
             onChanged: (v) => setState(() => _settings = _settings.copyWith(showSigOrtu: v)),
-            isDark: isDark,
+            titleColor: titleColor,
           ),
           _buildSigToggle(
             label: AppLocalization.isIndonesian ? 'Wali Kelas' : 'Homeroom Teacher',
             value: _settings.showSigWali,
             onChanged: (v) => setState(() => _settings = _settings.copyWith(showSigWali: v)),
-            isDark: isDark,
+            titleColor: titleColor,
           ),
           _buildSigToggle(
             label: AppLocalization.isIndonesian ? 'Kepala Sekolah' : 'Headmaster',
             value: _settings.showSigKepsek,
             onChanged: (v) => setState(() => _settings = _settings.copyWith(showSigKepsek: v)),
-            isDark: isDark,
+            titleColor: titleColor,
           ),
         ],
       ),
@@ -2194,14 +2642,14 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
     required String label,
     required bool value,
     required ValueChanged<bool> onChanged,
-    required bool isDark,
+    required Color titleColor,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13)),
+          Text(label, style: TextStyle(fontSize: 13, color: titleColor)),
           Switch(
             value: value,
             onChanged: onChanged,
@@ -2240,7 +2688,7 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
           // Tema Warna primer
           Text(
             AppLocalization.isIndonesian ? 'Tema Warna (Border & Judul)' : 'Color Theme (Borders & Headings)',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: titleColor),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -2315,15 +2763,19 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
             children: [
               Text(
                 AppLocalization.isIndonesian ? 'Ukuran Font Konten PDF' : 'PDF Content Font Size',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: titleColor),
               ),
               DropdownButton<int>(
                 value: _settings.fontSize,
                 dropdownColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+                style: TextStyle(color: titleColor, fontSize: 13),
                 items: [8, 9, 10, 11, 12].map((size) {
                   return DropdownMenuItem<int>(
                     value: size,
-                    child: Text('$size pt'),
+                    child: Text(
+                      '$size pt',
+                      style: TextStyle(color: titleColor),
+                    ),
                   );
                 }).toList(),
                 onChanged: (val) {

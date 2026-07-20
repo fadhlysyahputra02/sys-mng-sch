@@ -355,7 +355,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         } else if (targetType == 'umum') {
                           keep = true;
                         } else if (targetType == 'kelas' && _teacherClassIds.contains(targetId)) {
-                          keep = true;
+                          if (data['senderRole'] == 'parent') {
+                            keep = true;
+                          }
                         } else if (targetType == 'guru' && (targetId == '' || targetId == _teacherDocId)) {
                           keep = true;
                         } else if (targetType == 'murid' && _waliClassIds.contains(data['targetClassId'] ?? '')) {

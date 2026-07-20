@@ -33,6 +33,7 @@ export const onNotificationCreated = onDocumentCreated(
     const targetClassId: string = data.targetClassId ?? "";
     const senderId: string = data.senderId ?? "";
     const senderName: string = data.senderName ?? "Sistem";
+    const senderRole: string = data.senderRole ?? "";
     const category: string = data.category ?? "";
 
     console.log(
@@ -120,14 +121,20 @@ export const onNotificationCreated = onDocumentCreated(
       topics = [`school_${schoolId}_umum`];
     } else if (targetType === "kelas") {
       // targetId = classId dari kelas yang dipilih
-      topics = [`school_${schoolId}_class_${targetId}`];
+      if (senderRole === "parent") {
+        // Jika dari orang tua, tujukan ke guru (pengajuan izin)
+        topics = [`school_${schoolId}_class_${targetId}_teacher`];
+      } else {
+        // Jika dari guru/admin/TU, tujukan ke murid/orang tua di kelas tersebut
+        topics = [`school_${schoolId}_class_${targetId}_student`];
+      }
     } else if (targetType === "guru") {
       // Kirim ke semua guru di sekolah ini
       topics = [`school_${schoolId}_role_teacher`];
     } else if (targetType === "murid") {
       // Kirim ke topic kelas dari murid tersebut
       const classId = targetClassId || targetId;
-      topics = [`school_${schoolId}_class_${classId}`];
+      topics = [`school_${schoolId}_class_${classId}_student`];
     }
 
     if (topics.length === 0) {

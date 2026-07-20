@@ -7,6 +7,7 @@ import '../../../core/models/user_model.dart';
 import '../../../core/services/semester_state_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/user_service.dart';
+import '../../../core/services/push_notification_service.dart';
 import '../../../core/localization/app_localization.dart';
 import '../../students/data/student_service.dart';
 import '../../authentication/widgets/auth_background.dart';
@@ -89,6 +90,9 @@ class _SplashPageState extends State<SplashPage>
       if (schoolId.isNotEmpty) {
         SemesterStateService.listen(schoolId);
       }
+
+      // ✅ Registrasi & update topik FCM saat startup (sinkronisasi otomatis)
+      PushNotificationService().registerUserDevice();
 
       // ✅ Sinkronisasi bahasa lokal ke Firestore jika belum ada/berbeda
       final localLang = AppLocalization.currentLocale.value;

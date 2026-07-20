@@ -311,6 +311,7 @@ class _TeacherRaporPageState extends State<TeacherRaporPage> {
                                                   studentId: studentId,
                                                   studentName: name,
                                                   studentNis: nis,
+                                                  studentNisn: studentData['nisn'] ?? '-',
                                                 ));
                                           },
                                           borderRadius: BorderRadius.circular(24),
