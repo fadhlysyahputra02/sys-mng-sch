@@ -6,6 +6,7 @@ import '../../authentication/widgets/auth_background.dart';
 import '../../schools/pages/schedule/Service/class_schedule_service.dart';
 import '../../chat/chat_room_page.dart';
 import '../../chat/chat_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 class _ClassTeacher {
   final String teacherId;
@@ -80,15 +81,20 @@ class _ParentChatListPageState extends State<ParentChatListPage> {
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.lock_rounded, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+              const Icon(Icons.lock_rounded, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked',
+                style: const TextStyle(color: Colors.amber),
+              ),
             ],
           ),
           content: Text(
-            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            AppLocalization.isIndonesian
+                ? 'Sekolah belum berlangganan untuk mengaktifkan fitur ini.'
+                : 'The school has not subscribed to activate this feature.',
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -99,7 +105,10 @@ class _ParentChatListPageState extends State<ParentChatListPage> {
                   Get.offAllNamed('/parent'); // Exit to Dashboard
                 }
               },
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+              child: Text(
+                AppLocalization.isIndonesian ? 'Tutup' : 'Close',
+                style: const TextStyle(color: Color(0xFF6366F1)),
+              ),
             ),
           ],
         );
@@ -197,7 +206,7 @@ class _ParentChatListPageState extends State<ParentChatListPage> {
         () => _ClassTeacher(
           teacherId: teacherId,
           teacherName: teacherName,
-          subject: 'Wali Kelas',
+          subject: AppLocalization.isIndonesian ? 'Wali Kelas' : 'Class Teacher',
         ),
       );
     }
@@ -264,7 +273,7 @@ class _ParentChatListPageState extends State<ParentChatListPage> {
                     ),
                   ),
                   title: Text(
-                    'Chat Guru',
+                    AppLocalization.isIndonesian ? 'Chat Guru' : 'Teacher Chat',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -285,7 +294,9 @@ class _ParentChatListPageState extends State<ParentChatListPage> {
                           setState(() => _searchQuery = v.toLowerCase().trim()),
                       style: TextStyle(color: textColor, fontSize: 14),
                       decoration: InputDecoration(
-                        hintText: 'Cari guru di kelas ${widget.className}...',
+                        hintText: AppLocalization.isIndonesian
+                            ? 'Cari guru di kelas ${widget.className}...'
+                            : 'Search teacher in class ${widget.className}...',
                         hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                         prefixIcon: Icon(
                           Icons.search_rounded,
@@ -391,7 +402,9 @@ class _ParentChatListPageState extends State<ParentChatListPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Belum ada riwayat chat.\nCari guru pengajar anak Anda untuk memulai.',
+                    AppLocalization.isIndonesian
+                        ? 'Belum ada riwayat chat.\nCari guru pengajar anak Anda untuk memulai.'
+                        : 'No chat history yet.\nSearch for your child\'s teacher to start.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: subTextColor, fontSize: 14),
                   ),
@@ -599,7 +612,9 @@ class _ParentChatListPageState extends State<ParentChatListPage> {
                 hasScrollBody: false,
                 child: Center(
                   child: Text(
-                    'Tidak ada guru ditemukan di kelas ${widget.className}.',
+                    AppLocalization.isIndonesian
+                        ? 'Tidak ada guru ditemukan di kelas ${widget.className}.'
+                        : 'No teachers found in class ${widget.className}.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: subTextColor, fontSize: 14),
                   ),

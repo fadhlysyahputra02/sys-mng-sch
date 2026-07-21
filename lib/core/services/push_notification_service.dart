@@ -15,6 +15,7 @@ import 'package:sys_mng_school/features/exams/pages/student_exam_participation_p
 import 'package:sys_mng_school/features/exams/pages/teacher_proctor_dashboard_page.dart';
 import 'package:sys_mng_school/features/students/pages/student_grades_page.dart';
 import 'package:sys_mng_school/features/parent/pages/parent_grades_page.dart';
+import 'package:sys_mng_school/features/chat/chat_room_page.dart';
 
 // Helper platform-safe: gunakan defaultTargetPlatform (tidak pakai dart:io Platform)
 // sehingga aman dijalankan di Flutter Web.
@@ -37,6 +38,8 @@ class PushNotificationService {
   static final PushNotificationService _instance = PushNotificationService._internal();
   factory PushNotificationService() => _instance;
   PushNotificationService._internal();
+
+  static RemoteMessage? pendingNotification;
 
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -136,10 +139,7 @@ class PushNotificationService {
     // 5. Handle clicks ketika aplikasi mati (terminated)
     final initialMessage = await _firebaseMessaging.getInitialMessage();
     if (initialMessage != null) {
-      debugPrint('FCM App opened from terminated state by notification click: ${initialMessage.messageId}');
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        _handleNotificationClick(initialMessage);
-      });
+      pendingNotification = initialMessage;
     }
 
     _initialized = true;
@@ -389,7 +389,23 @@ class PushNotificationService {
     }
   }
 
+  void checkPendingNotification() {
+    if (pendingNotification != null) {
+      final msg = pendingNotification!;
+      pendingNotification = null;
+      debugPrint('FCM: Processing pending notification click: ${msg.messageId}');
+      _handleNotificationClick(msg);
+    }
+  }
+
   void _handleNotificationClick(RemoteMessage message) async {
+    final user = SessionService.currentUser;
+    if (user == null) {
+      pendingNotification = message;
+      debugPrint('FCM: Session not ready, saving notification click as pending.');
+      return;
+    }
+
     final data = message.data;
     final category = data['category'];
     
@@ -511,9 +527,81 @@ class PushNotificationService {
           }
         }
       }
+    } else if (category == 'chat') {
+      final chatRoomId = data['chatRoomId'] as String?;
+      final isParentChatStr = data['isParentChat'];
+      final isParentChat = isParentChatStr == 'true' || isParentChatStr == true;
+      final otherUserName = data['senderName'] ?? 'Chat';
+
+      final user = SessionService.currentUser;
+      if (user != null && chatRoomId != null && chatRoomId.isNotEmpty) {
+        if (user.role == 'student') {
+          final studentDoc = await StudentService().getStudentDocByUid(user.schoolId, user.uid);
+          if (studentDoc != null && studentDoc.exists) {
+            Get.to(() => ChatRoomPage(
+              schoolId: user.schoolId,
+              chatRoomId: chatRoomId,
+              currentUserId: studentDoc.id,
+              currentUserName: studentDoc.data()?['nama'] ?? 'Murid',
+              currentUserRole: 'student',
+              otherUserName: otherUserName,
+              isParentChat: isParentChat,
+            ));
+            return;
+          }
+        } else if (user.role == 'parent') {
+          final parentDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          if (parentDoc.exists) {
+            Get.to(() => ChatRoomPage(
+              schoolId: user.schoolId,
+              chatRoomId: chatRoomId,
+              currentUserId: user.uid,
+              currentUserName: parentDoc.data()?['name'] ?? 'Orang Tua',
+              currentUserRole: 'parent',
+              otherUserName: otherUserName,
+              isParentChat: isParentChat,
+            ));
+            return;
+          }
+        } else if (user.role == 'teacher') {
+          final teacherDoc = await TeacherService().getTeacherByUid(user.schoolId, user.uid);
+          if (teacherDoc != null && teacherDoc.exists) {
+            final teacherId = teacherDoc.data()['teacherId'] ?? teacherDoc.id;
+            Get.to(() => ChatRoomPage(
+              schoolId: user.schoolId,
+              chatRoomId: chatRoomId,
+              currentUserId: teacherId,
+              currentUserName: teacherDoc.data()['nama'] ?? 'Guru',
+              currentUserRole: 'teacher',
+              otherUserName: otherUserName,
+              isParentChat: isParentChat,
+            ));
+            return;
+          }
+        }
+      }
     }
     
-    // Default fallback
-    Get.toNamed(AppRoutes.notifications);
+    // Default fallback (General Notification routing to specific tabs)
+    final targetType = data['targetType'];
+    final senderRole = data['senderRole'];
+    
+    int initialIndex = 0; // Default to 'Semua (Umum)' - Index 0
+    if (targetType == 'kelas') {
+      initialIndex = 1; // Class tab - Index 1
+    } else if (targetType == 'murid') {
+      if (senderRole == 'teacher') {
+        initialIndex = 2; // Teacher tab - Index 2
+      } else {
+        initialIndex = 3; // Student tab - Index 3
+      }
+    } else if (targetType == 'guru') {
+      initialIndex = 2; // Teacher tab - Index 2
+    }
+
+    Get.toNamed(
+      AppRoutes.notifications,
+      arguments: {'initialIndex': initialIndex},
+    );
   }
 }

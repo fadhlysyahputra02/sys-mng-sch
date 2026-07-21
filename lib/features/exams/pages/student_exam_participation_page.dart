@@ -10,6 +10,7 @@ import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_event_model.dart';
 import '../services/exam_session_service.dart';
 import '../models/exam_model.dart';
+import '../services/exam_service.dart';
 import 'student_take_exam_page.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -1213,6 +1214,13 @@ class _ResolvedSessionTableRowState extends State<ResolvedSessionTableRow> {
                                 }
 
                                 if (isExamTimeOver) {
+                                  ExamService().checkAndAutoSubmitExpiredSemesterExam(
+                                    schoolId: widget.schoolId,
+                                    studentId: widget.studentDocId,
+                                    studentName: widget.studentName,
+                                    exam: overriddenExam,
+                                    sessionId: session.id,
+                                  );
                                   return Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(

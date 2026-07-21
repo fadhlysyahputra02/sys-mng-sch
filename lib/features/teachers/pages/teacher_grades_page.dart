@@ -71,9 +71,18 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
         }
       }
 
+      // Sort tempClassMap by className alphabetically (A-Z)
+      final sortedEntries = tempClassMap.entries.toList()
+        ..sort((a, b) {
+          final nameA = (a.value['className'] ?? '').toString().toLowerCase();
+          final nameB = (b.value['className'] ?? '').toString().toLowerCase();
+          return nameA.compareTo(nameB);
+        });
+      final Map<String, Map<String, dynamic>> sortedClassMap = Map.fromEntries(sortedEntries);
+
       if (mounted) {
         setState(() {
-          _classMap = tempClassMap;
+          _classMap = sortedClassMap;
           _tahunAjaran = schoolData?['tahunAjaran'];
           _activeSemester = schoolData?['semester'];
           _isLoadingSchedules = false;
@@ -379,7 +388,12 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                         value: null,
                                         child: Text(AppLocalization.isIndonesian ? 'Semua Kelas' : 'All Classes'),
                                       ),
-                                      ..._classMap.keys.map((classId) {
+                                      ...(_classMap.keys.toList()
+                                        ..sort((a, b) {
+                                          final nameA = (_classMap[a]?['className'] ?? '').toString().toLowerCase();
+                                          final nameB = (_classMap[b]?['className'] ?? '').toString().toLowerCase();
+                                          return nameA.compareTo(nameB);
+                                        })).map((classId) {
                                         return DropdownMenuItem<String>(
                                           value: classId,
                                           child: Text(_classMap[classId]?['className']?.toString() ?? ''),
@@ -428,12 +442,14 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
                                           }
                                         }
                                       }
+                                      final sortedSubjectIds = subjectsList.keys.toList()
+                                        ..sort((a, b) => (subjectsList[a] ?? '').toLowerCase().compareTo((subjectsList[b] ?? '').toLowerCase()));
                                       return [
                                         DropdownMenuItem<String>(
                                           value: null,
                                           child: Text(AppLocalization.isIndonesian ? 'Semua Mapel' : 'All Subjects'),
                                         ),
-                                        ...subjectsList.keys.map((subjectId) {
+                                        ...sortedSubjectIds.map((subjectId) {
                                           return DropdownMenuItem<String>(
                                             value: subjectId,
                                             child: Text(subjectsList[subjectId] ?? ''),
@@ -963,7 +979,12 @@ class _WeightsConfigDialogState extends State<_WeightsConfigDialog> {
                             : ListView(
                                 shrinkWrap: true,
                                 padding: EdgeInsets.zero,
-                                children: widget.classMap.keys.map((classId) {
+                                children: (widget.classMap.keys.toList()
+                                  ..sort((a, b) {
+                                    final nameA = (widget.classMap[a]?['className'] ?? '').toString().toLowerCase();
+                                    final nameB = (widget.classMap[b]?['className'] ?? '').toString().toLowerCase();
+                                    return nameA.compareTo(nameB);
+                                  })).map((classId) {
                                   final className = widget.classMap[classId]?['className']?.toString() ?? '';
                                   final isSelected = _selectedClassIds.contains(classId);
                                   return CheckboxListTile(

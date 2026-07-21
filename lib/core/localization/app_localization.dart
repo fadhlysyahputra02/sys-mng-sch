@@ -218,7 +218,7 @@ class AppLocalization {
   static String get noActiveSubjectNow => isIndonesian ? 'Tidak ada mata pelajaran aktif di jam sekarang.' : 'No active subjects at the current time.';
   static String get openQrAttendance => isIndonesian ? 'BUKA PRESENSI QR & SCAN' : 'OPEN QR ATTENDANCE & SCAN';
   static String get noTeachingScheduleDate => isIndonesian ? 'Tidak ada jadwal mengajar untuk hari/tanggal ini.' : 'No teaching schedule for this day/date.';
-  static String get studentsPresent => isIndonesian ? 'Murid Hadir' : 'Students Present';
+  static String get studentsPresent => isIndonesian ? 'Murid Ter-absen' : 'Students attendance is taken';
   static String get serverTimeLabel => isIndonesian ? 'Waktu Server' : 'Server Time';
   static String get noScheduleForRecap => isIndonesian ? 'Tidak ada jadwal mengajar untuk mengunduh rekap.' : 'No teaching schedule to download recap.';
   static String get featureLocked => isIndonesian ? 'Fitur Terkunci' : 'Feature Locked';

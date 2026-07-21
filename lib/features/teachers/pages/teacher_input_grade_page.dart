@@ -210,9 +210,18 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
         }
       }
 
+      // Sort tempClassMap by className alphabetically (A-Z)
+      final sortedEntries = tempClassMap.entries.toList()
+        ..sort((a, b) {
+          final nameA = (a.value['className'] ?? '').toString().toLowerCase();
+          final nameB = (b.value['className'] ?? '').toString().toLowerCase();
+          return nameA.compareTo(nameB);
+        });
+      final Map<String, Map<String, dynamic>> sortedClassMap = Map.fromEntries(sortedEntries);
+
       if (mounted) {
         setState(() {
-          _classMap = tempClassMap;
+          _classMap = sortedClassMap;
           if (_tahunAjaran == null) {
             _tahunAjaran = schoolData?['tahunAjaran']?.toString();
           }
@@ -516,12 +525,14 @@ class _TeacherInputGradePageState extends State<TeacherInputGradePage> {
                                               child: Text(_selectedSubjectName ?? ''),
                                             )
                                           ]
-                                        : subjectsList.keys.map((subjectId) {
-                                            return DropdownMenuItem(
-                                              value: subjectId,
-                                              child: Text(subjectsList[subjectId] ?? ''),
-                                            );
-                                          }).toList(),
+                                        : (subjectsList.keys.toList()
+                                            ..sort((a, b) => (subjectsList[a] ?? '').toLowerCase().compareTo((subjectsList[b] ?? '').toLowerCase())))
+                                            .map((subjectId) {
+                                              return DropdownMenuItem(
+                                                value: subjectId,
+                                                child: Text(subjectsList[subjectId] ?? ''),
+                                              );
+                                            }).toList(),
                                     onChanged: _isEditing
                                         ? null
                                         : (val) {

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_localization.dart';
 
 class ParentStudentGradesSection extends StatefulWidget {
   final String schoolId;
@@ -243,7 +244,7 @@ class ParentStudentGradesSectionState extends State<ParentStudentGradesSection> 
     try {
       final parts = dateStr.split('-');
       if (parts.length == 3) {
-        const months = [
+        final monthsId = [
           '',
           'Jan',
           'Feb',
@@ -258,11 +259,39 @@ class ParentStudentGradesSectionState extends State<ParentStudentGradesSection> 
           'Nov',
           'Des',
         ];
+        final monthsEn = [
+          '',
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
         final month = int.parse(parts[1]);
-        return '${parts[2]} ${months[month]} ${parts[0]}';
+        final monthName = AppLocalization.isIndonesian ? monthsId[month] : monthsEn[month];
+        return '${parts[2]} $monthName ${parts[0]}';
       }
     } catch (_) {}
     return dateStr;
+  }
+
+  String _getCategoryDisplayName(String catName) {
+    if (AppLocalization.isIndonesian) return catName;
+    switch (catName) {
+      case 'Tugas': return 'Assignment';
+      case 'Kuis': return 'Quiz';
+      case 'Ulangan Harian': return 'Daily Test';
+      case 'UTS': return 'Midterm Exam';
+      case 'UAS': return 'Final Exam';
+      default: return catName;
+    }
   }
 
   Color _getCategoryColor(String category) {
@@ -314,14 +343,14 @@ class ParentStudentGradesSectionState extends State<ParentStudentGradesSection> 
             const Icon(Icons.error_outline, color: Color(0xFFEF4444)),
             const SizedBox(height: 8),
             Text(
-              'Gagal memuat nilai',
+              AppLocalization.isIndonesian ? 'Gagal memuat nilai' : 'Failed to load grades',
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             TextButton.icon(
               onPressed: loadGrades,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Coba Lagi'),
+              label: Text(AppLocalization.isIndonesian ? 'Coba Lagi' : 'Try Again'),
             ),
           ],
         ),
@@ -346,7 +375,7 @@ class ParentStudentGradesSectionState extends State<ParentStudentGradesSection> 
             ),
             const SizedBox(height: 12),
             Text(
-              'Belum Ada Nilai',
+              AppLocalization.isIndonesian ? 'Belum Ada Nilai' : 'No Grades Yet',
               style: TextStyle(
                 color: textColor,
                 fontWeight: FontWeight.bold,
@@ -355,7 +384,9 @@ class ParentStudentGradesSectionState extends State<ParentStudentGradesSection> 
             ),
             const SizedBox(height: 4),
             Text(
-              'Nilai anak akan tampil setelah guru memasukkan nilai.',
+              AppLocalization.isIndonesian
+                  ? 'Nilai anak akan tampil setelah guru memasukkan nilai.'
+                  : "Child's grades will appear after the teacher enters them.",
               textAlign: TextAlign.center,
               style: TextStyle(color: subTextColor, fontSize: 12),
             ),
@@ -374,7 +405,7 @@ class ParentStudentGradesSectionState extends State<ParentStudentGradesSection> 
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Nilai Anak',
+                    AppLocalization.isIndonesian ? 'Nilai Anak' : "Child's Grades",
                     style: TextStyle(
                       color: textColor,
                       fontSize: 18,
@@ -527,7 +558,7 @@ class ParentStudentGradesSectionState extends State<ParentStudentGradesSection> 
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8, top: 4),
                               child: Text(
-                                catName,
+                                _getCategoryDisplayName(catName),
                                 style: TextStyle(
                                   color: _getCategoryColor(catName),
                                   fontWeight: FontWeight.bold,

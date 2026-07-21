@@ -44,6 +44,14 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
           .doc(teacher['teacherId'])
           .update({'fotoBase64': base64Str});
 
+      final String? uid = teacher['uid'];
+      if (uid != null && uid.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .update({'fotoBase64': base64Str});
+      }
+
       setState(() {
         teacher['fotoBase64'] = base64Str;
         _isUploadingFoto = false;

@@ -177,6 +177,15 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                   }
 
                   final exams = snapshot.data ?? [];
+                  if (exams.isNotEmpty) {
+                    _examService.checkAndAutoSubmitExpiredExams(
+                      schoolId: user.schoolId,
+                      studentId: studentDocId,
+                      studentName: user.nama,
+                      exams: exams,
+                    );
+                  }
+
                   if (exams.isEmpty) {
                     return Center(
                       child: Padding(
@@ -592,6 +601,7 @@ class _StudentExamsPageState extends State<StudentExamsPage> {
                                                 Get.to(() => StudentTakeExamPage(
                                                   exam: exam,
                                                   studentDocId: studentDocId,
+                                                  schoolId: user.schoolId,
                                                 ));
                                               }
                                             }

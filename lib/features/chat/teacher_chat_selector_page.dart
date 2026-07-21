@@ -6,6 +6,7 @@ import '../authentication/widgets/auth_background.dart';
 import '../../core/localization/app_localization.dart';
 import 'teacher_chat_list_page.dart';
 import 'teacher_parent_chat_list_page.dart';
+import 'chat_service.dart';
 
 class TeacherChatSelectorPage extends StatefulWidget {
   final String schoolId;
@@ -182,6 +183,11 @@ class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
                           color: const Color(0xFF10B981),
                           title: AppLocalization.isIndonesian ? 'Chat dengan Murid' : 'Chat with Students',
                           subtitle: AppLocalization.isIndonesian ? 'Kirim & terima pesan langsung dari siswa' : 'Send & receive messages directly from students',
+                          badge: CategoryUnreadCount(
+                            schoolId: widget.schoolId,
+                            teacherDocId: widget.teacherDocId,
+                            collectionName: 'chats',
+                          ),
                           onTap: () {
                             Get.to(
                               () => TeacherChatListPage(
@@ -207,6 +213,11 @@ class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
                           color: const Color(0xFFF97316),
                           title: AppLocalization.isIndonesian ? 'Chat dengan Wali Murid' : 'Chat with Parents',
                           subtitle: AppLocalization.isIndonesian ? 'Komunikasi langsung dengan orang tua siswa' : 'Direct communication with student parents',
+                          badge: CategoryUnreadCount(
+                            schoolId: widget.schoolId,
+                            teacherDocId: widget.teacherDocId,
+                            collectionName: 'parent_chats',
+                          ),
                           onTap: () {
                             Get.to(
                               () => TeacherParentChatListPage(
@@ -241,6 +252,7 @@ class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    Widget? badge,
   }) {
     return Material(
       color: Colors.transparent,
@@ -296,6 +308,10 @@ class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
                   ],
                 ),
               ),
+              if (badge != null) ...[
+                badge,
+                const SizedBox(width: 12),
+              ],
               Icon(
                 Icons.arrow_forward_ios_rounded,
                 color: subTextColor,
@@ -303,6 +319,120 @@ class _TeacherChatSelectorPageState extends State<TeacherChatSelectorPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class CategoryUnreadCount extends StatefulWidget {
+  final String schoolId;
+  final String teacherDocId;
+  final String collectionName;
+
+  const CategoryUnreadCount({
+    super.key,
+    required this.schoolId,
+    required this.teacherDocId,
+    required this.collectionName,
+  });
+
+  @override
+  State<CategoryUnreadCount> createState() => _CategoryUnreadCountState();
+}
+
+class _CategoryUnreadCountState extends State<CategoryUnreadCount> {
+  final _chatService = ChatService();
+  final List<StreamSubscription> _roomsSubs = [];
+  final Map<String, StreamSubscription> _unreadSubs = {};
+  final Map<String, int> _unreadCounts = {};
+  int _totalUnread = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToRooms();
+  }
+
+  @override
+  void dispose() {
+    for (var sub in _roomsSubs) {
+      sub.cancel();
+    }
+    for (var sub in _unreadSubs.values) {
+      sub.cancel();
+    }
+    super.dispose();
+  }
+
+  void _listenToRooms() {
+    final stream = widget.collectionName == 'chats'
+        ? _chatService.getTeacherChatRooms(
+            schoolId: widget.schoolId,
+            teacherId: widget.teacherDocId,
+          )
+        : FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('parent_chats')
+            .where('teacherId', isEqualTo: widget.teacherDocId)
+            .snapshots();
+
+    final sub = stream.listen((snapshot) {
+      if (!mounted) return;
+      final currentRoomIds = snapshot.docs.map((doc) => doc.id).toSet();
+
+      // Remove subs for rooms that no longer exist
+      final toRemove = _unreadSubs.keys.where((roomId) => !currentRoomIds.contains(roomId)).toList();
+      for (var id in toRemove) {
+        _unreadSubs[id]?.cancel();
+        _unreadSubs.remove(id);
+        _unreadCounts.remove(id);
+      }
+
+      for (var doc in snapshot.docs) {
+        final roomId = doc.id;
+        if (!_unreadSubs.containsKey(roomId)) {
+          _unreadSubs[roomId] = _chatService.getUnreadCount(
+            schoolId: widget.schoolId,
+            chatRoomId: roomId,
+            currentUserId: widget.teacherDocId,
+            collectionName: widget.collectionName,
+          ).listen((count) {
+            if (mounted) {
+              setState(() {
+                _unreadCounts[roomId] = count;
+                _totalUnread = _unreadCounts.values.fold(0, (sum, val) => sum + val);
+              });
+            }
+          });
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _totalUnread = _unreadCounts.values.fold(0, (sum, val) => sum + val);
+        });
+      }
+    });
+    _roomsSubs.add(sub);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_totalUnread == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEF4444),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        _totalUnread > 99 ? '99+' : '$_totalUnread',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );

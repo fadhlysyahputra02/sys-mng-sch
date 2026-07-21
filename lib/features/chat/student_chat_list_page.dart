@@ -680,11 +680,44 @@ class _StudentChatListPageState extends State<StudentChatListPage> {
                                   ],
                                 ),
                               ),
-                              Icon(
-                                Icons.chat_bubble_outline_rounded,
-                                color: const Color(0xFF8B5CF6)
-                                    .withValues(alpha: 0.6),
-                                size: 20,
+                              StreamBuilder<int>(
+                                stream: _chatService.getUnreadCount(
+                                  schoolId: widget.schoolId,
+                                  chatRoomId: _chatService.getChatRoomId(
+                                    teacher.teacherId,
+                                    widget.studentDocId,
+                                  ),
+                                  currentUserId: widget.studentDocId,
+                                ),
+                                builder: (context, unreadSnap) {
+                                  final count = unreadSnap.data ?? 0;
+                                  if (count == 0) {
+                                    return Icon(
+                                      Icons.chat_bubble_outline_rounded,
+                                      color: const Color(0xFF8B5CF6)
+                                          .withValues(alpha: 0.6),
+                                      size: 20,
+                                    );
+                                  }
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF8B5CF6),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '$count',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),

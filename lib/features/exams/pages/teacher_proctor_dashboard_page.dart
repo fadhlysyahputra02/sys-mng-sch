@@ -304,6 +304,15 @@ class _TeacherProctorDashboardPageState
         }
 
         final sessions = snap.data ?? [];
+        if (sessions.isNotEmpty) {
+          final uniqueClassIds = sessions.map((s) => s.classId).toSet();
+          for (final cid in uniqueClassIds) {
+            ExamService().checkAndAutoSubmitAllExpiredSemesterDraftsForSchool(
+              schoolId: schoolId,
+              classId: cid,
+            );
+          }
+        }
         final now = DateTime.now();
         final todayStr = DateFormat('yyyy-MM-dd').format(now);
 

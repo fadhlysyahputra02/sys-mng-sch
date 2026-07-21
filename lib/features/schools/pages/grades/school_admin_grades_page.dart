@@ -93,8 +93,12 @@ class _SchoolAdminGradesPageState extends State<SchoolAdminGradesPage> {
             return data;
           }).toList();
 
-          // Sort classes alphabetically
-          _classesList.sort((a, b) => (a['namaKelas'] ?? '').toString().compareTo(b['namaKelas'] ?? ''));
+          // Sort classes alphabetically (case-insensitive)
+          _classesList.sort((a, b) {
+            final nameA = (a['namaKelas'] ?? '').toString().toLowerCase();
+            final nameB = (b['namaKelas'] ?? '').toString().toLowerCase();
+            return nameA.compareTo(nameB);
+          });
 
           _isLoadingMetaData = false;
         });

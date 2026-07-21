@@ -112,8 +112,14 @@ class NotificationListenerService {
           final targetName = data['targetName'] ?? '';
           final senderId = data['senderId'] ?? '';
 
-          // Jangan tampilkan notifikasi yang dikirim oleh diri sendiri
+           // Jangan tampilkan notifikasi yang dikirim oleh diri sendiri
           if (senderId == user.uid) {
+            continue;
+          }
+
+          // Jangan tampilkan in-app banner untuk chat dan input nilai
+          final category = data['category'] ?? '';
+          if (category == 'chat' || category == 'grade') {
             continue;
           }
 

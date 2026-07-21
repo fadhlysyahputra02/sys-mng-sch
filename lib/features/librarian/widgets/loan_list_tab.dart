@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../services/library_service.dart';
 import '../../students/pages/student_qr_scanner_page.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../../core/localization/app_localization.dart';
 
 class LoanListTab extends StatefulWidget {
   final bool isDark;
@@ -685,7 +686,9 @@ class _LoanListTabState extends State<LoanListTab> {
                 child: TextField(
                   style: TextStyle(color: textColor, fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'Cari peminjam, NIS, atau judul buku...',
+                    hintText: AppLocalization.isIndonesian
+                        ? 'Cari peminjam, NIS, atau judul buku...'
+                        : 'Search borrower, NIS, or book title...',
                     hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                     prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
                     filled: true,
@@ -711,7 +714,10 @@ class _LoanListTabState extends State<LoanListTab> {
               ElevatedButton.icon(
                 onPressed: _showBorrowDialog,
                 icon: const Icon(Icons.swap_horiz_rounded, color: Colors.white, size: 18),
-                label: const Text('Pinjam Buku', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                label: Text(
+                  AppLocalization.isIndonesian ? 'Pinjam Buku' : 'Borrow Book',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6366F1),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -737,7 +743,11 @@ class _LoanListTabState extends State<LoanListTab> {
                     children: [
                       Icon(Icons.error_outline_rounded, size: 48, color: Colors.red.withOpacity(0.5)),
                       const SizedBox(height: 12),
-                      Text('Gagal memuat data: ${snapshot.error}', style: TextStyle(color: subTextColor), textAlign: TextAlign.center),
+                      Text(
+                        (AppLocalization.isIndonesian ? 'Gagal memuat data: ' : 'Failed to load data: ') + '${snapshot.error}',
+                        style: TextStyle(color: subTextColor),
+                        textAlign: TextAlign.center,
+                      ),
                     ],
                   ),
                 );
@@ -749,7 +759,10 @@ class _LoanListTabState extends State<LoanListTab> {
                     children: [
                       Icon(Icons.swap_horiz_rounded, size: 48, color: subTextColor.withOpacity(0.5)),
                       const SizedBox(height: 12),
-                      Text('Belum ada transaksi peminjaman.', style: TextStyle(color: subTextColor)),
+                      Text(
+                        AppLocalization.isIndonesian ? 'Belum ada transaksi peminjaman.' : 'No loan transactions yet.',
+                        style: TextStyle(color: subTextColor),
+                      ),
                     ],
                   ),
                 );
@@ -765,7 +778,10 @@ class _LoanListTabState extends State<LoanListTab> {
 
               if (loans.isEmpty) {
                 return Center(
-                  child: Text('Transaksi tidak ditemukan.', style: TextStyle(color: subTextColor)),
+                  child: Text(
+                    AppLocalization.isIndonesian ? 'Transaksi tidak ditemukan.' : 'Transaction not found.',
+                    style: TextStyle(color: subTextColor),
+                  ),
                 );
               }
 
@@ -853,7 +869,7 @@ class _LoanListTabState extends State<LoanListTab> {
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
-                                          '$studentName (NIS: $studentNis • Kelas $className)',
+                                          '$studentName (NIS: $studentNis • ${AppLocalization.isIndonesian ? 'Kelas' : 'Class'} $className)',
                                           style: TextStyle(fontSize: 12, color: subTextColor),
                                         ),
                                       ),
@@ -872,8 +888,8 @@ class _LoanListTabState extends State<LoanListTab> {
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
-                                          'Pinjam: ${loanDate != null ? "${loanDate.day}/${loanDate.month}/${loanDate.year}" : "-"} • '
-                                          'Tempo: ${dueDate != null ? "${dueDate.day}/${dueDate.month}/${dueDate.year}" : "-"}',
+                                          '${AppLocalization.isIndonesian ? 'Pinjam' : 'Borrowed'}: ${loanDate != null ? "${loanDate.day}/${loanDate.month}/${loanDate.year}" : "-"} • '
+                                          '${AppLocalization.isIndonesian ? 'Tempo' : 'Due'}: ${dueDate != null ? "${dueDate.day}/${dueDate.month}/${dueDate.year}" : "-"}',
                                           style: TextStyle(fontSize: 12, color: subTextColor),
                                         ),
                                       ),
@@ -887,7 +903,7 @@ class _LoanListTabState extends State<LoanListTab> {
                                         const Icon(Icons.check_circle_outline_rounded, size: 14, color: Color(0xFF10B981)),
                                         const SizedBox(width: 6),
                                         Text(
-                                          'Kembali: ${returnDate.day}/${returnDate.month}/${returnDate.year}',
+                                          '${AppLocalization.isIndonesian ? 'Kembali' : 'Returned'}: ${returnDate.day}/${returnDate.month}/${returnDate.year}',
                                           style: const TextStyle(fontSize: 12, color: Color(0xFF10B981)),
                                         ),
                                       ],
@@ -897,7 +913,7 @@ class _LoanListTabState extends State<LoanListTab> {
                                   if (fine > 0) ...[
                                     const SizedBox(height: 6),
                                     Text(
-                                      'Denda Terbayar: Rp ${fine.toStringAsFixed(0)}',
+                                      (AppLocalization.isIndonesian ? 'Denda Terbayar' : 'Fine Paid') + ': Rp ${fine.toStringAsFixed(0)}',
                                       style: const TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
                                     ),
                                   ],
@@ -920,12 +936,12 @@ class _LoanListTabState extends State<LoanListTab> {
                               ),
                               child: Text(
                                 isLost
-                                    ? 'Hilang'
+                                    ? (AppLocalization.isIndonesian ? 'Hilang' : 'Lost')
                                     : status == 'Kembali'
-                                        ? 'Kembali'
+                                        ? (AppLocalization.isIndonesian ? 'Kembali' : 'Returned')
                                         : isOverdue
-                                            ? 'Terlambat'
-                                            : 'Dipinjam',
+                                            ? (AppLocalization.isIndonesian ? 'Terlambat' : 'Overdue')
+                                            : (AppLocalization.isIndonesian ? 'Dipinjam' : 'Borrowed'),
                                 style: TextStyle(
                                   color: isLost
                                       ? Colors.deepOrange
@@ -955,7 +971,7 @@ class _LoanListTabState extends State<LoanListTab> {
                               OutlinedButton.icon(
                                 onPressed: () => _reportLostBook(id, bookId, bookTitle, studentName),
                                 icon: const Icon(Icons.error_outline_rounded, size: 14, color: Colors.redAccent),
-                                label: const Text('Laporkan Hilang'),
+                                label: Text(AppLocalization.isIndonesian ? 'Laporkan Hilang' : 'Report Lost'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.redAccent,
                                   side: const BorderSide(color: Colors.redAccent, width: 1.2),
@@ -968,7 +984,7 @@ class _LoanListTabState extends State<LoanListTab> {
                               ElevatedButton.icon(
                                 onPressed: () => _returnBook(id, bookId, bookTitle, dueDate!),
                                 icon: const Icon(Icons.assignment_turned_in_rounded, size: 14, color: Colors.white),
-                                label: const Text('Tandai Kembali'),
+                                label: Text(AppLocalization.isIndonesian ? 'Tandai Kembali' : 'Mark Returned'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF10B981),
                                   foregroundColor: Colors.white,

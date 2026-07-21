@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../authentication/widgets/auth_background.dart';
 import '../../tu/services/payment_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 class ParentPaymentPage extends StatefulWidget {
   final String schoolId;
@@ -63,7 +64,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           title: Text(
-            'Keuangan Anak: ${widget.studentName}',
+            '${AppLocalization.isIndonesian ? 'Keuangan Anak: ' : "Child's Finance: "}${widget.studentName}',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           backgroundColor: Colors.transparent,
@@ -93,10 +94,10 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                   labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                   unselectedLabelStyle: const TextStyle(fontSize: 11),
                   labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  tabs: const [
-                    Tab(text: 'Belum Bayar'),
-                    Tab(text: 'Verifikasi'),
-                    Tab(text: 'Lunas'),
+                  tabs: [
+                    Tab(text: AppLocalization.isIndonesian ? 'Belum Bayar' : 'Unpaid'),
+                    Tab(text: AppLocalization.isIndonesian ? 'Verifikasi' : 'Pending'),
+                    Tab(text: AppLocalization.isIndonesian ? 'Lunas' : 'Paid'),
                   ],
                 ),
               ),
@@ -156,18 +157,18 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
     Color textColor,
   ) {
     if (bills.isEmpty) {
-      String emptyMsg = 'Tidak ada tagihan';
+      String emptyMsg = AppLocalization.isIndonesian ? 'Tidak ada tagihan' : 'No bills';
       IconData emptyIcon = Icons.check_circle_outline_rounded;
       Color iconColor = const Color(0xFF10B981);
 
       if (type == 'unpaid') {
-        emptyMsg = 'Semua tagihan anak Anda telah lunas!';
+        emptyMsg = AppLocalization.isIndonesian ? 'Semua tagihan anak Anda telah lunas!' : 'All bills for your child have been paid!';
       } else if (type == 'pending') {
-        emptyMsg = 'Tidak ada pembayaran yang sedang diproses.';
+        emptyMsg = AppLocalization.isIndonesian ? 'Tidak ada pembayaran yang sedang diproses.' : 'No payments are currently being processed.';
         emptyIcon = Icons.hourglass_empty_rounded;
         iconColor = Colors.amber;
       } else {
-        emptyMsg = 'Belum ada riwayat pembayaran lunas.';
+        emptyMsg = AppLocalization.isIndonesian ? 'Belum ada riwayat pembayaran lunas.' : 'No paid payment history yet.';
         emptyIcon = Icons.receipt_long_rounded;
         iconColor = Colors.grey;
       }
@@ -221,7 +222,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16),
             ),
             subtitle: Text(
-              'Jatuh Tempo: ${_formatDate(dueDateTs)}',
+              '${AppLocalization.isIndonesian ? 'Jatuh Tempo: ' : 'Due Date: '}${_formatDate(dueDateTs)}',
               style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12),
             ),
             trailing: Text(
@@ -253,7 +254,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Ditolak TU: $rejectionReason\nMohon unggah ulang bukti yang valid.',
+                                '${AppLocalization.isIndonesian ? 'Ditolak TU: ' : 'Rejected by TU: '}$rejectionReason\n${AppLocalization.isIndonesian ? 'Mohon unggah ulang bukti yang valid.' : 'Please re-upload a valid proof.'}',
                                 style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
                               ),
                             ),
@@ -263,7 +264,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                       const SizedBox(height: 12),
                     ],
                     Text(
-                      'Instruksi Pembayaran:',
+                      AppLocalization.isIndonesian ? 'Instruksi Pembayaran:' : 'Payment Instruction:',
                       style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                     const SizedBox(height: 4),
@@ -282,7 +283,10 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           icon: const Icon(Icons.upload_file_rounded),
-                          label: const Text('Bayar & Unggah Bukti', style: TextStyle(fontWeight: FontWeight.bold)),
+                          label: Text(
+                            AppLocalization.isIndonesian ? 'Bayar & Unggah Bukti' : 'Pay & Upload Proof',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           onPressed: () => _showUploadReceiptSheet(context, billDocId, title, amount, isDark),
                         ),
                       )
@@ -293,7 +297,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Struk telah terunggah pada ${_formatDate(bill['uploadedAt'] as Timestamp?)}. Menunggu konfirmasi dari petugas TU.',
+                              '${AppLocalization.isIndonesian ? 'Struk telah terunggah pada ' : 'Receipt uploaded on '}${_formatDate(bill['uploadedAt'] as Timestamp?)}. ${AppLocalization.isIndonesian ? 'Menunggu konfirmasi dari petugas TU.' : 'Awaiting confirmation from TU officer.'}',
                               style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 12, fontStyle: FontStyle.italic),
                             ),
                           ),
@@ -312,7 +316,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Lunas diverifikasi oleh ${bill['verifiedBy'] ?? 'Petugas TU'} pada ${_formatDate(bill['verifiedAt'] as Timestamp?)}',
+                                '${AppLocalization.isIndonesian ? 'Lunas diverifikasi oleh ' : 'Paid verified by '}${bill['verifiedBy'] ?? (AppLocalization.isIndonesian ? 'Petugas TU' : 'TU Officer')} ${AppLocalization.isIndonesian ? 'pada ' : 'on '}${_formatDate(bill['verifiedAt'] as Timestamp?)}',
                                 style: const TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.w600),
                               ),
                             ),
@@ -359,7 +363,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                   setSheetState(() => localBase64 = base64Encode(bytes));
                 }
               } catch (e) {
-                Get.snackbar('Error', 'Gagal mengambil gambar: $e', backgroundColor: Colors.red, colorText: Colors.white);
+                Get.snackbar('Error', '${AppLocalization.isIndonesian ? 'Gagal mengambil gambar: ' : 'Failed to pick image: '}$e', backgroundColor: Colors.red, colorText: Colors.white);
               }
             }
 
@@ -386,7 +390,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Konfirmasi Pembayaran Ortu',
+                    AppLocalization.isIndonesian ? 'Konfirmasi Pembayaran Ortu' : 'Parent Payment Confirmation',
                     style: TextStyle(color: sheetTextColor, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
@@ -399,9 +403,16 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                     dropdownColor: isDark ? const Color(0xFF1F2937) : Colors.white,
                     value: selectedMethod,
                     style: TextStyle(color: sheetTextColor),
-                    decoration: const InputDecoration(labelText: 'Metode Pembayaran'),
+                    decoration: InputDecoration(labelText: AppLocalization.isIndonesian ? 'Metode Pembayaran' : 'Payment Method'),
                     items: ['Transfer Bank', 'Virtual Account', 'E-Wallet', 'Lainnya']
-                        .map((method) => DropdownMenuItem(value: method, child: Text(method)))
+                        .map((method) {
+                          String methodText = method;
+                          if (!AppLocalization.isIndonesian) {
+                            if (method == 'Transfer Bank') methodText = 'Bank Transfer';
+                            if (method == 'Lainnya') methodText = 'Other';
+                          }
+                          return DropdownMenuItem(value: method, child: Text(methodText));
+                        })
                         .toList(),
                     onChanged: (val) {
                       if (val != null) {
@@ -411,7 +422,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Bukti Pembayaran / Struk:',
+                    AppLocalization.isIndonesian ? 'Bukti Pembayaran / Struk:' : 'Payment Proof / Receipt:',
                     style: TextStyle(color: sheetTextColor, fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   const SizedBox(height: 10),
@@ -456,7 +467,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             icon: const Icon(Icons.photo_library_rounded, color: Color(0xFF10B981)),
-                            label: Text('Galeri', style: TextStyle(color: sheetTextColor)),
+                            label: Text(AppLocalization.isIndonesian ? 'Galeri' : 'Gallery', style: TextStyle(color: sheetTextColor)),
                             onPressed: () => pickImage(ImageSource.gallery),
                           ),
                         ),
@@ -468,7 +479,7 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             icon: const Icon(Icons.camera_alt_rounded, color: Color(0xFF10B981)),
-                            label: Text('Kamera', style: TextStyle(color: sheetTextColor)),
+                            label: Text(AppLocalization.isIndonesian ? 'Kamera' : 'Camera', style: TextStyle(color: sheetTextColor)),
                             onPressed: () => pickImage(ImageSource.camera),
                           ),
                         ),
@@ -498,17 +509,22 @@ class _ParentPaymentPageState extends State<ParentPaymentPage> with SingleTicker
                                 );
                                 Get.back(); // close loading
                                 Get.snackbar(
-                                  'Berhasil',
-                                  'Bukti transfer berhasil dikirim. Menunggu verifikasi petugas TU.',
+                                  AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+                                  AppLocalization.isIndonesian
+                                      ? 'Bukti transfer berhasil dikirim. Menunggu verifikasi petugas TU.'
+                                      : 'Transfer proof successfully sent. Awaiting verification from TU officer.',
                                   backgroundColor: const Color(0xFF10B981),
                                   colorText: Colors.white,
                                 );
                               } catch (e) {
                                 Get.back(); // close loading
-                                Get.snackbar('Error', 'Gagal mengirim bukti transfer: $e', backgroundColor: Colors.red, colorText: Colors.white);
+                                Get.snackbar('Error', '${AppLocalization.isIndonesian ? 'Gagal mengirim bukti transfer: ' : 'Failed to send transfer proof: '}$e', backgroundColor: Colors.red, colorText: Colors.white);
                               }
                             },
-                      child: const Text('Kirim Bukti Pembayaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      child: Text(
+                        AppLocalization.isIndonesian ? 'Kirim Bukti Pembayaran' : 'Send Payment Proof',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
                     ),
                   ),
                 ],

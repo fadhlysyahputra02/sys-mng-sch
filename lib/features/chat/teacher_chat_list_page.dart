@@ -139,11 +139,25 @@ class _TeacherChatListPageState extends State<TeacherChatListPage> {
     }
   }
 
-  void _openChat(Map<String, dynamic> student) {
+  Future<void> _openChat(Map<String, dynamic> student) async {
     final studentId = student['id'];
     final studentName = student['nama'] ?? 'Murid';
     final chatRoomId = _chatService.getChatRoomId(widget.teacherDocId, studentId);
     
+    await FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('chats')
+        .doc(chatRoomId)
+        .set({
+          'chatRoomId': chatRoomId,
+          'teacherId': widget.teacherDocId,
+          'teacherName': widget.teacherName,
+          'studentId': studentId,
+          'studentName': studentName,
+          'className': student['className'] ?? '',
+        }, SetOptions(merge: true));
+
     Get.to(
       () => ChatRoomPage(
         schoolId: widget.schoolId,
@@ -361,7 +375,44 @@ class _TeacherChatListPageState extends State<TeacherChatListPage> {
                           ],
                         ),
                       ),
-                      const Icon(Icons.chat_bubble_rounded, color: Color(0xFF10B981), size: 20),
+                      StreamBuilder<int>(
+                        stream: _chatService.getUnreadCount(
+                          schoolId: widget.schoolId,
+                          chatRoomId: _chatService.getChatRoomId(
+                            widget.teacherDocId,
+                            student['id'],
+                          ),
+                          currentUserId: widget.teacherDocId,
+                        ),
+                        builder: (context, unreadSnap) {
+                          final count = unreadSnap.data ?? 0;
+                          if (count == 0) {
+                            return const Icon(
+                              Icons.chat_bubble_rounded,
+                              color: Color(0xFF10B981),
+                              size: 20,
+                            );
+                          }
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '$count',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),

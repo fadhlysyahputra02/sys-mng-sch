@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class ChatService {
   final _firestore = FirebaseFirestore.instance;
@@ -46,6 +47,122 @@ class ChatService {
           'lastSenderId': senderId,
           'lastSenderName': senderName,
         }, SetOptions(merge: true));
+
+    // Kirim push notification
+    try {
+      String? recipientUid;
+      if (collectionName == 'chats') {
+        String? teacherId;
+        String? studentId;
+
+        final chatRoomDoc = await _firestore
+            .collection('schools')
+            .doc(schoolId)
+            .collection('chats')
+            .doc(chatRoomId)
+            .get();
+        if (chatRoomDoc.exists) {
+          final data = chatRoomDoc.data();
+          if (data != null) {
+            teacherId = data['teacherId'] as String?;
+            studentId = data['studentId'] as String?;
+          }
+        }
+
+        // Fallback: parse from chatRoomId (teacherDocId_studentDocId)
+        if ((teacherId == null || studentId == null) && chatRoomId.contains('_')) {
+          final parts = chatRoomId.split('_');
+          if (parts.length >= 2) {
+            teacherId = parts[0];
+            studentId = parts[1];
+          }
+        }
+
+        if (senderRole == 'teacher') {
+          if (studentId != null) {
+            final studentDoc = await _firestore
+                .collection('schools')
+                .doc(schoolId)
+                .collection('students')
+                .doc(studentId)
+                .get();
+            recipientUid = studentDoc.data()?['uid'] as String?;
+          }
+        } else {
+          if (teacherId != null) {
+            final teacherDoc = await _firestore
+                .collection('schools')
+                .doc(schoolId)
+                .collection('teachers')
+                .doc(teacherId)
+                .get();
+            recipientUid = teacherDoc.data()?['uid'] as String?;
+          }
+        }
+      } else if (collectionName == 'parent_chats') {
+        String? teacherId;
+        String? parentId;
+
+        final chatRoomDoc = await _firestore
+            .collection('schools')
+            .doc(schoolId)
+            .collection('parent_chats')
+            .doc(chatRoomId)
+            .get();
+        if (chatRoomDoc.exists) {
+          final data = chatRoomDoc.data();
+          if (data != null) {
+            teacherId = data['teacherId'] as String?;
+            parentId = data['parentId'] as String?;
+          }
+        }
+
+        // Fallback: parse from chatRoomId (parent_parentUid_teacherDocId)
+        if ((teacherId == null || parentId == null) && chatRoomId.startsWith('parent_')) {
+          final parts = chatRoomId.split('_');
+          if (parts.length >= 3) {
+            parentId = parts[1];
+            teacherId = parts[2];
+          }
+        }
+
+        if (senderRole == 'teacher') {
+          recipientUid = parentId;
+        } else {
+          if (teacherId != null) {
+            final teacherDoc = await _firestore
+                .collection('schools')
+                .doc(schoolId)
+                .collection('teachers')
+                .doc(teacherId)
+                .get();
+            recipientUid = teacherDoc.data()?['uid'] as String?;
+          }
+        }
+      }
+
+      if (recipientUid != null && recipientUid.isNotEmpty) {
+        await _firestore
+            .collection('schools')
+            .doc(schoolId)
+            .collection('notifications')
+            .add({
+          'title': senderName,
+          'content': message,
+          'targetType': 'personal',
+          'targetId': recipientUid,
+          'senderId': senderId,
+          'senderName': senderName,
+          'senderRole': senderRole,
+          'category': 'chat',
+          'chatRoomId': chatRoomId,
+          'isParentChat': collectionName == 'parent_chats',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      debugPrint('Error sending chat push notification: $e');
+    }
   }
 
   /// Stream pesan realtime

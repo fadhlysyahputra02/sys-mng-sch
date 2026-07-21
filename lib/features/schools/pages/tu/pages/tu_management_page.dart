@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -659,15 +660,28 @@ class _TuManagementPageState extends State<TuManagementPage> {
                                     width: 50,
                                     height: 50,
                                     decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [Color(0xFF3B82F6), Color(0xFF10B981)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
+                                      gradient: (data['fotoBase64'] as String?) == null || (data['fotoBase64'] as String?).toString().isEmpty
+                                          ? const LinearGradient(
+                                              colors: [Color(0xFF3B82F6), Color(0xFF10B981)],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            )
+                                          : null,
                                       borderRadius: BorderRadius.circular(14),
                                     ),
-                                    child: const Icon(Icons.support_agent_rounded,
-                                        color: Colors.white, size: 26),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: (data['fotoBase64'] as String?) != null && (data['fotoBase64'] as String?).toString().isNotEmpty
+                                          ? Image.memory(
+                                              base64Decode(data['fotoBase64'] as String),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : const Icon(
+                                              Icons.support_agent_rounded,
+                                              color: Colors.white,
+                                              size: 26,
+                                            ),
+                                    ),
                                   ),
                                   const SizedBox(width: 14),
 

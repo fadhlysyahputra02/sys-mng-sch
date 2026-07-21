@@ -9,6 +9,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/app_auth_service.dart';
+import '../../../core/services/push_notification_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../chat/student_chat_list_page.dart';
 import '../../parent_link/pages/student_link_parent_page.dart';
@@ -26,6 +27,7 @@ import 'student_tasks_page.dart';
 import '../../exams/pages/student_exams_page.dart';
 import '../../exams/pages/student_exam_participation_page.dart';
 import '../../exams/models/exam_event_model.dart';
+import '../../exams/services/exam_service.dart';
 
 import '../../../core/widgets/flip_card.dart';
 import '../../../core/widgets/motif_card.dart';
@@ -76,6 +78,12 @@ class _StudentDashboardState extends State<StudentDashboard>
 
     WidgetsBinding.instance.addObserver(this);
     _resolveStudentDocId();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        PushNotificationService().checkPendingNotification();
+      });
+    });
 
     _selfHealTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted &&
@@ -334,9 +342,10 @@ class _StudentDashboardState extends State<StudentDashboard>
     }
 
     // Hanya laporkan standby/return jika status sebelumnya adalah 'paused' (pernah ada pelanggaran)
-    if (_lastReportedState != 'paused') {
+    // atau jika status sebelumnya null (baru restart/buka aplikasi) untuk sinkronisasi awal dengan Firestore
+    if (_lastReportedState != 'paused' && _lastReportedState != null) {
       debugPrint(
-        'Behavior return check: Status sebelumnya bukan paused ($_lastReportedState). Melewati penulisan standby.',
+        'Behavior return check: Status sebelumnya bukan paused atau null ($_lastReportedState). Melewati penulisan standby.',
       );
       return;
     }
@@ -531,6 +540,16 @@ class _StudentDashboardState extends State<StudentDashboard>
 
       if (_studentDocId != null && _className != null && _studentData?['lulus'] != true) {
         _loadTodaySchedulesAndStartAttendanceListener(user.schoolId);
+        
+        final classId = (_studentData?['classId'] as String?) ?? '';
+        if (classId.isNotEmpty) {
+          ExamService().checkAndAutoSubmitAllExpiredExamsForStudent(
+            schoolId: user.schoolId,
+            studentId: _studentDocId!,
+            studentName: _studentData?['nama'] ?? 'Murid',
+            classId: classId,
+          );
+        }
       }
     }
   }

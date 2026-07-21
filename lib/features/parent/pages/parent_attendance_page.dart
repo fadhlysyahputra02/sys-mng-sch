@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../students/widgets/monthly_attendance_table_section.dart';
+import '../../../core/localization/app_localization.dart';
 
 class ParentAttendancePage extends StatelessWidget {
   const ParentAttendancePage({super.key});
@@ -34,7 +35,7 @@ class ParentAttendancePage extends StatelessWidget {
               elevation: 0,
               iconTheme: IconThemeData(color: textColor),
               title: Text(
-                'Daftar Hadir Anak',
+                AppLocalization.isIndonesian ? 'Daftar Hadir Anak' : "Child's Attendance",
                 style: TextStyle(
                   color: textColor,
                   fontWeight: FontWeight.bold,

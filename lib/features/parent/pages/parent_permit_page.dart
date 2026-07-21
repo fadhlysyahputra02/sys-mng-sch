@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../../core/localization/app_localization.dart';
 
 class ParentPermitPage extends StatefulWidget {
   const ParentPermitPage({super.key});
@@ -62,15 +63,20 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.lock_rounded, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('Fitur Terkunci', style: TextStyle(color: Colors.amber)),
+              const Icon(Icons.lock_rounded, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                AppLocalization.isIndonesian ? 'Fitur Terkunci' : 'Feature Locked',
+                style: const TextStyle(color: Colors.amber),
+              ),
             ],
           ),
           content: Text(
-            'Sekolah belum berlangganan untuk mengaktifkan fitur ini.',
+            AppLocalization.isIndonesian
+                ? 'Sekolah belum berlangganan untuk mengaktifkan fitur ini.'
+                : 'The school has not subscribed to activate this feature.',
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
@@ -81,7 +87,10 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                   Get.offAllNamed('/parent'); // Exit to Dashboard
                 }
               },
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1))),
+              child: Text(
+                AppLocalization.isIndonesian ? 'Tutup' : 'Close',
+                style: const TextStyle(color: Color(0xFF6366F1)),
+              ),
             ),
           ],
         );
@@ -134,7 +143,7 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memilih gambar: $e')),
+        SnackBar(content: Text('${AppLocalization.isIndonesian ? 'Gagal memilih gambar: ' : 'Failed to pick image: '}$e')),
       );
     }
   }
@@ -168,13 +177,19 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
 
   Future<void> _submitPermit() async {
     if (_reasonController.text.trim().isEmpty) {
-      Get.snackbar('Validasi Gagal', 'Alasan izin wajib diisi.',
+      Get.snackbar(
+          AppLocalization.isIndonesian ? 'Validasi Gagal' : 'Validation Failed',
+          AppLocalization.isIndonesian ? 'Alasan izin wajib diisi.' : 'Leave reason is required.',
           backgroundColor: Colors.redAccent, colorText: Colors.white);
       return;
     }
 
     if (_waliKelasId.isEmpty) {
-      Get.snackbar('Kirim Gagal', 'Anak Anda belum memiliki wali kelas. Hubungi pihak sekolah.',
+      Get.snackbar(
+          AppLocalization.isIndonesian ? 'Kirim Gagal' : 'Send Failed',
+          AppLocalization.isIndonesian
+              ? 'Anak Anda belum memiliki wali kelas. Hubungi pihak sekolah.'
+              : 'Your child does not have a class teacher yet. Contact the school.',
           backgroundColor: Colors.redAccent, colorText: Colors.white);
       return;
     }
@@ -188,7 +203,7 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
 
       final dateRangeStr = _startDate == _endDate
           ? DateFormat('yyyy-MM-dd').format(_startDate)
-          : '${DateFormat('yyyy-MM-dd').format(_startDate)} s.d ${DateFormat('yyyy-MM-dd').format(_endDate)}';
+          : '${DateFormat('yyyy-MM-dd').format(_startDate)} ${AppLocalization.isIndonesian ? 's.d' : 'to'} ${DateFormat('yyyy-MM-dd').format(_endDate)}';
 
       await FirebaseFirestore.instance
           .collection('schools')
@@ -217,8 +232,8 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
           .doc(schoolId)
           .collection('notifications')
           .add({
-        'title': 'Pengajuan Surat ${_jenisIzin}',
-        'content': 'Siswa ${_studentName} mengajukan surat ${_jenisIzin.toLowerCase()} untuk tanggal $dateRangeStr dengan alasan: ${_reasonController.text.trim()}',
+        'title': '${AppLocalization.isIndonesian ? 'Pengajuan Surat' : 'Leave Request Submission'} ${_jenisIzin}',
+        'content': '${AppLocalization.isIndonesian ? 'Siswa' : 'Student'} ${_studentName} ${AppLocalization.isIndonesian ? 'mengajukan surat' : 'submitted a leave request'} ${_jenisIzin.toLowerCase()} ${AppLocalization.isIndonesian ? 'untuk tanggal' : 'for date'} $dateRangeStr ${AppLocalization.isIndonesian ? 'dengan alasan:' : 'with reason:'} ${_reasonController.text.trim()}',
         'targetType': 'kelas',
         'targetId': _classId,
         'targetName': _className,
@@ -239,15 +254,23 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
       if (mounted) {
         Navigator.pop(context); // Tutup bottom sheet form
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Surat izin berhasil dikirim ke Wali Kelas.'),
+          SnackBar(
+            content: Text(
+              AppLocalization.isIndonesian
+                  ? 'Surat izin berhasil dikirim ke Wali Kelas.'
+                  : 'Leave request successfully sent to Class Teacher.',
+            ),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
-      Get.snackbar('Error', 'Gagal mengirim surat izin: $e',
-          backgroundColor: Colors.redAccent, colorText: Colors.white);
+      Get.snackbar(
+        'Error',
+        '${AppLocalization.isIndonesian ? 'Gagal mengirim surat izin: ' : 'Failed to send leave request: '}$e',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
     } finally {
       setState(() => _isSubmitting = false);
     }
@@ -293,24 +316,27 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        'Buat Surat Izin Digital',
+                        AppLocalization.isIndonesian ? 'Buat Surat Izin Digital' : 'Create Digital Leave Request',
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Ditujukan kepada Wali Kelas: $_waliKelasName',
+                        '${AppLocalization.isIndonesian ? 'Ditujukan kepada Wali Kelas:' : 'Addressed to Class Teacher:'} $_waliKelasName',
                         style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       const Divider(height: 32),
 
                       // Jenis Izin Selector
-                      Text('Jenis Izin', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
+                      Text(
+                        AppLocalization.isIndonesian ? 'Jenis Izin' : 'Leave Type',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
                             child: ChoiceChip(
-                              label: const Center(child: Text('Sakit')),
+                              label: Center(child: Text(AppLocalization.isIndonesian ? 'Sakit' : 'Sick')),
                               selected: _jenisIzin == 'Sakit',
                               selectedColor: const Color(0xFF6366F1).withValues(alpha: 0.15),
                               labelStyle: TextStyle(
@@ -328,7 +354,7 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ChoiceChip(
-                              label: const Center(child: Text('Izin')),
+                              label: Center(child: Text(AppLocalization.isIndonesian ? 'Izin' : 'Permit')),
                               selected: _jenisIzin == 'Izin',
                               selectedColor: const Color(0xFF6366F1).withValues(alpha: 0.15),
                               labelStyle: TextStyle(
@@ -348,7 +374,10 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                       const SizedBox(height: 20),
 
                       // Tanggal Selector
-                      Text('Tanggal Absen', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
+                      Text(
+                        AppLocalization.isIndonesian ? 'Tanggal Absen' : 'Absence Date',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                      ),
                       const SizedBox(height: 8),
                       InkWell(
                         onTap: () async {
@@ -380,14 +409,19 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                       const SizedBox(height: 20),
 
                       // Alasan
-                      Text('Alasan / Keterangan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
+                      Text(
+                        AppLocalization.isIndonesian ? 'Alasan / Keterangan' : 'Reason / Description',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                      ),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _reasonController,
                         maxLines: 4,
                         style: TextStyle(color: textColor),
                         decoration: InputDecoration(
-                          hintText: 'Tulis alasan ketidakhadiran secara detail...',
+                          hintText: AppLocalization.isIndonesian
+                              ? 'Tulis alasan ketidakhadiran secara detail...'
+                              : 'Write the reason for absence in detail...',
                           hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
                           filled: true,
                           fillColor: fieldBg,
@@ -405,7 +439,10 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                       const SizedBox(height: 20),
 
                       // Bukti / Lampiran Foto
-                      Text('Lampiran Bukti (Opsional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
+                      Text(
+                        AppLocalization.isIndonesian ? 'Lampiran Bukti (Opsional)' : 'Attachment Proof (Optional)',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                      ),
                       const SizedBox(height: 8),
                       if (_buktiBase64 != null)
                         Stack(
@@ -450,7 +487,10 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                             side: BorderSide(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
                           ),
                           icon: const Icon(Icons.camera_alt_rounded, color: Color(0xFF6366F1)),
-                          label: const Text('Unggah Surat Sakit / Foto Bukti', style: TextStyle(color: Color(0xFF6366F1))),
+                          label: Text(
+                            AppLocalization.isIndonesian ? 'Unggah Surat Sakit / Foto Bukti' : 'Upload Sick Note / Proof Photo',
+                            style: const TextStyle(color: Color(0xFF6366F1)),
+                          ),
                         ),
 
                       const SizedBox(height: 32),
@@ -471,7 +511,10 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                                 height: 20,
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                               )
-                            : const Text('Kirim Surat Izin', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            : Text(
+                                AppLocalization.isIndonesian ? 'Kirim Surat Izin' : 'Send Leave Request',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -494,6 +537,16 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
         ? const Color(0xFF10B981)
         : (isPending ? const Color(0xFFF59E0B) : const Color(0xFFEF4444));
 
+    final statusText = permit['status'] == 'Disetujui'
+        ? (AppLocalization.isIndonesian ? 'Disetujui' : 'Approved')
+        : (permit['status'] == 'Ditolak'
+            ? (AppLocalization.isIndonesian ? 'Ditolak' : 'Rejected')
+            : 'Pending');
+
+    final jenisText = permit['jenis'] == 'Sakit'
+        ? (AppLocalization.isIndonesian ? 'Sakit' : 'Sick')
+        : (AppLocalization.isIndonesian ? 'Izin' : 'Permit');
+
     showDialog(
       context: context,
       builder: (context) {
@@ -504,7 +557,7 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Detail Surat Izin',
+                AppLocalization.isIndonesian ? 'Detail Surat Izin' : 'Leave Request Detail',
                 style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 18),
               ),
               Container(
@@ -514,7 +567,7 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  permit['status'] ?? 'Pending',
+                  statusText,
                   style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 10),
                 ),
               ),
@@ -525,12 +578,12 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildInfoRow('Jenis Izin', permit['jenis'] ?? '-', textColor),
-                _buildInfoRow('Tanggal', '${permit['tanggalMulai']} s.d ${permit['tanggalSelesai']}', textColor),
-                _buildInfoRow('Wali Kelas', permit['teacherName'] ?? '-', textColor),
+                _buildInfoRow(AppLocalization.isIndonesian ? 'Jenis Izin' : 'Leave Type', jenisText, textColor),
+                _buildInfoRow(AppLocalization.isIndonesian ? 'Tanggal' : 'Date', '${permit['tanggalMulai']} ${AppLocalization.isIndonesian ? 's.d' : 'to'} ${permit['tanggalSelesai']}', textColor),
+                _buildInfoRow(AppLocalization.isIndonesian ? 'Wali Kelas' : 'Class Teacher', permit['teacherName'] ?? '-', textColor),
                 const Divider(height: 24),
                 Text(
-                  'Alasan / Keterangan:',
+                  AppLocalization.isIndonesian ? 'Alasan / Keterangan:' : 'Reason / Description:',
                   style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 11, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
@@ -541,7 +594,7 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                 if (permit['buktiBase64'] != null) ...[
                   const SizedBox(height: 16),
                   Text(
-                    'Lampiran Bukti:',
+                    AppLocalization.isIndonesian ? 'Lampiran Bukti:' : 'Attachment Proof:',
                     style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
@@ -567,7 +620,10 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Tutup', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold)),
+              child: Text(
+                AppLocalization.isIndonesian ? 'Tutup' : 'Close',
+                style: const TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );
@@ -625,11 +681,11 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Surat Izin Digital',
+                                AppLocalization.isIndonesian ? 'Surat Izin Digital' : 'Digital Leave Request',
                                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
                               ),
                               Text(
-                                'Anak: $_studentName • Wali Kelas: $_waliKelasName',
+                                '${AppLocalization.isIndonesian ? 'Anak' : 'Child'}: $_studentName • ${AppLocalization.isIndonesian ? 'Wali Kelas' : 'Class Teacher'}: $_waliKelasName',
                                 style: TextStyle(fontSize: 12, color: subTextColor),
                               ),
                             ],
@@ -658,7 +714,7 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
                               child: Text(
-                                'Gagal memuat riwayat: ${snapshot.error}',
+                                '${AppLocalization.isIndonesian ? 'Gagal memuat riwayat: ' : 'Failed to load history: '}${snapshot.error}',
                                 style: const TextStyle(color: Colors.redAccent),
                                 textAlign: TextAlign.center,
                               ),
@@ -685,7 +741,7 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                                 Icon(Icons.mail_outline_rounded, size: 64, color: textColor.withValues(alpha: 0.3)),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Belum ada surat izin yang dikirim.',
+                                  AppLocalization.isIndonesian ? 'Belum ada surat izin yang dikirim.' : 'No leave requests sent yet.',
                                   style: TextStyle(color: subTextColor, fontSize: 14),
                                 ),
                                 const SizedBox(height: 12),
@@ -697,7 +753,10 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
                                   icon: const Icon(Icons.add, size: 18),
-                                  label: const Text('Kirim Surat Izin', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  label: Text(
+                                    AppLocalization.isIndonesian ? 'Kirim Surat Izin' : 'Send Leave Request',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ],
                             ),
@@ -711,13 +770,23 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                             final permit = docs[index].data();
                             final dateRange = permit['tanggalMulai'] == permit['tanggalSelesai']
                                 ? permit['tanggalMulai']
-                                : '${permit['tanggalMulai']} s.d ${permit['tanggalSelesai']}';
+                                : '${permit['tanggalMulai']} ${AppLocalization.isIndonesian ? 's.d' : 'to'} ${permit['tanggalSelesai']}';
                             final type = permit['jenis'] ?? 'Sakit';
                             final isPending = permit['status'] == 'Pending';
                             final isApproved = permit['status'] == 'Disetujui';
                             final statusColor = isApproved
                                 ? const Color(0xFF10B981)
                                 : (isPending ? const Color(0xFFF59E0B) : const Color(0xFFEF4444));
+
+                            final statusText = permit['status'] == 'Disetujui'
+                                ? (AppLocalization.isIndonesian ? 'Disetujui' : 'Approved')
+                                : (permit['status'] == 'Ditolak'
+                                    ? (AppLocalization.isIndonesian ? 'Ditolak' : 'Rejected')
+                                    : 'Pending');
+
+                            final typeDisplay = type == 'Sakit'
+                                ? (AppLocalization.isIndonesian ? 'Sakit' : 'Sick')
+                                : (AppLocalization.isIndonesian ? 'Izin' : 'Permit');
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -754,7 +823,7 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      type,
+                                      typeDisplay,
                                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textColor),
                                     ),
                                     Container(
@@ -764,7 +833,7 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
-                                        permit['status'] ?? 'Pending',
+                                        statusText,
                                         style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 9),
                                       ),
                                     ),
@@ -775,12 +844,12 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
                                   children: [
                                     const SizedBox(height: 6),
                                     Text(
-                                      'Tanggal: $dateRange',
+                                      '${AppLocalization.isIndonesian ? 'Tanggal' : 'Date'}: $dateRange',
                                       style: TextStyle(color: subTextColor, fontSize: 12),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'Ket: ${permit['alasan']}',
+                                      '${AppLocalization.isIndonesian ? 'Ket' : 'Note'}: ${permit['alasan']}',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(color: Colors.grey, fontSize: 12),
@@ -804,7 +873,10 @@ class _ParentPermitPageState extends State<ParentPermitPage> {
             onPressed: _showNewPermitSheet,
             backgroundColor: const Color(0xFF6366F1),
             icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text('Kirim Surat Izin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            label: Text(
+              AppLocalization.isIndonesian ? 'Kirim Surat Izin' : 'Send Leave Request',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
         );
       },

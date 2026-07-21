@@ -2,10 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/localization/app_localization.dart';
+import '../../teachers/pages/teacher_settings_page.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/services/push_notification_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../authentication/widgets/theme_toggle_button.dart';
 import '../../chat/widgets/chat_unread_badge.dart';
@@ -42,6 +44,11 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
   void initState() {
     super.initState();
     _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        PushNotificationService().checkPendingNotification();
+      });
+    });
   }
 
   @override
@@ -128,10 +135,17 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour <= 10) return 'Selamat Pagi';
-    if (hour <= 14) return 'Selamat Siang';
-    if (hour <= 18) return 'Selamat Sore';
-    return 'Selamat Malam';
+    if (AppLocalization.isIndonesian) {
+      if (hour <= 10) return 'Selamat Pagi';
+      if (hour <= 14) return 'Selamat Siang';
+      if (hour <= 18) return 'Selamat Sore';
+      return 'Selamat Malam';
+    } else {
+      if (hour <= 10) return 'Good Morning';
+      if (hour <= 14) return 'Good Afternoon';
+      if (hour <= 18) return 'Good Evening';
+      return 'Good Night';
+    }
   }
 
   Future<void> _logout() async {
@@ -273,10 +287,40 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                     ],
                                   ),
                                 ),
-                                const ThemeToggleButton(),
-                                IconButton(
-                                  onPressed: _logout,
-                                  icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.1)
+                                        : Colors.black.withValues(alpha: 0.05),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.settings_rounded,
+                                      color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                                      size: 20,
+                                    ),
+                                    tooltip: AppLocalization.isIndonesian ? 'Pengaturan' : 'Settings',
+                                    onPressed: () => Get.to(() => const TeacherSettingsPage()),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.1)
+                                        : Colors.black.withValues(alpha: 0.05),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.logout_rounded,
+                                      color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                                      size: 20,
+                                    ),
+                                    tooltip: AppLocalization.logout,
+                                    onPressed: _logout,
+                                  ),
                                 ),
                               ],
                             ),
@@ -329,7 +373,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                                     BorderRadius.circular(20),
                                               ),
                                               child: Text(
-                                                'Siswa Terhubung',
+                                                AppLocalization.isIndonesian ? 'Siswa Terhubung' : 'Connected Student',
                                                 style: TextStyle(
                                                   color: textColor,
                                                   fontSize: 10,
@@ -347,7 +391,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                               ),
                                             ),
                                             Text(
-                                              'Kelas ${_studentClassName ?? _parentData?['className'] ?? '-'}',
+                                              '${AppLocalization.isIndonesian ? 'Kelas' : 'Class'} ${_studentClassName ?? _parentData?['className'] ?? '-'}',
                                               style: TextStyle(
                                                 color: textColor.withValues(alpha: 0.8),
                                                 fontSize: 13,
@@ -366,7 +410,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                   Center(
                                     child: _heroSmallInfo(
                                         Icons.business_rounded,
-                                        _schoolName ?? 'Sekolah',
+                                        _schoolName ?? (AppLocalization.isIndonesian ? 'Sekolah' : 'School'),
                                         textColor),
                                   ),
                                   const SizedBox(height: 10),
@@ -379,7 +423,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      '${_semester ?? '-'} • Tahun Ajaran ${_tahunAjaran ?? '-'}',
+                                      '${_semester ?? '-'} • ${AppLocalization.isIndonesian ? 'Tahun Ajaran' : 'Academic Year'} ${_tahunAjaran ?? '-'}',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         color: textColor,
@@ -414,7 +458,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                   cardBorder: cardBorder,
                                 ),
                                 _buildSectionTitle(
-                                  'Menu Utama',
+                                  AppLocalization.isIndonesian ? 'Menu Utama' : 'Main Menu',
                                   Icons.dashboard_rounded,
                                   textColor,
                                   subTextColor,
@@ -447,7 +491,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _buildSectionTitle(
-                                  'Informasi Tambahan',
+                                  AppLocalization.isIndonesian ? 'Informasi Tambahan' : 'Additional Info',
                                   Icons.info_outline_rounded,
                                   textColor,
                                   subTextColor,
@@ -455,8 +499,8 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                                 const SizedBox(height: 16),
                                 _gridCard(
                                   icon: Icons.person_pin_rounded,
-                                  label: 'Wali Kelas',
-                                  value: _waliKelas ?? 'Belum tersedia',
+                                  label: AppLocalization.isIndonesian ? 'Wali Kelas' : 'Class Teacher',
+                                  value: _waliKelas ?? (AppLocalization.isIndonesian ? 'Belum tersedia' : 'Not available'),
                                   color: const Color(0xFF6366F1),
                                   isDark: isDark,
                                   cardBg: cardBg,
@@ -584,7 +628,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionTitle(
-              'Ujian Semester',
+              AppLocalization.isIndonesian ? 'Ujian Semester' : 'Semester Exam',
               Icons.fact_check_rounded,
               titleColor,
               subtitleColor,
@@ -635,7 +679,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Jadwal Ujian Semester',
+                            AppLocalization.isIndonesian ? 'Jadwal Ujian Semester' : 'Semester Exam Schedule',
                             style: TextStyle(
                               color: titleColor,
                               fontWeight: FontWeight.bold,
@@ -644,7 +688,9 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Ketuk untuk melihat jadwal dan ujian UTS/UAS Anak Anda.',
+                            AppLocalization.isIndonesian
+                                ? 'Ketuk untuk melihat jadwal dan ujian UTS/UAS Anak Anda.'
+                                : 'Tap to view schedule and UTS/UAS exams for your child.',
                             style: TextStyle(color: subtitleColor, fontSize: 12),
                           ),
                         ],
@@ -712,7 +758,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
   ) {
     final menus = [
       {
-        'title': 'Daftar Hadir',
+        'title': AppLocalization.isIndonesian ? 'Daftar Hadir' : 'Attendance List',
         'icon': Icons.fact_check_rounded,
         'color': const Color(0xFF10B981),
         'onTap': () => Get.toNamed(AppRoutes.parentAttendance, arguments: {
@@ -723,7 +769,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
             }),
       },
       {
-        'title': 'Jadwal Kelas',
+        'title': AppLocalization.isIndonesian ? 'Jadwal Kelas' : 'Class Schedule',
         'icon': Icons.calendar_month_rounded,
         'color': const Color(0xFFF59E0B),
         'onTap': () => Get.toNamed(AppRoutes.parentSchedule, arguments: {
@@ -731,7 +777,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
             }),
       },
       {
-        'title': 'Pelanggaran',
+        'title': AppLocalization.isIndonesian ? 'Pelanggaran' : 'Violations',
         'icon': Icons.warning_amber_rounded,
         'color': const Color(0xFFEF4444),
         'onTap': () => Get.toNamed(AppRoutes.parentViolations, arguments: {
@@ -740,7 +786,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
             }),
       },
       {
-        'title': 'Nilai Anak',
+        'title': AppLocalization.isIndonesian ? 'Nilai Anak' : 'Child Grades',
         'icon': Icons.grade_rounded,
         'color': const Color(0xFF8B5CF6),
         'onTap': () => Get.toNamed(AppRoutes.parentGrades, arguments: {
@@ -753,7 +799,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
             }),
       },
       {
-        'title': 'Tugas Anak',
+        'title': AppLocalization.isIndonesian ? 'Tugas Anak' : 'Child Tasks',
         'icon': Icons.assignment_rounded,
         'color': const Color(0xFF6366F1),
         'onTap': () => Get.to(
@@ -771,14 +817,16 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
             ),
       },
       {
-        'title': 'Ujian Online Anak',
+        'title': AppLocalization.isIndonesian ? 'Ujian Online Anak' : 'Child Online Exams',
         'icon': Icons.quiz_rounded,
         'color': const Color(0xFF8B5CF6),
         'onTap': () {
           if (classId == null || classId.isEmpty) {
             Get.snackbar(
-              'Informasi',
-              'Anak Anda belum terdaftar di kelas manapun.',
+              AppLocalization.isIndonesian ? 'Informasi' : 'Information',
+              AppLocalization.isIndonesian
+                  ? 'Anak Anda belum terdaftar di kelas manapun.'
+                  : 'Your child is not registered in any class yet.',
               snackPosition: SnackPosition.BOTTOM,
               backgroundColor: Colors.amber,
               colorText: Colors.black,
@@ -789,7 +837,7 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
         },
       },
       {
-        'title': 'Chat Guru',
+        'title': AppLocalization.isIndonesian ? 'Chat Guru' : 'Chat Teacher',
         'icon': Icons.chat_bubble_outline_rounded,
         'color': const Color(0xFFF97316),
         'onTap': () => Get.toNamed(AppRoutes.parentChat, arguments: {
@@ -801,14 +849,14 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
             }),
       },
       {
-        'title': 'Informasi',
+        'title': AppLocalization.isIndonesian ? 'Informasi' : 'Information',
         'icon': Icons.info_outline_rounded,
         'color': const Color(0xFF6366F1),
         'onTap': () => _scrollToSection(_infoKey),
         'badge': null,
       },
       {
-        'title': 'Surat Izin Digital',
+        'title': AppLocalization.isIndonesian ? 'Surat Izin Digital' : 'Digital Permit',
         'icon': Icons.mark_email_read_rounded,
         'color': const Color(0xFF8B5CF6),
         'onTap': () => Get.toNamed(
@@ -825,14 +873,16 @@ class _ParentDashboardPageState extends State<ParentDashboardPage> {
       },
 
       {
-        'title': 'Tagihan SPP & Keuangan',
+        'title': AppLocalization.isIndonesian ? 'Tagihan SPP & Keuangan' : 'SPP Invoice & Finance',
         'icon': Icons.payments_rounded,
         'color': const Color(0xFF10B981),
         'onTap': () {
           if (studentId.isEmpty) {
             Get.snackbar(
-              'Informasi',
-              'Akun Anda belum terhubung dengan data murid manapun.',
+              AppLocalization.isIndonesian ? 'Informasi' : 'Information',
+              AppLocalization.isIndonesian
+                  ? 'Akun Anda belum terhubung dengan data murid manapun.'
+                  : 'Your account is not connected to any student data yet.',
               snackPosition: SnackPosition.BOTTOM,
               backgroundColor: Colors.amber,
               colorText: Colors.black,

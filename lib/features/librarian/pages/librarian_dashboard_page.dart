@@ -9,6 +9,8 @@ import '../widgets/book_list_tab.dart';
 import '../widgets/loan_list_tab.dart';
 import '../widgets/visitor_log_tab.dart';
 
+import '../../teachers/pages/teacher_settings_page.dart';
+
 class LibrarianDashboardPage extends StatefulWidget {
   const LibrarianDashboardPage({super.key});
 
@@ -108,6 +110,10 @@ class _LibrarianDashboardPageState extends State<LibrarianDashboardPage> with Si
             final textColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
             final subtitleColor = isDark ? Colors.white70 : const Color(0xFF1E1B4B).withOpacity(0.7);
             final tabIndicatorColor = const Color(0xFF6366F1);
+            final iconBgColor = isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.05);
+            final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
 
             return Scaffold(
               backgroundColor: isDark ? const Color(0xFF0F0C20) : const Color(0xFFF8FAFC),
@@ -166,13 +172,40 @@ class _LibrarianDashboardPageState extends State<LibrarianDashboardPage> with Si
                                   ],
                                 ),
                               ),
-                              // Only show logout button if they are not a teacher-librarian accessing via sub-widget
-                              if (!isTeacherLibrarian)
-                                IconButton(
-                                  onPressed: () => _confirmLogout(context),
-                                  icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
-                                  tooltip: AppLocalization.logout,
+                              // Settings and Logout buttons with background
+                              if (!isTeacherLibrarian) ...[
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: iconBgColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.settings_rounded,
+                                      color: iconColor,
+                                      size: 20,
+                                    ),
+                                    tooltip: AppLocalization.isIndonesian ? 'Pengaturan' : 'Settings',
+                                    onPressed: () => Get.to(() => const TeacherSettingsPage()),
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: iconBgColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.logout_rounded,
+                                      color: iconColor,
+                                      size: 20,
+                                    ),
+                                    tooltip: AppLocalization.logout,
+                                    onPressed: () => _confirmLogout(context),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

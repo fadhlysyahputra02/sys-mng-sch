@@ -772,10 +772,13 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
+                    isExpanded: true,
                     value: _selectedSampleClassId,
                     hint: Text(
                       AppLocalization.isIndonesian ? 'Pilih Kelas Sample' : 'Select Sample Class',
                       style: TextStyle(fontSize: 12, color: subText),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                     dropdownColor: isDark ? Colors.grey.shade900 : Colors.white,
                     style: TextStyle(color: titleColor, fontSize: 12),
@@ -789,7 +792,11 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                       final className = data['namaKelas'] ?? 'Kelas';
                       return DropdownMenuItem<String>(
                         value: doc.id,
-                        child: Text(className),
+                        child: Text(
+                          className,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       );
                     }).toList(),
                     onChanged: _onSampleClassChanged,
@@ -798,10 +805,13 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<String>(
+                    isExpanded: true,
                     value: _selectedSampleStudentId,
                     hint: Text(
                       AppLocalization.isIndonesian ? 'Pilih Murid Sample' : 'Select Sample Student',
                       style: TextStyle(fontSize: 12, color: subText),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                     dropdownColor: isDark ? Colors.grey.shade900 : Colors.white,
                     style: TextStyle(color: titleColor, fontSize: 12),
@@ -815,7 +825,11 @@ class _AdminRaporSettingsPageState extends State<AdminRaporSettingsPage> {
                       final studentName = data['nama'] ?? 'Murid';
                       return DropdownMenuItem<String>(
                         value: doc.id,
-                        child: Text(studentName),
+                        child: Text(
+                          studentName,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       );
                     }).toList(),
                     onChanged: (val) {

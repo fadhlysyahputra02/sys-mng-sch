@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/services/app_auth_service.dart';
 import '../../../core/services/session_service.dart';
+import '../../../core/services/push_notification_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../../librarian/pages/librarian_dashboard_page.dart';
 import '../../chat/teacher_chat_selector_page.dart';
@@ -130,6 +131,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   void initState() {
     super.initState();
     _resolveTeacherDocId();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        PushNotificationService().checkPendingNotification();
+      });
+    });
   }
 
   @override

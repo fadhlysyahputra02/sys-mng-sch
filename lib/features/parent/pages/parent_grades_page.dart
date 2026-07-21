@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../widgets/parent_student_grades_section.dart';
+import '../../../core/localization/app_localization.dart';
 
 class ParentGradesPage extends StatefulWidget {
   const ParentGradesPage({super.key});
@@ -43,7 +44,7 @@ class _ParentGradesPageState extends State<ParentGradesPage> {
               elevation: 0,
               iconTheme: IconThemeData(color: textColor),
               title: Text(
-                'Laporan Nilai Anak',
+                AppLocalization.isIndonesian ? 'Laporan Nilai Anak' : "Child's Grade Report",
                 style: TextStyle(
                   color: textColor,
                   fontWeight: FontWeight.bold,
@@ -96,7 +97,9 @@ class _ParentGradesPageState extends State<ParentGradesPage> {
                                   color: subTextColor, size: 32),
                               const SizedBox(height: 12),
                               Text(
-                                'Data kelas anak belum lengkap.\nLaporan nilai belum tersedia.',
+                                AppLocalization.isIndonesian
+                                    ? 'Data kelas anak belum lengkap.\nLaporan nilai belum tersedia.'
+                                    : 'Child class data is incomplete.\nGrade report is not available yet.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: subTextColor,

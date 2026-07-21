@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../services/library_service.dart';
+import '../../../core/localization/app_localization.dart';
 
 class BookListTab extends StatefulWidget {
   final bool isDark;
@@ -99,7 +100,9 @@ class _BookListTabState extends State<BookListTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isEdit ? 'Ubah Informasi Buku' : 'Tambah Buku Baru',
+                        isEdit
+                            ? (AppLocalization.isIndonesian ? 'Ubah Informasi Buku' : 'Edit Book Info')
+                            : (AppLocalization.isIndonesian ? 'Tambah Buku Baru' : 'Add New Book'),
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -108,7 +111,9 @@ class _BookListTabState extends State<BookListTab> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        isEdit ? 'Perbarui detail data katalog buku.' : 'Isi formulir untuk menambahkan buku ke perpustakaan.',
+                        isEdit
+                            ? (AppLocalization.isIndonesian ? 'Perbarui detail data katalog buku.' : 'Update book catalog details.')
+                            : (AppLocalization.isIndonesian ? 'Isi formulir untuk menambahkan buku ke perpustakaan.' : 'Fill the form to add a book to the library.'),
                         style: TextStyle(fontSize: 12, color: subTextColor),
                       ),
                       const SizedBox(height: 20),
@@ -116,10 +121,12 @@ class _BookListTabState extends State<BookListTab> {
                       // Judul
                       _buildTextField(
                         controller: _judulController,
-                        label: 'Judul Buku',
+                        label: AppLocalization.isIndonesian ? 'Judul Buku' : 'Book Title',
                         icon: Icons.title_rounded,
                         isDark: widget.isDark,
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Judul buku wajib diisi' : null,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? (AppLocalization.isIndonesian ? 'Judul buku wajib diisi' : 'Book title is required')
+                            : null,
                       ),
                       const SizedBox(height: 12),
 
@@ -129,20 +136,24 @@ class _BookListTabState extends State<BookListTab> {
                           Expanded(
                             child: _buildTextField(
                               controller: _pengarangController,
-                              label: 'Pengarang',
+                              label: AppLocalization.isIndonesian ? 'Pengarang' : 'Author',
                               icon: Icons.person_outline_rounded,
                               isDark: widget.isDark,
-                              validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? (AppLocalization.isIndonesian ? 'Wajib diisi' : 'Required')
+                                  : null,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildTextField(
                               controller: _penerbitController,
-                              label: 'Penerbit',
+                              label: AppLocalization.isIndonesian ? 'Penerbit' : 'Publisher',
                               icon: Icons.business_rounded,
                               isDark: widget.isDark,
-                              validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? (AppLocalization.isIndonesian ? 'Wajib diisi' : 'Required')
+                                  : null,
                             ),
                           ),
                         ],
@@ -155,11 +166,13 @@ class _BookListTabState extends State<BookListTab> {
                           Expanded(
                             child: _buildTextField(
                               controller: _tahunController,
-                              label: 'Tahun Terbit',
+                              label: AppLocalization.isIndonesian ? 'Tahun Terbit' : 'Publish Year',
                               icon: Icons.calendar_today_rounded,
                               keyboardType: TextInputType.number,
                               isDark: widget.isDark,
-                              validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? (AppLocalization.isIndonesian ? 'Wajib diisi' : 'Required')
+                                  : null,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -181,13 +194,17 @@ class _BookListTabState extends State<BookListTab> {
                           Expanded(
                             child: _buildTextField(
                               controller: _stokController,
-                              label: 'Stok (Jumlah)',
+                              label: AppLocalization.isIndonesian ? 'Stok (Jumlah)' : 'Stock (Quantity)',
                               icon: Icons.inventory_2_outlined,
                               keyboardType: TextInputType.number,
                               isDark: widget.isDark,
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty) return 'Wajib diisi';
-                                if (int.tryParse(v) == null) return 'Harus angka';
+                                if (v == null || v.trim().isEmpty) {
+                                  return AppLocalization.isIndonesian ? 'Wajib diisi' : 'Required';
+                                }
+                                if (int.tryParse(v) == null) {
+                                  return AppLocalization.isIndonesian ? 'Harus angka' : 'Must be a number';
+                                }
                                 return null;
                               },
                             ),
@@ -196,10 +213,12 @@ class _BookListTabState extends State<BookListTab> {
                           Expanded(
                             child: _buildTextField(
                               controller: _rakController,
-                              label: 'Lokasi Rak',
+                              label: AppLocalization.isIndonesian ? 'Lokasi Rak' : 'Shelf Location',
                               icon: Icons.grid_view_rounded,
                               isDark: widget.isDark,
-                              validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? (AppLocalization.isIndonesian ? 'Wajib diisi' : 'Required')
+                                  : null,
                             ),
                           ),
                         ],
@@ -212,7 +231,7 @@ class _BookListTabState extends State<BookListTab> {
                         value: selectedKlasifikasi,
                         style: TextStyle(color: textColor),
                         decoration: InputDecoration(
-                          labelText: 'Klasifikasi Buku',
+                          labelText: AppLocalization.isIndonesian ? 'Klasifikasi Buku' : 'Book Classification',
                           labelStyle: TextStyle(color: subTextColor, fontSize: 13),
                           filled: true,
                           fillColor: fieldFill,
@@ -227,9 +246,16 @@ class _BookListTabState extends State<BookListTab> {
                           prefixIcon: Icon(Icons.category_rounded, color: const Color(0xFF6366F1), size: 20),
                         ),
                         items: ['Matematika', 'Sains', 'Umum', 'Seni', 'Other'].map((k) {
+                          String display = k;
+                          if (!AppLocalization.isIndonesian) {
+                            if (k == 'Matematika') display = 'Mathematics';
+                            if (k == 'Sains') display = 'Science';
+                            if (k == 'Umum') display = 'General';
+                            if (k == 'Seni') display = 'Arts';
+                          }
                           return DropdownMenuItem<String>(
                             value: k,
-                            child: Text(k, style: TextStyle(color: textColor)),
+                            child: Text(display, style: TextStyle(color: textColor)),
                           );
                         }).toList(),
                         onChanged: (val) {
@@ -247,7 +273,7 @@ class _BookListTabState extends State<BookListTab> {
                           TextButton(
                             onPressed: _isLoading ? null : () => Get.back(),
                             child: Text(
-                              'Batal',
+                              AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
                               style: TextStyle(color: textColor.withOpacity(0.5)),
                             ),
                           ),
@@ -280,7 +306,11 @@ class _BookListTabState extends State<BookListTab> {
                                           rak: rak,
                                           klasifikasi: selectedKlasifikasi ?? 'Umum',
                                         );
-                                        _showNotification('Berhasil', 'Informasi buku berhasil diperbarui.', true);
+                                        _showNotification(
+                                          AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+                                          AppLocalization.isIndonesian ? 'Informasi buku berhasil diperbarui.' : 'Book information updated successfully.',
+                                          true,
+                                        );
                                       } else {
                                         await _libraryService.addBook(
                                           judul: judul,
@@ -292,13 +322,21 @@ class _BookListTabState extends State<BookListTab> {
                                           rak: rak,
                                           klasifikasi: selectedKlasifikasi ?? 'Umum',
                                         );
-                                        _showNotification('Berhasil', 'Buku baru berhasil terdaftar.', true);
+                                        _showNotification(
+                                          AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+                                          AppLocalization.isIndonesian ? 'Buku baru berhasil terdaftar.' : 'New book registered successfully.',
+                                          true,
+                                        );
                                       }
                                       if (context.mounted) {
                                         Navigator.of(context).pop();
                                       }
                                     } catch (e) {
-                                      _showNotification('Gagal', e.toString(), false);
+                                      _showNotification(
+                                        AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+                                        e.toString(),
+                                        false,
+                                      );
                                     } finally {
                                       setStateDialog(() => _isLoading = false);
                                     }
@@ -318,7 +356,9 @@ class _BookListTabState extends State<BookListTab> {
                                     ),
                                   )
                                 : Text(
-                                    isEdit ? 'Perbarui' : 'Simpan',
+                                    isEdit
+                                        ? (AppLocalization.isIndonesian ? 'Perbarui' : 'Update')
+                                        : (AppLocalization.isIndonesian ? 'Simpan' : 'Save'),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
@@ -351,22 +391,27 @@ class _BookListTabState extends State<BookListTab> {
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: dialogBorder),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
-            SizedBox(width: 10),
-            Text('Hapus Buku', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            const SizedBox(width: 10),
+            Text(
+              AppLocalization.isIndonesian ? 'Hapus Buku' : 'Delete Book',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Text(
-          'Apakah Anda yakin ingin menghapus buku "$judul" dari katalog perpustakaan?',
+          AppLocalization.isIndonesian
+              ? 'Apakah Anda yakin ingin menghapus buku "$judul" dari katalog perpustakaan?'
+              : 'Are you sure you want to delete book "$judul" from the library catalog?',
           style: TextStyle(color: textColor.withOpacity(0.8)),
         ),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
             child: Text(
-              'Batal',
+              AppLocalization.isIndonesian ? 'Batal' : 'Cancel',
               style: TextStyle(color: textColor.withOpacity(0.5)),
             ),
           ),
@@ -376,7 +421,10 @@ class _BookListTabState extends State<BookListTab> {
               backgroundColor: Colors.red,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              AppLocalization.isIndonesian ? 'Hapus' : 'Delete',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -385,9 +433,17 @@ class _BookListTabState extends State<BookListTab> {
     if (confirm == true) {
       try {
         await _libraryService.deleteBook(bookId);
-        _showNotification('Berhasil', 'Buku "$judul" berhasil dihapus.', true);
+        _showNotification(
+          AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+          AppLocalization.isIndonesian ? 'Buku "$judul" berhasil dihapus.' : 'Book "$judul" successfully deleted.',
+          true,
+        );
       } catch (e) {
-        _showNotification('Gagal', e.toString(), false);
+        _showNotification(
+          AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+          e.toString(),
+          false,
+        );
       }
     }
   }
@@ -448,7 +504,9 @@ class _BookListTabState extends State<BookListTab> {
                 child: TextField(
                   style: TextStyle(color: textColor, fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'Cari judul, pengarang, atau ISBN...',
+                    hintText: AppLocalization.isIndonesian
+                        ? 'Cari judul, pengarang, atau ISBN...'
+                        : 'Search title, author, or ISBN...',
                     hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                     prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
                     filled: true,
@@ -474,7 +532,10 @@ class _BookListTabState extends State<BookListTab> {
               ElevatedButton.icon(
                 onPressed: () => _showBookDialog(),
                 icon: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                label: const Text('Buku', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                label: Text(
+                  AppLocalization.isIndonesian ? 'Buku' : 'Book',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6366F1),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -500,7 +561,10 @@ class _BookListTabState extends State<BookListTab> {
                     children: [
                       Icon(Icons.menu_book_rounded, size: 48, color: subTextColor.withOpacity(0.5)),
                       const SizedBox(height: 12),
-                      Text('Belum ada buku terdaftar.', style: TextStyle(color: subTextColor)),
+                      Text(
+                        AppLocalization.isIndonesian ? 'Belum ada buku terdaftar.' : 'No books registered yet.',
+                        style: TextStyle(color: subTextColor),
+                      ),
                     ],
                   ),
                 );
@@ -518,7 +582,10 @@ class _BookListTabState extends State<BookListTab> {
 
               if (books.isEmpty) {
                 return Center(
-                  child: Text('Buku tidak ditemukan.', style: TextStyle(color: subTextColor)),
+                  child: Text(
+                    AppLocalization.isIndonesian ? 'Buku tidak ditemukan.' : 'Book not found.',
+                    style: TextStyle(color: subTextColor),
+                  ),
                 );
               }
 
@@ -588,11 +655,11 @@ class _BookListTabState extends State<BookListTab> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Pengarang: $pengarang',
+                                '${AppLocalization.isIndonesian ? 'Pengarang' : 'Author'}: $pengarang',
                                 style: TextStyle(fontSize: 12, color: subTextColor),
                               ),
                               Text(
-                                'Penerbit: $penerbit ($tahun)',
+                                '${AppLocalization.isIndonesian ? 'Penerbit' : 'Publisher'}: $penerbit ($tahun)',
                                 style: TextStyle(fontSize: 12, color: subTextColor),
                               ),
                               if (isbn.isNotEmpty)
@@ -614,7 +681,9 @@ class _BookListTabState extends State<BookListTab> {
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
-                                      stok > 0 ? 'Stok: $stok Buku' : 'Stok Habis',
+                                      stok > 0
+                                          ? (AppLocalization.isIndonesian ? 'Stok: $stok Buku' : 'Stock: $stok Books')
+                                          : (AppLocalization.isIndonesian ? 'Stok Habis' : 'Out of Stock'),
                                       style: TextStyle(
                                         color: stok > 0 ? const Color(0xFF10B981) : Colors.red,
                                         fontSize: 10,
@@ -629,7 +698,7 @@ class _BookListTabState extends State<BookListTab> {
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
-                                      'Rak: $rak',
+                                      '${AppLocalization.isIndonesian ? 'Rak' : 'Shelf'}: $rak',
                                       style: const TextStyle(
                                         color: Colors.blue,
                                         fontSize: 10,
@@ -664,12 +733,12 @@ class _BookListTabState extends State<BookListTab> {
                             IconButton(
                               onPressed: () => _showBookDialog(bookId: id, initialData: data),
                               icon: const Icon(Icons.edit_outlined, color: Colors.blue, size: 20),
-                              tooltip: 'Edit Buku',
+                              tooltip: AppLocalization.isIndonesian ? 'Edit Buku' : 'Edit Book',
                             ),
                             IconButton(
                               onPressed: () => _deleteBook(id, judul),
                               icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
-                              tooltip: 'Hapus Buku',
+                              tooltip: AppLocalization.isIndonesian ? 'Hapus Buku' : 'Delete Book',
                             ),
                           ],
                         ),

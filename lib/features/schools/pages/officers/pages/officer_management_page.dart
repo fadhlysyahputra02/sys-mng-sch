@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -1029,21 +1030,32 @@ class _OfficerManagementPageState extends State<OfficerManagementPage> {
                                     width: 50,
                                     height: 50,
                                     decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: isTeacher
-                                            ? [const Color(0xFF10B981), const Color(0xFF059669)]
-                                            : [const Color(0xFF8B5CF6), const Color(0xFFD946EF)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
+                                      gradient: (data['fotoBase64'] as String?) == null || (data['fotoBase64'] as String?).toString().isEmpty
+                                          ? LinearGradient(
+                                              colors: isTeacher
+                                                  ? [const Color(0xFF10B981), const Color(0xFF059669)]
+                                                  : [const Color(0xFF8B5CF6), const Color(0xFFD946EF)],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            )
+                                          : null,
                                       borderRadius: BorderRadius.circular(14),
                                     ),
-                                    child: Icon(
-                                        isTeacher
-                                            ? Icons.school_rounded
-                                            : Icons.security_rounded,
-                                        color: Colors.white,
-                                        size: 26),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: (data['fotoBase64'] as String?) != null && (data['fotoBase64'] as String?).toString().isNotEmpty
+                                          ? Image.memory(
+                                              base64Decode(data['fotoBase64'] as String),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Icon(
+                                              isTeacher
+                                                  ? Icons.school_rounded
+                                                  : Icons.security_rounded,
+                                              color: Colors.white,
+                                              size: 26,
+                                            ),
+                                    ),
                                   ),
                                   const SizedBox(width: 14),
 

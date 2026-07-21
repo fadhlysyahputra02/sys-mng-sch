@@ -1,4 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../models/exam_model.dart';
 import '../models/exam_submission_model.dart';
 
@@ -361,7 +365,7 @@ class ExamService {
           'senderId': exam.teacherId,
           'senderName': exam.teacherName,
           'senderRole': 'teacher',
-          'category': 'exam',
+          'category': 'grade',
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
@@ -391,5 +395,517 @@ class ExamService {
     await _examsRef(schoolId).doc(examId).update({
       'susulanStudentIds': studentIds,
     });
+  }
+
+  /// Memeriksa draf ujian lokal yang tersimpan di SharedPreferences.
+  /// Jika ada draf ujian yang sudah mulai ('started') tetapi batas deadline/waktu
+  /// ujian sudah habis (expired), maka sistem akan mengumpulkannya secara otomatis di latar belakang.
+  Future<void> checkAndAutoSubmitExpiredExams({
+    required String schoolId,
+    required String studentId,
+    required String studentName,
+    required List<Exam> exams,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      for (final exam in exams) {
+        final startedKey = 'exam_draft_started_${studentId}_${exam.id}';
+        final draftStarted = prefs.getBool(startedKey) ?? false;
+        
+        if (!draftStarted) continue;
+
+        // Cek apakah deadline ujian sudah lewat
+        final isExpired = DateTime.now().isAfter(exam.dueDate);
+        if (isExpired) {
+          // Load draf jawaban
+          final mcKey = 'exam_draft_mc_${studentId}_${exam.id}';
+          final essayKey = 'exam_draft_essay_${studentId}_${exam.id}';
+          final mcRaw = prefs.getString(mcKey);
+          final essayRaw = prefs.getString(essayKey);
+
+          final Map<String, int> selectedAnswers = {};
+          final Map<String, String> essayAnswers = {};
+
+          if (mcRaw != null && mcRaw.isNotEmpty) {
+            final Map<String, dynamic> decoded = jsonDecode(mcRaw);
+            decoded.forEach((key, val) {
+              if (val is int) {
+                selectedAnswers[key] = val;
+              }
+            });
+          }
+          if (essayRaw != null && essayRaw.isNotEmpty) {
+            final Map<String, dynamic> decoded = jsonDecode(essayRaw);
+            decoded.forEach((key, val) {
+              if (val is String) {
+                essayAnswers[key] = val;
+              }
+            });
+          }
+
+          debugPrint('Auto-submitting expired exam in background: ${exam.title}');
+          
+          // Submit
+          await submitExam(
+            schoolId: schoolId,
+            exam: exam,
+            studentId: studentId,
+            studentName: studentName,
+            answers: selectedAnswers,
+            essayAnswers: essayAnswers,
+          );
+
+          // Clear draf
+          await prefs.remove(mcKey);
+          await prefs.remove(essayKey);
+          await prefs.remove(startedKey);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in checkAndAutoSubmitExpiredExams: $e');
+    }
+  }
+
+  /// Memeriksa draf ujian semester lokal yang tersimpan di SharedPreferences.
+  /// Jika ada draf yang sudah mulai, tetapi sesi ujian semester tersebut sudah habis (expired),
+  /// maka sistem akan mengumpulkannya secara otomatis di latar belakang.
+  Future<void> checkAndAutoSubmitExpiredSemesterExam({
+    required String schoolId,
+    required String studentId,
+    required String studentName,
+    required Exam exam,
+    required String sessionId,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final startedKey = 'exam_draft_started_${studentId}_${exam.id}';
+      final draftStarted = prefs.getBool(startedKey) ?? false;
+      
+      if (!draftStarted) return;
+
+      // Submit ke submissions & participations
+      final mcKey = 'exam_draft_mc_${studentId}_${exam.id}';
+      final essayKey = 'exam_draft_essay_${studentId}_${exam.id}';
+      final mcRaw = prefs.getString(mcKey);
+      final essayRaw = prefs.getString(essayKey);
+
+      final Map<String, int> selectedAnswers = {};
+      final Map<String, String> essayAnswers = {};
+
+      if (mcRaw != null && mcRaw.isNotEmpty) {
+        final Map<String, dynamic> decoded = jsonDecode(mcRaw);
+        decoded.forEach((key, val) {
+          if (val is int) {
+            selectedAnswers[key] = val;
+          }
+        });
+      }
+      if (essayRaw != null && essayRaw.isNotEmpty) {
+        final Map<String, dynamic> decoded = jsonDecode(essayRaw);
+        decoded.forEach((key, val) {
+          if (val is String) {
+            essayAnswers[key] = val;
+          }
+        });
+      }
+
+      debugPrint('Auto-submitting expired semester exam in background: ${exam.title}');
+      
+      // Submit ke submissions
+      await submitExam(
+        schoolId: schoolId,
+        exam: exam,
+        studentId: studentId,
+        studentName: studentName,
+        answers: selectedAnswers,
+        essayAnswers: essayAnswers,
+      );
+
+      // Update submittedAt di participations (denah tempat duduk)
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_sessions')
+          .doc(sessionId)
+          .collection('participations')
+          .doc(studentId)
+          .set({'submittedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+
+      // Clear draf
+      await prefs.remove(mcKey);
+      await prefs.remove(essayKey);
+      await prefs.remove(startedKey);
+    } catch (e) {
+      debugPrint('Error in checkAndAutoSubmitExpiredSemesterExam: $e');
+    }
+  }
+
+  /// Memeriksa semua draf ujian online kelas dan ujian semester milik murid yang tersimpan.
+  /// Jika ada draf yang sudah dimulai tapi ujiannya telah berakhir/kedaluwarsa,
+  /// maka sistem secara otomatis mengumpulkannya di latar belakang.
+  /// Dipanggil saat inisialisasi aplikasi (misal di Dashboard Murid) agar langsung terkirim
+  /// tanpa harus menunggu murid membuka halaman Ujian.
+  Future<void> checkAndAutoSubmitAllExpiredExamsForStudent({
+    required String schoolId,
+    required String studentId,
+    required String studentName,
+    required String classId,
+  }) async {
+    try {
+      final db = FirebaseFirestore.instance;
+      final now = DateTime.now();
+
+      // 1. Ambil semua ujian online kelas
+      final examsSnapshot = await db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exams')
+          .where('classId', isEqualTo: classId)
+          .get();
+
+      final exams = examsSnapshot.docs.map((doc) => Exam.fromFirestore(doc)).toList();
+      
+      // Auto-submit untuk ujian online kelas yang kedaluwarsa
+      await checkAndAutoSubmitExpiredExams(
+        schoolId: schoolId,
+        studentId: studentId,
+        studentName: studentName,
+        exams: exams,
+      );
+
+      // 2. Ambil sesi ujian semester hari ini
+      final todayDateStr = DateFormat('yyyy-MM-dd').format(now);
+      final sessionsSnapshot = await db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_sessions')
+          .where('classId', isEqualTo: classId)
+          .get();
+
+      for (final doc in sessionsSnapshot.docs) {
+        final sessionData = doc.data();
+        final sessionDate = (sessionData['date'] as Timestamp?)?.toDate();
+        if (sessionDate == null) continue;
+
+        final sessionDateStr = DateFormat('yyyy-MM-dd').format(sessionDate);
+        
+        // Hanya cek untuk sesi hari ini atau sesi di hari-hari sebelumnya yang sudah lewat
+        final cmp = sessionDateStr.compareTo(todayDateStr);
+        bool isExamTimeOver = false;
+        
+        if (sessionData['examStatus'] == 'Finished') {
+          isExamTimeOver = true;
+        } else if (cmp < 0) {
+          isExamTimeOver = true;
+        } else if (cmp == 0) {
+          try {
+            final endParts = (sessionData['endTime'] as String? ?? '00:00').split(':');
+            final sessionEnd = DateTime(
+              now.year, now.month, now.day,
+              int.parse(endParts[0]), int.parse(endParts[1]),
+            );
+            isExamTimeOver = now.isAfter(sessionEnd);
+          } catch (_) {}
+        }
+
+        if (isExamTimeOver) {
+          // Ambil detail ujian semester terkait
+          final examId = sessionData['examId'] as String?;
+          if (examId == null) continue;
+
+          final examDoc = await db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('exams')
+              .doc(examId)
+              .get();
+
+          if (!examDoc.exists) continue;
+          final exam = Exam.fromFirestore(examDoc);
+
+          // Cek angkatan murid jika ada pertanyaan khusus angkatan (sama seperti logika di participation page)
+          final studentDoc = await db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('students')
+              .doc(studentId)
+              .get();
+          final studentAngkatan = studentDoc.data()?['angkatan']?.toString() ?? '';
+
+          final qDoc = await db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('exam_questions')
+              .doc('${sessionData['eventId']}_${sessionData['subjectId']}_$studentAngkatan')
+              .get();
+
+          List<ExamQuestion> finalQuestions = exam.questions;
+          bool finalShufflePg = exam.shufflePg;
+          bool finalShuffleEssay = exam.shuffleEssay;
+
+          if (qDoc.exists && qDoc.data() != null) {
+            final qData = qDoc.data()!;
+            final qList = (qData['questions'] as List? ?? [])
+                .map((q) => ExamQuestion.fromMap(Map<String, dynamic>.from(q)))
+                .toList();
+            if (qList.isNotEmpty) {
+              finalQuestions = qList;
+              finalShufflePg = qData['shufflePg'] as bool? ?? false;
+              finalShuffleEssay = qData['shuffleEssay'] as bool? ?? false;
+            }
+          }
+
+          final overriddenExam = exam.copyWith(
+            questions: finalQuestions,
+            shufflePg: finalShufflePg,
+            shuffleEssay: finalShuffleEssay,
+          );
+
+          await checkAndAutoSubmitExpiredSemesterExam(
+            schoolId: schoolId,
+            studentId: studentId,
+            studentName: studentName,
+            exam: overriddenExam,
+            sessionId: doc.id,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in checkAndAutoSubmitAllExpiredExamsForStudent: $e');
+    }
+  }
+
+  /// Dipanggil oleh guru/admin untuk memeriksa dan mengumpulkan draf ujian yang sudah kedaluwarsa
+  /// milik seluruh murid di sekolah tersebut (jika murid tidak membuka aplikasi lagi).
+  Future<void> checkAndAutoSubmitAllExpiredDraftsForSchool({
+    required String schoolId,
+    required List<Exam> exams,
+  }) async {
+    try {
+      final db = FirebaseFirestore.instance;
+      final now = DateTime.now();
+
+      for (final exam in exams) {
+        // Cek apakah deadline ujian sudah lewat
+        final isExpired = now.isAfter(exam.dueDate);
+        if (!isExpired) continue;
+
+        // Ambil semua draf di Firestore untuk examId ini
+        final draftsSnapshot = await db
+            .collection('schools')
+            .doc(schoolId)
+            .collection('exam_drafts')
+            .where('examId', isEqualTo: exam.id)
+            .get();
+
+        for (final doc in draftsSnapshot.docs) {
+          final draftData = doc.data();
+          final studentId = draftData['studentId'] as String?;
+          final studentName = draftData['studentName'] as String? ?? 'Murid';
+          
+          if (studentId == null) continue;
+
+          // Cek apakah submission sudah ada di Firestore
+          final submissionId = '${exam.id}_$studentId';
+          final subDoc = await db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('exam_submissions')
+              .doc(submissionId)
+              .get();
+
+          // Jika belum disubmit, lakukan auto-submit
+          if (!subDoc.exists) {
+            final rawAnswers = draftData['answers'] as Map? ?? {};
+            final Map<String, int> selectedAnswers = rawAnswers.map(
+              (key, val) => MapEntry(key.toString(), (val as num? ?? 0).toInt())
+            );
+
+            final rawEssayAnswers = draftData['essayAnswers'] as Map? ?? {};
+            final Map<String, String> essayAnswers = rawEssayAnswers.map(
+              (key, val) => MapEntry(key.toString(), val.toString())
+            );
+
+            debugPrint('Auto-submitting draft on behalf of student $studentName for exam ${exam.title}');
+            await submitExam(
+              schoolId: schoolId,
+              exam: exam,
+              studentId: studentId,
+              studentName: studentName,
+              answers: selectedAnswers,
+              essayAnswers: essayAnswers,
+            );
+          }
+
+          // Hapus dokumen draf karena sudah diproses
+          await doc.reference.delete();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in checkAndAutoSubmitAllExpiredDraftsForSchool: $e');
+    }
+  }
+
+  /// Dipanggil oleh guru/admin untuk memeriksa dan mengumpulkan draf ujian semester yang sudah kedaluwarsa
+  /// milik seluruh murid di sekolah tersebut.
+  Future<void> checkAndAutoSubmitAllExpiredSemesterDraftsForSchool({
+    required String schoolId,
+    required String classId,
+  }) async {
+    try {
+      final db = FirebaseFirestore.instance;
+      final now = DateTime.now();
+      final todayDateStr = DateFormat('yyyy-MM-dd').format(now);
+
+      // Ambil sesi ujian semester hari ini
+      final sessionsSnapshot = await db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_sessions')
+          .where('classId', isEqualTo: classId)
+          .get();
+
+      for (final doc in sessionsSnapshot.docs) {
+        final sessionData = doc.data();
+        final sessionDate = (sessionData['date'] as Timestamp?)?.toDate();
+        if (sessionDate == null) continue;
+
+        final sessionDateStr = DateFormat('yyyy-MM-dd').format(sessionDate);
+        
+        final cmp = sessionDateStr.compareTo(todayDateStr);
+        bool isExamTimeOver = false;
+        
+        if (sessionData['examStatus'] == 'Finished') {
+          isExamTimeOver = true;
+        } else if (cmp < 0) {
+          isExamTimeOver = true;
+        } else if (cmp == 0) {
+          try {
+            final endParts = (sessionData['endTime'] as String? ?? '00:00').split(':');
+            final sessionEnd = DateTime(
+              now.year, now.month, now.day,
+              int.parse(endParts[0]), int.parse(endParts[1]),
+            );
+            isExamTimeOver = now.isAfter(sessionEnd);
+          } catch (_) {}
+        }
+
+        if (isExamTimeOver) {
+          final examId = sessionData['examId'] as String?;
+          if (examId == null) continue;
+
+          // Ambil draf di Firestore untuk examId ini
+          final draftsSnapshot = await db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('exam_drafts')
+              .where('examId', isEqualTo: examId)
+              .get();
+
+          if (draftsSnapshot.docs.isEmpty) continue;
+
+          final examDoc = await db
+              .collection('schools')
+              .doc(schoolId)
+              .collection('exams')
+              .doc(examId)
+              .get();
+
+          if (!examDoc.exists) continue;
+          final exam = Exam.fromFirestore(examDoc);
+
+          for (final draftDoc in draftsSnapshot.docs) {
+            final draftData = draftDoc.data();
+            final studentId = draftData['studentId'] as String?;
+            final studentName = draftData['studentName'] as String? ?? 'Murid';
+            
+            if (studentId == null) continue;
+
+            final submissionId = '${examId}_$studentId';
+            final subDoc = await db
+                .collection('schools')
+                .doc(schoolId)
+                .collection('exam_submissions')
+                .doc(submissionId)
+                .get();
+
+            if (!subDoc.exists) {
+              final rawAnswers = draftData['answers'] as Map? ?? {};
+              final Map<String, int> selectedAnswers = rawAnswers.map(
+                (key, val) => MapEntry(key.toString(), (val as num? ?? 0).toInt())
+              );
+
+              final rawEssayAnswers = draftData['essayAnswers'] as Map? ?? {};
+              final Map<String, String> essayAnswers = rawEssayAnswers.map(
+                (key, val) => MapEntry(key.toString(), val.toString())
+              );
+
+              // Cek angkatan murid
+              final studentDoc = await db
+                  .collection('schools')
+                  .doc(schoolId)
+                  .collection('students')
+                  .doc(studentId)
+                  .get();
+              final studentAngkatan = studentDoc.data()?['angkatan']?.toString() ?? '';
+
+              final qDoc = await db
+                  .collection('schools')
+                  .doc(schoolId)
+                  .collection('exam_questions')
+                  .doc('${sessionData['eventId']}_${sessionData['subjectId']}_$studentAngkatan')
+                  .get();
+
+              List<ExamQuestion> finalQuestions = exam.questions;
+              bool finalShufflePg = exam.shufflePg;
+              bool finalShuffleEssay = exam.shuffleEssay;
+
+              if (qDoc.exists && qDoc.data() != null) {
+                final qData = qDoc.data()!;
+                final qList = (qData['questions'] as List? ?? [])
+                    .map((q) => ExamQuestion.fromMap(Map<String, dynamic>.from(q)))
+                    .toList();
+                if (qList.isNotEmpty) {
+                  finalQuestions = qList;
+                  finalShufflePg = qData['shufflePg'] as bool? ?? false;
+                  finalShuffleEssay = qData['shuffleEssay'] as bool? ?? false;
+                }
+              }
+
+              final overriddenExam = exam.copyWith(
+                questions: finalQuestions,
+                shufflePg: finalShufflePg,
+                shuffleEssay: finalShuffleEssay,
+              );
+
+              debugPrint('Auto-submitting semester draft on behalf of student $studentName for exam ${exam.title}');
+              await submitExam(
+                schoolId: schoolId,
+                exam: overriddenExam,
+                studentId: studentId,
+                studentName: studentName,
+                answers: selectedAnswers,
+                essayAnswers: essayAnswers,
+              );
+
+              // Update submittedAt di participations (denah tempat duduk)
+              await db
+                  .collection('schools')
+                  .doc(schoolId)
+                  .collection('exam_sessions')
+                  .doc(doc.id)
+                  .collection('participations')
+                  .doc(studentId)
+                  .set({'submittedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+            }
+
+            // Hapus dokumen draf
+            await draftDoc.reference.delete();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in checkAndAutoSubmitAllExpiredSemesterDraftsForSchool: $e');
+    }
   }
 }

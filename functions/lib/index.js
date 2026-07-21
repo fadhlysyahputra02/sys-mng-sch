@@ -17,7 +17,7 @@ const nodemailer = require("nodemailer");
  * berdasarkan targetType dari dokumen notifikasi.
  */
 exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{schoolId}/notifications/{notifId}", async (event) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
     const data = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
     const schoolId = event.params.schoolId;
     if (!data) {
@@ -84,6 +84,15 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
                             badge: 1,
                             "content-available": 1,
                         },
+                        schoolId: schoolId,
+                        targetType: targetType,
+                        targetId: targetId,
+                        senderId: senderId,
+                        senderName: senderName,
+                        senderRole: senderRole,
+                        category: category,
+                        chatRoomId: (_l = data.chatRoomId) !== null && _l !== void 0 ? _l : "",
+                        isParentChat: String((_m = data.isParentChat) !== null && _m !== void 0 ? _m : "false"),
                     },
                 },
                 data: {
@@ -92,7 +101,10 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
                     targetId: targetId,
                     senderId: senderId,
                     senderName: senderName,
+                    senderRole: senderRole,
                     category: category,
+                    chatRoomId: (_o = data.chatRoomId) !== null && _o !== void 0 ? _o : "",
+                    isParentChat: String((_p = data.isParentChat) !== null && _p !== void 0 ? _p : "false"),
                     click_action: "FLUTTER_NOTIFICATION_CLICK",
                 },
             });
@@ -138,6 +150,7 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
     const messaging = (0, messaging_1.getMessaging)();
     // Kirim ke setiap topic secara paralel
     const sendPromises = topics.map(async (topic) => {
+        var _a, _b, _c, _d;
         try {
             const messageId = await messaging.send({
                 topic: topic,
@@ -168,6 +181,15 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
                             badge: 1,
                             "content-available": 1,
                         },
+                        schoolId: schoolId,
+                        targetType: targetType,
+                        targetId: targetId,
+                        senderId: senderId,
+                        senderName: senderName,
+                        senderRole: senderRole,
+                        category: category,
+                        chatRoomId: (_a = data.chatRoomId) !== null && _a !== void 0 ? _a : "",
+                        isParentChat: String((_b = data.isParentChat) !== null && _b !== void 0 ? _b : "false"),
                     },
                 },
                 data: {
@@ -176,7 +198,10 @@ exports.onNotificationCreated = (0, firestore_1.onDocumentCreated)("schools/{sch
                     targetId: targetId,
                     senderId: senderId,
                     senderName: senderName,
+                    senderRole: senderRole,
                     category: category,
+                    chatRoomId: (_c = data.chatRoomId) !== null && _c !== void 0 ? _c : "",
+                    isParentChat: String((_d = data.isParentChat) !== null && _d !== void 0 ? _d : "false"),
                     click_action: "FLUTTER_NOTIFICATION_CLICK",
                 },
             });

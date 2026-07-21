@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../services/library_service.dart';
 import '../../../core/widgets/motif_card.dart';
 import '../../students/pages/student_qr_scanner_page.dart';
+import '../../../core/localization/app_localization.dart';
 
 class DashboardHomeTab extends StatelessWidget {
   final bool isDark;
@@ -52,7 +53,11 @@ class DashboardHomeTab extends StatelessWidget {
         final role = isTeacher ? 'teacher' : 'student';
 
         if (id.isEmpty || name.isEmpty) {
-          _showNotification('Gagal', 'Data QR tidak valid.', false);
+          _showNotification(
+            AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+            AppLocalization.isIndonesian ? 'Data QR tidak valid.' : 'Invalid QR data.',
+            false,
+          );
           return;
         }
 
@@ -65,12 +70,16 @@ class DashboardHomeTab extends StatelessWidget {
         );
 
         _showNotification(
-          'Berhasil Mencatat Kunjungan',
-          'Selamat datang di perpustakaan, $name!',
+          AppLocalization.isIndonesian ? 'Berhasil Mencatat Kunjungan' : 'Visit Recorded Successfully',
+          AppLocalization.isIndonesian ? 'Selamat datang di perpustakaan, $name!' : 'Welcome to the library, $name!',
           true,
         );
       } catch (e) {
-        _showNotification('Gagal', 'Format QR Code tidak dikenali.', false);
+        _showNotification(
+          AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+          AppLocalization.isIndonesian ? 'Format QR Code tidak dikenali.' : 'QR Code format unrecognized.',
+          false,
+        );
       }
     }
   }
@@ -118,14 +127,14 @@ class DashboardHomeTab extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white.withOpacity(0.2)),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.stars_rounded, color: Colors.amber, size: 14),
-                        SizedBox(width: 4),
+                        const Icon(Icons.stars_rounded, color: Colors.amber, size: 14),
+                        const SizedBox(width: 4),
                         Text(
-                          'Sirkulasi Digital',
-                          style: TextStyle(
+                          AppLocalization.isIndonesian ? 'Sirkulasi Digital' : 'Digital Circulation',
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -136,9 +145,9 @@ class DashboardHomeTab extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text(
-                    'Layanan Perpustakaan Digital',
-                    style: TextStyle(
+                  Text(
+                    AppLocalization.isIndonesian ? 'Layanan Perpustakaan Digital' : 'Digital Library Services',
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -147,7 +156,9 @@ class DashboardHomeTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Kelola katalog buku, sirkulasi peminjaman, serta kehadiran pengunjung dengan cepat, mudah, dan efisien.',
+                    AppLocalization.isIndonesian
+                        ? 'Kelola katalog buku, sirkulasi peminjaman, serta kehadiran pengunjung dengan cepat, mudah, dan efisien.'
+                        : 'Manage book catalogs, loan circulation, and visitor attendance quickly, easily, and efficiently.',
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.white.withOpacity(0.88),
@@ -162,9 +173,9 @@ class DashboardHomeTab extends StatelessWidget {
                       ElevatedButton.icon(
                         onPressed: () => _scanVisitor(context),
                         icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-                        label: const Text(
-                          'Scan QR Pengunjung',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        label: Text(
+                          AppLocalization.isIndonesian ? 'Scan QR Pengunjung' : 'Scan Visitor QR',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
@@ -180,9 +191,9 @@ class DashboardHomeTab extends StatelessWidget {
                       OutlinedButton.icon(
                         onPressed: () => onTabChange(2),
                         icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: Colors.white),
-                        label: const Text(
-                          'Catat Peminjaman',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        label: Text(
+                          AppLocalization.isIndonesian ? 'Catat Peminjaman' : 'Record Loan',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: Colors.white.withOpacity(0.4), width: 1.5),
@@ -230,9 +241,24 @@ class DashboardHomeTab extends StatelessWidget {
                         mainAxisSpacing: 16,
                         childAspectRatio: 2.2,
                         children: [
-                          _buildMetricCard(title: 'Katalog Buku', value: '$totalBooks Buku', icon: Icons.menu_book_rounded, color: const Color(0xFF6366F1)),
-                          _buildMetricCard(title: 'Peminjaman Aktif', value: '$activeLoans Transaksi', icon: Icons.swap_horiz_rounded, color: const Color(0xFF10B981)),
-                          _buildMetricCard(title: 'Pengunjung Hari Ini', value: '$todayVisitors Siswa', icon: Icons.people_rounded, color: const Color(0xFFF59E0B)),
+                          _buildMetricCard(
+                            title: AppLocalization.isIndonesian ? 'Katalog Buku' : 'Book Catalog',
+                            value: '$totalBooks ' + (AppLocalization.isIndonesian ? 'Buku' : 'Books'),
+                            icon: Icons.menu_book_rounded,
+                            color: const Color(0xFF6366F1),
+                          ),
+                          _buildMetricCard(
+                            title: AppLocalization.isIndonesian ? 'Peminjaman Aktif' : 'Active Loans',
+                            value: '$activeLoans ' + (AppLocalization.isIndonesian ? 'Transaksi' : 'Transactions'),
+                            icon: Icons.swap_horiz_rounded,
+                            color: const Color(0xFF10B981),
+                          ),
+                          _buildMetricCard(
+                            title: AppLocalization.isIndonesian ? 'Pengunjung Hari Ini' : 'Today Visitors',
+                            value: '$todayVisitors ' + (AppLocalization.isIndonesian ? 'Siswa' : 'Students'),
+                            icon: Icons.people_rounded,
+                            color: const Color(0xFFF59E0B),
+                          ),
                         ],
                       );
                     },
@@ -269,14 +295,16 @@ class DashboardHomeTab extends StatelessWidget {
                       const Icon(Icons.notifications_active_rounded, color: Colors.red, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        'Buku Belum Dikembalikan (${overdue.length})',
+                        (AppLocalization.isIndonesian ? 'Buku Belum Dikembalikan' : 'Books Not Returned') + ' (${overdue.length})',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Buku berikut telah melewati tanggal pengembalian.',
+                    AppLocalization.isIndonesian
+                        ? 'Buku berikut telah melewati tanggal pengembalian.'
+                        : 'The following books have passed the return date.',
                     style: TextStyle(fontSize: 12, color: subtitleColor),
                   ),
                   const SizedBox(height: 12),
@@ -303,7 +331,7 @@ class DashboardHomeTab extends StatelessWidget {
 
           // Kunjungan Hari Ini
           Text(
-            'Kunjungan Hari Ini',
+            AppLocalization.isIndonesian ? 'Kunjungan Hari Ini' : "Today's Visits",
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
           ),
           const SizedBox(height: 12),
@@ -331,7 +359,9 @@ class DashboardHomeTab extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      'Belum ada pengunjung perpustakaan hari ini.',
+                      AppLocalization.isIndonesian
+                          ? 'Belum ada pengunjung perpustakaan hari ini.'
+                          : 'No library visitors today.',
                       style: TextStyle(color: subtitleColor, fontSize: 13),
                     ),
                   ),
@@ -378,7 +408,7 @@ class DashboardHomeTab extends StatelessWidget {
                             children: [
                               Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor)),
                               const SizedBox(height: 2),
-                              Text('NIS: $nis • Kelas $className', style: TextStyle(fontSize: 12, color: subtitleColor)),
+                              Text('NIS: $nis • ${AppLocalization.isIndonesian ? 'Kelas' : 'Class'} $className', style: TextStyle(fontSize: 12, color: subtitleColor)),
                             ],
                           ),
                         ),
@@ -430,7 +460,7 @@ class DashboardHomeTab extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text('$studentName • Kelas $className', style: TextStyle(fontSize: 12, color: textColor.withOpacity(0.7))),
+                Text('$studentName • ${AppLocalization.isIndonesian ? 'Kelas' : 'Class'} $className', style: TextStyle(fontSize: 12, color: textColor.withOpacity(0.7))),
               ],
             ),
           ),
@@ -438,7 +468,7 @@ class DashboardHomeTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(color: Colors.red.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
-            child: Text('+$daysLate hari', style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+            child: Text('+$daysLate ' + (AppLocalization.isIndonesian ? 'hari' : 'days'), style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

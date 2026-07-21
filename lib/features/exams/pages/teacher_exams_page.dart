@@ -774,6 +774,12 @@ class _TeacherExamsPageState extends State<TeacherExamsPage> {
                         }
 
                         final exams = snapshot.data ?? [];
+                        if (exams.isNotEmpty) {
+                          _examService.checkAndAutoSubmitAllExpiredDraftsForSchool(
+                            schoolId: user.schoolId,
+                            exams: exams,
+                          );
+                        }
                         if (exams.isEmpty) {
                           return Center(
                             child: Padding(

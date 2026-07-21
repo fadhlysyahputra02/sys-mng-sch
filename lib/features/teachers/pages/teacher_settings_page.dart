@@ -56,21 +56,7 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
       final schoolId = user.schoolId;
       final uid = user.uid;
 
-      if (role == 'teacher' || role == 'officer' || role == 'librarian') {
-        final snap = await FirebaseFirestore.instance
-            .collection('schools')
-            .doc(schoolId)
-            .collection('teachers')
-            .where('uid', isEqualTo: uid)
-            .limit(1)
-            .get();
-        if (snap.docs.isNotEmpty && mounted) {
-          setState(() {
-            _userDocId = snap.docs.first.id;
-            _fotoBase64 = snap.docs.first.data()['fotoBase64'] as String?;
-          });
-        }
-      } else if (role == 'student') {
+      if (role == 'student') {
         final snap = await FirebaseFirestore.instance
             .collection('schools')
             .doc(schoolId)
@@ -83,6 +69,44 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
             _userDocId = snap.docs.first.id;
             _fotoBase64 = snap.docs.first.data()['fotoBase64'] as String?;
           });
+        }
+      } else if (role == 'parent') {
+        final doc = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('parents')
+            .doc(uid)
+            .get();
+        if (doc.exists && mounted) {
+          setState(() {
+            _userDocId = uid;
+            _fotoBase64 = doc.data()?['fotoBase64'] as String?;
+          });
+        }
+      } else {
+        final snap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('teachers')
+            .where('uid', isEqualTo: uid)
+            .limit(1)
+            .get();
+        if (snap.docs.isNotEmpty && mounted) {
+          setState(() {
+            _userDocId = snap.docs.first.id;
+            _fotoBase64 = snap.docs.first.data()['fotoBase64'] as String?;
+          });
+        } else {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .get();
+          if (userDoc.exists && mounted) {
+            setState(() {
+              _userDocId = uid;
+              _fotoBase64 = userDoc.data()?['fotoBase64'] as String?;
+            });
+          }
         }
       }
     } catch (_) {}
@@ -113,31 +137,84 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
       final uid = user.uid;
 
       String? docId = _userDocId;
+      bool isTopLevelUser = false;
+      bool isParentUser = role == 'parent';
 
       if (docId == null) {
-        // Cari docId dulu
-        final coll = (role == 'student') ? 'students' : 'teachers';
-        final snap = await FirebaseFirestore.instance
-            .collection('schools')
-            .doc(schoolId)
-            .collection(coll)
-            .where('uid', isEqualTo: uid)
-            .limit(1)
-            .get();
-        if (snap.docs.isNotEmpty) {
-          docId = snap.docs.first.id;
-          _userDocId = docId;
+        if (role == 'student') {
+          final snap = await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(schoolId)
+              .collection('students')
+              .where('uid', isEqualTo: uid)
+              .limit(1)
+              .get();
+          if (snap.docs.isNotEmpty) {
+            docId = snap.docs.first.id;
+            _userDocId = docId;
+          }
+        } else if (role == 'parent') {
+          docId = uid;
+          _userDocId = uid;
+        } else {
+          final snap = await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(schoolId)
+              .collection('teachers')
+              .where('uid', isEqualTo: uid)
+              .limit(1)
+              .get();
+          if (snap.docs.isNotEmpty) {
+            docId = snap.docs.first.id;
+            _userDocId = docId;
+          } else {
+            docId = uid;
+            _userDocId = uid;
+            isTopLevelUser = true;
+          }
+        }
+      } else {
+        if (role == 'parent') {
+          isParentUser = true;
+        } else if (role != 'student' && docId == uid) {
+          isTopLevelUser = true;
         }
       }
 
       if (docId != null) {
-        final coll = (role == 'student') ? 'students' : 'teachers';
-        await FirebaseFirestore.instance
-            .collection('schools')
-            .doc(schoolId)
-            .collection(coll)
-            .doc(docId)
-            .update({'fotoBase64': base64Str});
+        if (isParentUser) {
+          await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(schoolId)
+              .collection('parents')
+              .doc(docId)
+              .update({'fotoBase64': base64Str});
+
+          // ALSO update the root users collection so that the photo is in sync!
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .update({'fotoBase64': base64Str});
+        } else if (isTopLevelUser) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .update({'fotoBase64': base64Str});
+        } else {
+          final coll = (role == 'student') ? 'students' : 'teachers';
+          await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(schoolId)
+              .collection(coll)
+              .doc(docId)
+              .update({'fotoBase64': base64Str});
+
+          // ALSO update the root users collection so that the photo is in sync!
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .update({'fotoBase64': base64Str});
+        }
 
         if (mounted) {
           setState(() {

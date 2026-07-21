@@ -110,7 +110,6 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
 
     _questions = [...pgQuestions, ...essayQuestions];
     SessionService.isTakingExam = true;
-    _loadSchoolMetadata();
     final defaultSeconds = widget.exam.durationMinutes * 60;
     int calculatedSeconds = defaultSeconds;
 
@@ -139,7 +138,13 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
     }
     _secondsRemaining = calculatedSeconds;
     WidgetsBinding.instance.addObserver(this);
-    _loadDraftAnswers();
+    _initializeExamData();
+  }
+
+  Future<void> _initializeExamData() async {
+    await _loadSchoolMetadata();
+    await _loadScheduleInfoForBehavior();
+    await _loadDraftAnswers();
   }
 
   Future<void> _loadDraftAnswers() async {
@@ -176,6 +181,8 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
 
       if (draftStarted) {
         _hasStarted = true;
+        await _reportStatus('Standby', 'Murid kembali mengerjakan ujian (Resumed dari Draft)');
+        await _reportDashboardBehavior('Standby', 'Murid kembali mengerjakan ujian (Ujian Online)');
         if (_secondsRemaining <= 0) {
           _autoSubmit();
         } else {
@@ -206,7 +213,26 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
       await prefs.setString(mcKey, jsonEncode(_selectedAnswers));
       await prefs.setString(essayKey, jsonEncode(_essayAnswers));
       await prefs.setBool(startedKey, _hasStarted);
-      debugPrint('Draft answers auto-saved.');
+      debugPrint('Draft answers auto-saved locally.');
+
+      // Sync to Firestore in real-time
+      final schoolId = widget.schoolId ?? user.schoolId;
+      FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_drafts')
+          .doc('${widget.exam.id}_$studentId')
+          .set({
+        'examId': widget.exam.id,
+        'studentId': studentId,
+        'studentName': user.nama,
+        'answers': _selectedAnswers,
+        'essayAnswers': _essayAnswers,
+        'tahunAjaran': widget.exam.tahunAjaran,
+        'semester': widget.exam.semester,
+        'started': _hasStarted,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Failed to auto-save draft answers: $e');
     }
@@ -226,7 +252,16 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
       await prefs.remove(mcKey);
       await prefs.remove(essayKey);
       await prefs.remove(startedKey);
-      debugPrint('Draft answers cleared.');
+      debugPrint('Draft answers cleared locally.');
+
+      // Clear from Firestore
+      final schoolId = widget.schoolId ?? user.schoolId;
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_drafts')
+          .doc('${widget.exam.id}_$studentId')
+          .delete();
     } catch (e) {
       debugPrint('Failed to clear draft answers: $e');
     }

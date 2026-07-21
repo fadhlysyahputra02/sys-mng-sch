@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../services/library_service.dart';
 import '../../students/pages/student_qr_scanner_page.dart';
+import '../../../core/localization/app_localization.dart';
 
 class VisitorLogTab extends StatefulWidget {
   final bool isDark;
@@ -51,7 +52,11 @@ class _VisitorLogTabState extends State<VisitorLogTab> {
         final className = payload['className']?.toString() ?? '-';
 
         if (studentId.isEmpty || studentName.isEmpty) {
-          _showNotification('Gagal', 'Data QR Siswa tidak valid.', false);
+          _showNotification(
+            AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+            AppLocalization.isIndonesian ? 'Data QR Siswa tidak valid.' : 'Invalid Student QR Data.',
+            false,
+          );
           return;
         }
 
@@ -63,12 +68,16 @@ class _VisitorLogTabState extends State<VisitorLogTab> {
         );
 
         _showNotification(
-          'Berhasil Mencatat Kunjungan',
-          'Selamat datang di perpustakaan, $studentName!',
+          AppLocalization.isIndonesian ? 'Berhasil Mencatat Kunjungan' : 'Visit Recorded Successfully',
+          AppLocalization.isIndonesian ? 'Selamat datang di perpustakaan, $studentName!' : 'Welcome to the library, $studentName!',
           true,
         );
       } catch (e) {
-        _showNotification('Gagal', 'Format QR Code tidak dikenali.', false);
+        _showNotification(
+          AppLocalization.isIndonesian ? 'Gagal' : 'Failed',
+          AppLocalization.isIndonesian ? 'Format QR Code tidak dikenali.' : 'QR Code format unrecognized.',
+          false,
+        );
       }
     }
   }
@@ -92,7 +101,7 @@ class _VisitorLogTabState extends State<VisitorLogTab> {
                 child: TextField(
                   style: TextStyle(color: textColor, fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'Cari nama pengunjung atau NIS...',
+                    hintText: AppLocalization.isIndonesian ? 'Cari nama pengunjung atau NIS...' : 'Search visitor name or NIS...',
                     hintStyle: TextStyle(color: subTextColor, fontSize: 14),
                     prefixIcon: Icon(Icons.search_rounded, color: subTextColor, size: 20),
                     filled: true,
@@ -144,7 +153,10 @@ class _VisitorLogTabState extends State<VisitorLogTab> {
                     children: [
                       Icon(Icons.people_outline_rounded, size: 48, color: subTextColor.withOpacity(0.5)),
                       const SizedBox(height: 12),
-                      Text('Belum ada log kunjungan perpustakaan.', style: TextStyle(color: subTextColor)),
+                      Text(
+                        AppLocalization.isIndonesian ? 'Belum ada log kunjungan perpustakaan.' : 'No library visit logs yet.',
+                        style: TextStyle(color: subTextColor),
+                      ),
                     ],
                   ),
                 );
@@ -167,7 +179,10 @@ class _VisitorLogTabState extends State<VisitorLogTab> {
 
               if (visitors.isEmpty) {
                 return Center(
-                  child: Text('Data kunjungan tidak ditemukan.', style: TextStyle(color: subTextColor)),
+                  child: Text(
+                    AppLocalization.isIndonesian ? 'Data kunjungan tidak ditemukan.' : 'Visit data not found.',
+                    style: TextStyle(color: subTextColor),
+                  ),
                 );
               }
 
@@ -237,7 +252,7 @@ class _VisitorLogTabState extends State<VisitorLogTab> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'NIS: $nis • Kelas: $className',
+                                'NIS: $nis • ${AppLocalization.isIndonesian ? 'Kelas' : 'Class'}: $className',
                                 style: TextStyle(fontSize: 12, color: subTextColor),
                               ),
                             ],

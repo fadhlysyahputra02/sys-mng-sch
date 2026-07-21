@@ -11,7 +11,12 @@ import '../../../../core/localization/app_localization.dart';
 
 class NotificationsPage extends StatefulWidget {
   final bool hideBackButton;
-  const NotificationsPage({super.key, this.hideBackButton = false});
+  final int initialIndex;
+  const NotificationsPage({
+    super.key,
+    this.hideBackButton = false,
+    this.initialIndex = 0,
+  });
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
@@ -193,6 +198,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final isStudent = role == 'student';
     final tabLength = 4;
 
+    final args = Get.arguments as Map<String, dynamic>?;
+    int initialIndex = args?['initialIndex'] as int? ?? widget.initialIndex;
+    if (initialIndex < 0 || initialIndex >= tabLength) {
+      initialIndex = 0;
+    }
+
     return ValueListenableBuilder<String>(
       valueListenable: AppLocalization.currentLocale,
       builder: (context, locale, _) {
@@ -260,6 +271,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           body: AuthBackground(
             child: DefaultTabController(
               length: tabLength,
+              initialIndex: initialIndex,
               child: Scaffold(
                 backgroundColor: Colors.transparent,
                 appBar: AppBar(
@@ -341,6 +353,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     // Filter documents based on teacher role and scope
                     final filteredDocs = allDocs.where((doc) {
                       final data = doc.data();
+                      final category = data['category'] ?? '';
+                      if (category == 'chat' || category == 'grade') {
+                        return false;
+                      }
+
                       final targetType = data['targetType'] ?? '';
                       final targetId = data['targetId'] ?? '';
                       final senderId = data['senderId'] ?? '';
