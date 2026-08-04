@@ -243,7 +243,7 @@ class _SplashPageState extends State<SplashPage>
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'v1.20.18',
+                    'v1.20.19',
                     style: TextStyle(
                       fontSize: 12,
                       color: subTextColor,

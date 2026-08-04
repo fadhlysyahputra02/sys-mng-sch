@@ -207,13 +207,12 @@ class ExamSessionService {
         }
       }
 
-      // UNTUK PERCOBAAN: Bypass validasi soal
-      // if (subjectsWithoutQuestions.isNotEmpty) {
-      //   throw Exception(
-      //     'Mata pelajaran berikut belum memiliki soal:\n'
-      //     '${subjectsWithoutQuestions.map((s) => "- $s").join("\n")}',
-      //   );
-      // }
+      if (subjectsWithoutQuestions.isNotEmpty) {
+        throw Exception(
+          'Mata pelajaran berikut belum memiliki soal:\n'
+          '${subjectsWithoutQuestions.map((s) => "- $s").join("\n")}',
+        );
+      }
     }
 
     // Update status di Firestore setelah validasi berhasil

@@ -276,7 +276,7 @@ class SchoolService {
     });
   }
 
-  // Update realtime control toggle
+  // Update realtime control toggle (Ujian Online)
   Future<void> updateRealtimeControlToggle({
     required String domain,
     required bool enabled,
@@ -284,6 +284,17 @@ class SchoolService {
     await _firestore.collection('schools').doc(domain).update({
       'enableRealtimeControl': enabled,
     });
+  }
+
+  // Update realtime control toggle (Ujian Semester)
+  Future<void> updateSemesterRealtimeControlToggle({
+    required String domain,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('schools').doc(domain).set(
+      {'enableSemesterRealtimeControl': enabled},
+      SetOptions(merge: true),
+    );
   }
 
   // Update online exam toggle

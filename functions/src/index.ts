@@ -289,10 +289,52 @@ export const sendCustomResetPasswordEmail = onCall(async (request) => {
   // 2. Generate reset password link dari Firebase Auth
   let link = "";
   let displayName = "Pengguna";
+  let schoolLogoBase64 = "";
+  let schoolName = "Sistem Informasi Sekolah";
+
   try {
     const userRecord = await auth.getUserByEmail(email);
     displayName = userRecord.displayName ?? "Pengguna";
     link = await auth.generatePasswordResetLink(email);
+
+    let schoolId: string | undefined;
+    
+    // Cari schoolId di collection users
+    const userDoc = await db.collection("users").doc(userRecord.uid).get();
+    if (userDoc.exists) {
+      schoolId = userDoc.data()?.schoolId;
+    }
+    
+    // Cari di teachers jika tidak ketemu
+    if (!schoolId) {
+      const teacherSnap = await db.collection("teachers").where("uid", "==", userRecord.uid).limit(1).get();
+      if (!teacherSnap.empty) {
+        schoolId = teacherSnap.docs[0].data()?.schoolId;
+      }
+    }
+
+    // Cari di students jika tidak ketemu
+    if (!schoolId) {
+      const studentSnap = await db.collection("students").where("uid", "==", userRecord.uid).limit(1).get();
+      if (!studentSnap.empty) {
+        schoolId = studentSnap.docs[0].data()?.schoolId;
+      }
+    }
+
+    // Ambil data sekolah
+    if (schoolId) {
+      const schoolDoc = await db.collection("schools").doc(schoolId).get();
+      if (schoolDoc.exists) {
+        const schoolData = schoolDoc.data();
+        if (schoolData?.logoBase64) {
+          schoolLogoBase64 = schoolData.logoBase64;
+        }
+        if (schoolData?.namaSekolah) {
+          schoolName = schoolData.namaSekolah;
+        }
+      }
+    }
+
   } catch (error: any) {
     console.error("Gagal generate link reset password:", error);
     if (error.code === "auth/user-not-found") {
@@ -313,14 +355,38 @@ export const sendCustomResetPasswordEmail = onCall(async (request) => {
   });
 
   // 4. Siapkan template HTML
-  const appName = "Sistem Informasi Sekolah";
+  const finalAppName = schoolName;
+  
+  let finalLogoSrc = logoUrl;
+  const mailAttachments: any[] = [];
+  
+  if (schoolLogoBase64) {
+    finalLogoSrc = "cid:schoolLogo";
+    if (schoolLogoBase64.startsWith("data:")) {
+      mailAttachments.push({
+        filename: "logo.png",
+        path: schoolLogoBase64,
+        cid: "schoolLogo",
+        contentDisposition: "inline"
+      });
+    } else {
+      mailAttachments.push({
+        filename: "logo.png",
+        content: schoolLogoBase64,
+        encoding: "base64",
+        cid: "schoolLogo",
+        contentDisposition: "inline"
+      });
+    }
+  }
+
   const htmlContent = `
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Password - ${appName}</title>
+    <title>Reset Password - ${finalAppName}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f6f9fc; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
@@ -329,7 +395,7 @@ export const sendCustomResetPasswordEmail = onCall(async (request) => {
                 <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px;">
                     <tr>
                         <td align="center" style="padding: 10px 0 20px 0;">
-                            <img src="${logoUrl}" alt="Logo Sekolah" width="80" height="80" style="display: block; border: 0; outline: none; border-radius: 50%; object-fit: cover;" />
+                            <img src="${finalLogoSrc}" alt="Logo Sekolah" width="80" height="80" style="display: block; border: 0; outline: none; border-radius: 50%; object-fit: cover;" />
                         </td>
                     </tr>
                 </table>
@@ -348,7 +414,7 @@ export const sendCustomResetPasswordEmail = onCall(async (request) => {
                                 Halo ${displayName},
                             </p>
                             <p style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.6; color: #4b5563;">
-                                Kami menerima permintaan untuk mengatur ulang kata sandi akun <strong>${appName}</strong> Anda untuk email <strong>${email}</strong>. Silakan klik tombol di bawah ini untuk membuat kata sandi baru:
+                                Kami menerima permintaan untuk mengatur ulang kata sandi akun <strong>${finalAppName}</strong> Anda untuk email <strong>${email}</strong>. Silakan klik tombol di bawah ini untuk membuat kata sandi baru:
                             </p>
                             <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
@@ -377,7 +443,7 @@ export const sendCustomResetPasswordEmail = onCall(async (request) => {
                 <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; text-align: center;">
                     <tr>
                         <td style="font-size: 12px; line-height: 1.5; color: #9ca3af;">
-                            Email ini dikirim secara otomatis oleh sistem <strong>${appName}</strong>.<br>
+                            Email ini dikirim secara otomatis oleh sistem <strong>${finalAppName}</strong>.<br>
                             &copy; 2026 Tim IT Sekolah. Hak Cipta Dilindungi.
                         </td>
                     </tr>
@@ -394,8 +460,9 @@ export const sendCustomResetPasswordEmail = onCall(async (request) => {
     await transporter.sendMail({
       from: `"${fromName}" <${fromEmail}>`,
       to: email,
-      subject: `[ ${appName} ] Reset Kata Sandi Anda`,
+      subject: `[ ${finalAppName} ] Reset Kata Sandi Anda`,
       html: htmlContent,
+      attachments: mailAttachments.length > 0 ? mailAttachments : undefined,
     });
     return { success: true, message: "Email reset password telah dikirim." };
   } catch (error) {

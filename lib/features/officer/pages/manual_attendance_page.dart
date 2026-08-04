@@ -218,13 +218,13 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: () => Get.back(),
+                        onPressed: () => Navigator.of(context).pop(),
                         child: const Text('Batal'),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: () async {
-                          Get.back();
+                          Navigator.of(context).pop();
                           _submitManual(student, studentId, selectedStatus);
                         },
                         style: ElevatedButton.styleFrom(
@@ -374,13 +374,13 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: () => Get.back(),
+                        onPressed: () => Navigator.of(context).pop(),
                         child: const Text('Batal'),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: () async {
-                          Get.back();
+                          Navigator.of(context).pop();
                           _submitManualCheckOut(student, studentId);
                         },
                         style: ElevatedButton.styleFrom(
@@ -541,13 +541,13 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: () => Get.back(),
+                        onPressed: () => Navigator.of(context).pop(),
                         child: const Text('Batal'),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: () async {
-                          Get.back();
+                          Navigator.of(context).pop();
                           _submitTeacherManual(teacher, teacherId, selectedStatus);
                         },
                         style: ElevatedButton.styleFrom(
@@ -677,13 +677,13 @@ class _ManualAttendancePageState extends State<ManualAttendancePage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: () => Get.back(),
+                        onPressed: () => Navigator.of(context).pop(),
                         child: const Text('Batal'),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: () async {
-                          Get.back();
+                          Navigator.of(context).pop();
                           _submitTeacherManualCheckOut(teacher, teacherId);
                         },
                         style: ElevatedButton.styleFrom(

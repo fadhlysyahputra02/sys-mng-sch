@@ -294,130 +294,149 @@ class _TeacherProctorDashboardPageState
     Color titleColor,
     Color subtitleColor,
   ) {
-    return StreamBuilder<List<ExamSession>>(
-      stream: _service.getSessionsByProctor(schoolId, widget.teacherId),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return Center(
-              child: CircularProgressIndicator(
-                  color: isDark ? Colors.white : const Color(0xFF8B5CF6)));
-        }
-
-        final sessions = snap.data ?? [];
-        if (sessions.isNotEmpty) {
-          final uniqueClassIds = sessions.map((s) => s.classId).toSet();
-          for (final cid in uniqueClassIds) {
-            ExamService().checkAndAutoSubmitAllExpiredSemesterDraftsForSchool(
-              schoolId: schoolId,
-              classId: cid,
-            );
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_events')
+          .snapshots(),
+      builder: (context, eventsSnap) {
+        final Map<String, String> eventTitles = {};
+        if (eventsSnap.hasData) {
+          for (final doc in eventsSnap.data!.docs) {
+            final data = doc.data();
+            eventTitles[doc.id] = data['title']?.toString() ?? '';
           }
         }
-        final now = DateTime.now();
-        final todayStr = DateFormat('yyyy-MM-dd').format(now);
 
-        // Hitung status efektif berdasarkan waktu nyata (bukan hanya field Firestore)
-        String computeEffectiveStatus(ExamSession s) {
-          if (s.examStatus == 'Finished') return 'Finished';
-          final sessionDateStr = DateFormat('yyyy-MM-dd').format(s.date);
-          if (sessionDateStr == todayStr) {
-            // Hari ini: cek apakah endTime sudah lewat
-            try {
-              final parts = s.endTime.split(':');
-              final endDt = DateTime(
-                s.date.year, s.date.month, s.date.day,
-                int.parse(parts[0]), int.parse(parts[1]),
+        return StreamBuilder<List<ExamSession>>(
+          stream: _service.getSessionsByProctor(schoolId, widget.teacherId),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return Center(
+                  child: CircularProgressIndicator(
+                      color: isDark ? Colors.white : const Color(0xFF8B5CF6)));
+            }
+
+            final sessions = snap.data ?? [];
+            if (sessions.isNotEmpty) {
+              final uniqueClassIds = sessions.map((s) => s.classId).toSet();
+              for (final cid in uniqueClassIds) {
+                ExamService().checkAndAutoSubmitAllExpiredSemesterDraftsForSchool(
+                  schoolId: schoolId,
+                  classId: cid,
+                );
+              }
+            }
+            final now = DateTime.now();
+            final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
+            // Hitung status efektif berdasarkan waktu nyata (bukan hanya field Firestore)
+            String computeEffectiveStatus(ExamSession s) {
+              if (s.examStatus == 'Finished') return 'Finished';
+              final sessionDateStr = DateFormat('yyyy-MM-dd').format(s.date);
+              if (sessionDateStr == todayStr) {
+                // Hari ini: cek apakah endTime sudah lewat
+                try {
+                  final parts = s.endTime.split(':');
+                  final endDt = DateTime(
+                    s.date.year, s.date.month, s.date.day,
+                    int.parse(parts[0]), int.parse(parts[1]),
+                  );
+                  if (now.isAfter(endDt)) return 'Finished';
+                } catch (_) {}
+                return s.examStatus; // 'Active' atau 'Scheduled'
+              }
+              // Bukan hari ini
+              if (s.date.isBefore(DateTime(now.year, now.month, now.day))) {
+                return 'Finished'; // Hari lampau
+              }
+              return s.examStatus;
+            }
+
+            final upcoming = sessions
+                .where((s) => computeEffectiveStatus(s) != 'Finished')
+                .toList();
+            final past = sessions
+                .where((s) => computeEffectiveStatus(s) == 'Finished')
+                .toList();
+
+            // Group by room + date + startTime so 1 room = 1 card
+            Map<String, List<ExamSession>> groupSessions(List<ExamSession> list) {
+              final grouped = <String, List<ExamSession>>{};
+              for (final s in list) {
+                final dateStr = DateFormat('yyyy-MM-dd').format(s.date);
+                final key = '${s.roomName}_${dateStr}_${s.startTime}';
+                grouped.putIfAbsent(key, () => []).add(s);
+              }
+              return grouped;
+            }
+
+            final upcomingGroups = groupSessions(upcoming);
+            final pastGroups = groupSessions(past);
+
+            if (sessions.isEmpty) {
+              return _buildEmptyState(
+                isDark,
+                titleColor,
+                subtitleColor,
+                Icons.supervisor_account_rounded,
+                AppLocalization.isIndonesian ? 'Tidak Ada Tugas Mengawas' : 'No Proctoring Tasks',
+                AppLocalization.isIndonesian
+                    ? 'Anda belum ditugaskan sebagai pengawas ujian.'
+                    : 'You have not been assigned as an exam proctor.',
               );
-              if (now.isAfter(endDt)) return 'Finished';
-            } catch (_) {}
-            return s.examStatus; // 'Active' atau 'Scheduled'
-          }
-          // Bukan hari ini
-          if (s.date.isBefore(DateTime(now.year, now.month, now.day))) {
-            return 'Finished'; // Hari lampau
-          }
-          return s.examStatus;
-        }
+            }
 
-        final upcoming = sessions
-            .where((s) => computeEffectiveStatus(s) != 'Finished')
-            .toList();
-        final past = sessions
-            .where((s) => computeEffectiveStatus(s) == 'Finished')
-            .toList();
-
-        // Group by room + date + startTime so 1 room = 1 card
-        Map<String, List<ExamSession>> groupSessions(List<ExamSession> list) {
-          final grouped = <String, List<ExamSession>>{};
-          for (final s in list) {
-            final dateStr = DateFormat('yyyy-MM-dd').format(s.date);
-            final key = '${s.roomName}_${dateStr}_${s.startTime}';
-            grouped.putIfAbsent(key, () => []).add(s);
-          }
-          return grouped;
-        }
-
-        final upcomingGroups = groupSessions(upcoming);
-        final pastGroups = groupSessions(past);
-
-        if (sessions.isEmpty) {
-          return _buildEmptyState(
-            isDark,
-            titleColor,
-            subtitleColor,
-            Icons.supervisor_account_rounded,
-            AppLocalization.isIndonesian ? 'Tidak Ada Tugas Mengawas' : 'No Proctoring Tasks',
-            AppLocalization.isIndonesian
-                ? 'Anda belum ditugaskan sebagai pengawas ujian.'
-                : 'You have not been assigned as an exam proctor.',
-          );
-        }
-
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
-          children: [
-            if (upcomingGroups.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _buildSectionHeader(
-                  AppLocalization.isIndonesian ? 'Jadwal Mendatang' : 'Upcoming Schedule',
-                  Icons.upcoming_rounded,
-                  const Color(0xFF8B5CF6),
-                  isDark,
-                  titleColor),
-              const SizedBox(height: 10),
-              ...upcomingGroups.entries.map((entry) {
-                final groupedSessions = entry.value;
-                final rep = groupedSessions.first; // representative session (for room/time)
-                return _buildProctorSessionCard(
-                  rep, isDark, cardColor, cardBorder, titleColor, subtitleColor,
-                  schoolId,
-                  effectiveStatus: computeEffectiveStatus(rep),
-                  allSessionsInRoom: groupedSessions,
-                );
-              }),
-            ],
-            if (pastGroups.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              _buildSectionHeader(
-                  AppLocalization.isIndonesian ? 'Selesai' : 'Finished',
-                  Icons.history_rounded,
-                  const Color(0xFF64748B),
-                  isDark,
-                  titleColor),
-              const SizedBox(height: 10),
-              ...pastGroups.entries.map((entry) {
-                final groupedSessions = entry.value;
-                final rep = groupedSessions.first;
-                return _buildProctorSessionCard(
-                  rep, isDark, cardColor, cardBorder, titleColor, subtitleColor,
-                  schoolId,
-                  isFinished: true,
-                  effectiveStatus: 'Finished',
-                  allSessionsInRoom: groupedSessions,
-                );
-              }),
-            ],
-          ],
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
+              children: [
+                if (upcomingGroups.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildSectionHeader(
+                      AppLocalization.isIndonesian ? 'Jadwal Mendatang' : 'Upcoming Schedule',
+                      Icons.upcoming_rounded,
+                      const Color(0xFF8B5CF6),
+                      isDark,
+                      titleColor),
+                  const SizedBox(height: 10),
+                  ...upcomingGroups.entries.map((entry) {
+                    final groupedSessions = entry.value;
+                    final rep = groupedSessions.first; // representative session (for room/time)
+                    return _buildProctorSessionCard(
+                      rep, isDark, cardColor, cardBorder, titleColor, subtitleColor,
+                      schoolId,
+                      effectiveStatus: computeEffectiveStatus(rep),
+                      allSessionsInRoom: groupedSessions,
+                      eventName: eventTitles[rep.eventId] ?? '',
+                    );
+                  }),
+                ],
+                if (pastGroups.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  _buildSectionHeader(
+                      AppLocalization.isIndonesian ? 'Selesai' : 'Finished',
+                      Icons.history_rounded,
+                      const Color(0xFF64748B),
+                      isDark,
+                      titleColor),
+                  const SizedBox(height: 10),
+                  ...pastGroups.entries.map((entry) {
+                    final groupedSessions = entry.value;
+                    final rep = groupedSessions.first;
+                    return _buildProctorSessionCard(
+                      rep, isDark, cardColor, cardBorder, titleColor, subtitleColor,
+                      schoolId,
+                      isFinished: true,
+                      effectiveStatus: 'Finished',
+                      allSessionsInRoom: groupedSessions,
+                      eventName: eventTitles[rep.eventId] ?? '',
+                    );
+                  }),
+                ],
+              ],
+            );
+          },
         );
       },
     );
@@ -434,6 +453,7 @@ class _TeacherProctorDashboardPageState
     bool isFinished = false,
     String? effectiveStatus,
     List<ExamSession> allSessionsInRoom = const [],
+    String eventName = '',
   }) {
     final isToday = DateFormat('yyyy-MM-dd').format(session.date) ==
         DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -502,6 +522,34 @@ class _TeacherProctorDashboardPageState
                     // Status badge
                     _buildStatusBadge(session, resolvedStatus, isToday: isToday),
                     const SizedBox(width: 8),
+                    if (eventName.trim().isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.event_note_rounded,
+                                size: 11, color: Color(0xFF8B5CF6)),
+                            const SizedBox(width: 4),
+                            Text(
+                              eventName,
+                              style: const TextStyle(
+                                  color: Color(0xFF8B5CF6),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (eventName.trim().isNotEmpty) const SizedBox(width: 8),
                     if (isToday && !isFinished && resolvedStatus == 'Active')
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -757,76 +805,93 @@ class _TeacherProctorDashboardPageState
     Color titleColor,
     Color subtitleColor,
   ) {
-    return StreamBuilder<List<ExamSession>>(
-      stream: _service.getSessionsByAuthor(schoolId, widget.teacherId),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return Center(
-              child: CircularProgressIndicator(
-                  color: isDark ? Colors.white : const Color(0xFF8B5CF6)));
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_events')
+          .snapshots(),
+      builder: (context, eventsSnap) {
+        final Map<String, String> eventTitles = {};
+        if (eventsSnap.hasData) {
+          for (final doc in eventsSnap.data!.docs) {
+            final data = doc.data();
+            eventTitles[doc.id] = data['title']?.toString() ?? '';
+          }
         }
 
-        final sessions = snap.data ?? [];
+        return StreamBuilder<List<ExamSession>>(
+          stream: _service.getSessionsByAuthor(schoolId, widget.teacherId),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return Center(
+                  child: CircularProgressIndicator(
+                      color: isDark ? Colors.white : const Color(0xFF8B5CF6)));
+            }
 
-        // Grup unique per subjectId dan gradeLevel
-        final Map<String, ExamSession> uniqueSubjects = {};
-        for (final s in sessions) {
-          final grade = _resolveAngkatan(s.classId, s.className);
-          uniqueSubjects.putIfAbsent('${s.subjectId}_$grade', () => s);
-        }
-        final subjects = uniqueSubjects.values.toList();
+            final sessions = snap.data ?? [];
 
-        if (subjects.isEmpty) {
-          return _buildEmptyState(
-            isDark,
-            titleColor,
-            subtitleColor,
-            Icons.edit_document,
-            AppLocalization.isIndonesian ? 'Tidak Ada Penugasan Soal' : 'No Question Assignments',
-            AppLocalization.isIndonesian
-                ? 'Anda belum ditugaskan sebagai pembuat soal untuk event ujian apapun.'
-                : 'You have not been assigned as a question author for any exam events.',
-          );
-        }
+            // Grup unique per eventId dan subjectId (1 card per mapel per event)
+            final Map<String, ExamSession> uniqueSubjects = {};
+            for (final s in sessions) {
+              uniqueSubjects.putIfAbsent('${s.eventId}_${s.subjectId}', () => s);
+            }
+            final subjects = uniqueSubjects.values.toList();
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
-          children: [
-            Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_rounded,
-                      color: Color(0xFFF59E0B), size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      AppLocalization.isIndonesian
-                          ? 'Anda adalah pembuat soal untuk mata pelajaran berikut. Siapkan dan upload bank soal sebelum pelaksanaan ujian.'
-                          : 'You are the question author for the following subjects. Prepare and upload the question bank before the exam.',
-                      style: TextStyle(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.9),
-                        fontSize: 12,
-                        height: 1.5,
-                      ),
-                    ),
+            if (subjects.isEmpty) {
+              return _buildEmptyState(
+                isDark,
+                titleColor,
+                subtitleColor,
+                Icons.edit_document,
+                AppLocalization.isIndonesian ? 'Tidak Ada Penugasan Soal' : 'No Question Assignments',
+                AppLocalization.isIndonesian
+                    ? 'Anda belum ditugaskan sebagai pembuat soal untuk event ujian apapun.'
+                    : 'You have not been assigned as a question author for any exam events.',
+              );
+            }
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
                   ),
-                ],
-              ),
-            ),
-            ...subjects.map((session) => _buildAuthorSubjectCard(
-                session, isDark, cardColor, cardBorder, titleColor, subtitleColor,
-                sessions
-                    .where((s) => s.subjectId == session.subjectId && _resolveAngkatan(s.classId, s.className) == _resolveAngkatan(session.classId, session.className))
-                    .length)),
-          ],
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_rounded,
+                          color: Color(0xFFF59E0B), size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          AppLocalization.isIndonesian
+                              ? 'Anda adalah pembuat soal untuk mata pelajaran berikut. Siapkan dan upload bank soal sebelum pelaksanaan ujian.'
+                              : 'You are the question author for the following subjects. Prepare and upload the question bank before the exam.',
+                          style: TextStyle(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.9),
+                            fontSize: 12,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ...subjects.map((session) => _buildAuthorSubjectCard(
+                    session, isDark, cardColor, cardBorder, titleColor, subtitleColor,
+                    sessions
+                        .where((s) => s.eventId == session.eventId && s.subjectId == session.subjectId)
+                        .length,
+                    eventName: eventTitles[session.eventId] ?? '')),
+              ],
+            );
+          },
         );
       },
     );
@@ -839,16 +904,19 @@ class _TeacherProctorDashboardPageState
     Color cardBorder,
     Color titleColor,
     Color subtitleColor,
-    int sessionCount,
-  ) {
-    final gradeLevel = _resolveAngkatan(session.classId, session.className);
+    int sessionCount, {
+    String eventName = '',
+  }) {
+    final displayEventName = eventName.trim().isNotEmpty
+        ? eventName
+        : (AppLocalization.isIndonesian ? 'Event Ujian' : 'Exam Event');
+
     return GestureDetector(
       onTap: () => Get.to(() => TeacherExamQuestionsPage(
             eventId: session.eventId,
             subjectId: session.subjectId,
-            subjectName: '${session.subjectName} - Kelas $gradeLevel',
+            subjectName: session.subjectName,
             teacherId: widget.teacherId,
-            gradeLevel: gradeLevel,
           )),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -886,6 +954,36 @@ class _TeacherProctorDashboardPageState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    margin: const EdgeInsets.only(bottom: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.event_note_rounded,
+                            size: 11, color: Color(0xFF8B5CF6)),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            displayEventName,
+                            style: const TextStyle(
+                              color: Color(0xFF8B5CF6),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   Text(session.subjectName,
                       style: TextStyle(
                           color: titleColor,
@@ -900,6 +998,7 @@ class _TeacherProctorDashboardPageState
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
@@ -1879,6 +1978,8 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
   int _groupsPerRow = 3;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _behaviorStream;
   late Stream<List<ExamParticipation>> _participationsStream;
+  late final Stream<DocumentSnapshot<Map<String, dynamic>>> _schoolStream;
+  late final Stream<DocumentSnapshot<Map<String, dynamic>>> _sessionStream;
 
   late final AnimationController _blinkController;
   late final Animation<Color?> _blinkColorAnimation;
@@ -1890,6 +1991,18 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
     super.initState();
     _desksController = TextEditingController(text: _desksPerGroup.toString());
     _groupsController = TextEditingController(text: _groupsPerRow.toString());
+
+    _schoolStream = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .snapshots();
+
+    _sessionStream = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolId)
+        .collection('exam_sessions')
+        .doc(widget.session.id)
+        .snapshots();
 
     // Ambil semua sesi dalam ruangan (termasuk representative)
     final sessionIds = {
@@ -1936,417 +2049,1419 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
         return ValueListenableBuilder<bool>(
           valueListenable: AuthBackground.isDarkMode,
           builder: (context, isDark, _) {
-        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-        final subtitleColor = isDark
-            ? Colors.white.withValues(alpha: 0.6)
-            : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
-        final scaffoldBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+            final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+            final subtitleColor = isDark
+                ? Colors.white.withValues(alpha: 0.6)
+                : const Color(0xFF1E1B4B).withValues(alpha: 0.6);
+            final scaffoldBg = isDark ? const Color(0xFF0F0C20) : Colors.white;
 
-        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('schools')
-              .doc(widget.schoolId)
-              .collection('exam_sessions')
-              .doc(widget.session.id)
-              .snapshots(),
-          builder: (context, sessionSnap) {
-            final sessionData = sessionSnap.data?.data();
-            final currentStatus = sessionData?['examStatus']?.toString() ?? widget.session.examStatus;
-            final isSessionFinished = currentStatus == 'Finished';
+            return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: _schoolStream,
+              builder: (context, schoolSnap) {
+                final schoolData = schoolSnap.data?.data();
+                debugPrint('[DEBUG] schoolSnap state: ${schoolSnap.connectionState}, hasData: ${schoolSnap.hasData}, schoolData: $schoolData');
+                debugPrint('[DEBUG] enableSemesterRealtimeControl raw: ${schoolData?['enableSemesterRealtimeControl']}');
+                final bool enableRealtimeControl = schoolData?['enableSemesterRealtimeControl'] == true;
 
-            return Scaffold(
-              backgroundColor: scaffoldBg,
-              appBar: AppBar(
-                title: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: _sessionStream,
+                  builder: (context, sessionSnap) {
+                final sessionData = sessionSnap.data?.data();
+                final currentStatus = sessionData?['examStatus']?.toString() ?? widget.session.examStatus;
+                final isSessionFinished = currentStatus == 'Finished';
+
+                return Scaffold(
+                  backgroundColor: scaffoldBg,
+                  appBar: AppBar(
+                    title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppLocalization.isIndonesian ? 'Denah & Monitor Ruang' : 'Seating Plan & Monitor',
+                          style: TextStyle(color: titleColor, fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    backgroundColor: scaffoldBg,
+                    surfaceTintColor: Colors.transparent,
+                    scrolledUnderElevation: 0,
+                    elevation: 0,
+                    leading: IconButton(
+                      icon: Icon(Icons.arrow_back_rounded, color: titleColor),
+                      onPressed: () => Get.back(),
+                    ),
+                    actions: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                AppLocalization.isIndonesian ? 'Meja: ' : 'Desks: ',
+                                style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 4),
+                              SizedBox(
+                                width: 28,
+                                height: 26,
+                                child: TextField(
+                                  controller: _desksController,
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                  decoration: InputDecoration(
+                                    contentPadding: EdgeInsets.zero,
+                                    filled: true,
+                                    fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(color: isDark ? Colors.white30 : Colors.black26),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.black12),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                                    ),
+                                  ),
+                                  onChanged: (val) {
+                                    final parsed = int.tryParse(val);
+                                    if (parsed != null && parsed >= 1 && parsed <= 3) {
+                                      setState(() {
+                                        _desksPerGroup = parsed;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                AppLocalization.isIndonesian ? 'Kolom: ' : 'Cols: ',
+                                style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 4),
+                              SizedBox(
+                                width: 28,
+                                height: 26,
+                                child: TextField(
+                                  controller: _groupsController,
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                  decoration: InputDecoration(
+                                    contentPadding: EdgeInsets.zero,
+                                    filled: true,
+                                    fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(color: isDark ? Colors.white30 : Colors.black26),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.black12),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                                    ),
+                                  ),
+                                  onChanged: (val) {
+                                    final parsed = int.tryParse(val);
+                                    if (parsed != null && parsed >= 1 && parsed <= 12) {
+                                      setState(() {
+                                        _groupsPerRow = parsed;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  body: AuthBackground(
+                    child: StreamBuilder<List<ExamParticipation>>(
+                      stream: _participationsStream,
+                      builder: (context, snap) {
+                        if (snap.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        final participations = snap.data ?? [];
+                        if (participations.isEmpty) {
+                          return Center(
+                            child: Text(AppLocalization.isIndonesian ? 'Belum ada alokasi kursi untuk sesi ini.' : 'No seat allocation for this session yet.',
+                                style: TextStyle(color: subtitleColor)),
+                          );
+                        }
+
+                        participations.sort((a, b) => a.seatNumber.compareTo(b.seatNumber));
+
+                        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: _behaviorStream,
+                          builder: (context, behaviorSnap) {
+                            final behaviorDocs = behaviorSnap.data?.docs ?? [];
+                            final Map<String, Map<String, dynamic>> behaviorByStudent = {};
+                            for (final doc in behaviorDocs) {
+                              final data = doc.data();
+                              final sid = data['studentId']?.toString() ?? '';
+                              if (sid.isNotEmpty) behaviorByStudent[sid] = data;
+                            }
+
+                            // Compute stats
+                            int cStandby = 0, cKeluar = 0, cScreenOff = 0, cSelesai = 0, cBelum = 0;
+                            for (final p in participations) {
+                              if (p.submittedAt != null) { cSelesai++; continue; }
+                              final b = behaviorByStudent[p.studentId];
+                              if (b == null) { cBelum++; continue; }
+                              final t = (b['type']?.toString() ?? '').toLowerCase();
+                              if (t.contains('keluar')) cKeluar++;
+                              else if (t.contains('off') || t.contains('kunci') || t.contains('mati')) cScreenOff++;
+                              else cStandby++;
+                            }
+
+                            // Angkatan color map
+                            final angkatans = participations.map((p) => p.angkatan).toSet().toList()..sort();
+                            Color cohortColor(String a) {
+                              final i = angkatans.indexOf(a);
+                              if (i == 0) return const Color(0xFF8B5CF6);
+                              if (i == 1) return const Color(0xFF10B981);
+                              if (i == 2) return const Color(0xFFF59E0B);
+                              return const Color(0xFF3B82F6);
+                            }
+
+                            final maxSeat = participations.fold(0, (m, p) => p.seatNumber > m ? p.seatNumber : m);
+                            final colCount = _desksPerGroup * _groupsPerRow;
+                            final rowCount = (maxSeat / colCount).ceil();
+                            final seatMap = {for (var p in participations) p.seatNumber: p};
+
+                            // Map sessionId -> subjectName untuk tampilan per kursi
+                            final allSessionsList = [widget.session, ...widget.allSessions];
+                            final subjectBySession = {
+                              for (final s in allSessionsList) s.id: s.subjectName,
+                            };
+
+                            return Column(
+                              children: [
+                                // ── Header Info ───────────────────────────────────
+                                Container(
+                                  margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      // Left: Proctor & Room
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Text(
+                                                    AppLocalization.isIndonesian
+                                                        ? 'Petugas: ${widget.session.proctorName}'
+                                                        : 'Proctor: ${widget.session.proctorName}',
+                                                    style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.room_outlined, size: 14, color: subtitleColor),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  widget.session.roomName.isNotEmpty ? widget.session.roomName : (AppLocalization.isIndonesian ? 'Ruang Ujian' : 'Exam Room'),
+                                                  style: TextStyle(color: subtitleColor, fontSize: 11),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Right: Exam Time + Countdown
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                widget.session.slotName,
+                                                style: TextStyle(color: subtitleColor, fontSize: 10, fontWeight: FontWeight.w600),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                '${widget.session.startTime} – ${widget.session.endTime}',
+                                                style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          _SessionCountdownWidget(
+                                            session: widget.session,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // ── Realtime Control Banner / Button ──────────────
+                                _buildRealtimeControlBanner(
+                                  context: context,
+                                  isDark: isDark,
+                                  enableRealtimeControl: enableRealtimeControl,
+                                  cKeluar: cKeluar,
+                                  cScreenOff: cScreenOff,
+                                  cStandby: cStandby,
+                                  cSelesai: cSelesai,
+                                  participations: participations,
+                                  behaviorByStudent: behaviorByStudent,
+                                  titleColor: titleColor,
+                                  subtitleColor: subtitleColor,
+                                ),
+
+                                // ── Stats Bar ──────────────────────────────────────
+                                _buildStatsBar(isDark,
+                                  total: participations.length,
+                                  standby: cStandby, keluar: cKeluar,
+                                  screenOff: cScreenOff, selesai: cSelesai, belum: cBelum,
+                                  enableRealtimeControl: enableRealtimeControl,
+                                ),
+
+                                // ── Board Banner ───────────────────────────────────
+                                Container(
+                                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.10),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(AppLocalization.isIndonesian ? 'PAPAN TULIS / MEJA PENGAWAS' : 'WHITEBOARD / PROCTOR DESK',
+                                      style: TextStyle(color: subtitleColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                                  ),
+                                ),
+
+                                // ── Legend ─────────────────────────────────────────
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                                  child: Wrap(spacing: 10, runSpacing: 4, children: [
+                                    ...angkatans.map((a) => _legendItem(cohortColor(a), AppLocalization.isIndonesian ? 'Angkatan $a' : 'Cohort $a', subtitleColor)),
+                                    _legendItem(Colors.green, 'Standby', subtitleColor),
+                                    _legendItem(Colors.redAccent, AppLocalization.isIndonesian ? 'Keluar' : 'Exit', subtitleColor),
+                                    _legendItem(Colors.orange, 'Screen Off', subtitleColor),
+                                    _legendItem(Colors.cyan, AppLocalization.isIndonesian ? 'Selesai' : 'Finished', subtitleColor),
+                                  ]),
+                                ),
+
+                                // ── Seating Grid ───────────────────────────────────
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final availableWidth = constraints.maxWidth - 48; // 24px padding each side
+                                      final aisleCount = _groupsPerRow - 1;
+                                      const double gapWidth = 14.0;
+                                      final totalAisleWidth = aisleCount * gapWidth;
+                                      final totalCardMargins = colCount * 6.0;
+
+                                      const double minCardWidth = 50.0;
+                                      final calculatedWidth = (availableWidth - totalAisleWidth - totalCardMargins) / colCount;
+                                      final cardWidth = calculatedWidth < minCardWidth ? minCardWidth : calculatedWidth.clamp(50.0, 180.0);
+                                      final cardHeight = (cardWidth * 1.35).clamp(95.0, 240.0);
+
+                                      return SingleChildScrollView(
+                                        scrollDirection: Axis.vertical,
+                                        padding: const EdgeInsets.fromLTRB(0, 8, 0, 80),
+                        child: SingleChildScrollView(
+                                          scrollDirection: Axis.horizontal,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                              children: List.generate(rowCount, (rIdx) {
+                                                return Padding(
+                                                  padding: const EdgeInsets.only(bottom: 8),
+                                                  child: Row(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: List.generate(colCount, (cIdx) {
+                                                      final seatNum = rIdx * colCount + cIdx + 1;
+                                                      final student = seatMap[seatNum];
+                                                      final behavior = student != null ? behaviorByStudent[student.studentId] : null;
+                                                      final cc = student != null ? cohortColor(student.angkatan) : Colors.grey;
+                                                      final subName = student != null ? (subjectBySession[student.sessionId] ?? widget.session.subjectName) : '';
+
+                                                      final card = _buildSeatCard(
+                                                        isDark: isDark,
+                                                        seatNum: seatNum,
+                                                        student: student,
+                                                        behavior: behavior,
+                                                        cohortColor: cc,
+                                                        subtitleColor: subtitleColor,
+                                                        cardWidth: cardWidth,
+                                                        cardHeight: cardHeight,
+                                                        isFinished: isSessionFinished,
+                                                        subjectName: subName,
+                                                        enableRealtimeControl: enableRealtimeControl,
+                                                      );
+
+                                                      // Insert aisle gap after every group of desks
+                                                      final isAfterGroup = ((cIdx + 1) % _desksPerGroup == 0) && (cIdx < colCount - 1);
+                                                      if (isAfterGroup) {
+                                                        return Row(mainAxisSize: MainAxisSize.min, children: [
+                                                          card,
+                                                          SizedBox(width: gapWidth),
+                                                        ]);
+                                                      }
+                                                      return card;
+                                                    }),
+                                                  ),
+                                                );
+                                              }),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+                  floatingActionButton: isSessionFinished
+                      ? null
+                      : FloatingActionButton.extended(
+                          onPressed: () => _scanStudentQr(context),
+                          backgroundColor: const Color(0xFF8B5CF6),
+                          foregroundColor: Colors.white,
+                          icon: const Icon(Icons.qr_code_scanner_rounded),
+                          label: Text(AppLocalization.isIndonesian ? 'Scan QR Murid' : 'Scan Student QR', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  },
+);
+  }
+
+  // ── Realtime Control Premium UI Helpers ──────────────────────
+
+  Widget _buildRealtimeControlBanner({
+    required BuildContext context,
+    required bool isDark,
+    required bool enableRealtimeControl,
+    required int cKeluar,
+    required int cScreenOff,
+    required int cStandby,
+    required int cSelesai,
+    required List<ExamParticipation> participations,
+    required Map<String, Map<String, dynamic>> behaviorByStudent,
+    required Color titleColor,
+    required Color subtitleColor,
+  }) {
+    final border = enableRealtimeControl
+        ? (isDark ? const Color(0xFF8B5CF6).withValues(alpha: 0.35) : const Color(0xFF6366F1).withValues(alpha: 0.35))
+        : (isDark ? Colors.amber.withValues(alpha: 0.25) : Colors.amber.shade300);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: enableRealtimeControl
+            ? LinearGradient(
+                colors: isDark
+                    ? [
+                        const Color(0xFF1E1B4B).withValues(alpha: 0.9),
+                        const Color(0xFF312E81).withValues(alpha: 0.7),
+                        const Color(0xFF0F172A).withValues(alpha: 0.9),
+                      ]
+                    : [
+                        const Color(0xFFEEF2FF),
+                        const Color(0xFFE0E7FF),
+                        const Color(0xFFF1F5F9),
+                      ],
+              )
+            : LinearGradient(
+                colors: isDark
+                    ? [
+                        Colors.amber.shade900.withValues(alpha: 0.15),
+                        Colors.amber.shade800.withValues(alpha: 0.10),
+                      ]
+                    : [
+                        Colors.amber.shade50,
+                        Colors.orange.shade50,
+                      ],
+              ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border, width: 1.2),
+        boxShadow: enableRealtimeControl
+            ? [
+                BoxShadow(
+                  color: isDark ? const Color(0xFF8B5CF6).withValues(alpha: 0.15) : const Color(0xFF6366F1).withValues(alpha: 0.10),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [],
+      ),
+      child: Row(
+        children: [
+          // Left Icon with animated pulse or lock
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: enableRealtimeControl
+                  ? const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              color: enableRealtimeControl
+                  ? null
+                  : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade300),
+              shape: BoxShape.circle,
+              boxShadow: enableRealtimeControl
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Icon(
+              enableRealtimeControl ? Icons.sensors_rounded : Icons.lock_rounded,
+              color: enableRealtimeControl ? Colors.white : (isDark ? Colors.white38 : Colors.grey.shade600),
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Middle Text & Dynamic Status Pill
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
                     Text(
-                      AppLocalization.isIndonesian ? 'Denah & Monitor Ruang' : 'Seating Plan & Monitor',
-                      style: TextStyle(color: titleColor, fontSize: 15, fontWeight: FontWeight.bold),
+                      enableRealtimeControl
+                          ? (AppLocalization.isIndonesian ? 'Realtime Control Ujian ⚡' : 'Realtime Exam Control ⚡')
+                          : (AppLocalization.isIndonesian ? 'Realtime Control (Nonaktif)' : 'Realtime Control (Disabled)'),
+                      style: TextStyle(
+                        color: enableRealtimeControl ? titleColor : (isDark ? Colors.white54 : Colors.grey.shade700),
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    if (enableRealtimeControl) ...[
+                      const SizedBox(width: 6),
+                      // Live pulse indicator
+                      AnimatedBuilder(
+                        animation: _blinkController,
+                        builder: (context, child) {
+                          final Color pulseColor = (cKeluar > 0)
+                              ? (_blinkColorAnimation.value ?? Colors.redAccent)
+                              : (cScreenOff > 0 ? Colors.orangeAccent : const Color(0xFF10B981));
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: pulseColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: pulseColor, width: 0.8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: pulseColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'LIVE',
+                                  style: TextStyle(
+                                    color: pulseColor,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ] else ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade400, width: 0.8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.lock_rounded, size: 9, color: isDark ? Colors.white54 : Colors.grey.shade600),
+                            const SizedBox(width: 3),
+                            Text(
+                              AppLocalization.isIndonesian ? 'NONAKTIF' : 'DISABLED',
+                              style: TextStyle(
+                                color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 3),
+                if (!enableRealtimeControl)
+                  Text(
+                    AppLocalization.isIndonesian
+                        ? '🔒 Fitur dinonaktifkan oleh Super Admin Sekolah. Deteksi & kontrol tidak aktif.'
+                        : '🔒 Disabled by School Super Admin. Behavior tracking disabled.',
+                    style: TextStyle(
+                      color: isDark ? Colors.white38 : Colors.grey.shade600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                else
+                  Row(
+                    children: [
+                      if (cKeluar > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            AppLocalization.isIndonesian ? '🚨 $cKeluar Keluar App' : '🚨 $cKeluar Left App',
+                            style: const TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        )
+                      else if (cScreenOff > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            AppLocalization.isIndonesian ? '📱 $cScreenOff Layar Mati' : '📱 $cScreenOff Screen Off',
+                            style: const TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            AppLocalization.isIndonesian ? '🟢 $cStandby Murid Standby' : '🟢 $cStandby Students Active',
+                            style: const TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      Text(
+                        AppLocalization.isIndonesian ? '• Monitor Perilaku' : '• Behavior Monitor',
+                        style: TextStyle(color: subtitleColor, fontSize: 10.5),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Right Button
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                if (enableRealtimeControl) {
+                  _showRealtimeControlModal(
+                    context: context,
+                    isDark: isDark,
+                    participations: participations,
+                    behaviorByStudent: behaviorByStudent,
+                    cKeluar: cKeluar,
+                    cScreenOff: cScreenOff,
+                    cStandby: cStandby,
+                    cSelesai: cSelesai,
+                  );
+                } else {
+                  _showDisabledRealtimeControlDialog(context, isDark);
+                }
+              },
+              child: Ink(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: enableRealtimeControl
+                      ? const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
+                        )
+                      : null,
+                  color: enableRealtimeControl
+                      ? null
+                      : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade300.withValues(alpha: 0.7)),
+                  borderRadius: BorderRadius.circular(12),
+                  border: enableRealtimeControl
+                      ? null
+                      : Border.all(color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.grey.shade400),
+                  boxShadow: enableRealtimeControl
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      enableRealtimeControl ? Icons.tune_rounded : Icons.lock_rounded,
+                      size: 14,
+                      color: enableRealtimeControl ? Colors.white : (isDark ? Colors.white38 : Colors.grey.shade600),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      enableRealtimeControl
+                          ? (AppLocalization.isIndonesian ? 'Kontrol Aktifitas Aktif ⚡' : 'Realtime Control Active ⚡')
+                          : (AppLocalization.isIndonesian ? 'Kontrol Aktifitas Nonaktif 🔒' : 'Realtime Control Deactive 🔒'),
+                      style: TextStyle(
+                        color: enableRealtimeControl ? Colors.white : (isDark ? Colors.white38 : Colors.grey.shade600),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
-                backgroundColor: scaffoldBg,
-                surfaceTintColor: Colors.transparent,
-                scrolledUnderElevation: 0,
-                elevation: 0,
-                leading: IconButton(
-                  icon: Icon(Icons.arrow_back_rounded, color: titleColor),
-                  onPressed: () => Get.back(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDisabledRealtimeControlDialog(BuildContext context, bool isDark) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subtitleColor = isDark ? Colors.white70 : Colors.black87;
+        final bg = isDark ? const Color(0xFF1E1B4B) : Colors.white;
+
+        return AlertDialog(
+          backgroundColor: bg,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-                actions: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08),
+                child: const Icon(Icons.lock_rounded, color: Colors.amber, size: 24),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  AppLocalization.isIndonesian ? 'Realtime Control Dikunci' : 'Realtime Control Locked',
+                  style: TextStyle(color: titleColor, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppLocalization.isIndonesian
+                    ? 'Fitur Realtime Control memungkinkan pengawas memantau dan mengontrol siswa yang keluar aplikasi, membuka tab lain, atau mematikan layar saat Ujian Semester secara realtime.'
+                    : 'Realtime Control allows proctors to monitor and control students who leave the app, open other tabs, or turn off screen during semester exams in real-time.',
+                style: TextStyle(color: subtitleColor, fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        AppLocalization.isIndonesian
+                            ? 'Sekolah Anda saat ini belum berlangganan atau belum mengaktifkan fitur Premium ini.'
+                            : 'Your school is currently not subscribed to or has not activated this Premium feature.',
+                        style: TextStyle(
+                          color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            AppLocalization.isIndonesian ? 'Meja: ' : 'Desks: ',
-                            style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B5CF6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(AppLocalization.isIndonesian ? 'Mengerti' : 'Got it'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showRealtimeControlModal({
+    required BuildContext context,
+    required bool isDark,
+    required List<ExamParticipation> participations,
+    required Map<String, Map<String, dynamic>> behaviorByStudent,
+    required int cKeluar,
+    required int cScreenOff,
+    required int cStandby,
+    required int cSelesai,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        int selectedTab = 0; // 0 = Pelanggaran (Keluar/ScreenOff), 1 = Semua Murid
+        final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
+        final subtitleColor = isDark ? Colors.white.withValues(alpha: 0.6) : Colors.black54;
+        final bg = isDark ? const Color(0xFF0F0C20) : Colors.white;
+        final cardBg = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade50;
+        final cardBorder = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final List<ExamParticipation> filteredList = participations.where((p) {
+              if (selectedTab == 0) {
+                if (p.submittedAt != null) return false;
+                final b = behaviorByStudent[p.studentId];
+                if (b == null) return false;
+                final t = (b['type']?.toString() ?? '').toLowerCase();
+                return t.contains('keluar') || t.contains('off') || t.contains('kunci') || t.contains('mati');
+              }
+              return true;
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.85,
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Drag indicator
+                  const SizedBox(height: 10),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Header Title & Live Badge
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.sensors_rounded, color: Colors.white, size: 22),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      AppLocalization.isIndonesian
+                                          ? 'Realtime Control Center'
+                                          : 'Realtime Control Center',
+                                      style: TextStyle(
+                                        color: titleColor,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: const Color(0xFF10B981), width: 0.8),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 6,
+                                            height: 6,
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFF10B981),
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Text(
+                                            'LIVE',
+                                            style: TextStyle(
+                                              color: Color(0xFF10B981),
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  AppLocalization.isIndonesian
+                                      ? 'Monitoring & Kontrol Perilaku Ujian Siswa'
+                                      : 'Monitor & Control Student Exam Behaviors',
+                                  style: TextStyle(color: subtitleColor, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close_rounded, color: subtitleColor),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Metrics Row Grid (4 Stat Chips)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _modalMetricChip(
+                            isDark: isDark,
+                            icon: Icons.exit_to_app_rounded,
+                            label: AppLocalization.isIndonesian ? 'Keluar App' : 'Left App',
+                            count: cKeluar,
+                            color: Colors.redAccent,
                           ),
-                          const SizedBox(width: 4),
-                          SizedBox(
-                            width: 28,
-                            height: 26,
-                            child: TextField(
-                              controller: _desksController,
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
-                              decoration: InputDecoration(
-                                contentPadding: EdgeInsets.zero,
-                                filled: true,
-                                fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: BorderSide(color: isDark ? Colors.white30 : Colors.black26),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _modalMetricChip(
+                            isDark: isDark,
+                            icon: Icons.screen_lock_portrait_rounded,
+                            label: AppLocalization.isIndonesian ? 'Layar Mati' : 'Screen Off',
+                            count: cScreenOff,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _modalMetricChip(
+                            isDark: isDark,
+                            icon: Icons.check_circle_outline_rounded,
+                            label: AppLocalization.isIndonesian ? 'Standby' : 'Active',
+                            count: cStandby,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _modalMetricChip(
+                            isDark: isDark,
+                            icon: Icons.task_alt_rounded,
+                            label: AppLocalization.isIndonesian ? 'Selesai' : 'Finished',
+                            count: cSelesai,
+                            color: Colors.cyan,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Filter Tabs
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setModalState(() => selectedTab = 0),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: selectedTab == 0
+                                      ? (isDark ? const Color(0xFF8B5CF6) : Colors.white)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: selectedTab == 0
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.1),
+                                            blurRadius: 4,
+                                          )
+                                        ]
+                                      : [],
                                 ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.black12),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                                child: Center(
+                                  child: Text(
+                                    AppLocalization.isIndonesian
+                                        ? '🚨 Pelanggaran (${cKeluar + cScreenOff})'
+                                        : '🚨 Violations (${cKeluar + cScreenOff})',
+                                    style: TextStyle(
+                                      color: selectedTab == 0
+                                          ? (isDark ? Colors.white : const Color(0xFF1E1B4B))
+                                          : subtitleColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ),
-                              onChanged: (val) {
-                                final parsed = int.tryParse(val);
-                                if (parsed != null && parsed >= 1 && parsed <= 3) {
-                                  setState(() {
-                                    _desksPerGroup = parsed;
-                                  });
-                                }
-                              },
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            AppLocalization.isIndonesian ? 'Kolom: ' : 'Cols: ',
-                            style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(width: 4),
-                          SizedBox(
-                            width: 28,
-                            height: 26,
-                            child: TextField(
-                              controller: _groupsController,
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
-                              decoration: InputDecoration(
-                                contentPadding: EdgeInsets.zero,
-                                filled: true,
-                                fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: BorderSide(color: isDark ? Colors.white30 : Colors.black26),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setModalState(() => selectedTab = 1),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: selectedTab == 1
+                                      ? (isDark ? const Color(0xFF8B5CF6) : Colors.white)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: selectedTab == 1
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.1),
+                                            blurRadius: 4,
+                                          )
+                                        ]
+                                      : [],
                                 ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.black12),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                                child: Center(
+                                  child: Text(
+                                    AppLocalization.isIndonesian
+                                        ? '👥 Semua Siswa (${participations.length})'
+                                        : '👥 All Students (${participations.length})',
+                                    style: TextStyle(
+                                      color: selectedTab == 1
+                                          ? (isDark ? Colors.white : const Color(0xFF1E1B4B))
+                                          : subtitleColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ),
-                              onChanged: (val) {
-                                final parsed = int.tryParse(val);
-                                if (parsed != null && parsed >= 1 && parsed <= 12) {
-                                  setState(() {
-                                    _groupsPerRow = parsed;
-                                  });
-                                }
-                              },
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ],
 
-              ),
-              body: AuthBackground(
-                child: StreamBuilder<List<ExamParticipation>>(
-                  stream: _participationsStream,
-                  builder: (context, snap) {
-                    if (snap.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                  const SizedBox(height: 12),
 
-                    final participations = snap.data ?? [];
-                    if (participations.isEmpty) {
-                      return Center(
-                        child: Text(AppLocalization.isIndonesian ? 'Belum ada alokasi kursi untuk sesi ini.' : 'No seat allocation for this session yet.',
-                            style: TextStyle(color: subtitleColor)),
-                      );
-                    }
-
-                    participations.sort((a, b) => a.seatNumber.compareTo(b.seatNumber));
-
-                    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _behaviorStream,
-                      builder: (context, behaviorSnap) {
-                        final behaviorDocs = behaviorSnap.data?.docs ?? [];
-                        final Map<String, Map<String, dynamic>> behaviorByStudent = {};
-                        for (final doc in behaviorDocs) {
-                          final data = doc.data();
-                          final sid = data['studentId']?.toString() ?? '';
-                          if (sid.isNotEmpty) behaviorByStudent[sid] = data;
-                        }
-
-                        // Compute stats
-                        int cStandby = 0, cKeluar = 0, cScreenOff = 0, cSelesai = 0, cBelum = 0;
-                        for (final p in participations) {
-                          if (p.submittedAt != null) { cSelesai++; continue; }
-                          final b = behaviorByStudent[p.studentId];
-                          if (b == null) { cBelum++; continue; }
-                          final t = (b['type']?.toString() ?? '').toLowerCase();
-                          if (t.contains('keluar')) cKeluar++;
-                          else if (t.contains('off') || t.contains('kunci') || t.contains('mati')) cScreenOff++;
-                          else cStandby++;
-                        }
-
-                        // Angkatan color map
-                        final angkatans = participations.map((p) => p.angkatan).toSet().toList()..sort();
-                        Color cohortColor(String a) {
-                          final i = angkatans.indexOf(a);
-                          if (i == 0) return const Color(0xFF8B5CF6);
-                          if (i == 1) return const Color(0xFF10B981);
-                          if (i == 2) return const Color(0xFFF59E0B);
-                          return const Color(0xFF3B82F6);
-                        }
-
-                        final maxSeat = participations.fold(0, (m, p) => p.seatNumber > m ? p.seatNumber : m);
-                        final colCount = _desksPerGroup * _groupsPerRow;
-                        final rowCount = (maxSeat / colCount).ceil();
-                        final seatMap = {for (var p in participations) p.seatNumber: p};
-
-                        // Map sessionId -> subjectName untuk tampilan per kursi
-                        final allSessionsList = [widget.session, ...widget.allSessions];
-                        final subjectBySession = {
-                          for (final s in allSessionsList) s.id: s.subjectName,
-                        };
-
-                        return Column(
-                          children: [
-                            // ── Header Info ───────────────────────────────────
-                            Container(
-                              margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08),
+                  // Student List
+                  Expanded(
+                    child: filteredList.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  selectedTab == 0
+                                      ? Icons.verified_user_rounded
+                                      : Icons.groups_rounded,
+                                  size: 48,
+                                  color: selectedTab == 0 ? const Color(0xFF10B981) : subtitleColor,
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  // Left: Proctor & Room
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF8B5CF6)),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                AppLocalization.isIndonesian
-                                                    ? 'Petugas: ${widget.session.proctorName}'
-                                                    : 'Proctor: ${widget.session.proctorName}',
-                                                style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Icon(Icons.room_outlined, size: 14, color: subtitleColor),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              widget.session.roomName.isNotEmpty ? widget.session.roomName : (AppLocalization.isIndonesian ? 'Ruang Ujian' : 'Exam Room'),
-                                              style: TextStyle(color: subtitleColor, fontSize: 11),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  selectedTab == 0
+                                      ? (AppLocalization.isIndonesian
+                                          ? 'Tidak ada siswa yang terdeteksi keluar aplikasi. Suasana ujian aman & kondusif! 🎉'
+                                          : 'No students left the app. Exam environment is secure! 🎉')
+                                      : (AppLocalization.isIndonesian ? 'Tidak ada data siswa' : 'No student data'),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: selectedTab == 0 ? const Color(0xFF10B981) : subtitleColor,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  // Right: Exam Time + Countdown
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            itemCount: filteredList.length,
+                            itemBuilder: (context, idx) {
+                              final p = filteredList[idx];
+                              final b = behaviorByStudent[p.studentId];
+                              final isSubmitted = p.submittedAt != null;
+
+                              Color statusColor = const Color(0xFF10B981);
+                              String statusLabel = AppLocalization.isIndonesian ? 'Standby' : 'Standby';
+                              IconData statusIcon = Icons.check_circle_rounded;
+                              String desc = AppLocalization.isIndonesian ? 'Sedang mengerjakan ujian' : 'Taking exam';
+                              String timestampStr = '';
+
+                              if (isSubmitted) {
+                                statusColor = Colors.cyan;
+                                statusLabel = AppLocalization.isIndonesian ? 'Selesai' : 'Finished';
+                                statusIcon = Icons.task_alt_rounded;
+                                desc = AppLocalization.isIndonesian ? 'Sudah mengumpulkan jawaban' : 'Submitted answers';
+                              } else if (b != null) {
+                                final t = (b['type']?.toString() ?? '').toLowerCase();
+                                desc = b['description']?.toString() ?? desc;
+                                final ts = b['timestamp'];
+                                if (ts is Timestamp) {
+                                  timestampStr = DateFormat('HH:mm:ss').format(ts.toDate());
+                                }
+
+                                if (t.contains('keluar')) {
+                                  statusColor = Colors.redAccent;
+                                  statusLabel = AppLocalization.isIndonesian ? 'Keluar App' : 'Left App';
+                                  statusIcon = Icons.exit_to_app_rounded;
+                                } else if (t.contains('off') || t.contains('kunci') || t.contains('mati')) {
+                                  statusColor = Colors.orange;
+                                  statusLabel = AppLocalization.isIndonesian ? 'Layar Mati' : 'Screen Off';
+                                  statusIcon = Icons.screen_lock_portrait_rounded;
+                                }
+                              } else {
+                                statusColor = Colors.grey;
+                                statusLabel = AppLocalization.isIndonesian ? 'Belum Mulai' : 'Not Started';
+                                statusIcon = Icons.hourglass_empty_rounded;
+                                desc = AppLocalization.isIndonesian ? 'Belum menekan tombol mulai' : 'Has not started yet';
+                              }
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: cardBg,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: (statusColor == Colors.redAccent || statusColor == Colors.orange)
+                                        ? statusColor.withValues(alpha: 0.4)
+                                        : cardBorder,
+                                    width: (statusColor == Colors.redAccent || statusColor == Colors.orange) ? 1.2 : 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Seat number chip
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '#${p.seatNumber}',
+                                          style: TextStyle(
+                                            color: statusColor,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // Details
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF8B5CF6)),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            widget.session.slotName,
-                                            style: TextStyle(color: subtitleColor, fontSize: 10, fontWeight: FontWeight.w600),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  p.studentName,
+                                                  style: TextStyle(
+                                                    color: titleColor,
+                                                    fontSize: 13.5,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: statusColor.withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(statusIcon, size: 11, color: statusColor),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      statusLabel,
+                                                      style: TextStyle(
+                                                        color: statusColor,
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(height: 3),
                                           Text(
-                                            '${widget.session.startTime} – ${widget.session.endTime}',
-                                            style: TextStyle(color: titleColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                            'Kelas: ${p.className ?? '-'} • Angkatan: ${p.angkatan}',
+                                            style: TextStyle(color: subtitleColor, fontSize: 11),
                                           ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            desc,
+                                            style: TextStyle(
+                                              color: (statusColor == Colors.redAccent || statusColor == Colors.orange)
+                                                  ? statusColor
+                                                  : subtitleColor,
+                                              fontSize: 11,
+                                              fontWeight: (statusColor == Colors.redAccent) ? FontWeight.w600 : FontWeight.normal,
+                                            ),
+                                          ),
+                                          if (timestampStr.isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Waktu Terdeteksi: $timestampStr',
+                                              style: TextStyle(color: subtitleColor.withValues(alpha: 0.7), fontSize: 9.5),
+                                            ),
+                                          ],
                                         ],
                                       ),
-                                      const SizedBox(height: 6),
-                                      _SessionCountdownWidget(
-                                        session: widget.session,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // ── Stats Bar ──────────────────────────────────────
-                            _buildStatsBar(isDark,
-                              total: participations.length,
-                              standby: cStandby, keluar: cKeluar,
-                              screenOff: cScreenOff, selesai: cSelesai, belum: cBelum,
-                            ),
-
-                            // ── Board Banner ───────────────────────────────────
-                            Container(
-                              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.10),
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(AppLocalization.isIndonesian ? 'PAPAN TULIS / MEJA PENGAWAS' : 'WHITEBOARD / PROCTOR DESK',
-                                  style: TextStyle(color: subtitleColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                              ),
-                            ),
-
-                            // ── Legend ─────────────────────────────────────────
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                              child: Wrap(spacing: 10, runSpacing: 4, children: [
-                                ...angkatans.map((a) => _legendItem(cohortColor(a), AppLocalization.isIndonesian ? 'Angkatan $a' : 'Cohort $a', subtitleColor)),
-                                _legendItem(Colors.green, 'Standby', subtitleColor),
-                                _legendItem(Colors.redAccent, AppLocalization.isIndonesian ? 'Keluar' : 'Exit', subtitleColor),
-                                _legendItem(Colors.orange, 'Screen Off', subtitleColor),
-                                _legendItem(Colors.cyan, AppLocalization.isIndonesian ? 'Selesai' : 'Finished', subtitleColor),
-                              ]),
-                            ),
-
-                            // ── Seating Grid ───────────────────────────────────
-                            Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final availableWidth = constraints.maxWidth - 48; // 24px padding each side
-                                  final aisleCount = _groupsPerRow - 1;
-                                  const double gapWidth = 14.0;
-                                  final totalAisleWidth = aisleCount * gapWidth;
-                                  final totalCardMargins = colCount * 6.0;
-
-                                  const double minCardWidth = 50.0;
-                                  final calculatedWidth = (availableWidth - totalAisleWidth - totalCardMargins) / colCount;
-                                  final cardWidth = calculatedWidth < minCardWidth ? minCardWidth : calculatedWidth.clamp(50.0, 180.0);
-                                  final cardHeight = (cardWidth * 1.35).clamp(95.0, 240.0);
-
-                                  return SingleChildScrollView(
-                                    scrollDirection: Axis.vertical,
-                                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 80),
-                                    child: SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.center,
-                                          children: List.generate(rowCount, (rIdx) {
-                                            return Padding(
-                                              padding: const EdgeInsets.only(bottom: 8),
-                                              child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: List.generate(colCount, (cIdx) {
-                                                  final seatNum = rIdx * colCount + cIdx + 1;
-                                                  final student = seatMap[seatNum];
-                                                  final behavior = student != null ? behaviorByStudent[student.studentId] : null;
-                                                  final cc = student != null ? cohortColor(student.angkatan) : Colors.grey;
-                                                  final subName = student != null ? (subjectBySession[student.sessionId] ?? widget.session.subjectName) : '';
-
-                                                  final card = _buildSeatCard(
-                                                    isDark: isDark,
-                                                    seatNum: seatNum,
-                                                    student: student,
-                                                    behavior: behavior,
-                                                    cohortColor: cc,
-                                                    subtitleColor: subtitleColor,
-                                                    cardWidth: cardWidth,
-                                                    cardHeight: cardHeight,
-                                                    isFinished: isSessionFinished,
-                                                    subjectName: subName,
-                                                  );
-
-                                                  // Insert aisle gap after every group of desks
-                                                  final isAfterGroup = ((cIdx + 1) % _desksPerGroup == 0) && (cIdx < colCount - 1);
-                                                  if (isAfterGroup) {
-                                                    return Row(mainAxisSize: MainAxisSize.min, children: [
-                                                      card,
-                                                      SizedBox(width: gapWidth),
-                                                    ]);
-                                                  }
-                                                  return card;
-                                                }),
-                                              ),
-                                            );
-                                          }),
-                                        ),
-                                      ),
                                     ),
-                                  );
-                                },
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+
+                  // Bottom Action Footer
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.grey.shade100,
+                      border: Border(top: BorderSide(color: cardBorder)),
+                    ),
+                    child: Row(
+                      children: [
+                        if (cKeluar + cScreenOff > 0)
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Get.snackbar(
+                                  AppLocalization.isIndonesian ? 'Peringatan Terkirim 📢' : 'Warning Sent 📢',
+                                  AppLocalization.isIndonesian
+                                      ? 'Notifikasi peringatan telah dikirimkan ke device murid yang terdeteksi keluar aplikasi.'
+                                      : 'Warning notification sent to students detected leaving app.',
+                                  backgroundColor: Colors.redAccent,
+                                  colorText: Colors.white,
+                                  snackPosition: SnackPosition.TOP,
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.redAccent,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: const Icon(Icons.campaign_rounded, size: 18),
+                              label: Text(
+                                AppLocalization.isIndonesian ? 'Tegur Semua Siswa Keluar 📢' : 'Warn All Exited Students 📢',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                               ),
                             ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-              floatingActionButton: isSessionFinished
-                  ? null
-                  : FloatingActionButton.extended(
-                      onPressed: () => _scanStudentQr(context),
-                      backgroundColor: const Color(0xFF8B5CF6),
-                      foregroundColor: Colors.white,
-                      icon: const Icon(Icons.qr_code_scanner_rounded),
-                      label: Text(AppLocalization.isIndonesian ? 'Scan QR Murid' : 'Scan Student QR', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        if (cKeluar + cScreenOff > 0) const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: titleColor,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: BorderSide(color: cardBorder),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: Text(
+                              AppLocalization.isIndonesian ? 'Tutup Control Center' : 'Close Control Center',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                ],
+              ),
             );
           },
         );
       },
     );
-      },
+  }
+
+  Widget _modalMetricChip({
+    required bool isDark,
+    required IconData icon,
+    required String label,
+    required int count,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(height: 4),
+          Text(
+            count.toString(),
+            style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            label,
+            style: TextStyle(color: isDark ? Colors.white60 : Colors.black54, fontSize: 8.5, fontWeight: FontWeight.w600),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 
@@ -2355,6 +3470,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
   Widget _buildStatsBar(bool isDark, {
     required int total, required int standby, required int keluar,
     required int screenOff, required int selesai, required int belum,
+    bool enableRealtimeControl = false,
   }) {
     final bg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
     final border = isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.08);
@@ -2368,9 +3484,11 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
         alignment: WrapAlignment.spaceAround,
         children: [
           _statChip(AppLocalization.isIndonesian ? 'Total' : 'Total', total, Colors.blueAccent),
-          _statChip(AppLocalization.isIndonesian ? 'Standby' : 'Standby', standby, Colors.green),
-          _statChip(AppLocalization.isIndonesian ? 'Keluar' : 'Exit', keluar, Colors.redAccent),
-          _statChip(AppLocalization.isIndonesian ? 'Screen Off' : 'Screen Off', screenOff, Colors.orange),
+          if (enableRealtimeControl) ...[
+            _statChip(AppLocalization.isIndonesian ? 'Standby' : 'Standby', standby, Colors.green),
+            _statChip(AppLocalization.isIndonesian ? 'Keluar' : 'Exit', keluar, Colors.redAccent),
+            _statChip(AppLocalization.isIndonesian ? 'Screen Off' : 'Screen Off', screenOff, Colors.orange),
+          ],
           _statChip(AppLocalization.isIndonesian ? 'Selesai' : 'Finished', selesai, Colors.cyan),
           _statChip(AppLocalization.isIndonesian ? 'Belum' : 'Not yet', belum, Colors.grey),
         ],
@@ -2407,6 +3525,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
     double cardHeight = 78,
     bool isFinished = false,
     String subjectName = '',
+    bool enableRealtimeControl = false,
   }) {
     // Empty slot
     if (student == null) {
@@ -2444,7 +3563,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
       statusColor = Colors.cyan;
       statusLabel = AppLocalization.isIndonesian ? 'Selesai' : 'Finished';
       statusIcon  = Icons.task_alt_rounded;
-    } else if (behavior != null) {
+    } else if (enableRealtimeControl && behavior != null) {
       final t = (behavior['type']?.toString() ?? '').toLowerCase();
       if (t.contains('keluar')) {
         statusColor = Colors.redAccent; statusLabel = AppLocalization.isIndonesian ? 'Keluar' : 'Exit'; statusIcon = Icons.exit_to_app_rounded;
@@ -2459,7 +3578,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
       statusColor = cohortColor; statusLabel = AppLocalization.isIndonesian ? 'Belum' : 'Not yet'; statusIcon = Icons.radio_button_unchecked_rounded;
     }
 
-    final isBelum = !isScanned && !isSubmitted && behavior == null;
+    final isBelum = !isScanned && !isSubmitted && (!enableRealtimeControl || behavior == null);
 
     final cardBgColor = isBelum
         ? (isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02))
@@ -2515,7 +3634,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
     final double badgeHMargin = (4.0 * scale).clamp(4.0, 10.0);
     final double badgeVMargin = (2.0 * scale).clamp(2.0, 5.0);
 
-    final isKeluar = behavior != null &&
+    final isKeluar = enableRealtimeControl && behavior != null &&
         (behavior['type']?.toString().toLowerCase().contains('keluar') == true) &&
         !isSubmitted;
 
@@ -2525,7 +3644,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
         builder: (context, child) {
           final currentColor = _blinkColorAnimation.value ?? Colors.redAccent;
           return GestureDetector(
-            onTap: () => _showStudentLog(student, behavior, isDark, subtitleColor, isFinished: isFinished),
+            onTap: () => _showStudentLog(student, behavior, isDark, subtitleColor, isFinished: isFinished, enableRealtimeControl: enableRealtimeControl),
             child: Container(
               width: cardWidth, height: cardHeight, margin: const EdgeInsets.all(3),
               decoration: BoxDecoration(
@@ -2596,7 +3715,7 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
     }
 
     return GestureDetector(
-      onTap: () => _showStudentLog(student, behavior, isDark, subtitleColor, isFinished: isFinished),
+      onTap: () => _showStudentLog(student, behavior, isDark, subtitleColor, isFinished: isFinished, enableRealtimeControl: enableRealtimeControl),
       child: Container(
         width: cardWidth, height: cardHeight, margin: const EdgeInsets.all(3),
         decoration: BoxDecoration(
@@ -2660,10 +3779,10 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
     );
   }
 
-  void _showStudentLog(ExamParticipation student, Map<String, dynamic>? behavior, bool isDark, Color subTextColor, {bool isFinished = false}) {
+  void _showStudentLog(ExamParticipation student, Map<String, dynamic>? behavior, bool isDark, Color subTextColor, {bool isFinished = false, bool enableRealtimeControl = false}) {
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
-    final hasStartedExam = student.hasStarted || behavior != null;
-    final activityLog = behavior?['activityLog'] as List<dynamic>? ?? [];
+    final hasStartedExam = student.hasStarted || (enableRealtimeControl && behavior != null);
+    final activityLog = enableRealtimeControl ? (behavior?['activityLog'] as List<dynamic>? ?? []) : [];
     final noteCtrl = TextEditingController();
     bool isNoteLoaded = false;
     final sortedLog = List<dynamic>.from(activityLog)
@@ -2925,7 +4044,31 @@ class _ProctorRoomSeatingPageState extends State<ProctorRoomSeatingPage>
                 const SizedBox(height: 20),
                 Text(AppLocalization.isIndonesian ? 'Riwayat Log Aktivitas' : 'Activity Log History', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: titleColor)),
                 const Divider(height: 16),
-                if (activityLog.isEmpty)
+                if (!enableRealtimeControl)
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.lock_rounded, color: Colors.amber, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            AppLocalization.isIndonesian
+                                ? 'Realtime Control dinonaktifkan oleh Super Admin Sekolah. Log aktivitas dan deteksi keluar aplikasi tidak tersedia.'
+                                : 'Realtime Control disabled by School Super Admin. Activity log monitoring unavailable.',
+                            style: TextStyle(color: isDark ? Colors.amber.shade200 : Colors.amber.shade900, fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (activityLog.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     child: Center(child: Text(

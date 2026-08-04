@@ -611,8 +611,36 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
       _showNotification(
         title: 'Berhasil',
         message: nextEnabled 
-            ? 'Fitur Realtime Control ${school['namaSekolah']} diaktifkan!' 
-            : 'Fitur Realtime Control ${school['namaSekolah']} dinonaktifkan!',
+            ? 'Fitur Realtime Control (Ujian Online) ${school['namaSekolah']} diaktifkan!' 
+            : 'Fitur Realtime Control (Ujian Online) ${school['namaSekolah']} dinonaktifkan!',
+        isSuccess: true,
+      );
+    } catch (e) {
+      _showNotification(
+        title: 'Gagal',
+        message: e.toString(),
+        isSuccess: false,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleSemesterRealtimeControl(Map<String, dynamic> school) async {
+    final bool currentEnabled = school['enableSemesterRealtimeControl'] ?? false;
+    final bool nextEnabled = !currentEnabled;
+    
+    setState(() => _isLoading = true);
+    try {
+      await schoolService.updateSemesterRealtimeControlToggle(
+        domain: school['domain'],
+        enabled: nextEnabled,
+      );
+      _showNotification(
+        title: 'Berhasil',
+        message: nextEnabled 
+            ? 'Fitur Realtime Control (Ujian Semester) ${school['namaSekolah']} diaktifkan!' 
+            : 'Fitur Realtime Control (Ujian Semester) ${school['namaSekolah']} dinonaktifkan!',
         isSuccess: true,
       );
     } catch (e) {
@@ -1879,13 +1907,27 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Fitur Realtime Control',
+                                        'Fitur Realtime Control (Ujian Online)',
                                         style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
                                       ),
                                       Switch.adaptive(
                                         value: school['enableRealtimeControl'] ?? false,
                                         activeTrackColor: const Color(0xFF10B981),
                                         onChanged: (val) => _toggleRealtimeControl(school),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Fitur Realtime Control (Ujian Semester)',
+                                        style: TextStyle(color: _textColor.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                      Switch.adaptive(
+                                        value: school['enableSemesterRealtimeControl'] ?? false,
+                                        activeTrackColor: const Color(0xFF10B981),
+                                        onChanged: (val) => _toggleSemesterRealtimeControl(school),
                                       ),
                                     ],
                                   ),
