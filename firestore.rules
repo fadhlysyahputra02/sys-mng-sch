@@ -1,0 +1,173 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- HELPER FUNCTIONS ---
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function hasUserRecord() {
+      return exists(/databases/$(database)/documents/user_uids/$(request.auth.uid)) ||
+             exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserData() {
+      return exists(/databases/$(database)/documents/user_uids/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/user_uids/$(request.auth.uid)).data
+        : (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+            : {});
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'super_admin' || 
+        (hasUserRecord() && getUserData().role == 'super_admin')
+      );
+    }
+
+    function isSchoolMember(schoolId) {
+      return isAuthenticated() && (
+        isSuperAdmin() || 
+        (hasUserRecord() && getUserData().schoolId == schoolId)
+      );
+    }
+
+    function isSchoolAdmin(schoolId) {
+      return isAuthenticated() && (
+        isSuperAdmin() || 
+        (
+          hasUserRecord() && 
+          getUserData().schoolId == schoolId && 
+          (getUserData().role == 'admin' || getUserData().role == 'school_admin')
+        )
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && userId != null && request.auth.uid == userId;
+    }
+
+    function isSuperAdminOnlySchoolFieldUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'enableERapor', 
+        'enableOnlineExam', 
+        'enableChat', 
+        'enableImportExcel', 
+        'enableImportExcelStudent', 
+        'enableImportExcelTeacher', 
+        'enableRealtimeControl', 
+        'enableScheduleFeatures', 
+        'enableSemesterRealtimeControl', 
+        'enableStudentAttendanceRecap', 
+        'enableTeacherAttendanceRecap', 
+        'enableStudentLeaveRequest', 
+        'allowBypassScheduleLock', 
+        'teacherQuota', 
+        'studentQuota', 
+        'plan', 
+        'kodeAdmin', 
+        'schoolId', 
+        'domain', 
+        'aktif'
+      ]);
+    }
+
+    // --- SYSTEM & CONFIGURATION ---
+    
+    // Config sensitif seperti SMTP hanya boleh diakses via Cloud Functions atau Super Admin
+    match /config/{configId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // --- USERS & USER_UIDS COLLECTIONS ---
+    
+    match /user_uids/{uid} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAuthenticated() && (isOwner(uid) || isSuperAdmin());
+    }
+
+    match /users/{userId} {
+      // Pembacaan data user terbuka untuk pencarian pre-login, registrasi & verifikasi
+      allow read: if true;
+      allow create: if true;
+      allow update: if isAuthenticated() && (
+        isOwner(userId) || 
+        (resource != null && isOwner(resource.data.uid)) || 
+        isOwner(request.resource.data.uid) || 
+        isSuperAdmin()
+      );
+      allow delete: if isAuthenticated() && isSuperAdmin();
+
+      // Sub-collection FCM Tokens
+      match /tokens/{tokenId} {
+        allow read, write: if isAuthenticated() && (isOwner(userId) || isSuperAdmin());
+      }
+    }
+
+    // --- TEACHERS & STUDENTS COLLECTIONS ---
+    
+    match /teachers/{teacherId} {
+      allow read: if isAuthenticated() && isSchoolMember(resource.data.schoolId);
+      allow write: if isAuthenticated() && (
+        isSchoolAdmin(resource.data.schoolId) || 
+        isOwner(request.resource.data.uid) || 
+        (resource != null && isOwner(resource.data.uid))
+      );
+    }
+
+    match /students/{studentId} {
+      allow read: if isAuthenticated() && isSchoolMember(resource.data.schoolId);
+      allow write: if isAuthenticated() && (
+        isSchoolAdmin(resource.data.schoolId) || 
+        isOwner(request.resource.data.uid) || 
+        (resource != null && isOwner(resource.data.uid))
+      );
+    }
+
+    // --- SCHOOLS MULTI-TENANCY DATA ---
+    
+    match /schools/{schoolId} {
+      // Pembacaan info/list sekolah terbuka secara publik untuk halaman registrasi user
+      allow read: if true;
+      allow create, delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (
+        isSchoolAdmin(schoolId) && !isSuperAdminOnlySchoolFieldUpdate()
+      );
+
+      // Sub-koleksi guru & murid untuk validasi NIP/NIS saat registrasi akun baru
+      match /teachers/{teacherId} {
+        allow read: if true;
+        allow write: if isAuthenticated() && (
+          isSchoolAdmin(schoolId) || 
+          isOwner(request.resource.data.uid) || 
+          (resource != null && isOwner(resource.data.uid))
+        );
+      }
+
+      match /students/{studentId} {
+        allow read: if true;
+        allow write: if isAuthenticated() && (
+          isSchoolAdmin(schoolId) || 
+          isOwner(request.resource.data.uid) || 
+          (resource != null && isOwner(resource.data.uid))
+        );
+      }
+
+      // Sub-koleksi privat sekolah (classes, subjects, notifications, attendance, exams, payments, etc.)
+      match /{col}/{doc=**} {
+        allow read: if isAuthenticated() && isSchoolMember(schoolId);
+        allow write: if isAuthenticated() && isSchoolMember(schoolId);
+      }
+    }
+
+    // --- DEFAULT FALLBACK LOCKDOWN ---
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+  }
+}

@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import '../../../../core/services/session_service.dart';
 import '../../../authentication/widgets/auth_background.dart';
 import '../../../../core/localization/app_localization.dart';
+import '../../../../core/utils/doc_id_util.dart';
 
 class LibrarianManagementPage extends StatefulWidget {
   final bool hideBackButton;
@@ -61,9 +62,10 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
       await tempApp.delete();
 
       final uid = credential.user!.uid;
+      final docId = generateFormattedDocId(nama);
 
       // 2. Simpan profil data user ke Firestore
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      await FirebaseFirestore.instance.collection('users').doc(docId).set({
         'uid': uid,
         'email': email,
         'nama': nama,
@@ -153,28 +155,36 @@ class _LibrarianManagementPageState extends State<LibrarianManagementPage> {
     if (confirm != true) return;
 
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      final data = userDoc.data();
-      final role = data?['role'] as String?;
+      final userSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: uid)
+          .limit(1)
+          .get();
 
-      if (role == 'teacher') {
-        await FirebaseFirestore.instance.collection('users').doc(uid).update({
-          'isLibrarian': false,
-        });
-        Get.snackbar(
-          AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
-          AppLocalization.isIndonesian ? 'Akses petugas perpustakaan untuk guru $nama berhasil dinonaktifkan.' : 'Library access for teacher $nama successfully deactivated.',
-          backgroundColor: const Color(0xFF10B981),
-          colorText: Colors.white,
-        );
-      } else {
-        await FirebaseFirestore.instance.collection('users').doc(uid).delete();
-        Get.snackbar(
-          AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
-          AppLocalization.isIndonesian ? 'Akun $nama berhasil dinonaktifkan.' : 'Account $nama successfully deactivated.',
-          backgroundColor: const Color(0xFF10B981),
-          colorText: Colors.white,
-        );
+      if (userSnap.docs.isNotEmpty) {
+        final userDocRef = userSnap.docs.first.reference;
+        final data = userSnap.docs.first.data();
+        final role = data['role'] as String?;
+
+        if (role == 'teacher') {
+          await userDocRef.update({
+            'isLibrarian': false,
+          });
+          Get.snackbar(
+            AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+            AppLocalization.isIndonesian ? 'Akses petugas perpustakaan untuk guru $nama berhasil dinonaktifkan.' : 'Library access for teacher $nama successfully deactivated.',
+            backgroundColor: const Color(0xFF10B981),
+            colorText: Colors.white,
+          );
+        } else {
+          await userDocRef.delete();
+          Get.snackbar(
+            AppLocalization.isIndonesian ? 'Berhasil' : 'Success',
+            AppLocalization.isIndonesian ? 'Akun $nama berhasil dinonaktifkan.' : 'Account $nama successfully deactivated.',
+            backgroundColor: const Color(0xFF10B981),
+            colorText: Colors.white,
+          );
+        }
       }
     } catch (e) {
       Get.snackbar(

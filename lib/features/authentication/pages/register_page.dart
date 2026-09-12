@@ -146,7 +146,10 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  void _showSchoolSearchBottomSheet() {
+  Future<void> _showSchoolSearchBottomSheet() async {
+    await _loadSekolah();
+    if (!mounted) return;
+
     String searchQuery = "";
     List<Map<String, dynamic>> filteredSekolah = List.from(_sekolahList);
     final isDark = AuthBackground.isDarkMode.value;
@@ -234,7 +237,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   // List of schools
                   Container(
                     constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      maxHeight: MediaQuery.of(context).size.height * 0.65,
                     ),
                     child: filteredSekolah.isEmpty
                         ? Padding(

@@ -1,14 +1,19 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart' hide Border, TextSpan;
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import 'package:sys_mng_school/core/localization/app_localization.dart';
 import 'package:sys_mng_school/features/exams/services/exam_session_service.dart';
+import 'teacher_create_exam_page.dart';
 import '../../../core/services/session_service.dart';
 import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
+import '../services/exam_service.dart';
 
 class TeacherExamQuestionsPage extends StatefulWidget {
   final String eventId;
@@ -283,8 +288,15 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
         final qList = (data['questions'] as List? ?? [])
             .map((q) => ExamQuestion.fromMap(Map<String, dynamic>.from(q)))
             .toList();
+
+        final mergedQuestions = await ExamService().loadAndMergeQuestionImages(
+          schoolId: schoolId,
+          examId: docId,
+          questions: qList,
+        );
+
         setState(() {
-          _questions = qList;
+          _questions = mergedQuestions;
           _isLoading = false;
         });
       } else {
@@ -311,7 +323,11 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
     );
 
     try {
+      // toMap() TANPA imageUrl untuk disimpan ke array Firestore (hindari limit 1MB)
       final qListMap = _questions.map((q) => q.toMap()).toList();
+      // toMapFull() DENGAN imageUrl untuk proses sync gambar terpisah
+      final qListMapFull = _questions.map((q) => q.toMapFull()).toList();
+
       await _db
           .collection('schools')
           .doc(schoolId)
@@ -329,13 +345,38 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
+      // Simpan gambar soal bank soal secara terpisah ke dokumen individual
+      final batch = _db.batch();
+      for (final q in _questions) {
+        final imgDocRef = _db
+            .collection('schools')
+            .doc(schoolId)
+            .collection('exam_question_images')
+            .doc('${docId}_${q.id}');
+        final hasImages = (q.imageUrl != null && q.imageUrl!.isNotEmpty) ||
+            (q.optionImageUrls != null && q.optionImageUrls!.any((url) => url.isNotEmpty));
+        if (hasImages) {
+          batch.set(imgDocRef, {
+            'examId': docId,
+            'questionId': q.id,
+            'imageUrl': q.imageUrl,
+            'optionImageUrls': q.optionImageUrls,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          batch.delete(imgDocRef);
+        }
+      }
+      await batch.commit().catchError((_) {});
+
       // Sinkronkan ke koleksi /exams untuk murid
+      // qListMapFull berisi imageUrl agar syncQuestionsToExams bisa simpan gambar terpisah
       final sessionService = ExamSessionService();
       await sessionService.syncQuestionsToExams(
         schoolId: schoolId,
         eventId: widget.eventId,
         subjectId: widget.subjectId,
-        questionsList: qListMap,
+        questionsList: qListMapFull,
         gradeLevel: _selectedGrade,
         shufflePg: _shufflePg,
         shuffleEssay: _shuffleEssay,
@@ -352,21 +393,111 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
     }
   }
 
+  Future<void> _pickAndSetImageForSemester(RxString imageUrlObs, RxBool isUploadingObs) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+    );
+    if (pickedFile == null) return;
+    isUploadingObs.value = true;
+    try {
+      final bytes = await pickedFile.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) throw Exception('Format gambar tidak didukung');
+
+      img.Image resized = decoded;
+      if (decoded.width > 800 || decoded.height > 800) {
+        if (decoded.width > decoded.height) {
+          resized = img.copyResize(decoded, width: 800);
+        } else {
+          resized = img.copyResize(decoded, height: 800);
+        }
+      }
+
+      final compressedBytes = img.encodeJpg(resized, quality: 50);
+      final ext = pickedFile.name.split('.').last.toLowerCase();
+      final mimeType = (ext == 'png') ? 'image/png' : 'image/jpeg';
+      final base64Str = base64Encode(compressedBytes);
+      final dataUrl = 'data:$mimeType;base64,$base64Str';
+
+      imageUrlObs.value = dataUrl;
+    } catch (e) {
+      Get.snackbar(
+        AppLocalization.isIndonesian ? 'Gagal Upload' : 'Upload Failed',
+        '$e',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    } finally {
+      isUploadingObs.value = false;
+    }
+  }
+
   void _addOrEditQuestion({ExamQuestion? existing, int? index}) {
     final isEdit = existing != null;
     final textCtrl = TextEditingController(text: existing?.questionText ?? '');
     final pointsCtrl = TextEditingController(text: (existing?.points ?? 10).toString());
     final typeObs = (existing?.type ?? 'multiple_choice').obs;
     final correctOptObs = (existing?.correctOptionIndex ?? 0).obs;
+    final imageUrlObs = (existing?.imageUrl ?? '').obs;
+    final isUploadingObs = false.obs;
     final optionsCtrls = <TextEditingController>[].obs;
+    final optionImageUrlsObs = <String>[].obs;
+    final isUploadingOptionImageObs = <bool>[].obs;
+
     if (existing != null && existing.type == 'multiple_choice') {
       optionsCtrls.addAll(
         existing.options.map((opt) => TextEditingController(text: opt)),
       );
+      final rawOptImages = existing.optionImageUrls;
+      if (rawOptImages != null) {
+        optionImageUrlsObs.addAll(rawOptImages);
+        isUploadingOptionImageObs.addAll(List.filled(rawOptImages.length, false));
+      } else {
+        optionImageUrlsObs.addAll(List.filled(existing.options.length, ''));
+        isUploadingOptionImageObs.addAll(List.filled(existing.options.length, false));
+      }
     } else {
       optionsCtrls.addAll(
         List.generate(4, (_) => TextEditingController()),
       );
+      optionImageUrlsObs.addAll(List.filled(4, ''));
+      isUploadingOptionImageObs.addAll(List.filled(4, false));
+    }
+
+    Future<void> pickAndUploadOptionImageForBank(int optIdx) async {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked == null) return;
+      isUploadingOptionImageObs[optIdx] = true;
+      try {
+        final bytes = await picked.readAsBytes();
+        final decoded = img.decodeImage(bytes);
+        if (decoded == null) throw Exception('Format gambar tidak didukung');
+
+        img.Image resized = decoded;
+        if (decoded.width > 600 || decoded.height > 600) {
+          if (decoded.width > decoded.height) {
+            resized = img.copyResize(decoded, width: 600);
+          } else {
+            resized = img.copyResize(decoded, height: 600);
+          }
+        }
+        final compressedBytes = img.encodeJpg(resized, quality: 50);
+        final ext = picked.name.split('.').last.toLowerCase();
+        final mimeType = (ext == 'png') ? 'image/png' : 'image/jpeg';
+        final base64Str = base64Encode(compressedBytes);
+        optionImageUrlsObs[optIdx] = 'data:$mimeType;base64,$base64Str';
+      } catch (e) {
+        Get.snackbar(
+          AppLocalization.isIndonesian ? 'Gagal Upload' : 'Upload Failed',
+          '$e',
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+        );
+      } finally {
+        isUploadingOptionImageObs[optIdx] = false;
+      }
     }
 
     Get.bottomSheet(
@@ -449,6 +580,93 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
+                  const SizedBox(height: 12),
+
+                  // Upload Gambar Soal Section
+                  Obx(() {
+                    if (isUploadingObs.value) {
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B5CF6)),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              AppLocalization.isIndonesian ? 'Mengunggah gambar...' : 'Uploading image...',
+                              style: TextStyle(fontSize: 12, color: titleColor.withValues(alpha: 0.6)),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    if (imageUrlObs.value.isNotEmpty) {
+                      return Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              constraints: const BoxConstraints(maxHeight: 260),
+                              alignment: Alignment.centerLeft,
+                              child: buildExamImageWidget(
+                                imageUrlObs.value,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: Row(
+                              children: [
+                                InkWell(
+                                  onTap: () => _pickAndSetImageForSemester(imageUrlObs, isUploadingObs),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                                    child: const Icon(Icons.edit_rounded, size: 16, color: Colors.white),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: () => imageUrlObs.value = '',
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+                                    child: const Icon(Icons.delete_rounded, size: 16, color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _pickAndSetImageForSemester(imageUrlObs, isUploadingObs),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF8B5CF6),
+                          side: BorderSide(color: const Color(0xFF8B5CF6).withValues(alpha: 0.5)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
+                        label: Text(
+                          AppLocalization.isIndonesian ? 'Tambah Gambar Soal' : 'Add Question Image',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    );
+                  }),
                   const SizedBox(height: 16),
 
                   // Opsi Pilihan Ganda (Hanya jika tipe MC)
@@ -471,6 +689,8 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                               onPressed: () {
                                 if (optionsCtrls.length < 10) {
                                   optionsCtrls.add(TextEditingController());
+                                  optionImageUrlsObs.add('');
+                                  isUploadingOptionImageObs.add(false);
                                 } else {
                                   Get.snackbar(
                                       AppLocalization.isIndonesian ? 'Batas Maksimal' : 'Max Limit',
@@ -487,6 +707,7 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                         ...List.generate(optionsCtrls.length, (optIdx) {
                           final char = String.fromCharCode(65 + optIdx); // A, B, C, D, E...
                           return Padding(
+                            key: ObjectKey(optionsCtrls[optIdx]),
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: Row(
                               children: [
@@ -509,11 +730,74 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 6),
+                                Obx(() {
+                                  final imageUrl = (optIdx < optionImageUrlsObs.length) ? optionImageUrlsObs[optIdx] : '';
+                                  final isLoading = (optIdx < isUploadingOptionImageObs.length) ? isUploadingOptionImageObs[optIdx] : false;
+
+                                  if (isLoading) {
+                                    return const SizedBox(
+                                      key: ValueKey('loading'),
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B5CF6)),
+                                    );
+                                  }
+
+                                  if (imageUrl.isNotEmpty) {
+                                    return Stack(
+                                      key: const ValueKey('image_present'),
+                                      alignment: Alignment.topRight,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4.0, right: 4.0),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: SizedBox(
+                                              width: 40,
+                                              height: 40,
+                                              child: buildExamImageWidget(
+                                                imageUrl,
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () => optionImageUrlsObs[optIdx] = '',
+                                          child: Container(
+                                            decoration: const BoxDecoration(
+                                              color: Colors.redAccent,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            padding: const EdgeInsets.all(2),
+                                            child: const Icon(Icons.close_rounded, size: 10, color: Colors.white),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }
+
+                                  return IconButton(
+                                    key: const ValueKey('upload_button'),
+                                    icon: const Icon(Icons.add_photo_alternate_rounded, size: 20, color: Color(0xFF8B5CF6)),
+                                    onPressed: () => pickAndUploadOptionImageForBank(optIdx),
+                                    tooltip: AppLocalization.isIndonesian ? 'Tambah Gambar Opsi' : 'Add Option Image',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                  );
+                                }),
                                 if (optionsCtrls.length > 2)
                                   IconButton(
                                     icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent, size: 20),
                                     onPressed: () {
                                       optionsCtrls.removeAt(optIdx);
+                                      if (optIdx < optionImageUrlsObs.length) {
+                                        optionImageUrlsObs.removeAt(optIdx);
+                                      }
+                                      if (optIdx < isUploadingOptionImageObs.length) {
+                                        isUploadingOptionImageObs.removeAt(optIdx);
+                                      }
                                       if (correctOptObs.value >= optionsCtrls.length) {
                                         correctOptObs.value = optionsCtrls.length - 1;
                                       }
@@ -556,8 +840,14 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                   // Button Simpan Pertanyaan
                   ElevatedButton(
                     onPressed: () {
-                      if (textCtrl.text.trim().isEmpty) {
-                        Get.snackbar(AppLocalization.isIndonesian ? 'Error' : 'Error', AppLocalization.isIndonesian ? 'Teks pertanyaan tidak boleh kosong' : 'Question text cannot be empty');
+                      final hasQuestionImage = imageUrlObs.value.isNotEmpty;
+                      if (textCtrl.text.trim().isEmpty && !hasQuestionImage) {
+                        Get.snackbar(
+                          AppLocalization.isIndonesian ? 'Error' : 'Error',
+                          AppLocalization.isIndonesian
+                              ? 'Teks pertanyaan tidak boleh kosong (atau upload gambar)'
+                              : 'Question text cannot be empty (or upload an image)',
+                        );
                         return;
                       }
 
@@ -566,12 +856,21 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                       final List<String> options = [];
 
                       if (type == 'multiple_choice') {
-                        for (final c in optionsCtrls) {
-                          if (c.text.trim().isEmpty) {
-                            Get.snackbar(AppLocalization.isIndonesian ? 'Error' : 'Error', AppLocalization.isIndonesian ? 'Semua opsi pilihan harus diisi' : 'All answer options must be filled');
+                        for (int j = 0; j < optionsCtrls.length; j++) {
+                          final c = optionsCtrls[j];
+                          final textVal = c.text.trim();
+                          final hasOptImage = j < optionImageUrlsObs.length && optionImageUrlsObs[j].isNotEmpty;
+
+                          if (textVal.isEmpty && !hasOptImage) {
+                            Get.snackbar(
+                              AppLocalization.isIndonesian ? 'Error' : 'Error',
+                              AppLocalization.isIndonesian
+                                  ? 'Semua opsi pilihan harus diisi teks atau gambar'
+                                  : 'All answer options must contain text or an image',
+                            );
                             return;
                           }
-                          options.add(c.text.trim());
+                          options.add(textVal);
                         }
                       }
 
@@ -583,6 +882,8 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                         correctOptionIndex: type == 'multiple_choice' ? correctOptObs.value : 0,
                         type: type,
                         points: points,
+                        imageUrl: imageUrlObs.value.isNotEmpty ? imageUrlObs.value : null,
+                        optionImageUrls: type == 'multiple_choice' ? optionImageUrlsObs.toList() : null,
                         createdByTeacherId: existing?.createdByTeacherId ?? widget.teacherId,
                         createdByTeacherName: existing?.createdByTeacherName ?? currentTeacherName,
                         updatedByTeacherId: isEdit ? widget.teacherId : null,
@@ -1671,11 +1972,30 @@ class _TeacherExamQuestionsPageState extends State<TeacherExamQuestionsPage> {
                                             ),
                                             const SizedBox(width: 10),
                                             Expanded(
-                                              child: Text(q.questionText,
-                                                  style: TextStyle(
-                                                      color: titleColor,
-                                                      fontWeight: FontWeight.w600,
-                                                      fontSize: 14)),
+                                               child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  if (q.imageUrl != null && q.imageUrl!.isNotEmpty) ...[
+                                                    ClipRRect(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      child: Container(
+                                                        constraints: const BoxConstraints(maxHeight: 140, maxWidth: 200),
+                                                        alignment: Alignment.centerLeft,
+                                                        child: buildExamImageWidget(
+                                                          q.imageUrl!,
+                                                          fit: BoxFit.contain,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                  ],
+                                                  Text(q.questionText,
+                                                      style: TextStyle(
+                                                          color: titleColor,
+                                                          fontWeight: FontWeight.w600,
+                                                          fontSize: 14)),
+                                                ],
+                                              ),
                                             ),
                                             if (!_isExamLocked) ...[
                                               Container(

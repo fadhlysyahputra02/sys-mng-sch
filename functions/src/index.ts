@@ -253,8 +253,8 @@ export const onUserDocumentDeleted = onDocumentDeleted(
  */
 export const sendCustomResetPasswordEmail = onCall(async (request) => {
   const email = request.data?.email;
-  if (!email) {
-    throw new HttpsError("invalid-argument", "Email harus diisi.");
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    throw new HttpsError("invalid-argument", "Format email tidak valid.");
   }
 
   const db = getFirestore();

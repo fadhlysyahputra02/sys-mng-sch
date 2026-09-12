@@ -204,9 +204,20 @@ class PushNotificationService {
         debugPrint('FCM Token: $token');
         final schoolId = user.schoolId;
         
-        await FirebaseFirestore.instance
+        final userQuery = await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)
+            .where('uid', isEqualTo: user.uid)
+            .limit(1)
+            .get();
+
+        DocumentReference? userRef;
+        if (userQuery.docs.isNotEmpty) {
+          userRef = userQuery.docs.first.reference;
+        } else {
+          userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        }
+
+        await userRef
             .collection('tokens')
             .doc(token)
             .set({
@@ -217,10 +228,7 @@ class PushNotificationService {
 
         // Sinkronisasi bahasa yang dipilih ke profil user di Firestore
         try {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .update({
+          await userRef.update({
             'language': AppLocalization.currentLocale.value,
           });
 

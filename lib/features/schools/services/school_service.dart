@@ -111,12 +111,16 @@ class SchoolService {
 
   // Ambil semua sekolah untuk dropdown di halaman register guru/murid
   Future<List<Map<String, dynamic>>> getAllSchools() async {
-    final snapshot = await _firestore
-        .collection('schools')
-        .where('aktif', isEqualTo: true)
-        .get();
+    final snapshot = await _firestore.collection('schools').get();
 
-    return snapshot.docs.map((doc) => doc.data()).toList();
+    return snapshot.docs
+        .map((doc) {
+          final data = doc.data();
+          data['id'] = doc.id;
+          return data;
+        })
+        .where((data) => data['aktif'] != false && data['aktif'] != 'false')
+        .toList();
   }
 
   // Validasi NIP guru: pastikan terdaftar di sekolah tersebut dan aktif

@@ -111,6 +111,16 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
 
       final firestore = FirebaseFirestore.instance;
 
+      Future<void> deleteUserDocByUid(String targetUid) async {
+        final snap = await firestore
+            .collection('users')
+            .where('uid', isEqualTo: targetUid)
+            .get();
+        for (var doc in snap.docs) {
+          await doc.reference.delete();
+        }
+      }
+
       if (role == 'student') {
         await firestore
             .collection('schools')
@@ -119,7 +129,7 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
             .doc(documentId)
             .delete();
         if (uid != null && uid.isNotEmpty) {
-          await firestore.collection('users').doc(uid).delete();
+          await deleteUserDocByUid(uid);
         }
       } else if (role == 'teacher') {
         await firestore
@@ -129,10 +139,13 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
             .doc(documentId)
             .delete();
         if (uid != null && uid.isNotEmpty) {
-          await firestore.collection('users').doc(uid).delete();
+          await deleteUserDocByUid(uid);
         }
       } else {
         await firestore.collection('users').doc(documentId).delete();
+        if (uid != null && uid.isNotEmpty) {
+          await deleteUserDocByUid(uid);
+        }
       }
 
       if (mounted) {

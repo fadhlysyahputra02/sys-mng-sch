@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sys_mng_school/core/utils/doc_id_util.dart';
 
 class StudentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -21,11 +22,14 @@ class StudentService {
       throw ('NIS $nis sudah terdaftar di sekolah ini');
     }
 
+    final docId = generateFormattedDocId(nama);
     await _firestore
         .collection('schools')
         .doc(schoolId)
         .collection('students')
-        .add({
+        .doc(docId)
+        .set({
+          'studentId': docId,
           'nis': nis,
           'nama': nama,
           'aktif': aktif,

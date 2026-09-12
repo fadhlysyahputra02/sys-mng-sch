@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import 'package:sys_mng_school/core/localization/app_localization.dart';
+import 'package:sys_mng_school/core/utils/doc_id_util.dart';
 
 class AddTeacherPage extends StatefulWidget {
   final String schoolId;
@@ -146,11 +147,13 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
         return;
       }
 
+      final namaTeacher = namaController.text.trim();
+      final docId = generateFormattedDocId(namaTeacher);
       final doc = FirebaseFirestore.instance
           .collection('schools')
           .doc(widget.schoolId)
           .collection('teachers')
-          .doc();
+          .doc(docId);
 
       await doc.set({
         'teacherId': doc.id,
@@ -158,7 +161,7 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
         'uid': '',
         'email': '',
         // Data Pribadi
-        'nama': namaController.text.trim(),
+        'nama': namaTeacher,
         'nip': nip,
         'nuptk': nuptKController.text.trim(),
         'noPegawai': noPegawaiController.text.trim(),

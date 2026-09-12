@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import '../../../../../core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import '../../../../../core/localization/app_localization.dart';
+import '../../../../../core/utils/doc_id_util.dart';
 
 class TuManagementPage extends StatefulWidget {
   final bool hideBackButton;
@@ -58,8 +59,9 @@ class _TuManagementPageState extends State<TuManagementPage> {
       await tempApp.delete();
 
       final uid = credential.user!.uid;
+      final docId = generateFormattedDocId(nama);
 
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      await FirebaseFirestore.instance.collection('users').doc(docId).set({
         'uid': uid,
         'email': email,
         'nama': nama,
@@ -148,7 +150,13 @@ class _TuManagementPageState extends State<TuManagementPage> {
     if (confirm != true) return;
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: uid)
+          .get();
+      for (var doc in query.docs) {
+        await doc.reference.delete();
+      }
 
       Get.snackbar(
         AppLocalization.isIndonesian ? 'Berhasil' : 'Success',

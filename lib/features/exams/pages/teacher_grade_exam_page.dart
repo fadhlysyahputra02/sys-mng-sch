@@ -7,6 +7,7 @@ import '../models/exam_model.dart';
 import '../models/exam_submission_model.dart';
 import '../services/exam_service.dart';
 import '../../../core/localization/app_localization.dart';
+import 'teacher_create_exam_page.dart';
 
 class TeacherGradeExamPage extends StatefulWidget {
   final Exam exam;
@@ -150,6 +151,13 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
       }
       // ─────────────────────────────────────────────────────────────────────────
 
+      // Merge images (including question and option level images)
+      loaded = await _examService.loadAndMergeQuestionImages(
+        schoolId: schoolId,
+        examId: widget.exam.id,
+        questions: loaded,
+      );
+
       setState(() {
         _loadedQuestions = loaded;
         _isLoadingQuestions = false;
@@ -158,11 +166,23 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
       // Dipanggil setelah setState selesai assign _loadedQuestions
       _calculateInitialPoints();
     } catch (e) {
-      // If error occurs, fallback to base exam questions
-      setState(() {
-        _loadedQuestions = widget.exam.questions;
-        _isLoadingQuestions = false;
-      });
+      // If error occurs, fallback to base exam questions with loaded images
+      try {
+        final mergedFallback = await _examService.loadAndMergeQuestionImages(
+          schoolId: schoolId,
+          examId: widget.exam.id,
+          questions: widget.exam.questions,
+        );
+        setState(() {
+          _loadedQuestions = mergedFallback;
+          _isLoadingQuestions = false;
+        });
+      } catch (_) {
+        setState(() {
+          _loadedQuestions = widget.exam.questions;
+          _isLoadingQuestions = false;
+        });
+      }
 
       _calculateInitialPoints();
     }
@@ -425,6 +445,18 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                       ),
                                     ],
                                   ),
+                                  if (q.imageUrl != null && q.imageUrl!.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: buildExamImageWidget(
+                                        q.imageUrl!,
+                                        height: 180,
+                                        width: double.infinity,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 12),
                                   Text(
                                     q.questionText,
@@ -530,6 +562,18 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                       ),
                                     ],
                                   ),
+                                  if (q.imageUrl != null && q.imageUrl!.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: buildExamImageWidget(
+                                        q.imageUrl!,
+                                        height: 180,
+                                        width: double.infinity,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 12),
                                   Text(
                                     q.questionText,
@@ -578,9 +622,29 @@ class _TeacherGradeExamPageState extends State<TeacherGradeExamPage> {
                                           ),
                                           const SizedBox(width: 10),
                                           Expanded(
-                                            child: Text(
-                                              q.options[optIdx],
-                                              style: TextStyle(fontSize: 13, color: optionColor, fontWeight: optionWeight),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  q.options[optIdx],
+                                                  style: TextStyle(fontSize: 13, color: optionColor, fontWeight: optionWeight),
+                                                ),
+                                                if (q.optionImageUrls != null &&
+                                                    optIdx < q.optionImageUrls!.length &&
+                                                    q.optionImageUrls![optIdx].isNotEmpty) ...[
+                                                  const SizedBox(height: 6),
+                                                  ClipRRect(
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    child: Container(
+                                                      constraints: const BoxConstraints(maxHeight: 100),
+                                                      child: buildExamImageWidget(
+                                                        q.optionImageUrls![optIdx],
+                                                        fit: BoxFit.contain,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ),
                                           if (statusIcon != null) ...[

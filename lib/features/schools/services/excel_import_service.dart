@@ -5,6 +5,7 @@ import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:flutter/foundation.dart';
 import '../../../../core/services/session_service.dart';
+import '../../../../core/utils/doc_id_util.dart';
 import 'file_helper.dart';
 
 class ExcelImportResult {
@@ -297,7 +298,8 @@ class ExcelImportService {
       int success = 0;
       for (int i = 0; i < validatedTeachers.length; i++) {
         final t = validatedTeachers[i];
-        final docRef = _db.collection('schools').doc(schoolId).collection('teachers').doc();
+        final docId = generateFormattedDocId(t['nama'] ?? '');
+        final docRef = _db.collection('schools').doc(schoolId).collection('teachers').doc(docId);
         await docRef.set({
           'teacherId': docRef.id,
           'schoolId': schoolId,
@@ -561,11 +563,12 @@ class ExcelImportService {
       int success = 0;
       for (int i = 0; i < validatedStudents.length; i++) {
         final studentData = validatedStudents[i];
+        final docId = generateFormattedDocId(studentData['nama'] ?? '');
         final docRef = _db
             .collection('schools')
             .doc(schoolId)
             .collection('students')
-            .doc();
+            .doc(docId);
 
         await docRef.set({
           'studentId': docRef.id,

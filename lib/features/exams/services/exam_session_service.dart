@@ -1436,6 +1436,14 @@ class ExamSessionService {
       // Buat ID exam: eventId_subjectId_classId
       final examId = '${eventId}_${subjectId}_$classId';
 
+      // Strip imageUrl dan optionImageUrls dari questionsList agar tidak melebihi batas 1MB dokumen Firestore
+      final questionsListStripped = questionsList.map((q) {
+        final map = Map<String, dynamic>.from(q);
+        map.remove('imageUrl');
+        map.remove('optionImageUrls');
+        return map;
+      }).toList();
+
       // Tulis atau update ke collection /exams
       await _db
           .collection('schools')
@@ -1461,11 +1469,38 @@ class ExamSessionService {
         'createdAt': FieldValue.serverTimestamp(),
         'dueDate': Timestamp.fromDate((sData['date'] as Timestamp).toDate().add(const Duration(days: 1))),
         'status': 'active',
-        'questions': questionsList,
+        'questions': questionsListStripped,
         'susulanStudentIds': [],
         'shufflePg': shufflePg,
         'shuffleEssay': shuffleEssay,
       });
+
+      // Simpan gambar soal masing-masing secara terpisah ke dokumen individual
+      final batch = _db.batch();
+      for (final q in questionsList) {
+        final qId = q['id'] as String? ?? '';
+        final imageUrl = q['imageUrl'] as String? ?? '';
+        final optUrls = q['optionImageUrls'] as List?;
+        final hasImages = imageUrl.isNotEmpty || (optUrls != null && optUrls.any((url) => (url as String).isNotEmpty));
+
+        final imgDocRef = _db
+            .collection('schools')
+            .doc(schoolId)
+            .collection('exam_question_images')
+            .doc('${examId}_$qId');
+        if (hasImages && qId.isNotEmpty) {
+          batch.set(imgDocRef, {
+            'examId': examId,
+            'questionId': qId,
+            'imageUrl': imageUrl,
+            'optionImageUrls': optUrls,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          batch.delete(imgDocRef);
+        }
+      }
+      await batch.commit().catchError((_) {});
     }
   }
 }

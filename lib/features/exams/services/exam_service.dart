@@ -60,9 +60,158 @@ class ExamService {
       questions: questions,
     );
 
+    // Simpan dokumen exam (questions TANPA imageUrl untuk menghindari limit 1MB Firestore)
     await docRef.set(exam.toFirestore());
+
+    // Simpan gambar soal terpisah jika ada ke dokumen individual
+    await saveQuestionImages(schoolId: schoolId, examId: docRef.id, questions: questions);
+
     return docRef.id;
   }
+
+  /// Menyimpan imageUrl masing-masing soal ke dokumen terpisah di exam_question_images
+  Future<void> saveQuestionImages({
+    required String schoolId,
+    required String examId,
+    required List<ExamQuestion> questions,
+  }) async {
+    final batch = _firestore.batch();
+    for (final q in questions) {
+      final docRef = _firestore
+          .collection('schools')
+          .doc(schoolId)
+          .collection('exam_question_images')
+          .doc('${examId}_${q.id}');
+      final hasImages = (q.imageUrl != null && q.imageUrl!.isNotEmpty) ||
+          (q.optionImageUrls != null && q.optionImageUrls!.any((url) => url.isNotEmpty));
+      if (hasImages) {
+        batch.set(docRef, {
+          'examId': examId,
+          'questionId': q.id,
+          'imageUrl': q.imageUrl,
+          'optionImageUrls': q.optionImageUrls,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Hapus jika sebelumnya ada
+        batch.delete(docRef);
+      }
+    }
+    await batch.commit().catchError((_) {});
+  }
+
+  /// Mengambil seluruh gambar soal dari exam_question_images dan merge ke list questions
+  Future<List<ExamQuestion>> loadAndMergeQuestionImages({
+    required String schoolId,
+    required String examId,
+    List<String>? alternativeExamIds,
+    required List<ExamQuestion> questions,
+  }) async {
+    if (questions.isEmpty) return questions;
+    try {
+      final imagesMap = <String, String>{};
+      final optionImagesMap = <String, List<String>>{};
+
+      // 1. Kumpulkan semua candidate examIds (termasuk alternativeExamIds)
+      final idsToTry = [examId, ...?alternativeExamIds]
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      for (final id in idsToTry) {
+        try {
+          final tempSnap = await _firestore
+              .collection('schools')
+              .doc(schoolId)
+              .collection('exam_question_images')
+              .where('examId', isEqualTo: id)
+              .get();
+          for (final doc in tempSnap.docs) {
+            final data = doc.data();
+            final qId = data['questionId'] as String? ?? '';
+            final url = data['imageUrl'] as String? ?? '';
+            if (qId.isNotEmpty && url.isNotEmpty) {
+              imagesMap.putIfAbsent(qId, () => url);
+            }
+            final optUrls = data['optionImageUrls'] as List?;
+            if (qId.isNotEmpty && optUrls != null && optUrls.any((u) => u != null && u.toString().isNotEmpty)) {
+              optionImagesMap.putIfAbsent(qId, () => List<String>.from(optUrls));
+            }
+          }
+        } catch (e) {
+          debugPrint('Error loading question images for examId $id: $e');
+        }
+      }
+
+      // 2. Untuk soal yang masih belum menemukan gambarnya, cari langsung berdasarkan questionId
+      final missingQIds = questions
+          .where((q) {
+            final hasMainImage = (q.imageUrl != null && q.imageUrl!.isNotEmpty) || imagesMap.containsKey(q.id);
+            final hasOptImage = (q.optionImageUrls != null && q.optionImageUrls!.any((u) => u.isNotEmpty)) || optionImagesMap.containsKey(q.id);
+            return !hasMainImage && !hasOptImage && q.id.isNotEmpty;
+          })
+          .map((q) => q.id)
+          .toSet()
+          .toList();
+
+      if (missingQIds.isNotEmpty) {
+        for (var i = 0; i < missingQIds.length; i += 30) {
+          final chunk = missingQIds.sublist(
+            i,
+            i + 30 > missingQIds.length ? missingQIds.length : i + 30,
+          );
+          try {
+            final snap = await _firestore
+                .collection('schools')
+                .doc(schoolId)
+                .collection('exam_question_images')
+                .where('questionId', whereIn: chunk)
+                .get();
+            for (final doc in snap.docs) {
+              final data = doc.data();
+              final qId = data['questionId'] as String? ?? '';
+              final url = data['imageUrl'] as String? ?? '';
+              if (qId.isNotEmpty && url.isNotEmpty) {
+                imagesMap[qId] = url;
+              }
+              final optUrls = data['optionImageUrls'] as List?;
+              if (qId.isNotEmpty && optUrls != null && optUrls.any((u) => u != null && u.toString().isNotEmpty)) {
+                optionImagesMap[qId] = List<String>.from(optUrls);
+              }
+            }
+          } catch (e) {
+            debugPrint('Error loading question images by questionId chunk: $e');
+          }
+        }
+      }
+
+      return questions.map((q) {
+        final imageUrl = imagesMap[q.id] ?? q.imageUrl;
+        final optionImageUrls = optionImagesMap[q.id] ?? q.optionImageUrls;
+        if ((imageUrl != null && imageUrl.isNotEmpty) || (optionImageUrls != null && optionImageUrls.isNotEmpty)) {
+          return ExamQuestion(
+            id: q.id,
+            questionText: q.questionText,
+            options: q.options,
+            correctOptionIndex: q.correctOptionIndex,
+            type: q.type,
+            points: q.points,
+            imageUrl: imageUrl,
+            optionImageUrls: optionImageUrls,
+            createdByTeacherId: q.createdByTeacherId,
+            createdByTeacherName: q.createdByTeacherName,
+            updatedByTeacherId: q.updatedByTeacherId,
+            updatedByTeacherName: q.updatedByTeacherName,
+          );
+        }
+        return q;
+      }).toList();
+    } catch (e) {
+      debugPrint('Error in loadAndMergeQuestionImages: $e');
+      return questions;
+    }
+  }
+
 
   /// Stream list ujian untuk kelas tertentu
   Stream<List<Exam>> getExamsForClass(String schoolId, String classId) {

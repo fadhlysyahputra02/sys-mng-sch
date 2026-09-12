@@ -7,6 +7,8 @@ class ExamQuestion {
   final int correctOptionIndex;
   final String type; // 'multiple_choice' or 'essay'
   final int points;
+  final String? imageUrl;
+  final List<String>? optionImageUrls; // Gambar untuk masing-masing opsi pilihan ganda
   final String? createdByTeacherId;
   final String? createdByTeacherName;
   final String? updatedByTeacherId;
@@ -19,6 +21,8 @@ class ExamQuestion {
     required this.correctOptionIndex,
     this.type = 'multiple_choice',
     this.points = 10,
+    this.imageUrl,
+    this.optionImageUrls,
     this.createdByTeacherId,
     this.createdByTeacherName,
     this.updatedByTeacherId,
@@ -33,6 +37,8 @@ class ExamQuestion {
       correctOptionIndex: map['correctOptionIndex'] ?? 0,
       type: map['type'] ?? 'multiple_choice',
       points: map['points'] ?? 10,
+      imageUrl: map['imageUrl'] as String?,
+      optionImageUrls: map['optionImageUrls'] != null ? List<String>.from(map['optionImageUrls']) : null,
       createdByTeacherId: map['createdByTeacherId'],
       createdByTeacherName: map['createdByTeacherName'],
       updatedByTeacherId: map['updatedByTeacherId'],
@@ -40,6 +46,8 @@ class ExamQuestion {
     );
   }
 
+  /// Serialisasi TANPA imageUrl dan optionImageUrls — digunakan saat menyimpan ke Firestore array
+  /// karena Base64 gambar terlalu besar untuk disimpan dalam array dokumen Firestore (max 1MB)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -48,10 +56,20 @@ class ExamQuestion {
       'correctOptionIndex': correctOptionIndex,
       'type': type,
       'points': points,
+      // Gambar tidak disimpan di sini — disimpan terpisah di sub-koleksi exam_question_images
       'createdByTeacherId': createdByTeacherId,
       'createdByTeacherName': createdByTeacherName,
       'updatedByTeacherId': updatedByTeacherId,
       'updatedByTeacherName': updatedByTeacherName,
+    };
+  }
+
+  /// Serialisasi DENGAN imageUrl dan optionImageUrls — untuk sinkronisasi gambar terpisah
+  Map<String, dynamic> toMapFull() {
+    return {
+      ...toMap(),
+      'imageUrl': imageUrl,
+      'optionImageUrls': optionImageUrls,
     };
   }
 }

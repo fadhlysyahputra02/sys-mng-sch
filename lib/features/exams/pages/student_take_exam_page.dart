@@ -13,6 +13,7 @@ import 'package:is_lock_screen2/is_lock_screen2.dart';
 import '../services/exam_behavior_service.dart';
 import '../services/exam_session_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'teacher_create_exam_page.dart';
 import 'dart:convert';
 
 class StudentTakeExamPage extends StatefulWidget {
@@ -65,6 +66,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
   List<ExamQuestion> _questions = [];
 
   int _secondsRemaining = 0;
+  final ValueNotifier<int> _secondsRemainingNotifier = ValueNotifier<int>(0);
   Timer? _timer;
   bool _isSubmitting = false;
 
@@ -137,6 +139,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
       } catch (_) {}
     }
     _secondsRemaining = calculatedSeconds;
+    _secondsRemainingNotifier.value = calculatedSeconds;
     WidgetsBinding.instance.addObserver(this);
     _initializeExamData();
   }
@@ -144,7 +147,59 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
   Future<void> _initializeExamData() async {
     await _loadSchoolMetadata();
     await _loadScheduleInfoForBehavior();
+    // Muat gambar soal dari exam_question_images terpisah
+    await _mergeQuestionImages();
     await _loadDraftAnswers();
+  }
+
+  Future<void> _mergeQuestionImages() async {
+    try {
+      final schoolId = widget.schoolId ?? SessionService.currentUser?.schoolId;
+      if (schoolId == null || schoolId.isEmpty) return;
+
+      final studentId = widget.studentDocId ?? SessionService.currentUser?.uid;
+      String studentAngkatan = '';
+      if (studentId != null) {
+        final studentSnap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolId)
+            .collection('students')
+            .doc(studentId)
+            .get();
+        if (studentSnap.exists && studentSnap.data() != null) {
+          studentAngkatan = (studentSnap.data()?['angkatan'] ?? '').toString().trim();
+        }
+      }
+
+      final candidateIds = <String>{widget.exam.id};
+      final parts = widget.exam.id.split('_');
+      if (parts.length >= 2) {
+        final eventId = parts.first;
+        final subjectId = parts.sublist(1, parts.length - 1).join('_');
+
+        if (studentAngkatan.isNotEmpty) {
+          candidateIds.add('${eventId}_${subjectId}_$studentAngkatan');
+        }
+        candidateIds.add('${eventId}_$subjectId');
+        for (final g in ['10', '11', '12', 'X', 'XI', 'XII', '2020', '2021', '2022', '2023', '2024', '2025', '2026']) {
+          candidateIds.add('${eventId}_${subjectId}_$g');
+        }
+      }
+
+      final merged = await _examService.loadAndMergeQuestionImages(
+        schoolId: schoolId,
+        examId: widget.exam.id,
+        alternativeExamIds: candidateIds.toList(),
+        questions: _questions,
+      );
+      if (mounted) {
+        setState(() {
+          _questions = merged;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to merge question images: $e');
+    }
   }
 
   Future<void> _loadDraftAnswers() async {
@@ -446,11 +501,12 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining <= 1) {
         timer.cancel();
+        _secondsRemaining = 0;
+        _secondsRemainingNotifier.value = 0;
         _autoSubmit();
       } else {
-        setState(() {
-          _secondsRemaining--;
-        });
+        _secondsRemaining--;
+        _secondsRemainingNotifier.value = _secondsRemaining;
       }
     });
   }
@@ -514,6 +570,42 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
       Get.snackbar('Error', 'Gagal menyerahkan ujian otomatis: $e',
           backgroundColor: Colors.redAccent, colorText: Colors.white);
     }
+  }
+
+  void _showEnlargedImage(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InteractiveViewer(
+              clipBehavior: Clip.none,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: buildExamImageWidget(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _submitExamManual() async {
@@ -656,6 +748,7 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
     SessionService.isTakingExam = false;
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _secondsRemainingNotifier.dispose();
     _pgNavScrollCtrl.dispose();
     _essayNavScrollCtrl.dispose();
     super.dispose();
@@ -870,30 +963,37 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
                               ],
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: (_secondsRemaining < 120 ? Colors.redAccent : const Color(0xFF8B5CF6)).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.timer_outlined,
-                                  size: 16,
-                                  color: _secondsRemaining < 120 ? Colors.redAccent : const Color(0xFF8B5CF6),
+                          ValueListenableBuilder<int>(
+                            valueListenable: _secondsRemainingNotifier,
+                            builder: (context, secondsRemaining, _) {
+                              final isUrgent = secondsRemaining < 120;
+                              final timerColor = isUrgent ? Colors.redAccent : const Color(0xFF8B5CF6);
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: timerColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _formatTime(_secondsRemaining),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: _secondsRemaining < 120 ? Colors.redAccent : const Color(0xFF8B5CF6),
-                                  ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.timer_outlined,
+                                      size: 16,
+                                      color: timerColor,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _formatTime(secondsRemaining),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: timerColor,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -1004,9 +1104,49 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(color: cardBorderColor),
                                 ),
-                                child: Text(
-                                  currentQuestion.questionText,
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: titleColor, height: 1.5),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (currentQuestion.imageUrl != null && currentQuestion.imageUrl!.isNotEmpty) ...[
+                                      GestureDetector(
+                                        onTap: () => _showEnlargedImage(context, currentQuestion.imageUrl!),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: Stack(
+                                            alignment: Alignment.bottomRight,
+                                            children: [
+                                              buildExamImageWidget(
+                                                currentQuestion.imageUrl!,
+                                                width: double.infinity,
+                                                fit: BoxFit.contain,
+                                              ),
+                                              Container(
+                                                margin: const EdgeInsets.all(8),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black.withValues(alpha: 0.6),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: const [
+                                                    Icon(Icons.zoom_in_rounded, color: Colors.white, size: 14),
+                                                    SizedBox(width: 4),
+                                                    Text('Perbesar', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+                                    Text(
+                                      currentQuestion.questionText,
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: titleColor, height: 1.5),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 24),
@@ -1090,13 +1230,33 @@ class _StudentTakeExamPageState extends State<StudentTakeExamPage> with WidgetsB
                                               ),
                                               const SizedBox(width: 14),
                                               Expanded(
-                                                child: Text(
-                                                  currentQuestion.options[optIdx],
-                                                  style: TextStyle(
-                                                    color: titleColor,
-                                                    fontSize: 14,
-                                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                                  ),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      currentQuestion.options[optIdx],
+                                                      style: TextStyle(
+                                                        color: titleColor,
+                                                        fontSize: 14,
+                                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                      ),
+                                                    ),
+                                                    if (currentQuestion.optionImageUrls != null &&
+                                                        optIdx < currentQuestion.optionImageUrls!.length &&
+                                                        currentQuestion.optionImageUrls![optIdx].isNotEmpty) ...[
+                                                      const SizedBox(height: 8),
+                                                      ClipRRect(
+                                                        borderRadius: BorderRadius.circular(8),
+                                                        child: Container(
+                                                          constraints: const BoxConstraints(maxHeight: 120),
+                                                          child: buildExamImageWidget(
+                                                            currentQuestion.optionImageUrls![optIdx],
+                                                            fit: BoxFit.contain,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
                                                 ),
                                               ),
                                             ],

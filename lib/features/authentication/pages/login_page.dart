@@ -159,16 +159,21 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Ambil data user dari Firestore berdasarkan email
-      final userQuery = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
+      // 1. Ambil data user dari Firestore berdasarkan email (jika diizinkan)
+      QuerySnapshot<Map<String, dynamic>>? userQuery;
+      try {
+        userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: email)
+            .limit(1)
+            .get();
+      } catch (e) {
+        debugPrint('Pre-login user query bypassed: $e');
+      }
 
       UserCredential credential;
 
-      if (userQuery.docs.isNotEmpty) {
+      if (userQuery != null && userQuery.docs.isNotEmpty) {
         final doc = userQuery.docs.first;
         final userData = doc.data();
         final firestorePassword = userData['password'] as String?;

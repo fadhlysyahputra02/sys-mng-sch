@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Gambar Ujian
+    match /schools/{schoolId}/exam_images/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024 // max 5MB
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Foto Profil Pengguna
+    match /users/{userId}/profile/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId
+                   && request.resource.size < 3 * 1024 * 1024 // max 3MB
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Logo Sekolah & Dokumen Lampiran
+    match /schools/{schoolId}/{folder}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024 // max 10MB
+                   && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('application/pdf'));
+    }
+
+    // Default Fallback: Baca hanya untuk user login, tulis ditolak
+    match /{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}
+

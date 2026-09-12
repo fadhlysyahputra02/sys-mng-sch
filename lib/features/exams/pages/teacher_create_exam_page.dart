@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import '../../../core/services/session_service.dart';
+
 import '../../authentication/widgets/auth_background.dart';
 import '../models/exam_model.dart';
 import '../services/exam_service.dart';
@@ -69,7 +74,120 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
         'correctIndex': 0,
         'type': 'multiple_choice',
         'pointsController': TextEditingController(text: '10'),
+        'imageUrl': null,
+        'isUploadingImage': false,
+        'optionImageUrls': List<String?>.filled(4, null),
+        'isUploadingOptionImage': List<bool>.filled(4, false),
       });
+    });
+  }
+
+  Future<void> _pickAndUploadImage(int index) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+    );
+    if (pickedFile == null) return;
+
+    setState(() {
+      _questionsData[index]['isUploadingImage'] = true;
+    });
+
+    try {
+      final bytes = await pickedFile.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) throw Exception('Format gambar tidak didukung');
+
+      img.Image resized = decoded;
+      if (decoded.width > 800 || decoded.height > 800) {
+        if (decoded.width > decoded.height) {
+          resized = img.copyResize(decoded, width: 800);
+        } else {
+          resized = img.copyResize(decoded, height: 800);
+        }
+      }
+
+      final compressedBytes = img.encodeJpg(resized, quality: 50);
+      final ext = pickedFile.name.split('.').last.toLowerCase();
+      final mimeType = (ext == 'png') ? 'image/png' : 'image/jpeg';
+      final base64Str = base64Encode(compressedBytes);
+      final dataUrl = 'data:$mimeType;base64,$base64Str';
+
+      setState(() {
+        _questionsData[index]['imageUrl'] = dataUrl;
+        _questionsData[index]['isUploadingImage'] = false;
+      });
+    } catch (e) {
+      setState(() {
+        _questionsData[index]['isUploadingImage'] = false;
+      });
+      Get.snackbar(
+        AppLocalization.isIndonesian ? 'Gagal Upload' : 'Upload Failed',
+        AppLocalization.isIndonesian ? 'Gagal mengunggah gambar: $e' : 'Failed to upload image: $e',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _questionsData[index]['imageUrl'] = null;
+    });
+  }
+
+  Future<void> _pickAndUploadOptionImage(int qIndex, int optIndex) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return;
+
+    final optLoading = _questionsData[qIndex]['isUploadingOptionImage'] as List<bool>;
+    setState(() {
+      optLoading[optIndex] = true;
+    });
+
+    try {
+      final bytes = await pickedFile.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) throw Exception('Format gambar tidak didukung');
+
+      img.Image resized = decoded;
+      if (decoded.width > 600 || decoded.height > 600) {
+        if (decoded.width > decoded.height) {
+          resized = img.copyResize(decoded, width: 600);
+        } else {
+          resized = img.copyResize(decoded, height: 600);
+        }
+      }
+
+      final compressedBytes = img.encodeJpg(resized, quality: 50);
+      final ext = pickedFile.name.split('.').last.toLowerCase();
+      final mimeType = (ext == 'png') ? 'image/png' : 'image/jpeg';
+      final base64Str = base64Encode(compressedBytes);
+      final dataUrl = 'data:$mimeType;base64,$base64Str';
+
+      final optImages = _questionsData[qIndex]['optionImageUrls'] as List<String?>;
+      setState(() {
+        optImages[optIndex] = dataUrl;
+        optLoading[optIndex] = false;
+      });
+    } catch (e) {
+      setState(() {
+        optLoading[optIndex] = false;
+      });
+      Get.snackbar(
+        AppLocalization.isIndonesian ? 'Gagal Upload' : 'Upload Failed',
+        '$e',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  void _removeOptionImage(int qIndex, int optIndex) {
+    final optImages = _questionsData[qIndex]['optionImageUrls'] as List<String?>;
+    setState(() {
+      optImages[optIndex] = null;
     });
   }
 
@@ -89,6 +207,10 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     }
     setState(() {
       opts.add(TextEditingController());
+      final optImages = q['optionImageUrls'] as List<String?>?;
+      if (optImages != null) optImages.add(null);
+      final optLoading = q['isUploadingOptionImage'] as List<bool>?;
+      if (optLoading != null) optLoading.add(false);
     });
   }
 
@@ -109,6 +231,10 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
     setState(() {
       opts[optIdx].dispose();
       opts.removeAt(optIdx);
+      final optImages = q['optionImageUrls'] as List<String?>?;
+      if (optImages != null && optIdx < optImages.length) optImages.removeAt(optIdx);
+      final optLoading = q['isUploadingOptionImage'] as List<bool>?;
+      if (optLoading != null && optIdx < optLoading.length) optLoading.removeAt(optIdx);
       // Clamp correctIndex jika melebihi jumlah opsi
       final currentCorrect = q['correctIndex'] as int;
       if (currentCorrect >= opts.length) {
@@ -240,12 +366,18 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
 
         List<String> optList = [];
         int correctIdx = 0;
+        List<String>? optImageUrls;
 
         if (type == 'multiple_choice') {
           optList = (qMap['options'] as List<TextEditingController>)
               .map((ctrl) => ctrl.text.trim())
               .toList();
           correctIdx = qMap['correctIndex'] as int;
+
+          final rawOptImages = qMap['optionImageUrls'] as List<String?>?;
+          if (rawOptImages != null) {
+            optImageUrls = rawOptImages.map((url) => url ?? '').toList();
+          }
         }
 
         questionsList.add(ExamQuestion(
@@ -255,6 +387,8 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
           correctOptionIndex: correctIdx,
           type: type,
           points: points,
+          imageUrl: qMap['imageUrl'] as String?,
+          optionImageUrls: optImageUrls,
         ));
       }
 
@@ -724,6 +858,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                   final qType = qMap['type'] as String? ?? 'multiple_choice';
 
                                   return Container(
+                                    key: ObjectKey(qMap),
                                     margin: const EdgeInsets.only(bottom: 20),
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
@@ -843,8 +978,104 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                               borderSide: BorderSide(color: cardBorderColor),
                                             ),
                                           ),
-                                          validator: (val) => val == null || val.trim().isEmpty ? (AppLocalization.isIndonesian ? 'Soal tidak boleh kosong' : 'Question text cannot be empty') : null,
+                                          validator: (val) {
+                                            final hasImage = qMap['imageUrl'] != null && (qMap['imageUrl'] as String).isNotEmpty;
+                                            if (hasImage) return null;
+                                            if (val == null || val.trim().isEmpty) {
+                                              return AppLocalization.isIndonesian ? 'Soal tidak boleh kosong' : 'Question text cannot be empty';
+                                            }
+                                            return null;
+                                          },
                                         ),
+
+                                        const SizedBox(height: 12),
+                                        // Upload Gambar Soal Section
+                                        if (qMap['isUploadingImage'] == true) ...[
+                                          Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: inputFillColor,
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B5CF6)),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Text(
+                                                  AppLocalization.isIndonesian ? 'Mengunggah gambar...' : 'Uploading image...',
+                                                  style: TextStyle(fontSize: 12, color: subTextColor),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ] else if (qMap['imageUrl'] != null && (qMap['imageUrl'] as String).isNotEmpty) ...[
+                                          Stack(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(10),
+                                                child: Container(
+                                                  constraints: const BoxConstraints(maxHeight: 260),
+                                                  alignment: Alignment.centerLeft,
+                                                  child: buildExamImageWidget(
+                                                    qMap['imageUrl'] as String,
+                                                    fit: BoxFit.contain,
+                                                    alignment: Alignment.centerLeft,
+                                                  ),
+                                                ),
+                                              ),
+                                              Positioned(
+                                                top: 6,
+                                                right: 6,
+                                                child: Row(
+                                                  children: [
+                                                    InkWell(
+                                                      onTap: () => _pickAndUploadImage(index),
+                                                      child: Container(
+                                                        padding: const EdgeInsets.all(6),
+                                                        decoration: const BoxDecoration(
+                                                          color: Colors.black54,
+                                                          shape: BoxShape.circle,
+                                                        ),
+                                                        child: const Icon(Icons.edit_rounded, size: 16, color: Colors.white),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    InkWell(
+                                                      onTap: () => _removeImage(index),
+                                                      child: Container(
+                                                        padding: const EdgeInsets.all(6),
+                                                        decoration: const BoxDecoration(
+                                                          color: Colors.redAccent,
+                                                          shape: BoxShape.circle,
+                                                        ),
+                                                        child: const Icon(Icons.delete_rounded, size: 16, color: Colors.white),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ] else ...[
+                                          OutlinedButton.icon(
+                                            onPressed: () => _pickAndUploadImage(index),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: const Color(0xFF8B5CF6),
+                                              side: BorderSide(color: const Color(0xFF8B5CF6).withValues(alpha: 0.5)),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            ),
+                                            icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
+                                            label: Text(
+                                              AppLocalization.isIndonesian ? 'Tambah Gambar Soal' : 'Add Question Image',
+                                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                        ],
 
                                         // Input Pilihan Jawaban (Hanya jika Pilihan Ganda)
                                         if (qType == 'multiple_choice') ...[
@@ -899,6 +1130,7 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                               final isCorrect = qMap['correctIndex'] == optIdx;
 
                                               return Padding(
+                                                key: ObjectKey(optCtrls[optIdx]),
                                                 padding: const EdgeInsets.only(bottom: 8.0),
                                                 child: Row(
                                                   children: [
@@ -933,13 +1165,82 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
                                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                                           enabledBorder: OutlineInputBorder(
                                                             borderRadius: BorderRadius.circular(10),
-                                                            borderSide: BorderSide(
+                                            borderSide: BorderSide(
                                                               color: isCorrect ? const Color(0xFF8B5CF6) : cardBorderColor,
                                                             ),
                                                           ),
                                                         ),
-                                                        validator: (val) => val == null || val.trim().isEmpty ? (AppLocalization.isIndonesian ? 'Pilihan tidak boleh kosong' : 'Option cannot be empty') : null,
+                                                         validator: (val) {
+                                                           final optImages = qMap['optionImageUrls'] as List<String?>?;
+                                                           final hasImage = optImages != null && optIdx < optImages.length && optImages[optIdx] != null && optImages[optIdx]!.isNotEmpty;
+                                                           if (hasImage) return null;
+                                                           if (val == null || val.trim().isEmpty) {
+                                                             return AppLocalization.isIndonesian ? 'Pilihan tidak boleh kosong' : 'Option cannot be empty';
+                                                           }
+                                                           return null;
+                                                         },
                                                       ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Builder(
+                                                      builder: (context) {
+                                                        final optImages = qMap['optionImageUrls'] as List<String?>?;
+                                                        final optLoading = qMap['isUploadingOptionImage'] as List<bool>?;
+                                                        final imageUrl = (optImages != null && optIdx < optImages.length) ? optImages[optIdx] : null;
+                                                        final isLoading = (optLoading != null && optIdx < optLoading.length) ? optLoading[optIdx] : false;
+
+                                                        if (isLoading) {
+                                                          return const SizedBox(
+                                                            key: ValueKey('loading'),
+                                                            width: 24,
+                                                            height: 24,
+                                                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B5CF6)),
+                                                          );
+                                                        }
+
+                                                        if (imageUrl != null && imageUrl.isNotEmpty) {
+                                                          return Stack(
+                                                            key: const ValueKey('image_present'),
+                                                            alignment: Alignment.topRight,
+                                                            children: [
+                                                              Padding(
+                                                                padding: const EdgeInsets.only(top: 4.0, right: 4.0),
+                                                                child: ClipRRect(
+                                                                  borderRadius: BorderRadius.circular(6),
+                                                                  child: SizedBox(
+                                                                    width: 40,
+                                                                    height: 40,
+                                                                    child: buildExamImageWidget(
+                                                                      imageUrl,
+                                                                      fit: BoxFit.cover,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              GestureDetector(
+                                                                onTap: () => _removeOptionImage(index, optIdx),
+                                                                child: Container(
+                                                                  decoration: const BoxDecoration(
+                                                                    color: Colors.redAccent,
+                                                                    shape: BoxShape.circle,
+                                                                  ),
+                                                                  padding: const EdgeInsets.all(2),
+                                                                  child: const Icon(Icons.close_rounded, size: 10, color: Colors.white),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          );
+                                                        }
+
+                                                        return IconButton(
+                                                          key: const ValueKey('upload_button'),
+                                                          icon: const Icon(Icons.add_photo_alternate_rounded, size: 20, color: Color(0xFF8B5CF6)),
+                                                          onPressed: () => _pickAndUploadOptionImage(index, optIdx),
+                                                          tooltip: AppLocalization.isIndonesian ? 'Tambah Gambar Opsi' : 'Add Option Image',
+                                                          padding: EdgeInsets.zero,
+                                                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                        );
+                                                      },
                                                     ),
                                                     // Tombol hapus opsi individual
                                                     if (optCtrls.length > 2)
@@ -1043,4 +1344,69 @@ class _TeacherCreateExamPageState extends State<TeacherCreateExamPage> {
       },
     );
   }
+}
+
+final Map<String, Uint8List> _base64ImageCache = {};
+
+Widget buildExamImageWidget(
+  String imageUrl, {
+  double? height,
+  double? width,
+  BoxFit fit = BoxFit.contain,
+  Alignment alignment = Alignment.centerLeft,
+}) {
+  if (imageUrl.startsWith('data:image/') || !imageUrl.startsWith('http')) {
+    try {
+      Uint8List? bytes = _base64ImageCache[imageUrl];
+      if (bytes == null) {
+        final base64Str = imageUrl.contains(',') ? imageUrl.split(',').last : imageUrl;
+        bytes = base64Decode(base64Str.trim());
+        _base64ImageCache[imageUrl] = bytes;
+      }
+      return Align(
+        alignment: alignment,
+        child: Image.memory(
+          bytes,
+          height: height,
+          width: width,
+          fit: fit,
+          alignment: alignment,
+          errorBuilder: (_, __, ___) => Container(
+            height: height ?? 100,
+            color: Colors.red.withValues(alpha: 0.1),
+            child: const Center(child: Icon(Icons.broken_image, color: Colors.red)),
+          ),
+        ),
+      );
+    } catch (_) {
+      return Container(
+        height: height ?? 100,
+        color: Colors.red.withValues(alpha: 0.1),
+        child: const Center(child: Icon(Icons.broken_image, color: Colors.red)),
+      );
+    }
+  }
+  return Align(
+    alignment: alignment,
+    child: Image.network(
+      imageUrl,
+      height: height,
+      width: width,
+      fit: fit,
+      alignment: alignment,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          height: height ?? 100,
+          alignment: alignment,
+          child: const CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B5CF6)),
+        );
+      },
+      errorBuilder: (_, __, ___) => Container(
+        height: height ?? 100,
+        color: Colors.red.withValues(alpha: 0.1),
+        child: const Center(child: Icon(Icons.broken_image, color: Colors.red)),
+      ),
+    ),
+  );
 }

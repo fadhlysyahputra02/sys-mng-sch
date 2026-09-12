@@ -243,8 +243,8 @@ exports.onUserDocumentDeleted = (0, firestore_1.onDocumentDeleted)("users/{userI
 exports.sendCustomResetPasswordEmail = (0, https_1.onCall)(async (request) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     const email = (_a = request.data) === null || _a === void 0 ? void 0 : _a.email;
-    if (!email) {
-        throw new https_1.HttpsError("invalid-argument", "Email harus diisi.");
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+        throw new https_1.HttpsError("invalid-argument", "Format email tidak valid.");
     }
     const db = (0, firestore_2.getFirestore)();
     const auth = (0, auth_1.getAuth)();

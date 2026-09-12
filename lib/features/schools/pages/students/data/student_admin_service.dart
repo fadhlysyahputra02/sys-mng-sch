@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../../../../../core/services/session_service.dart';
+import '../../../../../core/utils/doc_id_util.dart';
 
 class StudentService {
   final _db = FirebaseFirestore.instance;
@@ -86,11 +87,12 @@ class StudentService {
       }
     }
 
+    final docId = generateFormattedDocId(nama);
     final doc = _db
         .collection('schools')
         .doc(schoolId)
         .collection('students')
-        .doc();
+        .doc(docId);
 
     await doc.set({
       'studentId': doc.id,
