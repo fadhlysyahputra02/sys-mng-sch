@@ -29,6 +29,9 @@ class _TeacherListPageState extends State<TeacherListPage> {
   int? _selectedRowIndex;
   late Stream<QuerySnapshot> _teachersStream;
 
+  int _perPage = 10;
+  int _currentPage = 1;
+
   String? _filterStatusGuru;
   String? _filterJabatan;
   String? _filterAgama;
@@ -521,6 +524,14 @@ class _TeacherListPageState extends State<TeacherListPage> {
                         );
                       }
 
+                      final totalItems = docs.length;
+                      final itemsPerPage = _perPage;
+                      final totalPages = (totalItems / itemsPerPage).ceil() < 1 ? 1 : (totalItems / itemsPerPage).ceil();
+                      final currentPage = _currentPage.clamp(1, totalPages);
+                      final startIndex = (currentPage - 1) * itemsPerPage;
+                      final endIndex = (startIndex + itemsPerPage < totalItems) ? startIndex + itemsPerPage : totalItems;
+                      final paginatedDocs = (startIndex < totalItems) ? docs.sublist(startIndex, endIndex) : [];
+
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -715,8 +726,8 @@ class _TeacherListPageState extends State<TeacherListPage> {
                                         ),
                                         const DataColumn(label: Text('Aksi')),
                                       ],
-                                      rows: List<DataRow>.generate(docs.length, (index) {
-                                        final doc = docs[index];
+                                      rows: List<DataRow>.generate(paginatedDocs.length, (index) {
+                                        final doc = paginatedDocs[index];
                                         final guru = doc.data() as Map<String, dynamic>;
                                         final bool isRegistered = guru['sudahRegister'] ?? false;
                                         final isSelected = _selectedRowIndex == index;
@@ -793,19 +804,17 @@ class _TeacherListPageState extends State<TeacherListPage> {
                               ),
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                            child: Text(
-                              _selectedRowIndex != null
-                                  ? '${_selectedRowIndex! + 1}/${docs.length}'
-                                  : '0/${docs.length}',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          _buildPaginationControls(
+                            context: context,
+                            totalItems: totalItems,
+                            currentPage: currentPage,
+                            totalPages: totalPages,
+                            itemsPerPage: itemsPerPage,
+                            isDark: isDark,
+                            textColor: textColor,
+                            mutedColor: mutedColor,
+                            cardBg: cardBg,
+                            borderCol: borderCol,
                           ),
                         ],
                       );
@@ -819,6 +828,147 @@ class _TeacherListPageState extends State<TeacherListPage> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildPaginationControls({
+    required BuildContext context,
+    required int totalItems,
+    required int currentPage,
+    required int totalPages,
+    required int itemsPerPage,
+    required bool isDark,
+    required Color textColor,
+    required Color mutedColor,
+    required Color cardBg,
+    required Color borderCol,
+  }) {
+    final startItem = totalItems == 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1;
+    final endItem = (currentPage * itemsPerPage > totalItems) ? totalItems : currentPage * itemsPerPage;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderCol),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isSmallScreen = constraints.maxWidth < 600;
+
+          final itemsPerPageSelector = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                AppLocalization.isIndonesian ? 'Tampilkan:' : 'Show:',
+                style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 13),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: borderCol),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: _perPage,
+                    dropdownColor: isDark ? const Color(0xFF151026) : Colors.white,
+                    style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
+                    icon: Icon(Icons.arrow_drop_down, color: textColor),
+                    items: const [10, 20, 30, 50].map((int val) {
+                      return DropdownMenuItem<int>(
+                        value: val,
+                        child: Text('$val'),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _perPage = val;
+                          _currentPage = 1;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          );
+
+          final pageInfoText = Text(
+            AppLocalization.isIndonesian
+                ? 'Menampilkan $startItem-$endItem dari $totalItems data'
+                : 'Showing $startItem-$endItem of $totalItems entries',
+            style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 13),
+          );
+
+          final pageNavigationButtons = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded),
+                color: textColor,
+                disabledColor: mutedColor,
+                onPressed: currentPage > 1
+                    ? () => setState(() => _currentPage = currentPage - 1)
+                    : null,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$currentPage / $totalPages',
+                  style: const TextStyle(
+                    color: Color(0xFF8B5CF6),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded),
+                color: textColor,
+                disabledColor: mutedColor,
+                onPressed: currentPage < totalPages
+                    ? () => setState(() => _currentPage = currentPage + 1)
+                    : null,
+              ),
+            ],
+          );
+
+          if (isSmallScreen) {
+            return Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    itemsPerPageSelector,
+                    pageNavigationButtons,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                pageInfoText,
+              ],
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              itemsPerPageSelector,
+              pageInfoText,
+              pageNavigationButtons,
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -1289,7 +1439,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                         // maxHeight membatasi tinggi list — ListView bisa scroll di dalamnya
                         // tanpa perlu shrinkWrap (shrinkWrap di dalam Column(min) + AlertDialog
                         // menyebabkan viewport mencoba hitung intrinsic dimension → crash)
-                        constraints: const BoxConstraints(maxHeight: 150),
+                        constraints: const BoxConstraints(maxHeight: 220),
                         decoration: BoxDecoration(
                           color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFF1E1B4B).withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(12),
@@ -1298,10 +1448,10 @@ class _TeacherListPageState extends State<TeacherListPage> {
                           padding: const EdgeInsets.all(8),
                           itemCount: importResult!.errors.length,
                           itemBuilder: (context, idx) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: SelectableText(
                               importResult!.errors[idx],
-                              style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+                              style: const TextStyle(color: Colors.redAccent, fontSize: 12, height: 1.4),
                             ),
                           ),
                         ),

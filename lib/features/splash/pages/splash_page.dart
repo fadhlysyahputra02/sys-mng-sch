@@ -11,6 +11,7 @@ import '../../../core/services/push_notification_service.dart';
 import '../../../core/localization/app_localization.dart';
 import '../../students/data/student_service.dart';
 import '../../authentication/widgets/auth_background.dart';
+import '../../../core/config/app_version.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -242,15 +243,7 @@ class _SplashPageState extends State<SplashPage>
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text(
-                    'v1.20.21',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: subTextColor,
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  AppVersionText(color: subTextColor),
                 ],
               ),
             ),

@@ -27,11 +27,33 @@ class ExcelImportService {
 
   String _cleanValue(dynamic val) {
     if (val == null) return '';
-    String str = val.toString().trim();
-    if (str.endsWith('.0')) {
-      str = str.substring(0, str.length - 2);
+    try {
+      dynamic raw = val;
+      if (raw is CellValue) {
+        try {
+          raw = (raw as dynamic).value ?? raw;
+        } catch (_) {}
+      }
+      if (raw == null) return '';
+      String str = raw.toString().trim();
+      if (str.endsWith('.0')) {
+        str = str.substring(0, str.length - 2);
+      }
+      return str;
+    } catch (_) {
+      return '';
     }
-    return str;
+  }
+
+  String _getCellString(List<Data?> row, int idx) {
+    if (idx >= row.length) return '';
+    final cell = row[idx];
+    if (cell == null) return '';
+    try {
+      return _cleanValue(cell.value);
+    } catch (_) {
+      return '';
+    }
   }
 
   String _parseGender(String val) {
@@ -87,8 +109,11 @@ class ExcelImportService {
       int totalRows = 0;
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
-        if (sheet != null && sheet.maxRows > dataStartRowIndex) {
-          totalRows += sheet.maxRows - dataStartRowIndex;
+        if (sheet != null) {
+          final rowCount = sheet.rows.length;
+          if (rowCount > dataStartRowIndex) {
+            totalRows += rowCount - dataStartRowIndex;
+          }
         }
       }
 
@@ -99,13 +124,14 @@ class ExcelImportService {
         var sheet = excel.tables[table];
         if (sheet == null) continue;
 
-        for (int i = dataStartRowIndex; i < sheet.maxRows; i++) {
+        final rowCount = sheet.rows.length;
+        for (int i = dataStartRowIndex; i < rowCount; i++) {
           var row = sheet.rows[i];
           processed++;
           onProgress?.call(processed, totalRows * 2);
           if (row.isEmpty) continue;
 
-          String col_(int idx) => row.length > idx ? _cleanValue(row[idx]?.value) : '';
+          String col_(int idx) => _getCellString(row, idx);
 
           // --- Read all columns ---
           final nama            = col_(0);   // A
@@ -317,12 +343,12 @@ class ExcelImportService {
         successCount: success, duplicateCount: 0,
         failedCount: 0, errors: [],
       );
-    } catch (e) {
-      debugPrint('Error importing teachers: $e');
+    } catch (e, stackTrace) {
+      debugPrint('Error importing teachers: $e\n$stackTrace');
       return ExcelImportResult(
         successCount: 0, duplicateCount: 0,
         failedCount: 1,
-        errors: ['Terjadi kesalahan saat memproses file: $e'],
+        errors: ['Terjadi kesalahan saat memproses file Excel: ${e.toString().replaceAll("Exception: ", "")}'],
       );
     }
   }
@@ -367,10 +393,14 @@ class ExcelImportService {
       Set<String> fileNiss = {};
 
       int totalRows = 0;
+      const int studentDataStartRowIndex = 5;
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
         if (sheet != null) {
-          totalRows += (sheet.maxRows > 1) ? (sheet.maxRows - 1) : 0;
+          final rowCount = sheet.rows.length;
+          if (rowCount > studentDataStartRowIndex) {
+            totalRows += rowCount - studentDataStartRowIndex;
+          }
         }
       }
 
@@ -383,43 +413,46 @@ class ExcelImportService {
 
         // Pada template baru, baris 0-2 adalah header/kosong, baris 3 instruksi, baris 4 judul kolom
         // Data dimulai pada baris 5 (index 5)
-        for (int i = 5; i < sheet.maxRows; i++) {
+        final rowCount = sheet.rows.length;
+        for (int i = studentDataStartRowIndex; i < rowCount; i++) {
           var row = sheet.rows[i];
           processed++;
           onProgress?.call(processed, totalRows * 2);
           if (row.isEmpty) continue;
 
-          final nama = row.isNotEmpty ? _cleanValue(row[0]?.value) : '';
-          final nis = row.length > 1 ? _cleanValue(row[1]?.value) : '';
+          String col_(int idx) => _getCellString(row, idx);
+
+          final nama            = col_(0);
+          final nis             = col_(1);
 
           // Skip header row if accidentally read
           if (nama == 'Nama Lengkap *' || nama == 'Nama Lengkap') continue;
-          final nisn = row.length > 2 ? _cleanValue(row[2]?.value) : '';
-          final genderRaw = row.length > 3 ? _cleanValue(row[3]?.value) : '';
-          final gender = _parseGender(genderRaw);
-          final tempatLahir = row.length > 4 ? _cleanValue(row[4]?.value) : '';
-          final tanggalLahir = row.length > 5 ? _cleanValue(row[5]?.value) : '';
-          final agama = row.length > 6 ? _cleanValue(row[6]?.value) : '';
-          final kewarganegaraan = row.length > 7 ? _cleanValue(row[7]?.value) : '';
-          final alamat = row.length > 8 ? _cleanValue(row[8]?.value) : '';
-          final noHp = row.length > 9 ? _cleanValue(row[9]?.value) : '';
-          final angkatan = row.length > 10 ? _cleanValue(row[10]?.value) : '';
-          final jalurMasuk = row.length > 11 ? _cleanValue(row[11]?.value) : '';
-          final tanggalDiterima = row.length > 12 ? _cleanValue(row[12]?.value) : '';
-          final namaAyah = row.length > 13 ? _cleanValue(row[13]?.value) : '';
-          final nikAyah = row.length > 14 ? _cleanValue(row[14]?.value) : '';
-          final pekerjaanAyah = row.length > 15 ? _cleanValue(row[15]?.value) : '';
-          final pendidikanAyah = row.length > 16 ? _cleanValue(row[16]?.value) : '';
-          final noHpAyah = row.length > 17 ? _cleanValue(row[17]?.value) : '';
-          final namaIbu = row.length > 18 ? _cleanValue(row[18]?.value) : '';
-          final nikIbu = row.length > 19 ? _cleanValue(row[19]?.value) : '';
-          final pekerjaanIbu = row.length > 20 ? _cleanValue(row[20]?.value) : '';
-          final pendidikanIbu = row.length > 21 ? _cleanValue(row[21]?.value) : '';
-          final noHpIbu = row.length > 22 ? _cleanValue(row[22]?.value) : '';
-          final namaWali = row.length > 23 ? _cleanValue(row[23]?.value) : '';
-          final hubunganWali = row.length > 24 ? _cleanValue(row[24]?.value) : '';
-          final noHpWali = row.length > 25 ? _cleanValue(row[25]?.value) : '';
-          final alamatWali = row.length > 26 ? _cleanValue(row[26]?.value) : '';
+          final nisn            = col_(2);
+          final genderRaw       = col_(3);
+          final gender          = _parseGender(genderRaw);
+          final tempatLahir     = col_(4);
+          final tanggalLahir    = col_(5);
+          final agama           = col_(6);
+          final kewarganegaraan = col_(7);
+          final alamat          = col_(8);
+          final noHp            = col_(9);
+          final angkatan        = col_(10);
+          final jalurMasuk      = col_(11);
+          final tanggalDiterima = col_(12);
+          final namaAyah        = col_(13);
+          final nikAyah         = col_(14);
+          final pekerjaanAyah   = col_(15);
+          final pendidikanAyah  = col_(16);
+          final noHpAyah        = col_(17);
+          final namaIbu         = col_(18);
+          final nikIbu          = col_(19);
+          final pekerjaanIbu    = col_(20);
+          final pendidikanIbu   = col_(21);
+          final noHpIbu         = col_(22);
+          final namaWali        = col_(23);
+          final hubunganWali    = col_(24);
+          final noHpWali        = col_(25);
+          final alamatWali      = col_(26);
 
           // Skip completely empty rows silently
           if (nama.isEmpty && nis.isEmpty) {
@@ -617,13 +650,13 @@ class ExcelImportService {
         failedCount: 0,
         errors: [],
       );
-    } catch (e) {
-      debugPrint('Error importing students: $e');
+    } catch (e, stackTrace) {
+      debugPrint('Error importing students: $e\n$stackTrace');
       return ExcelImportResult(
         successCount: 0,
         duplicateCount: 0,
         failedCount: 1,
-        errors: ['Terjadi kesalahan saat memproses file: $e'],
+        errors: ['Terjadi kesalahan saat memproses file Excel: ${e.toString().replaceAll("Exception: ", "")}'],
       );
     }
   }

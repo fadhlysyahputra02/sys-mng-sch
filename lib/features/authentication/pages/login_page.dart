@@ -16,6 +16,7 @@ import '../../../core/localization/app_localization.dart';
 import '../widgets/auth_background.dart';
 import '../widgets/language_toggle_button.dart';
 import '../widgets/theme_toggle_button.dart';
+import '../../../core/config/app_version.dart';
 
 
 class LoginPage extends StatefulWidget {
@@ -995,6 +996,10 @@ class _LoginPageState extends State<LoginPage> {
                           ],
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    AppVersionText(
+                      color: isDark ? Colors.white38 : const Color(0xFF1E1B4B).withOpacity(0.4),
                     ),
                   ],
                 ),
