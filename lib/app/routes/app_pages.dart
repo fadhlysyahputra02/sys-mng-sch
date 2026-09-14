@@ -9,6 +9,8 @@ import '../../features/super_admin/pages/register_school_page.dart';
 import '../../features/schools/pages/students/pages/student_admin_list_page.dart';
 import '../../features/schools/pages/subjects/pages/subject_list_page.dart';
 import '../../features/schools/pages/teachers/pages/teacher_list_admin_page.dart';
+import '../../features/schools/pages/teachers/pages/teacher_detail_admin_page.dart';
+import '../../features/schools/pages/teachers/pages/edit_teacher_admin_page.dart';
 import '../../features/splash/pages/splash_page.dart';
 import '../../features/schools/pages/dashboard/school_admin_dashboard.dart';
 import '../../features/teachers/pages/teacher_dashboard.dart';
@@ -44,10 +46,43 @@ class AppPages {
     GetPage(name: AppRoutes.superAdmin, page: () => const RegisterSchoolPage()),
 
     // Route untuk dashboard admin sekolah.
+    GetPage(name: AppRoutes.schoolAdmin, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminDashboard, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminTeacherManagement, page: () => const SchoolAdminDashboard()),
     GetPage(
-      name: AppRoutes.schoolAdmin,
-      page: () => const SchoolAdminDashboard(),
+      name: AppRoutes.schoolAdminTeacherDetail,
+      page: () {
+        final args = Get.arguments;
+        if (args is Map<String, dynamic>) {
+          return TeacherDetailPage(teacher: args);
+        }
+        return const TeacherDetailPage();
+      },
     ),
+    GetPage(
+      name: AppRoutes.schoolAdminTeacherEdit,
+      page: () {
+        final args = Get.arguments;
+        if (args is Map<String, dynamic>) {
+          return EditTeacherAdminPage(teacher: args);
+        }
+        return const EditTeacherAdminPage();
+      },
+    ),
+    GetPage(name: AppRoutes.schoolAdminStudentManagement, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminSubjects, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminClasses, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminSchedule, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminAttendanceRecap, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminNotifications, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminSettings, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminStaff, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminGrades, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminERapor, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminViolations, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminApprovals, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminTeachingReports, page: () => const SchoolAdminDashboard()),
+    GetPage(name: AppRoutes.schoolAdminSemesterExam, page: () => const SchoolAdminDashboard()),
 
     // Route untuk guru.
     GetPage(name: AppRoutes.teacher, page: () => const TeacherDashboard()),

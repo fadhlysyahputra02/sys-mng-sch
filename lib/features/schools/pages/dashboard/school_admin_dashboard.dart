@@ -13,7 +13,6 @@ import '../grades/school_admin_grades_page.dart';
 import '../settings/school_settings_page.dart';
 import '../teachers/pages/teacher_list_admin_page.dart';
 import '../students/pages/student_admin_list_page.dart';
-import '../students/data/student_admin_service.dart';
 import '../subjects/pages/subject_list_page.dart';
 import '../schedule/Page/class_schedule_overview_page.dart';
 import '../notifications/notifications_page.dart';
@@ -51,7 +50,97 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   @override
   void initState() {
     super.initState();
+    _selectedMenuIndex = _getIndexFromRoute(Get.currentRoute);
     _loadSchoolData();
+  }
+
+  int _getIndexFromRoute(String route) {
+    final cleanRoute = route.toLowerCase();
+    if (cleanRoute.contains('/manajemen-guru')) return 1;
+    if (cleanRoute.contains('/manajemen-siswa')) return 2;
+    if (cleanRoute.contains('/mata-pelajaran')) return 3;
+    if (cleanRoute.contains('/kelas')) return 4;
+    if (cleanRoute.contains('/jadwal')) return 5;
+    if (cleanRoute.contains('/rekap-absensi')) return 6;
+    if (cleanRoute.contains('/notifikasi')) return 7;
+    if (cleanRoute.contains('/pengaturan')) return 8;
+    if (cleanRoute.contains('/petugas')) return 9;
+    if (cleanRoute.contains('/rekap-nilai')) return 10;
+    if (cleanRoute.contains('/e-rapor')) return 11;
+    if (cleanRoute.contains('/pelanggaran-murid')) return 12;
+    if (cleanRoute.contains('/persetujuan')) return 13;
+    if (cleanRoute.contains('/laporan-mengajar')) return 14;
+    if (cleanRoute.contains('/ujian-semester')) return 15;
+    return 0;
+  }
+
+  String _getRouteFromIndex(int index) {
+    switch (index) {
+      case 1:
+        return AppRoutes.schoolAdminTeacherManagement;
+      case 2:
+        return AppRoutes.schoolAdminStudentManagement;
+      case 3:
+        return AppRoutes.schoolAdminSubjects;
+      case 4:
+        return AppRoutes.schoolAdminClasses;
+      case 5:
+        return AppRoutes.schoolAdminSchedule;
+      case 6:
+        return AppRoutes.schoolAdminAttendanceRecap;
+      case 7:
+        return AppRoutes.schoolAdminNotifications;
+      case 8:
+        return AppRoutes.schoolAdminSettings;
+      case 9:
+        return AppRoutes.schoolAdminStaff;
+      case 10:
+        return AppRoutes.schoolAdminGrades;
+      case 11:
+        return AppRoutes.schoolAdminERapor;
+      case 12:
+        return AppRoutes.schoolAdminViolations;
+      case 13:
+        return AppRoutes.schoolAdminApprovals;
+      case 14:
+        return AppRoutes.schoolAdminTeachingReports;
+      case 15:
+        return AppRoutes.schoolAdminSemesterExam;
+      case 0:
+      default:
+        return AppRoutes.schoolAdminDashboard;
+    }
+  }
+
+  String _getMenuTitleByIndex(int index) {
+    switch (index) {
+      case 1: return 'Manajemen Guru';
+      case 2: return 'Manajemen Siswa';
+      case 3: return 'Mata Pelajaran';
+      case 4: return 'Kelas';
+      case 5: return 'Jadwal';
+      case 6: return 'Rekap Absensi';
+      case 7: return 'Notifikasi';
+      case 8: return 'Pengaturan';
+      case 9: return 'Petugas';
+      case 10: return 'Rekap Nilai';
+      case 11: return 'E-Rapor';
+      case 12: return 'Pelanggaran Murid';
+      case 13: return 'Persetujuan';
+      case 14: return 'Laporan Mengajar';
+      case 15: return 'Ujian Semester';
+      default: return 'Dashboard';
+    }
+  }
+
+  void _onMenuSelect(int index) {
+    setState(() {
+      _selectedMenuIndex = index;
+    });
+    final targetRoute = _getRouteFromIndex(index);
+    if (Get.currentRoute != targetRoute) {
+      Get.offNamed(targetRoute);
+    }
   }
 
   Future<void> _loadSchoolData() async {
@@ -64,9 +153,6 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
           _schoolLogoBase64 = schoolData['logoBase64'];
           _isLoadingSchool = false;
         });
-        // NOTE: Backfill dinonaktifkan dari load otomatis halaman dashboard untuk mencegah melonjaknya writes Firestore.
-        // Jika perlu melakukan backfill data histori, jalankan sekali saja secara manual atau terjadwal.
-        // StudentService().backfillClassEnrollments(schoolId);
       } else {
         if (mounted) {
           setState(() {
@@ -141,57 +227,56 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     }
   }
 
-  void _onMenuTap(String title) async {
+  void _onMenuTap(String title) {
     switch (title) {
-      case 'E-Rapor':
-        Get.to(() => const SchoolAdminRaporPage());
-        break;
-      case 'Pelanggaran Murid':
-        Get.to(() => const AdminViolationsHistoryPage());
-        break;
       case 'Manajemen Guru':
-        Get.toNamed(AppRoutes.teacherlist);
+        _onMenuSelect(1);
         break;
       case 'Manajemen Siswa':
-        Get.toNamed(AppRoutes.studentList);
+        _onMenuSelect(2);
         break;
       case 'Mata Pelajaran':
-        Get.toNamed(AppRoutes.subjectList);
+        _onMenuSelect(3);
         break;
       case 'Kelas':
-        Get.to(() => ClassListPage());
+        _onMenuSelect(4);
         break;
       case 'Jadwal':
-        Get.toNamed(AppRoutes.schedule);
-        break;
-      case 'Notifikasi':
-        Get.toNamed(AppRoutes.notifications);
-        break;
-      case 'Rekap Nilai':
-        Get.to(() => const SchoolAdminGradesPage());
-        break;
-      case 'Pengaturan':
-        final updated = await Get.to(() => SchoolSettingsPage(schoolId: schoolId));
-        if (updated == true) {
-          _loadSchoolData();
-        }
-        break;
-      case 'Petugas':
-        Get.to(() => const StaffManagementTabbedPage());
+        _onMenuSelect(5);
         break;
       case 'Rekap Absensi':
-        _showAbsensiSelectionDialog();
+        _onMenuSelect(6);
         break;
-      case 'Laporan Mengajar':
-        Get.to(() => const AdminTeachingReportsPage());
+      case 'Notifikasi':
+        _onMenuSelect(7);
+        break;
+      case 'Pengaturan':
+        _onMenuSelect(8);
+        break;
+      case 'Petugas':
+        _onMenuSelect(9);
+        break;
+      case 'Rekap Nilai':
+        _onMenuSelect(10);
+        break;
+      case 'E-Rapor':
+        _onMenuSelect(11);
+        break;
+      case 'Pelanggaran Murid':
+        _onMenuSelect(12);
         break;
       case 'Persetujuan':
-        Get.to(() => const ApprovalDashboardPage());
+        _onMenuSelect(13);
+        break;
+      case 'Laporan Mengajar':
+        _onMenuSelect(14);
         break;
       case 'Ujian Semester':
-        Get.to(() => const AdminExamEventListPage());
+        _onMenuSelect(15);
         break;
-
+      default:
+        _onMenuSelect(0);
+        break;
     }
   }
 
@@ -250,6 +335,32 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
   }
 
   Widget _buildMobileLayout(bool isDark) {
+    if (_selectedMenuIndex != 0) {
+      final menuTitle = _getMenuTitleByIndex(_selectedMenuIndex);
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: isDark ? const Color(0xFF0F0C20) : Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: isDark ? Colors.white : const Color(0xFF1E1B4B), size: 20),
+            onPressed: () => _onMenuSelect(0),
+          ),
+          title: Text(
+            menuTitle,
+            style: TextStyle(
+              color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        body: Container(
+          color: isDark ? const Color(0xFF0B081B) : const Color(0xFFF8FAFC),
+          child: _buildDesktopContent(isDark),
+        ),
+      );
+    }
+
     final titleColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
     final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
     final iconColor = isDark ? Colors.white : const Color(0xFF1E1B4B);
@@ -833,11 +944,7 @@ class _SchoolAdminDashboardState extends State<SchoolAdminDashboard> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedMenuIndex = index;
-          });
-        },
+        onTap: () => _onMenuSelect(index),
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

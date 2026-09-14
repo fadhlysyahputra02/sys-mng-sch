@@ -1,27 +1,32 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:sys_mng_school/app/routes/app_routes.dart';
+import 'package:sys_mng_school/core/services/session_service.dart';
 
 import '../../../../authentication/widgets/auth_background.dart';
 import '../../../../teachers/pages/teacher_daily_attendance_page.dart';
-import 'edit_teacher_admin_page.dart';
 import 'teacher_subject_admin_page.dart';
 
 class TeacherDetailPage extends StatefulWidget {
-  final Map<String, dynamic> teacher;
+  final Map<String, dynamic>? teacher;
 
-  const TeacherDetailPage({super.key, required this.teacher});
+  const TeacherDetailPage({super.key, this.teacher});
 
   @override
   State<TeacherDetailPage> createState() => _TeacherDetailPageState();
 }
 
 class _TeacherDetailPageState extends State<TeacherDetailPage> {
-  late Map<String, dynamic> teacher;
+  Map<String, dynamic> teacher = {};
   bool _isUploadingFoto = false;
+  bool _isLoadingTeacher = false;
+  String? _errorMessage;
 
   Future<void> _pickAndUploadFoto() async {
+    if (teacher.isEmpty) return;
     try {
       final picker = ImagePicker();
       final XFile? image = await picker.pickImage(
@@ -81,15 +86,72 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
   @override
   void initState() {
     super.initState();
-    teacher = Map<String, dynamic>.from(widget.teacher);
+    if (widget.teacher != null && widget.teacher!.isNotEmpty) {
+      teacher = Map<String, dynamic>.from(widget.teacher!);
+    } else if (Get.arguments is Map<String, dynamic>) {
+      teacher = Map<String, dynamic>.from(Get.arguments as Map<String, dynamic>);
+    }
+
+    if (teacher.isEmpty) {
+      _loadTeacherFromUrl();
+    }
+  }
+
+  Future<void> _loadTeacherFromUrl() async {
+    final String? teacherId = Get.parameters['id'];
+    final String? schoolId = SessionService.currentUser?.schoolId;
+
+    if (teacherId == null || teacherId.isEmpty || schoolId == null || schoolId.isEmpty) {
+      setState(() {
+        _errorMessage = 'ID Guru tidak ditemukan dalam URL atau sesi telah berakhir.';
+      });
+      return;
+    }
+
+    setState(() => _isLoadingTeacher = true);
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('teachers')
+          .doc(teacherId)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        data['teacherId'] = doc.id;
+        data['schoolId'] = schoolId;
+        if (mounted) {
+          setState(() {
+            teacher = data;
+            _isLoadingTeacher = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Data guru tidak ditemukan.';
+            _isLoadingTeacher = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Gagal memuat data guru: $e';
+          _isLoadingTeacher = false;
+        });
+      }
+    }
   }
 
   Future<void> _navigateToEditPage() async {
-    final result = await Navigator.push<Map<String, dynamic>>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EditTeacherAdminPage(teacher: teacher),
-      ),
+    if (teacher.isEmpty) return;
+    final String teacherId = (teacher['teacherId'] ?? teacher['id'] ?? '').toString();
+    final result = await Get.toNamed<Map<String, dynamic>>(
+      '${AppRoutes.schoolAdminTeacherEdit}?id=$teacherId',
+      arguments: teacher,
     );
     if (result != null && mounted) {
       setState(() {
@@ -735,6 +797,43 @@ class _TeacherDetailPageState extends State<TeacherDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingTeacher) {
+      return Scaffold(
+        body: AuthBackground(
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
+    if (_errorMessage != null || teacher.isEmpty) {
+      return Scaffold(
+        body: AuthBackground(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 64, color: Colors.red.shade400),
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage ?? 'Data guru tidak ditemukan',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => Get.back(),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Kembali'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final bool isRegistered = teacher['sudahRegister'] ?? false;
     final String nama = teacher['nama'] ?? '-';
     final String inisial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';

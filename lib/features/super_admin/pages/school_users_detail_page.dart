@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../authentication/widgets/auth_background.dart';
 
 class SchoolUsersDetailPage extends StatefulWidget {
@@ -747,7 +749,7 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            SelectableText(
                               name,
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: text),
                             ),
@@ -851,6 +853,7 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
   }
 
   Widget _buildDetailRow(String label, String value, Color textColor) {
+    final canCopy = value != '-' && value.trim().isNotEmpty;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -864,9 +867,35 @@ class _SchoolUsersDetailPageState extends State<SchoolUsersDetailPage> with Sing
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w500),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SelectableText(
+                    value,
+                    style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                if (!kIsWeb && canCopy) ...[
+                  const SizedBox(width: 4),
+                  InkWell(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: value));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('$label "$value" disalin ke clipboard'),
+                          duration: const Duration(seconds: 2),
+                          backgroundColor: const Color(0xFF10B981),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(4),
+                    child: const Padding(
+                      padding: EdgeInsets.all(2),
+                      child: Icon(Icons.copy_rounded, size: 13, color: Colors.grey),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

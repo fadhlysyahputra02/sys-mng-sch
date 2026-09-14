@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:sys_mng_school/app/routes/app_routes.dart';
 import 'package:sys_mng_school/core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import 'package:sys_mng_school/core/localization/app_localization.dart';
@@ -102,9 +104,10 @@ class _TeacherListPageState extends State<TeacherListPage> {
   }
 
   void _navigateToDetail(BuildContext context, Map<String, dynamic> guru) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => TeacherDetailPage(teacher: guru)),
+    final String teacherId = (guru['teacherId'] ?? guru['id'] ?? '').toString();
+    Get.toNamed(
+      '${AppRoutes.schoolAdminTeacherDetail}?id=$teacherId',
+      arguments: guru,
     );
   }
 
@@ -785,14 +788,7 @@ class _TeacherListPageState extends State<TeacherListPage> {
                                               IconButton(
                                                 icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
                                                 color: mutedColor,
-                                                onPressed: () {
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (_) => TeacherDetailPage(teacher: guru),
-                                                    ),
-                                                  );
-                                                },
+                                                onPressed: () => _navigateToDetail(context, guru),
                                               ),
                                             ),
                                           ],

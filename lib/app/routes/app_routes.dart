@@ -6,6 +6,24 @@ class AppRoutes {
   // Route untuk alur admin utama.
   static const superAdmin = '/super-admin';
   static const schoolAdmin = '/school-admin';
+  static const schoolAdminDashboard = '/school-admin/dashboard';
+  static const schoolAdminTeacherManagement = '/school-admin/manajemen-guru';
+  static const schoolAdminTeacherDetail = '/school-admin/manajemen-guru/detail';
+  static const schoolAdminTeacherEdit = '/school-admin/manajemen-guru/edit';
+  static const schoolAdminStudentManagement = '/school-admin/manajemen-siswa';
+  static const schoolAdminSubjects = '/school-admin/mata-pelajaran';
+  static const schoolAdminClasses = '/school-admin/kelas';
+  static const schoolAdminSchedule = '/school-admin/jadwal';
+  static const schoolAdminAttendanceRecap = '/school-admin/rekap-absensi';
+  static const schoolAdminNotifications = '/school-admin/notifikasi';
+  static const schoolAdminSettings = '/school-admin/pengaturan';
+  static const schoolAdminStaff = '/school-admin/petugas';
+  static const schoolAdminGrades = '/school-admin/rekap-nilai';
+  static const schoolAdminERapor = '/school-admin/e-rapor';
+  static const schoolAdminViolations = '/school-admin/pelanggaran-murid';
+  static const schoolAdminApprovals = '/school-admin/persetujuan';
+  static const schoolAdminTeachingReports = '/school-admin/laporan-mengajar';
+  static const schoolAdminSemesterExam = '/school-admin/ujian-semester';
 
   // Route untuk dashboard tiap peran pengguna.
   static const teacher = '/teacher';

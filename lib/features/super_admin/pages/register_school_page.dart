@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -28,6 +29,8 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
   bool _isLoading = false;
   int _currentTab = 0; // 0 for Registration, 1 for Management
   String _searchQuery = '';
+  int _currentPage = 1;
+  int _perPage = 10;
 
   bool get _isDark => AuthBackground.isDarkMode.value;
   Color get _textColor => _isDark ? Colors.white : Colors.black;
@@ -1577,18 +1580,20 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                           letterSpacing: 1.5,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: Icon(Icons.copy_rounded, color: _subTextColor, size: 20),
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: generatedAdminCode!));
-                          _showNotification(
-                            title: 'Disalin',
-                            message: 'Kode berhasil disalin ke clipboard',
-                            isSuccess: true,
-                          );
-                        },
-                      ),
+                      if (!kIsWeb) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(Icons.copy_rounded, color: _subTextColor, size: 20),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: generatedAdminCode!));
+                            _showNotification(
+                              title: 'Disalin',
+                              message: 'Kode berhasil disalin ke clipboard',
+                              isSuccess: true,
+                            );
+                          },
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -1602,6 +1607,133 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                   ),
                 ],
               ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaginationControls(int totalItems, int currentPage, int totalPages, int startItem, int endItem) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: _cardBgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _borderColor),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Tampilkan:',
+                    style: TextStyle(color: _subTextColor, fontSize: 12),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _borderColor),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _perPage,
+                        dropdownColor: _isDark ? const Color(0xFF151026) : Colors.white,
+                        style: TextStyle(color: _textColor, fontWeight: FontWeight.bold, fontSize: 12),
+                        icon: Icon(Icons.arrow_drop_down, color: _textColor, size: 18),
+                        isDense: true,
+                        items: const [10, 20, 30, 50].map((int val) {
+                          return DropdownMenuItem<int>(
+                            value: val,
+                            child: Text('$val sekolah'),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _perPage = val;
+                              _currentPage = 1;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                totalItems == 0
+                    ? '0 sekolah'
+                    : 'Menampilkan $startItem-$endItem dari $totalItems sekolah',
+                style: TextStyle(color: _subTextColor, fontSize: 12, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          if (totalPages > 1) ...[
+            const SizedBox(height: 8),
+            const Divider(height: 1, color: Colors.white10),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.first_page_rounded, size: 20),
+                  color: _textColor,
+                  disabledColor: _subTextColor.withValues(alpha: 0.3),
+                  onPressed: currentPage > 1 ? () => setState(() => _currentPage = 1) : null,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(6),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded, size: 22),
+                  color: _textColor,
+                  disabledColor: _subTextColor.withValues(alpha: 0.3),
+                  onPressed: currentPage > 1 ? () => setState(() => _currentPage = currentPage - 1) : null,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(6),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    'Halaman $currentPage dari $totalPages',
+                    style: const TextStyle(
+                      color: Color(0xFF8B5CF6),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded, size: 22),
+                  color: _textColor,
+                  disabledColor: _subTextColor.withValues(alpha: 0.3),
+                  onPressed: currentPage < totalPages ? () => setState(() => _currentPage = currentPage + 1) : null,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(6),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.last_page_rounded, size: 20),
+                  color: _textColor,
+                  disabledColor: _subTextColor.withValues(alpha: 0.3),
+                  onPressed: currentPage < totalPages ? () => setState(() => _currentPage = totalPages) : null,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(6),
+                ),
+              ],
             ),
           ],
         ],
@@ -1630,6 +1762,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                         _searchController.clear();
                         setState(() {
                           _searchQuery = '';
+                          _currentPage = 1;
                         });
                       },
                     )
@@ -1653,6 +1786,7 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
             onChanged: (val) {
               setState(() {
                 _searchQuery = val.trim().toLowerCase();
+                _currentPage = 1;
               });
             },
           ),
@@ -1690,7 +1824,8 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
               final filteredSchools = schools.where((school) {
                 final name = (school['namaSekolah'] ?? '').toString().toLowerCase();
                 final domain = (school['domain'] ?? '').toString().toLowerCase();
-                return name.contains(_searchQuery) || domain.contains(_searchQuery);
+                final kode = (school['kodeAdmin'] ?? '').toString().toLowerCase();
+                return name.contains(_searchQuery) || domain.contains(_searchQuery) || kode.contains(_searchQuery);
               }).toList();
 
               if (filteredSchools.isEmpty) {
@@ -1718,20 +1853,34 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                 );
               }
 
-              // Limit to 3 if no search query
-              final displayedSchools = _searchQuery.isEmpty
-                  ? filteredSchools.take(3).toList()
-                  : filteredSchools;
+              // Pagination calculations
+              final totalItems = filteredSchools.length;
+              final totalPages = totalItems == 0 ? 1 : (totalItems / _perPage).ceil();
+              int currentPage = _currentPage;
+              if (currentPage > totalPages) currentPage = totalPages;
+              if (currentPage < 1) currentPage = 1;
+
+              final startItem = totalItems == 0 ? 0 : ((currentPage - 1) * _perPage) + 1;
+              final endItem = (currentPage * _perPage < totalItems) ? (currentPage * _perPage) : totalItems;
+
+              final displayedSchools = totalItems == 0
+                  ? <Map<String, dynamic>>[]
+                  : filteredSchools.sublist(startItem - 1, endItem);
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  _buildPaginationControls(totalItems, currentPage, totalPages, startItem, endItem),
                   ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: displayedSchools.length,
                     itemBuilder: (context, index) {
                       final school = displayedSchools[index];
+                      final schoolName = school['namaSekolah'] ?? '';
+                      final domain = school['domain'] ?? '';
+                      final kodeAdmin = school['kodeAdmin'] ?? '-';
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
@@ -1762,8 +1911,8 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Expanded(
-                                        child: Text(
-                                          school['namaSekolah'] ?? '',
+                                        child: SelectableText(
+                                          schoolName,
                                           style: TextStyle(
                                             color: _textColor,
                                             fontWeight: FontWeight.bold,
@@ -1771,35 +1920,113 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                                           ),
                                         ),
                                       ),
-                                      // Removed plan badge display
+                                      if (!kIsWeb)
+                                        IconButton(
+                                          icon: Icon(Icons.copy_rounded, color: _subTextColor, size: 18),
+                                          tooltip: 'Salin Nama Sekolah',
+                                          onPressed: () {
+                                            Clipboard.setData(ClipboardData(text: schoolName));
+                                            _showNotification(
+                                              title: 'Disalin',
+                                              message: 'Nama sekolah "$schoolName" berhasil disalin!',
+                                              isSuccess: true,
+                                            );
+                                          },
+                                        ),
                                     ],
                                   ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    'Domain: ${school['domain'] ?? ''}',
-                                    style: TextStyle(
-                                      color: _subTextColor,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 8),
                                   Row(
                                     children: [
-                                      Text(
+                                      SelectableText(
+                                        'Domain: ',
+                                        style: TextStyle(
+                                          color: _subTextColor,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: SelectableText(
+                                          domain,
+                                          style: TextStyle(
+                                            color: _textColor,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                      if (!kIsWeb)
+                                        IconButton(
+                                          icon: Icon(Icons.copy_rounded, color: _subTextColor, size: 16),
+                                          tooltip: 'Salin Domain',
+                                          onPressed: () {
+                                            Clipboard.setData(ClipboardData(text: domain));
+                                            _showNotification(
+                                              title: 'Disalin',
+                                              message: 'Domain "$domain" berhasil disalin!',
+                                              isSuccess: true,
+                                            );
+                                          },
+                                          constraints: const BoxConstraints(),
+                                          padding: const EdgeInsets.all(4),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      SelectableText(
                                         'Kode Admin: ',
                                         style: TextStyle(
                                           color: _subTextColor,
                                           fontSize: 13,
                                         ),
                                       ),
-                                      Text(
-                                        school['kodeAdmin'] ?? '',
+                                      SelectableText(
+                                        kodeAdmin,
                                         style: const TextStyle(
                                           color: Color(0xFF10B981),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 14,
+                                          letterSpacing: 1.0,
                                         ),
                                       ),
+                                      if (!kIsWeb) ...[
+                                        const SizedBox(width: 8),
+                                        Material(
+                                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(8),
+                                            onTap: () {
+                                              Clipboard.setData(ClipboardData(text: kodeAdmin));
+                                              _showNotification(
+                                                title: 'Kode Admin Disalin',
+                                                message: 'Kode admin "$kodeAdmin" berhasil disalin!',
+                                                isSuccess: true,
+                                              );
+                                            },
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.copy_rounded, size: 14, color: Color(0xFF10B981)),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'Salin Kode',
+                                                    style: TextStyle(
+                                                      color: Color(0xFF10B981),
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                   const SizedBox(height: 12),
@@ -2040,26 +2267,9 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
                       );
                     },
                   ),
-                  if (_searchQuery.isEmpty && filteredSchools.length > 3) ...[
+                  if (totalPages > 1) ...[
                     const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: _borderColor,
-                        ),
-                      ),
-                      child: Text(
-                        'Menampilkan 3 dari ${filteredSchools.length} sekolah. Gunakan pencarian untuk menemukan sekolah lainnya.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: _subTextColor,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
+                    _buildPaginationControls(totalItems, currentPage, totalPages, startItem, endItem),
                   ],
                 ],
               );

@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:sys_mng_school/core/services/session_service.dart';
 import '../../../../authentication/widgets/auth_background.dart';
 import 'package:sys_mng_school/core/localization/app_localization.dart';
 
 class EditTeacherAdminPage extends StatefulWidget {
-  final Map<String, dynamic> teacher;
+  final Map<String, dynamic>? teacher;
 
-  const EditTeacherAdminPage({super.key, required this.teacher});
+  const EditTeacherAdminPage({super.key, this.teacher});
 
   @override
   State<EditTeacherAdminPage> createState() => _EditTeacherAdminPageState();
@@ -14,6 +16,7 @@ class EditTeacherAdminPage extends StatefulWidget {
 
 class _EditTeacherAdminPageState extends State<EditTeacherAdminPage> {
   final _formKey = GlobalKey<FormState>();
+  Map<String, dynamic> teacher = {};
 
   // Data Pribadi
   late TextEditingController namaController;
@@ -66,40 +69,71 @@ class _EditTeacherAdminPageState extends State<EditTeacherAdminPage> {
   final List<String> statusGuruOptions = ['Tetap', 'Honorer', 'PPPK', 'PNS', 'Kontrak'];
 
   bool isLoading = false;
+  bool isLoadingTeacher = false;
+  String? errorMessage;
 
-  @override
-  void initState() {
-    super.initState();
-    final t = widget.teacher;
-    namaController = TextEditingController(text: t['nama'] ?? '');
-    nipController = TextEditingController(text: t['nip'] ?? '');
-    nuptKController = TextEditingController(text: t['nuptk'] ?? '');
-    noPegawaiController = TextEditingController(text: t['noPegawai'] ?? '');
-    gelarDepanController = TextEditingController(text: t['gelarDepan'] ?? '');
-    gelarBelakangController = TextEditingController(text: t['gelarBelakang'] ?? '');
-    tempatLahirController = TextEditingController(text: t['tempatLahir'] ?? '');
-    tanggalLahirController = TextEditingController(text: t['tanggalLahir'] ?? '');
-    alamatController = TextEditingController(text: t['alamat'] ?? '');
-    noHpController = TextEditingController(text: t['noHp'] ?? '');
-    kontakDaruratController = TextEditingController(text: t['kontakDarurat'] ?? '');
-    nikController = TextEditingController(text: t['nik'] ?? '');
-    npwpController = TextEditingController(text: t['npwp'] ?? '');
-    bpjsKesehatanController = TextEditingController(text: t['bpjsKesehatan'] ?? '');
-    bpjsKetenagakerjaanController = TextEditingController(text: t['bpjsKetenagakerjaan'] ?? '');
-    nomorKkController = TextEditingController(text: t['nomorKk'] ?? '');
-    nomorRekeningController = TextEditingController(text: t['nomorRekening'] ?? '');
-    namaBankController = TextEditingController(text: t['namaBank'] ?? '');
-    jabatanController = TextEditingController(text: t['jabatan'] ?? '');
-    pangkatGolonganController = TextEditingController(text: t['pangkatGolongan'] ?? '');
-    tmtController = TextEditingController(text: t['tmt'] ?? '');
-    tanggalBergabungController = TextEditingController(text: t['tanggalBergabung'] ?? '');
-    masaKerjaController = TextEditingController(text: t['masaKerja'] ?? '');
-    pendidikanTerakhirController = TextEditingController(text: t['pendidikanTerakhir'] ?? '');
-    jurusanController = TextEditingController(text: t['jurusan'] ?? '');
-    universitasController = TextEditingController(text: t['universitas'] ?? '');
-    tahunLulusController = TextEditingController(text: t['tahunLulus'] ?? '');
-    sertifikasiGuruController = TextEditingController(text: t['sertifikasiGuru'] ?? '');
-    bidangSertifikasiController = TextEditingController(text: t['bidangSertifikasi'] ?? '');
+  void _initControllers() {
+    namaController = TextEditingController();
+    nipController = TextEditingController();
+    nuptKController = TextEditingController();
+    noPegawaiController = TextEditingController();
+    gelarDepanController = TextEditingController();
+    gelarBelakangController = TextEditingController();
+    tempatLahirController = TextEditingController();
+    tanggalLahirController = TextEditingController();
+    alamatController = TextEditingController();
+    noHpController = TextEditingController();
+    kontakDaruratController = TextEditingController();
+    nikController = TextEditingController();
+    npwpController = TextEditingController();
+    bpjsKesehatanController = TextEditingController();
+    bpjsKetenagakerjaanController = TextEditingController();
+    nomorKkController = TextEditingController();
+    nomorRekeningController = TextEditingController();
+    namaBankController = TextEditingController();
+    jabatanController = TextEditingController();
+    pangkatGolonganController = TextEditingController();
+    tmtController = TextEditingController();
+    tanggalBergabungController = TextEditingController();
+    masaKerjaController = TextEditingController();
+    pendidikanTerakhirController = TextEditingController();
+    jurusanController = TextEditingController();
+    universitasController = TextEditingController();
+    tahunLulusController = TextEditingController();
+    sertifikasiGuruController = TextEditingController();
+    bidangSertifikasiController = TextEditingController();
+  }
+
+  void _populateFields(Map<String, dynamic> t) {
+    namaController.text = t['nama'] ?? '';
+    nipController.text = t['nip'] ?? '';
+    nuptKController.text = t['nuptk'] ?? '';
+    noPegawaiController.text = t['noPegawai'] ?? '';
+    gelarDepanController.text = t['gelarDepan'] ?? '';
+    gelarBelakangController.text = t['gelarBelakang'] ?? '';
+    tempatLahirController.text = t['tempatLahir'] ?? '';
+    tanggalLahirController.text = t['tanggalLahir'] ?? '';
+    alamatController.text = t['alamat'] ?? '';
+    noHpController.text = t['noHp'] ?? '';
+    kontakDaruratController.text = t['kontakDarurat'] ?? '';
+    nikController.text = t['nik'] ?? '';
+    npwpController.text = t['npwp'] ?? '';
+    bpjsKesehatanController.text = t['bpjsKesehatan'] ?? '';
+    bpjsKetenagakerjaanController.text = t['bpjsKetenagakerjaan'] ?? '';
+    nomorKkController.text = t['nomorKk'] ?? '';
+    nomorRekeningController.text = t['nomorRekening'] ?? '';
+    namaBankController.text = t['namaBank'] ?? '';
+    jabatanController.text = t['jabatan'] ?? '';
+    pangkatGolonganController.text = t['pangkatGolongan'] ?? '';
+    tmtController.text = t['tmt'] ?? '';
+    tanggalBergabungController.text = t['tanggalBergabung'] ?? '';
+    masaKerjaController.text = t['masaKerja'] ?? '';
+    pendidikanTerakhirController.text = t['pendidikanTerakhir'] ?? '';
+    jurusanController.text = t['jurusan'] ?? '';
+    universitasController.text = t['universitas'] ?? '';
+    tahunLulusController.text = t['tahunLulus'] ?? '';
+    sertifikasiGuruController.text = t['sertifikasiGuru'] ?? '';
+    bidangSertifikasiController.text = t['bidangSertifikasi'] ?? '';
 
     _selectedGender = (t['gender'] == 'Laki-laki' || t['gender'] == 'Perempuan') ? t['gender'] : null;
     _selectedAgama = agamaOptions.contains(t['agama']) ? t['agama'] : null;
@@ -107,6 +141,72 @@ class _EditTeacherAdminPageState extends State<EditTeacherAdminPage> {
     _selectedStatusPernikahan = statusPernikahanOptions.contains(t['statusPernikahan']) ? t['statusPernikahan'] : null;
     _selectedGolonganDarah = golonganDarahOptions.contains(t['golonganDarah']) ? t['golonganDarah'] : null;
     _selectedStatusGuru = statusGuruOptions.contains(t['statusGuru']) ? t['statusGuru'] : null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initControllers();
+
+    if (widget.teacher != null && widget.teacher!.isNotEmpty) {
+      teacher = Map<String, dynamic>.from(widget.teacher!);
+      _populateFields(teacher);
+    } else if (Get.arguments is Map<String, dynamic>) {
+      teacher = Map<String, dynamic>.from(Get.arguments as Map<String, dynamic>);
+      _populateFields(teacher);
+    } else {
+      _loadTeacherFromUrl();
+    }
+  }
+
+  Future<void> _loadTeacherFromUrl() async {
+    final String? teacherId = Get.parameters['id'];
+    final String? schoolId = SessionService.currentUser?.schoolId;
+
+    if (teacherId == null || teacherId.isEmpty || schoolId == null || schoolId.isEmpty) {
+      setState(() {
+        errorMessage = 'ID Guru tidak ditemukan dalam URL atau sesi telah berakhir.';
+      });
+      return;
+    }
+
+    setState(() => isLoadingTeacher = true);
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('teachers')
+          .doc(teacherId)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        data['teacherId'] = doc.id;
+        data['schoolId'] = schoolId;
+        if (mounted) {
+          setState(() {
+            teacher = data;
+            _populateFields(teacher);
+            isLoadingTeacher = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            errorMessage = 'Data guru tidak ditemukan.';
+            isLoadingTeacher = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Gagal memuat data guru: $e';
+          isLoadingTeacher = false;
+        });
+      }
+    }
   }
 
   @override
@@ -127,7 +227,7 @@ class _EditTeacherAdminPageState extends State<EditTeacherAdminPage> {
   Future<void> updateTeacher() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final teacherId = widget.teacher['teacherId'] as String? ?? '';
+    final teacherId = (teacher['teacherId'] ?? teacher['id'] ?? widget.teacher?['teacherId'] ?? widget.teacher?['id'] ?? '').toString();
     if (teacherId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: teacherId tidak ditemukan.')));
       return;
@@ -136,7 +236,7 @@ class _EditTeacherAdminPageState extends State<EditTeacherAdminPage> {
     try {
       setState(() => isLoading = true);
 
-      final schoolId = widget.teacher['schoolId'] as String? ?? '';
+      final schoolId = (teacher['schoolId'] ?? SessionService.currentUser?.schoolId ?? '').toString();
       final newNip = nipController.text.trim();
 
       // Cek NIP duplikat (abaikan jika milik guru ini sendiri)
@@ -194,8 +294,8 @@ class _EditTeacherAdminPageState extends State<EditTeacherAdminPage> {
         SnackBar(content: Text(AppLocalization.isIndonesian ? 'Data guru berhasil diperbarui!' : 'Teacher data updated!')),
       );
 
-      Navigator.pop(context, {
-        ...widget.teacher,
+      final Map<String, dynamic> updatedResult = {
+        ...teacher,
         'nama': namaController.text.trim(),
         'nip': newNip,
         'nuptk': nuptKController.text.trim(),
@@ -231,7 +331,9 @@ class _EditTeacherAdminPageState extends State<EditTeacherAdminPage> {
         'tahunLulus': tahunLulusController.text.trim(),
         'sertifikasiGuru': sertifikasiGuruController.text.trim(),
         'bidangSertifikasi': bidangSertifikasiController.text.trim(),
-      });
+      };
+
+      Navigator.pop(context, updatedResult);
     } catch (e) {
       debugPrint(e.toString());
       if (mounted) {
@@ -245,6 +347,42 @@ class _EditTeacherAdminPageState extends State<EditTeacherAdminPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoadingTeacher) {
+      return Scaffold(
+        body: AuthBackground(
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
+    if (errorMessage != null || (teacher.isEmpty && !isLoadingTeacher)) {
+      return Scaffold(
+        body: AuthBackground(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 64, color: Colors.red.shade400),
+                const SizedBox(height: 16),
+                Text(
+                  errorMessage ?? 'Data guru tidak ditemukan',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => Get.back(),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Kembali'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return ValueListenableBuilder<bool>(
       valueListenable: AuthBackground.isDarkMode,
       builder: (context, isDark, _) {

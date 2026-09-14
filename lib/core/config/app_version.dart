@@ -8,7 +8,7 @@ class AppVersion {
   AppVersion._();
 
   /// Nomor versi aplikasi utama
-  static const String version = '1.20.21';
+  static const String version = '1.20.22';
 
   /// Nomor build aplikasi
   static const String buildNumber = '1';
